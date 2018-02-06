@@ -1,0 +1,4 @@
+misc/
+software/build/
+software/node_modules/
+software/.ipynb_checkpoints

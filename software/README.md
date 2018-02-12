@@ -2,14 +2,30 @@
 
 ## Development Environment
 
-I'm writing JavaScript, targeting both the [browser](https://www.mozilla.org/firefox/)browser and [Node.js](https://nodejs.org/). 
+I'm writing JavaScript (ES6), targeting both the [browser](https://www.mozilla.org/firefox/) and [node.js](https://nodejs.org/).
 
-- Testing: [Mocha](https://mochajs.org/), [Rewire](https://github.com/jhnns/rewire)
-- Type checker: [Flow](https://flow.org/)
-- Build tools: [flow-remove-types](https://github.com/flowtype/flow-remove-types), [Browserify](http://browserify.org/), [unflowify](https://github.com/leebyron/unflowify)
+- Package manager: [npm](https://www.npmjs.com/)
+- Type checker: [flow](https://flow.org/), [flow-typed](https://github.com/flowtype/flow-typed)
+- Transpiler: [babel](https://babeljs.io/) with [babel-preset-env](https://babeljs.io/docs/plugins/preset-env/), [babel-preset-flow](https://babeljs.io/docs/plugins/preset-flow/)
+- CSS minifier: [uglifycss](https://github.com/fmarcia/UglifyCSS)
+- Bundler: [browserify](http://browserify.org/), [babelify](https://github.com/babel/babelify)
+- Testing: [mocha](https://mochajs.org/), [rewire](https://github.com/jhnns/rewire)
 
-To setup the environment:
+To build all modules and bundles run
+
+```
+make
+```
+
+during development or
+
+```
+make release
+```
+
+to build minified variants without source maps. To set up the environment run
 
 ```bash
-make setup-environment
+make set-up-environment
 ```
+

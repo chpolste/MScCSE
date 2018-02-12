@@ -1,9 +1,11 @@
 [ignore]
-.*/node_modules/.*
-.*/build/.*
-.*/css/.*
+<PROJECT_ROOT>/node_modules/.*
+<PROJECT_ROOT>/flow-typed/.*
+<PROJECT_ROOT>/dist/.*
+<PROJECT_ROOT>/modules/.*
 
 [include]
+.*/js/.*
 
 [libs]
 

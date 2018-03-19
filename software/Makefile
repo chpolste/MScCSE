@@ -39,14 +39,14 @@ DIST_HTML = $(DIST)
 
 # Compiled JS modules for use with node
 JS_MODULES = ./modules
-JS_MODULES_FILES = $(JS_MODULES)/geo.js
+JS_MODULES_FILES = $(JS_MODULES)/geometry.js $(JS_MODULES)/linalg.js $(JS_MODULES)/tools.js
 
 
 # General rules
 
 .PHONY: all release set-up-environment clean test check
 
-all: $(JS_MODULES_FILES) reach
+all: $(JS_MODULES_FILES) inspector
 
 release:
 	@make --always-make --no-print-directory \
@@ -77,7 +77,7 @@ check:
 
 # Apps
 
-reach: $(DIST_HTML)/reach.html $(DIST_JS)/reach.js $(DIST_CSS)/reach.css $(DIST_CSS)/widget.css
+inspector: $(DIST_HTML)/inspector.html $(DIST_JS)/inspector.js $(DIST_CSS)/inspector.css $(DIST_CSS)/widgets.css
 
 
 # File rules
@@ -88,9 +88,12 @@ $(DIST_HTML)/%.html: $(SRC_HTML)/%.html
 $(DIST_CSS)/%.css: $(SRC_CSS)/%.css
 	$(UGLIFYCSS) --output $@ $<
 
-$(DIST_JS)/%.js: $(SRC_JS)/%.js
-	$(BROWSERIFY) $< > $@
-
 $(JS_MODULES)/%.js: $(SRC_JS)/%.js
 	$(BABEL) --out-file $@ $<
 
+$(DIST_JS)/%.js: $(SRC_JS)/%.js
+	$(BROWSERIFY) $< > $@
+
+$(DIST_JS)/inspector.js: $(SRC_JS)/figure.js $(SRC_JS)/tools.js $(SRC_JS)/geometry.js \
+        $(SRC_JS)/linalg.js $(SRC_JS)/lss.js $(SRC_JS)/widgets-input.js $(SRC_JS)/widgets-plot.js \
+		$(SRC_JS)/widgets-inspector.js

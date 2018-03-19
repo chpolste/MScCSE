@@ -29,3 +29,18 @@ to build minified variants without source maps. To set up the environment run
 make set-up-environment
 ```
 
+### On using Flow
+
+Some principles for typed JavaScript that I try to follow:
+
+- Use structural typing instead of nominal typing whenever possible
+- Types are documentation and provide a basic level of safety as well as access control (using co- and contravariance)
+- Keep it simple, don't overengineer
+
+Particularly, dimensionality of vectors, matrices, geometrical shapes etc. is not handled at the type level (using integer type parameters as is done e.g. in Julia). This way vectors and matrices don't have to be wrapped in custom objects and dimensionality of problems can be chosen more flexibly at runtime.
+
+
+## Miscellaneous
+
+- Color codes for visualizations: grey (`#CCC`), blue (`#069`), lightblue (`#09C`), green (`#093`), yellow (`#FC0`), orange (`#F60`), red (`#C00`).
+

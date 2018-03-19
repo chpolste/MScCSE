@@ -1,0 +1,44 @@
+textarea {
+    overflow-wrap: normal;
+}
+
+.matrix {
+    border-right: 2px solid #000000;
+    border-left: 2px solid #000000;
+    border-top: 0;
+    border-bottom: 0;
+    border-radius: 8px;
+    padding: 1px;
+    margin: 0;
+    display: inline-block;
+    vertical-align: middle;
+}
+.matrix td {
+    text-align: center;
+    padding: 1px;
+}
+
+.plot {
+    padding: 0;
+    margin: 0;
+    display: inline-flex;
+    flex-flow: column nowrap;
+    font-family: DejaVu Sans, sans-serif;
+}
+.plot menu {
+    font-size: 8pt;
+    padding: 0 40px 0 5px;
+    margin: 0 0 -3px 0;
+    flex: 0 0 auto;
+    overflow: hidden;
+    text-align: right;
+}
+.plot menu a {
+    color: #666666;
+    cursor: pointer;
+    text-decoration: none;
+}
+.plot menu a:hover {
+    color: #000000;
+}
+

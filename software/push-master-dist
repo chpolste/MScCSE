@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+current_branch="$(git rev-parse --abbrev-ref HEAD)"
+git checkout master
+git checkout -B dist
+make release
+git add -f dist
+git commit -m "Add current master build"
+git push -f origin dist
+git checkout "${current_branch}"
+mkdir -p "dist/js"
+mkdir -p "dist/css"
+make clean
+make

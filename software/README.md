@@ -1,5 +1,10 @@
 # Software
 
+## Applications
+
+- Inspector: visualization of the LSS abstraction-refinement and analysis. Access a current build from the dist branch [here](https://htmlpreview.github.io/?https://github.com/chpolste/MScCSE/blob/dist/software/dist/inspector.html).
+
+
 ## Development Environment
 
 I'm writing JavaScript (ES6), targeting both the [browser](https://www.mozilla.org/firefox/) and [node.js](https://nodejs.org/).
@@ -37,7 +42,7 @@ Some principles for typed JavaScript that I try to follow:
 - Types are documentation and provide a basic level of safety as well as access control (using co- and contravariance)
 - Keep it simple, don't overengineer
 
-Particularly, dimensionality of vectors, matrices, geometrical shapes etc. is not handled at the type level (using integer type parameters as is done e.g. in Julia). This way vectors and matrices don't have to be wrapped in custom objects and dimensionality of problems can be chosen more flexibly at runtime.
+In particular, dimensionality of vectors, matrices, geometrical shapes etc. is not handled at the type level (using integer type parameters as is done e.g. in Julia). This way vectors and matrices don't have to be wrapped in custom objects and dimensionality of problems can be chosen more flexibly at runtime.
 
 
 ## Miscellaneous

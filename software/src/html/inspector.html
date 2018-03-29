@@ -1,0 +1,76 @@
+<!doctype html>
+
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>LSS Analysis: Algorithm Inspector</title>
+    <link rel="stylesheet" type="text/css" href="css/inspector.css">
+    <link rel="stylesheet" type="text/css" href="css/widgets.css">
+  </head>
+
+  <body>
+    <header>
+      <h1>LSS Analysis: Algorithm Inspector</h1>
+    </header>
+
+    <div id="content">
+      <p>Please wait while the application is loading...</p>
+    </div>
+
+    <div class="text">
+      <h2>About</h2>
+      <p>
+        Implementation based on [<a href="#ref1">1</a>].
+        <a href="https://github.com/chpolste/MScCSE">Source code</a> by Christopher Polster.
+      </p>
+      <h3>Polytopic Operators</h3>
+      <p>The Posterior operator (Post) yields the one step-reachable set originating from <span class="math">X'</span> when applying the control input <span class="math">U'</span>:</p>
+      <table class="math">
+        <tr>
+          <td class="right">Post(X', U') = </td>
+          <td>{x ∈ X ∪ X<sub>out</sub> | ∃x' ∈ X', ∃u ∈ U', ∃w ∈ W : x = Ax' + Bu + w}</td>
+        </tr>
+      </table>
+      <p>
+        The Predecessor operator (Pre) yields a subset of <span class="math">X'</span> from which the union of <span class="math">X<sub>j</sub></span> is reachable with at least one control input from the given set of control inputs <span class="math">U'</span>.
+        The Robust Predecessor (PreR) adds the restriction that the union of <span class="math">X<sub>j</sub></span> must contain the entire reachable set from <span class="math">X'</span>.
+        The Precise Predecessor (PreP) further requires that a non-empty subset of every set in the collection <span class="math">{X<sub>j</sub>}<sub>j∈J</sub></span> is reachable:
+      </p>
+      <table class="math">
+        <tr>
+          <td class="right">Pre(X', U', {X<sub>j</sub>}<sub>j∈J</sub>) = </td>
+          <td>{x ∈ X' | ∃u ∈ U' : Post(x, u) ∩ ⋃<sub>j∈J</sub> X<sub>j</sub> is not empty}</td>
+        </tr>
+        <tr>
+          <td class="right">PreR(X', U', {X<sub>j</sub>}<sub>j∈J</sub>) = </td>
+          <td>{x ∈ X' | ∃u ∈ U' : Post(x, u) ⊆ ⋃<sub>j∈J</sub> X<sub>j</sub>}</td>
+        </tr>
+        <tr>
+          <td class="right">PreP(X', U', {X<sub>j</sub>}<sub>j∈J</sub>) = </td>
+          <td>{x ∈ X' | ∃u ∈ U' : Post(x, u) ⊆ ⋃<sub>j∈J</sub> X<sub>j</sub> and ∀j ∈ J : Post(x, u) ∩ X<sub>j</sub> is not empty}</td>
+        </tr>
+      </table>
+      <p>The Attractor (Attr) and Robust Attractor (AttrR) operators mirror their Predecessor counterparts but require that the conditions are met for every control input in the set <span class="math">U'</span>:</p>
+      <table class="math">
+        <tr>
+          <td class="right">Attr(X', U', {X<sub>j</sub>}<sub>j∈J</sub>) = </td>
+          <td>{x ∈ X' | ∀u ∈ U' : Post(x, u) ∩ ⋃<sub>j∈J</sub> X<sub>j</sub> is not empty}</td>
+        </tr>
+        <tr>
+          <td class="right">AttrR(X', U', {X<sub>j</sub>}<sub>j∈J</sub>) = </td>
+          <td>{x ∈ X' | ∀u ∈ U' : Post(x, u) ⊆ ⋃<sub>j∈J</sub> X<sub>j</sub>}</td>
+        </tr>
+      </table>
+      <p>
+        Special cases of these polytopic operators associated with the selected state of the abstracted LSS are visualized in the following way:
+        The highlight operators show the Posterior <span class="math">Post(X', U)</span> of the selected state <span class="math">X' ⊆ X</span> or Pre, PreR, Attr and AttrR evaluated with arguments <span class="math">(X, U, {X'})</span>, where <span class="math">X</span> is the (entire) state space and <span class="math">U</span> is the (entire) control space.
+        The hover operators Pre, PreP, Attr and AttrR are evaluated with arguments <span class="math">(X', U, {Y})</span>, where <span class="math">Y ⊆ X ∪ X<sub>out</sub></span> is the state over which the mouse pointer currently resides. Because PreP and PreR are identical when their third argument consists of a single non-empty set, only the Robust Predecessor is available for selection.
+      </p>
+      
+      <h2>References</h2>
+        <p id="ref1">[1] <a href="https://www.sciencedirect.com/science/article/pii/S1751570X16300218">Svoreňová et al. (2017)</a></p>
+    </div>
+
+    <script src="js/inspector.js"></script>
+  </body>
+</html>

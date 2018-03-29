@@ -1,0 +1,154 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: DejaVu Sans, sans-serif;
+    font-size: 10pt;
+    line-height: 1.2;
+}
+
+body > div {
+    margin: 5px auto;
+    padding: 0 10px;
+    max-width: 1200px;
+}
+body > header {
+    margin: 0 0 10px 0;
+    border-bottom: 5px solid #069;
+    background-color: #333;
+    color: #FFF;
+}
+h1 {
+    max-width: 1200px;
+    padding: 15px 10px;
+    margin: 0 auto;
+    font-size: 16pt;
+    font-weight: normal;
+}
+h2 {
+    margin: 18px 0 8px 0;
+    padding: 0 0 3px 0;
+    border-bottom: 1px solid #999;
+    font-size: 12pt;
+    font-weight: normal;
+}
+h3 {
+    margin: 16px 0 8px 0;
+    padding: 0;
+    font-size: 10.5pt;
+    font-weight: normal;
+}
+
+p {
+    margin: 6px 0;
+    padding: 0;
+    text-align: justify;
+}
+
+.cols {
+    display: flex;
+    flex-direction: columns;
+}
+.cols > div {
+    flex: 0 0 auto;
+    margin-right: 20px;
+}
+.cols > div:last-child {
+    flex: 1 0 auto;
+    margin-right: 0;
+}
+
+.vsep > div {
+    border-right: 1px solid #999;
+    padding-right: 20px;
+}
+.vsep > div:last-child {
+    border-right: none;
+    padding-right: 0;
+}
+
+
+label {
+    display: block;
+    margin: 4px 0;
+}
+input[type=checkbox], input[type=radio] {
+    display: inline-block;
+    vertical-align: top;
+    margin: 0 5px 0 0;
+}
+
+sub {
+    font-size: 7pt;
+}
+
+a {
+    color: #666666;
+}
+a:hover {
+    color: #000000;
+}
+
+.text {
+    line-height: 1.5;
+}
+
+.matrix input {
+    text-align: center;
+}
+.matrix span {
+    padding: 0 5px;
+}
+
+.math {
+   background-color: #EEE;
+   padding: 1px 3px;
+   font-family: DejaVu Serif, serif;
+}
+.math td {
+    vertical-align: top;
+}
+table.math {
+    display: block;
+}
+.math .right {
+    text-align: right;
+}
+
+.polytope_builder {
+    display: flex;
+    vertical-align: top;
+}
+.polytope_builder textarea {
+    margin: 5px 5px 25px 0;
+}
+
+.summary .nonsatisfying {
+    padding-right: 5px;
+    border-right: 12pt solid #CCC;
+}
+.summary .satisfying {
+    padding-right: 5px;
+    border-right: 12pt solid #093
+}
+.summary .operator {
+    padding-right: 5px;
+    border-right: 12pt solid #09C;
+}
+.summary .posterior {
+    padding-right: 5px;
+    border-right: 12pt solid #FC0;
+}
+
+.sidebar1 {
+    min-width: 180px;
+}
+
+.selection {
+    display: flex;
+    vertical-align: top;
+}
+.selection .summary {
+    flex: 1 0 auto;
+}
+
+

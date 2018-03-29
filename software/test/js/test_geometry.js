@@ -75,6 +75,15 @@ describe("geometry.HalfspaceInequation in 1 dimension", function () {
         assert(hs.isSameAs(hs));
     });
 
+    it("translate", function () {
+        let hsa = hs.translate([1]);
+        assert.equal(hsa.offset, 1.5);
+        assert.deepEqual(hsa.normal, hs.normal);
+        let hsb = hs.translate([-0.5]);
+        assert.equal(hsb.offset, 0);
+        assert.deepEqual(hsb.normal, hs.normal);
+    });
+
     it("applyRight with identity", function () {
         let hsa = hs.applyRight([[1]]);
         assert.deepEqual(hsa.normal, hs.normal);
@@ -199,9 +208,13 @@ describe("geometry.Interval", function () {
         assert(poly.applyRight([[1, 4]]).isEmpty);
     });
 
-    it("minkowski", function () {
+    it("dilate", function () {
         let mink = geometry.Interval.hull([[2], [-2]]);
-        assert(poly.minkowski(poly).isSameAs(mink));
+        assert(poly.dilate(poly).isSameAs(mink));
+    });
+
+    it("erode", function () {
+        // TODO
     });
 
     it("intersect with self is identity", function () {
@@ -413,9 +426,13 @@ describe("geometry.Polygon with square", function () {
         assert(poly.applyRight([[1], [2]]).isSameAs(poly2));
     });
 
-    it("minkowski", function () {
+    it("dilate", function () {
         let mink = geometry.Polygon.hull([[0, 0], [2, 2], [2, 0], [0, 2]]);
-        assert(poly.minkowski(poly).isSameAs(mink));
+        assert(poly.dilate(poly).isSameAs(mink));
+    });
+
+    it("erode", function () {
+        // TODO
     });
 
     it("intersect with self is identity", function () {
@@ -546,7 +563,7 @@ describe("geometry problem cases", function () {
         let inner = geometry.Polygon.hull([[-1, -1], [1, -1], [5, 1], [-1, 4]]);
         let poly1 = geometry.Polygon.hull([[-1, -1], [1, -1], [1, 1], [-1, 0.3], [0, 1.6]]);
         let poly2 = geometry.Polygon.hull([[-1, 1], [1, -1], [1, 1], [0, 0]]);
-        let outer = inner.minkowski(poly1).minkowski(poly2);
+        let outer = inner.dilate(poly1).dilate(poly2);
         assert(!inner.intersect(outer).isEmpty);
         assert(!outer.intersect(inner).isEmpty);
         let diff = outer.remove(inner);
@@ -555,4 +572,26 @@ describe("geometry problem cases", function () {
 
 });
 
+
+describe("geometry.union", function () {
+
+    let poly1 = geometry.Polygon.hull([[0, 0], [1, 0], [0, 1]]);
+    let poly2 = geometry.Polygon.hull([[2, 0], [2, 1], [1, 0], [0, 1]]);
+    let interval = geometry.Interval.hull([[0], [1], [-3]]);
+
+    it("extent", function () {
+        assert.deepEqual(geometry.union.extent([poly1]), [[0, 1], [0, 1]]);
+        assert.deepEqual(geometry.union.extent([poly2]), [[0, 2], [0, 1]]);
+        assert.deepEqual(geometry.union.extent([poly1, poly2]), [[0, 2], [0, 1]]);
+        assert.deepEqual(geometry.union.extent([poly2, poly1]), [[0, 2], [0, 1]]);
+    });
+
+    it("boundingBox", function () {
+        let bbox = geometry.Polygon.hull([[0, 0], [2, 0], [0, 1], [2, 1]]);
+        assert(geometry.union.boundingBox([poly1, poly2]).isSameAs(bbox));
+        assert(geometry.union.boundingBox([poly2, poly1]).isSameAs(bbox));
+        assert.throws(() => geometry.union.boundingBox([poly1, interval]));
+    });
+
+});
 

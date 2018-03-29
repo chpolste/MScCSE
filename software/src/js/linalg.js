@@ -153,8 +153,9 @@ export const minkowski = {
     axpy(A: Matrix, xs: Vector[], ys: Vector[]): Vector[] {
         let out = [];
         for (let x of xs) {
+            let Ax = apply(A, x);
             for (let y of ys) {
-                out.push(add(apply(A, x), y));
+                out.push(add(Ax, y));
             }
         }
         return out;

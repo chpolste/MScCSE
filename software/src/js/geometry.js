@@ -127,6 +127,7 @@ export interface Halfspace extends HalfspaceContainer {
     flip(): Halfspace;
     contains(p: Vector): boolean;
     isSameAs(other: Halfspace): boolean;
+    translate(v: Vector): Halfspace;
     applyRight(m: Matrix): Halfspace;
 }
 
@@ -193,6 +194,10 @@ export class HalfspaceInequation implements Halfspace {
         return linalg.areClose(this.normal, other.normal) && Math.abs(this.offset - other.offset) < TOL;
     }
 
+    translate(v: Vector): HalfspaceInequation {
+        return HalfspaceInequation.normalized(this.normal, this.offset + linalg.dot(this.normal, v));
+    }
+
     applyRight(m: Matrix): HalfspaceInequation {
         return HalfspaceInequation.normalized(linalg.applyRight(m, this.normal), this.offset);
     }
@@ -214,17 +219,20 @@ export interface ConvexPolytope extends HalfspaceContainer{
     isSameAs(other: ConvexPolytope): boolean;
     contains(p: Vector): boolean;
     translate(v: Vector): ConvexPolytope;
+    invert(): ConvexPolytope;
     apply(m: Matrix): ConvexPolytope;
     applyRight(m: Matrix): ConvexPolytope;
-    minkowski(other: ConvexPolytope): ConvexPolytope;
-    split(...halfspaces: Halfspace[]): ConvexPolytope[];
+    dilate(other: ConvexPolytope): ConvexPolytope;
+    erode(other: ConvexPolytope): ConvexPolytope;
+    split(...halfspaces: Halfspace[]): ConvexPolytopeUnion;
     intersect(...others: HalfspaceContainer[]): ConvexPolytope;
-    remove(...others: HalfspaceContainer[]): ConvexPolytope[];
+    remove(...others: HalfspaceContainer[]): ConvexPolytopeUnion;
     _HtoV(): void;
     _VtoH(): void;
 }
 
 interface ConvexPolytopeType {
+    empty(): ConvexPolytope;
     hull(points: Vector[]): ConvexPolytope;
     noredund(halfspaces: Halfspace[]): ConvexPolytope;
 }
@@ -346,6 +354,11 @@ class AbstractConvexPolytope implements ConvexPolytope {
     translate(v: Vector): ConvexPolytope {
         linalg.assertEqualDims(v.length, this.dim);
         return polytopeType(this.dim).hull(this.vertices.map(x => linalg.add(x, v)));
+        //return polytopeType(this.dim).noredund(this.halfspaces.map(h => h.translate(v)));
+    }
+
+    invert(): ConvexPolytope {
+        return polytopeType(this.dim).hull(this.vertices.map(v => v.map(x => -x)));
     }
 
     apply(m: Matrix): ConvexPolytope {
@@ -358,7 +371,7 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return polytopeType(m[0].length).noredund(this.halfspaces.map(h => h.applyRight(m)));
     }
 
-    minkowski(other: ConvexPolytope): ConvexPolytope {
+    dilate(other: ConvexPolytope): ConvexPolytope {
         linalg.assertEqualDims(this.dim, other.dim);
         let points = [];
         for (let v of this.vertices) {
@@ -369,8 +382,20 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return polytopeType(this.dim).hull(points);
     }
 
-    split(...halfspaces: Halfspace[]): ConvexPolytope[] {
-        if (halfspaces.length == 0) {
+    erode(other: ConvexPolytope): ConvexPolytope {
+        linalg.assertEqualDims(this.dim, other.dim);
+        let halfspaces = [];
+        for (let h of this.halfspaces) {
+            for (let w of other.vertices) {
+                halfspaces.push(h.translate(w));
+            }
+        }
+        return polytopeType(this.dim).noredund(halfspaces);
+    }
+
+    split(...halfspaces: Halfspace[]): ConvexPolytopeUnion {
+        // Must test variadic arg for undefined (https://github.com/facebook/flow/issues/3648)
+        if (halfspaces == null || halfspaces.length == 0) {
             return [this];
         }
         let rest = halfspaces.splice(1);
@@ -380,6 +405,9 @@ class AbstractConvexPolytope implements ConvexPolytope {
     }
 
     intersect(...others: HalfspaceContainer[]): ConvexPolytope {
+        if (others == null || others.length == 0) {
+            return polytopeType(this.dim).empty();
+        }
         let halfspaces = this.halfspaces.slice();
         for (let other of others) {
             linalg.assertEqualDims(this.dim, other.dim);
@@ -388,7 +416,10 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return polytopeType(this.dim).noredund(halfspaces);
     }
 
-    remove(...others: HalfspaceContainer[]): ConvexPolytope[] {
+    remove(...others?: HalfspaceContainer[]): ConvexPolytopeUnion {
+        if (others == null || others.length == 0) {
+            return [this];
+        }
         let k = 0;
         while (this.intersect(others[k]).isEmpty) {
             k++;
@@ -438,7 +469,7 @@ export class Interval extends AbstractConvexPolytope implements ConvexPolytope {
             }
         }
         if (ps.length < 2 || linalg.areClose(ps[leftIdx], ps[rightIdx])) {
-            return new Interval([], []);
+            return Interval.empty();
         } else {
             return new Interval([ps[leftIdx].slice(), ps[rightIdx].slice()], null);
         }
@@ -457,10 +488,14 @@ export class Interval extends AbstractConvexPolytope implements ConvexPolytope {
             }
         }
         if (leftIdx < 0 || rightIdx < 0 || hs[rightIdx].offset + hs[leftIdx].offset < TOL) {
-            return new Interval([], []);
+            return Interval.empty();
         } else {
             return new Interval(null, [hs[leftIdx], hs[rightIdx]]);
         }
+    }
+
+    static empty(): Interval {
+        return new Interval([], []);
     }
 
     get volume(): number {
@@ -499,6 +534,10 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
     constructor(vertices: ?Vector[], halfspaces: ?Halfspace[]): void {
         super(vertices, halfspaces);
         this.dim = 2;
+    }
+
+    static empty(): Polygon {
+        return new Polygon([], []);
     }
 
     static hull(ps: Vector[]): Polygon {
@@ -556,7 +595,7 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
             // Case 1: angle between last inserted and next halfplane is larger
             // than 180°. The there is an "open end", the region is not finite.
             if (angle > Math.PI - TOL) {
-                return new Polygon([], []);
+                return Polygon.empty();
             }
             let nextCut = halfplaneIntersection(last, next);
             // Case 2 : the next halfplane is parallel to the last inserted.
@@ -597,7 +636,7 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
             let angle = angleCCW(loop[ridx - 1].normal, loop[lidx].normal);
             // Ends don't close loop, polygon is unbounded
             if (angle > Math.PI - TOL) {
-                return new Polygon([], []);
+                return Polygon.empty();
             }
             // Determine cut of loop ends.
             let endCut = halfplaneIntersection(loop[lidx], loop[ridx - 1]);
@@ -673,4 +712,70 @@ export function polytopeType(dim: number): ConvexPolytopeType {
         return polytopeType;
     }
 }
+
+
+
+/* Union operations */
+
+export type ConvexPolytopeUnion = ConvexPolytope[];
+
+export const union = {
+
+    extent(xs: ConvexPolytopeUnion): Vector[] {
+        if (xs.length < 1) {
+            throw new ValueError("Union is empty, cannot determine dim");
+        }
+        return xs.map(x => x.extent).reduce((ext, cur) => {
+            linalg.assertEqualDims(ext.length, cur.length);
+            return zip2map((a, b) => [a[0] < b[0] ? a[0] : b[0], a[1] < b[1] ? b[1] : a[1]], ext, cur);
+        });
+    },
+
+    boundingBox(xs: ConvexPolytopeUnion): ConvexPolytope {
+        let bbox = cartesian(...union.extent(xs));
+        return polytopeType(xs[0].dim).hull(bbox);
+    },
+
+    disjunctify(xs: ConvexPolytopeUnion): ConvexPolytopeUnion {
+        // Sort by volume in ascending order
+        let xxs = xs.sort((x, y) => x.volume - y.volume);
+        let out = [];
+        for (let xx of xxs) {
+            if (out.length == 0) {
+                out.push(xx);
+            } else {
+                out.push(...xx.remove(...out));
+            }
+        }
+        return out;
+    },
+
+    intersect(xs: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
+        throw new NotImplementedError();
+    },
+
+    remove(xs: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
+        let out = [];
+        for (let x of xs) {
+            out.push(...x.remove(...ys));
+        }
+        return out;
+    },
+
+    dilate(xs: ConvexPolytopeUnion, y: ConvexPolytope): ConvexPolytopeUnion {
+        let dilated = xs.map(x => x.dilate(y));
+        return union.disjunctify(dilated);
+    },
+
+    erode(xs: ConvexPolytopeUnion, y: ConvexPolytope): ConvexPolytopeUnion {
+        // Since unbounded polygons are not representable by this library, use
+        // bbox as a substitute for the complement
+        let bbox = union.boundingBox(xs);
+        let complement = bbox.remove(...xs);
+        // Erode bbox too or edges in xs that are shared with bbox are not
+        // properly eroded (necessary due to bbox use for complement)
+        return bbox.erode(y).remove(...union.dilate(complement, y));
+    }
+
+};
 

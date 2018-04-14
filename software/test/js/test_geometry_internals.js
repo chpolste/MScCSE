@@ -3,7 +3,7 @@ let rewire = require("rewire");
 let geom = rewire("../../src/js/geometry.js");
 
 
-describe("geom internals", function () {
+describe("geometry internals", function () {
 
     it("angleCCW maps to [0, 2π)", function () {
         let angleCCW = geom.__get__("angleCCW");
@@ -30,13 +30,6 @@ describe("geom internals", function () {
         assert.equal(halfplaneIntersection(h1, h1), null);
         assert.equal(halfplaneIntersection(h1, h3), null);
         assert.equal(halfplaneIntersection(h2, h4), null);
-    });
-
-    it("trapezoidalIntegrate", function () {
-        let trapezoidalIntegrate = geom.__get__("trapezoidalIntegrate");
-        assert.equal(trapezoidalIntegrate([0, 1], [1, 1]), 1);
-        assert.equal(trapezoidalIntegrate([1, 1], [0, 1]), -1);
-        assert.equal(trapezoidalIntegrate([0, 1], [2, 1]), 2);
     });
 
     it("cartesian", function () {

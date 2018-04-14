@@ -90,7 +90,7 @@ describe("linalg Matrix operations", function () {
 });
 
 
-describe("linalg Matrix-Matrix operations)", function () {
+describe("linalg Matrix-Matrix operations", function () {
 
     let unit1d = [[1]];
     let unit2d = [[1, 0], [0, 1]];

@@ -1,16 +1,27 @@
 // @flow
 "use strict";
 
+/* Convex polytopes in 1 and 2 dimensions.
+
+References:
+- Baotić, M. (2009). Polytopic Computations in Constrained Optimal Control.
+  Automatika, Journal for Control, Measurement, Electronics, Computing and
+  Communications, 50, 119–134.
+
+*/
+
 import type { Vector, Matrix } from "./linalg.js";
 
 import * as linalg from "./linalg.js";
 import { zip2map, cyc2map, NotImplementedError, ValueError, ParseError } from "./tools.js";
 
 
-
+// Reuse float-comparison tolerance from linalg
 export const TOL = linalg.TOL;
 
-// Will not work correctly if T is a list (flattens)!
+// Cartesian product (no guaranteed ordering), e.g.
+//     cartesian([0, 1], [2, 3], [4, 5]) = [[0, 2, 4], [0, 2, 5], [0, 3, 4], ...]
+// Will not work correctly if T is a list (flattens as an intermediate step).
 function cartesian<T>(...tuples: T[][]): T[][] {
     let cart = [[]];
     for (let tuple of tuples) {
@@ -20,10 +31,13 @@ function cartesian<T>(...tuples: T[][]): T[][] {
 }
 
 
-// 2D helpers
+/* 2D helpers */
 
+// Counterclockwise angle between two vectors, normalized to range [0, 2π).
 function angleCCW(v: Vector, w: Vector): number {
     let angle = Math.atan2(w[1], w[0]) - Math.atan2(v[1], v[0]);
+    // Because atan2 delivers range [-π, π] (both inclusive), some
+    // post-processing of the interval is necessary:
     if (angle < -TOL) {
         return angle + 2 * Math.PI;
     } else if (angle < 0 || angle == 2 * Math.PI) {
@@ -33,12 +47,9 @@ function angleCCW(v: Vector, w: Vector): number {
     }
 }
 
+// Is the turn described by the points p, q, r counterclockwise?
 function isCCWTurn(p: Vector, q: Vector, r: Vector): boolean {
     return (p[0] - r[0]) * (q[1] - r[1]) - (p[1] - r[1]) * (q[0] - r[0]) >= TOL;
-}
-
-function trapezoidalIntegrate(v: Vector, w: Vector): number {
-    return 0.5 * (w[0] - v[0]) * (v[1] + w[1]);
 }
 
 function halfplaneIntersection(g: Halfspace, h: Halfspace): ?Vector {
@@ -53,7 +64,11 @@ function halfplaneIntersection(g: Halfspace, h: Halfspace): ?Vector {
 }
 
 
-// Parser helpers
+/* Parser helpers
+
+HalfspaceInequation contains a parser of textual inequation representation,
+which requires some helpers.
+*/
 
 function splitInequation(text: string): [string, string, string] {
     let parts = text.split(/\s*([<>]=?)\s*/);
@@ -116,14 +131,19 @@ function parseTerm(token): Term {
 
 /* Halfspaces */
 
+// Anything that contains halfspaces should provide this interface.
 export interface HalfspaceContainer {
     +dim: number;
     +halfspaces: Halfspace[]; // ordered (depends on dim) and non-redundant
 }
 
+// Implement the HalfspaceContainer interface for convenience when used as
+// function arguments.
 export interface Halfspace extends HalfspaceContainer {
     +normal: Vector; // normalized to length 1
     +offset: number;
+    +isTrivial: boolean;
+    +isInfeasible: boolean;
     flip(): Halfspace;
     contains(p: Vector): boolean;
     isSameAs(other: Halfspace): boolean;
@@ -132,12 +152,18 @@ export interface Halfspace extends HalfspaceContainer {
 }
 
 
+// A halfspace represented by the inequation: normal · x <= offset. Due to the
+// limitations of floating point arithmetic and using TOL for comparisons, no
+// distinction between < and <= is made.
 export class HalfspaceInequation implements Halfspace {
 
     +dim: number;
     +normal: Vector;
     +offset: number;
 
+    // No further processing of input arguments. Use static methods to
+    // construct a HalfspaceInequation from a textual or non-normalized
+    // representation.
     constructor(normal: Vector, offset: number): void {
         this.normal = normal;
         this.offset = offset;
@@ -146,12 +172,21 @@ export class HalfspaceInequation implements Halfspace {
 
     static normalized(normal: Vector, offset: number): HalfspaceInequation {
         let norm = linalg.norm2(normal);
-        if (norm == 0) {
-            throw new linalg.MathError("div/0");
+        if (norm < TOL) {
+            // Trivial/Infeasible inequations. Break ties (offset === 0) by
+            // assuming inequation is always fulfilled (in the spirit of <=).
+            // These special cases must be considered to enable changes of
+            // dimensionality with applyRight. E.g. if [[1, 2]] is applied from
+            // the right to the normal vector parallel to [[2], [-1]], the
+            // result is either the entire lower dimension (if offset >= 0) or
+            // empty (if offset < 0).
+            offset = offset === 0 ? Infinity : Math.sign(offset) * Infinity
+            norm = 1;
         }
         return new HalfspaceInequation(normal.map(x => x / norm), offset / norm);
     }
 
+    // Parse expressions such as "x + 4y < 3".
     static parse(text: string, variables: string): HalfspaceInequation {
         let [lhs, comp, rhs] = splitInequation(text.trim());
         let terms = splitTerms(comp == ">" ? rhs : lhs);
@@ -177,6 +212,15 @@ export class HalfspaceInequation implements Halfspace {
         return HalfspaceInequation.normalized(normal, offset);
     }
 
+    get isInfeasible(): boolean {
+        return this.offset === -Infinity;
+    }
+
+    get isTrivial(): boolean {
+        return this.offset === Infinity;
+    }
+
+    // In order to fulfil the HalfspaceContainer interface
     get halfspaces(): Halfspace[] {
         return [this];
     }
@@ -194,10 +238,14 @@ export class HalfspaceInequation implements Halfspace {
         return linalg.areClose(this.normal, other.normal) && Math.abs(this.offset - other.offset) < TOL;
     }
 
+    // Move Halfspace by the given vector. Project vector onto normal than
+    // modify offset by the projection's length.
     translate(v: Vector): HalfspaceInequation {
         return HalfspaceInequation.normalized(this.normal, this.offset + linalg.dot(this.normal, v));
     }
 
+    // Apply a matrix from the right to the normal vector. This may change the
+    // dimensionality of the halfspace.
     applyRight(m: Matrix): HalfspaceInequation {
         return HalfspaceInequation.normalized(linalg.applyRight(m, this.normal), this.offset);
     }
@@ -208,6 +256,7 @@ export class HalfspaceInequation implements Halfspace {
 
 /* Convex Polytopes */
 
+// Interface for convex polytopes of all dimensions
 export interface ConvexPolytope extends HalfspaceContainer{
     +vertices: Vector[]; // ordered (depends on dim)
     +isEmpty: boolean;
@@ -222,8 +271,8 @@ export interface ConvexPolytope extends HalfspaceContainer{
     invert(): ConvexPolytope;
     apply(m: Matrix): ConvexPolytope;
     applyRight(m: Matrix): ConvexPolytope;
-    dilate(other: ConvexPolytope): ConvexPolytope;
-    erode(other: ConvexPolytope): ConvexPolytope;
+    minkowski(other: ConvexPolytope): ConvexPolytope;
+    pontryagin(other: ConvexPolytope): ConvexPolytope;
     split(...halfspaces: Halfspace[]): ConvexPolytopeUnion;
     intersect(...others: HalfspaceContainer[]): ConvexPolytope;
     remove(...others: HalfspaceContainer[]): ConvexPolytopeUnion;
@@ -231,6 +280,7 @@ export interface ConvexPolytope extends HalfspaceContainer{
     _VtoH(): void;
 }
 
+// Interface declaring the static methods of a convex polytope type
 interface ConvexPolytopeType {
     empty(): ConvexPolytope;
     hull(points: Vector[]): ConvexPolytope;
@@ -244,6 +294,10 @@ Contains dimension-independent implementations. Contains stubs to implement the
 ConvexPolytope interface, so that `this` can be used inside methods without
 flow complaining (no other way to specify abstract methods). However, this
 means that flow will not detect missing methods in the subtypes.
+
+Specification by either halfspaces or vertices is sufficient, the other
+representation is computed (and cached) automatically by the getters (which
+depend on _VtoH and HtoV for conversion).
 */
 
 class AbstractConvexPolytope implements ConvexPolytope {
@@ -256,7 +310,11 @@ class AbstractConvexPolytope implements ConvexPolytope {
     _VtoH() { throw new NotImplementedError() };
     _HtoV() { throw new NotImplementedError() };
     get volume() { throw new NotImplementedError() };
+    get centroid() { throw new NotImplementedError() };
 
+    // No post-processing, therefore canonical form of vertices/halfspaces must
+    // be provided. Use the alternative static method constructors noredund,
+    // hull and empty to create convex polytopes from non-canonical input.
     constructor(vertices: ?Vector[], halfspaces: ?Halfspace[]): void {
         if (this.constructor === "AbstractConvexPolytope") {
             throw new TypeError("must not instanciate AbstractConvexPolytope");
@@ -283,15 +341,11 @@ class AbstractConvexPolytope implements ConvexPolytope {
         }
     }
 
+    // All polytopes that are not full-dimensional are considered to be empty.
     get isEmpty(): boolean {
         return (this._vertices != null && this._vertices.length <= this.dim)
             || (this._halfspaces != null && this._halfspaces.length <= this.dim)
             || Math.abs(this.volume) < TOL;
-    }
-
-    get centroid(): Vector {
-        let vertices = this.vertices;
-        return vertices.reduce(linalg.add).map(x => x / vertices.length);
     }
 
     // Axis-aligned minimum bounding box
@@ -300,6 +354,7 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return polytopeType(this.dim).hull(bbox);
     }
 
+    // Axis-aligned extent of the polytope
     get extent(): Vector[] {
         let mins = new Array(this.dim);
         mins.fill(Infinity);
@@ -318,13 +373,15 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return zip2map((x, y) => [x, y], mins, maxs);
     }
 
+    // Test if two polytopes are identical by comparing vertices. Depends on
+    // the ordering properties of the canonical representation.
     isSameAs(other: ConvexPolytope): boolean {
         let thisVertices = this.vertices;
         let otherVertices = other.vertices;
         if (this.dim != other.dim || thisVertices.length != otherVertices.length) {
             return false;
         }
-        // Find common vertex
+        // Find a common vertex
         let idxoff = 0;
         while (idxoff < thisVertices.length) {
             if (linalg.areClose(thisVertices[idxoff], otherVertices[0])) {
@@ -352,26 +409,34 @@ class AbstractConvexPolytope implements ConvexPolytope {
     }
 
     translate(v: Vector): ConvexPolytope {
+        // TODO: is hull really necessary? Translation should not change the
+        // proper order of vertices...
         linalg.assertEqualDims(v.length, this.dim);
         return polytopeType(this.dim).hull(this.vertices.map(x => linalg.add(x, v)));
         //return polytopeType(this.dim).noredund(this.halfspaces.map(h => h.translate(v)));
     }
 
+    // Reflection with respect to the origin.
     invert(): ConvexPolytope {
         return polytopeType(this.dim).hull(this.vertices.map(v => v.map(x => -x)));
     }
 
+    // Apply matrix m from the left to every vertex.
     apply(m: Matrix): ConvexPolytope {
         linalg.assertEqualDims(m[0].length, this.dim);
         return polytopeType(m.length).hull(this.vertices.map(v => linalg.apply(m, v)));
     }
 
+    // Apply matrix m from the right to every halfspace normal. For invertible
+    // matrices, applyRight is identical to calling apply with the inverse of
+    // the matrix m.
     applyRight(m: Matrix): ConvexPolytope {
         linalg.assertEqualDims(m.length, this.dim);
         return polytopeType(m[0].length).noredund(this.halfspaces.map(h => h.applyRight(m)));
     }
 
-    dilate(other: ConvexPolytope): ConvexPolytope {
+    // Minkowski sum as defined by Baotić (2009).
+    minkowski(other: ConvexPolytope): ConvexPolytope {
         linalg.assertEqualDims(this.dim, other.dim);
         let points = [];
         for (let v of this.vertices) {
@@ -382,17 +447,23 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return polytopeType(this.dim).hull(points);
     }
 
-    erode(other: ConvexPolytope): ConvexPolytope {
+    // Pontryagin difference as defined by Baotić (2009). Note that pontryagin
+    // is in general not the inverse of minkowski (e.g. consider the Pontryagin
+    // difference between a square and a triangle).
+    pontryagin(other: ConvexPolytope): ConvexPolytope {
         linalg.assertEqualDims(this.dim, other.dim);
+        let otheri = other.invert();
         let halfspaces = [];
         for (let h of this.halfspaces) {
-            for (let w of other.vertices) {
+            for (let w of otheri.vertices) {
                 halfspaces.push(h.translate(w));
             }
         }
         return polytopeType(this.dim).noredund(halfspaces);
     }
 
+    // Split the convex polytope along the boundaries of the given halfspaces
+    // and return the partition.
     split(...halfspaces: Halfspace[]): ConvexPolytopeUnion {
         // Must test variadic arg for undefined (https://github.com/facebook/flow/issues/3648)
         if (halfspaces == null || halfspaces.length == 0) {
@@ -404,6 +475,8 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return split1.concat(split2)
     }
 
+    // Intersection of convex polytopes is trivial in H-representation: put all
+    // halfspaces together and reduce to minimal (canonical) form.
     intersect(...others: HalfspaceContainer[]): ConvexPolytope {
         if (others == null || others.length == 0) {
             return polytopeType(this.dim).empty();
@@ -416,10 +489,14 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return polytopeType(this.dim).noredund(halfspaces);
     }
 
+    // Set difference, yields a union of convex polytopes (in general).
+    // Implementation of the regiondiff algorithm by Baotić (2009).
     remove(...others?: HalfspaceContainer[]): ConvexPolytopeUnion {
         if (others == null || others.length == 0) {
             return [this];
         }
+        // Find a polytope in others that intersects and therefore requires
+        // removal
         let k = 0;
         while (this.intersect(others[k]).isEmpty) {
             k++;
@@ -429,6 +506,9 @@ class AbstractConvexPolytope implements ConvexPolytope {
         }
         let region = [];
         let poly = this;
+        // Use the halfspaces of the polytope that is removed to cut the
+        // remainder into convex polytopes, then continue removal recursively
+        // with the remaining elements in other.
         for (let halfspace of others[k].halfspaces) {
             let polyCandidate = poly.intersect(halfspace.flip());
             if (!polyCandidate.isEmpty) {
@@ -458,6 +538,7 @@ export class Interval extends AbstractConvexPolytope implements ConvexPolytope {
 
     static hull(ps: Vector[]): Interval {
         ps.map(p => linalg.assertEqualDims(p.length, 1));
+        // Find the left- and rightmost vertices
         let leftIdx = 0;
         let rightIdx = 0;
         for (let idx = 1; idx < ps.length; idx++) {
@@ -475,8 +556,20 @@ export class Interval extends AbstractConvexPolytope implements ConvexPolytope {
         }
     }
 
-    static noredund(hs: Halfspace[]): Interval {
-        hs.map(h => linalg.assertEqualDims(h.dim, 1));
+    static noredund(halfspaces: Halfspace[]): Interval {
+        let hs = [];
+        // Sort out trivial halfspaces or return empty if an infeasible
+        // halfspace is encountered.
+        for (let h of halfspaces) {
+            linalg.assertEqualDims(h.dim, 1);
+            if (h.isInfeasible) {
+                return Interval.empty();
+            } else if (!h.isTrivial) {
+                hs.push(h);
+            }
+        }
+        // Find rightmost halfspace with normal to the left and leftmost
+        // halfspace with normal to the right.
         let leftIdx = -1;
         let rightIdx = -1;
         for (let idx = 0; idx < hs.length; idx++) {
@@ -503,6 +596,12 @@ export class Interval extends AbstractConvexPolytope implements ConvexPolytope {
         return right[0] - left[0];
     }
 
+    get centroid(): Vector {
+        let [l, r] = this.vertices;
+        return [(l[0] + r[0]) / 2];
+    }
+
+    // Every interval is its own bounding box.
     get boundingBox(): Interval {
         return this;
     }
@@ -570,14 +669,24 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
         return new Polygon(ls.length + us.length < 3 ? [] : ls.concat(us), null);
     }
 
-    static noredund(hs: Halfspace[]): Polygon {
-        hs.map(h => linalg.assertEqualDims(h.dim, 2));
+    static noredund(halfspaces: Halfspace[]): Polygon {
+        let hs = [];
+        // Sort out trivial halfspaces or return empty if an infeasible
+        // halfspace is encountered.
+        for (let h of halfspaces) {
+            linalg.assertEqualDims(h.dim, 2);
+            if (h.isInfeasible) {
+                return Polygon.empty();
+            } else if (!h.isTrivial) {
+                hs.push(h);
+            }
+        }
         // Sort by CCW angles relative to [0, -1, 0] (upper halfspace of
         // coordinate system)
         let halfplanes = hs.slice().sort(function (g, h) {
             return angleCCW([0, -1], g.normal) - angleCCW([0, -1], h.normal);
         });
-        // Build tight loop
+        // Build a tight loop of halfspaces
         let loop = [];
         let cuts = [];
         let idx = 0;
@@ -660,22 +769,32 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
                 break;
             }
         }
-        // Return the left over loop, if still is a bounded region
+        // Return the leftover loop, if it still is a bounded region
         let out = ridx - lidx < 3 || angleCCW(loop[ridx - 1].normal, loop[lidx].normal) > Math.PI - TOL
                   ? []
                   : loop.slice(lidx, ridx);
         return new Polygon(null, out);
     }
 
+    // https://en.wikipedia.org/wiki/Centroid#Centroid_of_a_polygon
     get volume(): number {
-        // CCW ordering: negate trapezoidal integration
-        return cyc2map(trapezoidalIntegrate, this.vertices).reduce((a, b) => a - b, 0);
+        return 0.5 * cyc2map((a, b) => a[0]*b[1] - b[0]*a[1], this.vertices).reduce((a, b) => a + b, 0);
+    }
+
+    // https://en.wikipedia.org/wiki/Centroid#Centroid_of_a_polygon
+    get centroid(): Vector {
+        let vol = this.volume;
+        let x = cyc2map((a, b) => (a[0] + b[0]) * (a[0]*b[1] - b[0]*a[1]), this.vertices).reduce((a, b) => a + b, 0);
+        let y = cyc2map((a, b) => (a[1] + b[1]) * (a[0]*b[1] - b[0]*a[1]), this.vertices).reduce((a, b) => a + b, 0);
+        return [x / 6 / vol, y / 6 / vol];
     }
 
     _HtoV(): void {
         if (this._halfspaces == null) {
             throw new ValueError();
         } else {
+            // Because halfspaces are ordered CCW in canonical form, just find
+            // the intersections of neighbours.
             this._vertices = cyc2map(function (v, w) {
                 let cut = halfplaneIntersection(v, w);
                 if (cut == null) {
@@ -691,6 +810,7 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
         if (this._vertices == null) {
             throw new ValueError();
         } else {
+            // Turn each edge into a halfspace.
             this._halfspaces = cyc2map(function (v, w) {
                 return HalfspaceInequation.normalized([w[1] - v[1], v[0] - w[0]], v[0]*w[1] - w[0]*v[1]);
             }, this._vertices);
@@ -701,7 +821,8 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
 
 
 // Mapping: dimension -> ConvexPolytope type (required for polytope
-// transformations that result in a change of dimensionality)
+// transformations that result in a change of dimensionality). This list also
+// enforces that the types above fulfil the ConvexPolytopeType interface.
 const _PolytopeTypes: (?ConvexPolytopeType)[] = [null, Interval, Polygon];
 
 export function polytopeType(dim: number): ConvexPolytopeType {
@@ -717,9 +838,20 @@ export function polytopeType(dim: number): ConvexPolytopeType {
 
 /* Union operations */
 
+// Unions of convex polytopes are represented by a list of polytopes instead of
+// a dedicated type.
 export type ConvexPolytopeUnion = ConvexPolytope[];
 
 export const union = {
+
+    isEmpty(xs: ConvexPolytopeUnion): boolean {
+        for (let x of xs) {
+            if (!x.isEmpty) {
+                return false;
+            }
+        }
+        return true;
+    },
 
     extent(xs: ConvexPolytopeUnion): Vector[] {
         if (xs.length < 1) {
@@ -737,7 +869,8 @@ export const union = {
     },
 
     disjunctify(xs: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        // Sort by volume in ascending order
+        // Sort by volume in ascending order (this should favour the removal of
+        // small polytopes).
         let xxs = xs.sort((x, y) => x.volume - y.volume);
         let out = [];
         for (let xx of xxs) {
@@ -751,7 +884,16 @@ export const union = {
     },
 
     intersect(xs: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        throw new NotImplementedError();
+        let out = [];
+        for (let x of xs) {
+            for (let y of ys) {
+                let intersection = x.intersect(y);
+                if (!intersection.isEmpty) {
+                    out.push(intersection);
+                }
+            }
+        }
+        return out;
     },
 
     remove(xs: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
@@ -762,19 +904,25 @@ export const union = {
         return out;
     },
 
-    dilate(xs: ConvexPolytopeUnion, y: ConvexPolytope): ConvexPolytopeUnion {
-        let dilated = xs.map(x => x.dilate(y));
-        return union.disjunctify(dilated);
+    // Minkowski sum can be distributed to each individual polytope of the
+    // union, then remove the overlapping parts that occur multiple times.
+    minkowski(xs: ConvexPolytopeUnion, y: ConvexPolytope): ConvexPolytopeUnion {
+        return union.disjunctify(xs.map(x => x.minkowski(y)));
     },
 
-    erode(xs: ConvexPolytopeUnion, y: ConvexPolytope): ConvexPolytopeUnion {
+    // Pontryagin difference is not distributable like Minkowski sum. The
+    // problem lies with shared sections of edges of neighbouring polytopes.
+    // Instead, apply Minkowksi sum to the complement, what remains is the
+    // Pontryagin difference of the union.
+    pontryagin(xs: ConvexPolytopeUnion, y: ConvexPolytope): ConvexPolytopeUnion {
         // Since unbounded polygons are not representable by this library, use
         // bbox as a substitute for the complement
         let bbox = union.boundingBox(xs);
         let complement = bbox.remove(...xs);
-        // Erode bbox too or edges in xs that are shared with bbox are not
-        // properly eroded (necessary due to bbox use for complement)
-        return bbox.erode(y).remove(...union.dilate(complement, y));
+        // Apply Pontryagin difference also to bbox or else edges in xs that
+        // are shared with bbox are not properly handled (necessary due to bbox
+        // use for complement)
+        return bbox.pontryagin(y).remove(...union.minkowski(complement, y.invert()));
     }
 
 };

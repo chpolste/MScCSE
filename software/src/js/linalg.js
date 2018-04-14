@@ -4,11 +4,15 @@
 import { zip2map, NotImplementedError } from "./tools.js";
 
 
+// No special types for vectors or matrices
 export type Vector = number[];
 export type Matrix = number[][];
 
+// Robust floating point arithmetic requires a small tolerance value for
+// comparisons involving zero, here an absolute value is chosen.
 export const TOL = exports.TOL = 1.0e-8;
 
+// Exceptions
 export class DimensionMismatch extends Error {}
 export class MathError extends Error {}
 
@@ -133,13 +137,13 @@ export function matmul(m: Matrix, n: Matrix): Matrix {
     return result;
 }
 
-/* Minkowski sums/differences
 
-Cannot generally use minkowski of ConvexPolytope for polytopic operators, since
-intermediate terms may be lower-dimensional
-*/
+// Cannot generally use minkowski of ConvexPolytope for polytopic operators, since
+// intermediate terms may be lower-dimensional. Therefore convenience functions
+// for common patterns in Minkowski sums are provided.
 export const minkowski = {
 
+    // x + y
     xmy(xs: Vector[], ys: Vector[]): Vector[] {
         let out = [];
         for (let x of xs) {
@@ -150,6 +154,7 @@ export const minkowski = {
         return out;
     },
 
+    // Ax + y
     axpy(A: Matrix, xs: Vector[], ys: Vector[]): Vector[] {
         let out = [];
         for (let x of xs) {

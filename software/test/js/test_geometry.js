@@ -21,11 +21,15 @@ describe("geometry.HalfspaceIneqation.parse", function () {
         assert(hs.isSameAs(parse("- 1 + 1.0x+ 2y < 0", "xy")));
     });
 
+    it("accepts trivial/infeasible inputs", function () {
+        assert(parse("2 < 5", "").isTrivial);
+        assert(parse("23 < 2", "xy").isInfeasible);
+        // Ties are broken towards trivial
+        assert(parse("x < x", "x").isTrivial);
+    });
+
     it("rejects invalid input", function () {
         assert.throws(() => parse("", "y"));
-        assert.throws(() => parse("2 < 5", ""));
-        assert.throws(() => parse("23 < 2", "xy"));
-        assert.throws(() => parse("x < x", "x"));
         assert.throws(() => parse("12 x -- y < 3", "xy"));
         assert.throws(() => parse("14 a < 2x", "xy"));
         assert.throws(() => parse("1.x < 5", "x"));
@@ -56,6 +60,23 @@ describe("geometry.HalfspaceInequation in 1 dimension", function () {
         assert.equal(linalg.norm2(hsn.normal), 1);
     });
 
+    it("normalized breaks offset === 0 ties in favor of trivial", function () {
+        let h = geometry.HalfspaceInequation.normalized([0], 0);
+        assert(h.isTrivial);
+    });
+
+    it("isInfeasible", function () {
+        let h = geometry.HalfspaceInequation.normalized([0], -3);
+        assert(h.isInfeasible);
+        assert(!hs.isInfeasible);
+    });
+
+    it("isTrivial", function () {
+        let h = geometry.HalfspaceInequation.normalized([0], 3);
+        assert(h.isTrivial);
+        assert(!hs.isTrivial);
+    });
+
     it("flip", function () {
         let hsf = hs.flip();
         assert.equal(hsf.dim, 1);
@@ -69,6 +90,7 @@ describe("geometry.HalfspaceInequation in 1 dimension", function () {
         assert(hs.contains([0.5]));
         assert(!hs.contains([1]));
         assert(!hs.contains([23]));
+        assert.throws(() => hs.contains([1, 2]));
     });
 
     it("isSameAs", function () {
@@ -208,13 +230,14 @@ describe("geometry.Interval", function () {
         assert(poly.applyRight([[1, 4]]).isEmpty);
     });
 
-    it("dilate", function () {
+    it("minkowski", function () {
         let mink = geometry.Interval.hull([[2], [-2]]);
-        assert(poly.dilate(poly).isSameAs(mink));
+        assert(poly.minkowski(poly).isSameAs(mink));
     });
 
-    it("erode", function () {
-        // TODO
+    it("pontryagin", function () {
+        let pont = geometry.Interval.hull([[0.5], [-0.5]]);
+        assert(poly.pontryagin(pont).isSameAs(pont));
     });
 
     it("intersect with self is identity", function () {
@@ -426,13 +449,16 @@ describe("geometry.Polygon with square", function () {
         assert(poly.applyRight([[1], [2]]).isSameAs(poly2));
     });
 
-    it("dilate", function () {
+    it("minkowski", function () {
         let mink = geometry.Polygon.hull([[0, 0], [2, 2], [2, 0], [0, 2]]);
-        assert(poly.dilate(poly).isSameAs(mink));
+        assert(poly.minkowski(poly).isSameAs(mink));
     });
 
-    it("erode", function () {
-        // TODO
+    it("pontryagin", function () {
+        let pont = geometry.Polygon.hull([[0, 0], [0.5, 0], [0.5, 0.5], [0, 0.5]]);
+        let pontTri = geometry.Polygon.hull([[0, 0], [0.5, 0], [0, 0.5]]);
+        assert(poly.pontryagin(pont).isSameAs(pont));
+        assert(poly.pontryagin(pontTri).isSameAs(pont));
     });
 
     it("intersect with self is identity", function () {
@@ -563,7 +589,7 @@ describe("geometry problem cases", function () {
         let inner = geometry.Polygon.hull([[-1, -1], [1, -1], [5, 1], [-1, 4]]);
         let poly1 = geometry.Polygon.hull([[-1, -1], [1, -1], [1, 1], [-1, 0.3], [0, 1.6]]);
         let poly2 = geometry.Polygon.hull([[-1, 1], [1, -1], [1, 1], [0, 0]]);
-        let outer = inner.dilate(poly1).dilate(poly2);
+        let outer = inner.minkowski(poly1).minkowski(poly2);
         assert(!inner.intersect(outer).isEmpty);
         assert(!outer.intersect(inner).isEmpty);
         let diff = outer.remove(inner);
@@ -579,6 +605,15 @@ describe("geometry.union", function () {
     let poly2 = geometry.Polygon.hull([[2, 0], [2, 1], [1, 0], [0, 1]]);
     let interval = geometry.Interval.hull([[0], [1], [-3]]);
 
+    it("isEmpty", function () {
+        let empty = geometry.Polygon.empty();
+        assert(geometry.union.isEmpty([]));
+        assert(geometry.union.isEmpty([empty]));
+        assert(geometry.union.isEmpty([empty, empty, empty]));
+        assert(!geometry.union.isEmpty([poly1]));
+        assert(!geometry.union.isEmpty([empty, empty, poly1, empty]));
+    });
+
     it("extent", function () {
         assert.deepEqual(geometry.union.extent([poly1]), [[0, 1], [0, 1]]);
         assert.deepEqual(geometry.union.extent([poly2]), [[0, 2], [0, 1]]);
@@ -591,6 +626,19 @@ describe("geometry.union", function () {
         assert(geometry.union.boundingBox([poly1, poly2]).isSameAs(bbox));
         assert(geometry.union.boundingBox([poly2, poly1]).isSameAs(bbox));
         assert.throws(() => geometry.union.boundingBox([poly1, interval]));
+    });
+
+    it("minkowski with one element yields same as polytope method", function () {
+        let mink = geometry.union.minkowski([poly1], poly1);
+        assert.equal(mink.length, 1);
+        assert(mink[0].isSameAs(poly1.minkowski(poly1)));
+    });
+
+    it("pontryagin with one element yields same as polytope method", function () {
+        let poly3 = geometry.Polygon.hull([[0, 0], [0.1, 0.1], [0, 0.1], [0.1, 0]]);
+        let pont = geometry.union.pontryagin([poly1], poly3);
+        assert.equal(pont.length, 1);
+        assert(pont[0].isSameAs(poly1.pontryagin(poly3)));
     });
 
 });

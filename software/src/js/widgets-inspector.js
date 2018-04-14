@@ -4,7 +4,7 @@
 // Widgets here take other inputs as dimension/shape args, to allow change
 
 import type { ConvexPolytope, ConvexPolytopeUnion, Halfspace } from "./geometry.js";
-import type { Decomposition } from "./lss.js";
+import type { Decomposition, Action } from "./system.js";
 import type { LayeredFigure, FigureLayer, Shape } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
@@ -15,7 +15,7 @@ import { HalfspaceInequation, polytopeType } from "./geometry.js";
 import { Figure, autoProjection } from "./figure.js";
 import { InteractivePlot, AxesPlot } from "./widgets-plot.js";
 import { ValidationError, CheckboxInput, SelectInput, MultiLineInput, MatrixInput } from "./widgets-input.js";
-import { LSS, State, SplitWithSatisfyingPredicates } from "./lss.js";
+import { AbstractedLSS, State, SplitWithSatisfyingPredicates } from "./system.js";
 
 
 const VAR_NAMES = "xy";
@@ -27,6 +27,7 @@ export const color = {
     selection: "#069",
     clickOperator: "#FC0",
     hoverOperator: "#09C",
+    action: "#F60",
     split: "#C00"
 };
 
@@ -241,65 +242,84 @@ export class DecompositionInput extends ObservableMixin<null> implements Input<D
 type ClickOperatorWrapper = (state: State) => ConvexPolytopeUnion;
 type HoverOperatorWrapper = (origin: State, target: State) => ConvexPolytopeUnion;
 
-export class SystemView extends ObservableMixin<null> {
+export class ViewSettings extends ObservableMixin<null> {
 
-    +lss: LSS;
-    +controlNode: Element;
+    +node: Element;
+    +system: AbstractedLSS;
     +toggleKind: Input<boolean>;
-    +togglePost: Input<boolean>;
+    +toggleLabel: Input<boolean>;
     +clickOperator: Input<ClickOperatorWrapper>;
     +hoverOperator: Input<HoverOperatorWrapper>
-    +plot: Plot;
-    +kindLayer: FigureLayer;
-    +clickOperatorLayer: FigureLayer;
-    +selectionLayer: FigureLayer;
-    +hoverOperatorLayer: FigureLayer;
-    +interactionLayer: FigureLayer;
-    selection: ?State;
-
-    constructor(lss: LSS): void {
+    
+    constructor(): void {
         super();
-        this.lss = lss;
-        this.selection = null;
-
         this.toggleKind = new CheckboxInput(false);
-        this.toggleKind.attach(() => this.drawKind());
+        this.toggleLabel = new CheckboxInput(false);
         this.clickOperator = new SelectInput({
             "None": state => [],
-            "Posterior": state => [state.post(this.lss.controlSpace)],
-            "Predecessor": state => this.lss.pre(this.lss.stateSpace, this.lss.controlSpace, state.polytope),
-            "Robust Predecessor": state => this.lss.preR(this.lss.stateSpace, this.lss.controlSpace, state.polytope),
-            "Attractor": state => this.lss.attr(this.lss.stateSpace, this.lss.controlSpace, state.polytope),
-            "Robust Attractor": state => this.lss.attrR(this.lss.stateSpace, this.lss.controlSpace, state.polytope)
+            "Posterior": state => [state.post(state.system.controlSpace)],
+            "Predecessor": state => state.system.pre(state.system.stateSpace, state.system.controlSpace, state.polytope),
+            "Robust Predecessor": state => state.system.preR(state.system.stateSpace, state.system.controlSpace, state.polytope),
+            "Attractor": state => state.system.attr(state.system.stateSpace, state.system.controlSpace, state.polytope),
+            "Robust Attractor": state => state.system.attrR(state.system.stateSpace, state.system.controlSpace, state.polytope)
         }, "Posterior");
-        this.clickOperator.attach(() => this.drawClickOperator());
         this.hoverOperator = new SelectInput({
             "None": (origin, target) => [],
-            "Predecessor": (origin, target) => origin.pre(this.lss.controlSpace, target),
-            "Robust Predecessor": (origin, target) => origin.preR(this.lss.controlSpace, target), 
-            "Attractor": (origin, target) => origin.attr(this.lss.controlSpace, target), 
-            "Robust Attractor": (origin, target) => origin.attrR(this.lss.controlSpace, target), 
-        }, "Predecessor"); // TODO: adjust default
-        this.controlNode = createElement("div", { "class": "summary" }, [
-            createElement("label", {}, [this.toggleKind.node, "Color state kind"]),
+            "Predecessor": (origin, target) => origin.pre(origin.system.controlSpace, target),
+            "Robust Predecessor": (origin, target) => origin.preR(origin.system.controlSpace, target), 
+            "Attractor": (origin, target) => origin.attr(origin.system.controlSpace, target), 
+            "Robust Attractor": (origin, target) => origin.attrR(origin.system.controlSpace, target), 
+        }, "Attractor");
+
+        this.node = createElement("div", { "class": "summary" }, [
+            createElement("label", {}, [this.toggleKind.node, "state kind colors"]),
+            createElement("label", {}, [this.toggleLabel.node, "state labels"]),
             createElement("p", { "class": "posterior" }, ["Highlight operator:"]),
             createElement("p", {}, [this.clickOperator.node]),
             createElement("p", { "class": "operator" }, ["Mouseover operator:"]),
             createElement("p", {}, [this.hoverOperator.node])
         ]);
+    }
+
+}
+
+export class SystemView extends ObservableMixin<null> {
+
+    +system: AbstractedLSS;
+    +viewSettings: ViewSettings;
+    +plot: Plot;
+    +kindLayer: FigureLayer;
+    +clickOperatorLayer: FigureLayer;
+    +selectionLayer: FigureLayer;
+    +hoverOperatorLayer: FigureLayer;
+    +actionLayer: FigureLayer;
+    +labelLayer: FigureLayer;
+    +interactionLayer: FigureLayer;
+    selection: ?State;
+
+    constructor(system: AbstractedLSS, viewSettings: ViewSettings): void {
+        super();
+        this.system = system;
+        this.selection = null;
+        this.viewSettings = viewSettings;
+        this.viewSettings.toggleKind.attach(() => this.drawKind());
+        this.viewSettings.toggleLabel.attach(() => this.drawLabels());
+        this.viewSettings.clickOperator.attach(() => this.drawClickOperator());
 
         let fig = new Figure();
         this.kindLayer = fig.newLayer({ "stroke": "none" });
         this.clickOperatorLayer = fig.newLayer({ "stroke": color.clickOperator, "fill": color.clickOperator });
         this.selectionLayer = fig.newLayer({ "stroke": color.selection, "fill": color.selection });
         this.hoverOperatorLayer = fig.newLayer({ "stroke": color.hoverOperator, "fill": color.hoverOperator });
+        this.actionLayer = fig.newLayer({ "stroke": color.action, "stroke-width": "3", "fill": color.action });
+        this.labelLayer = fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" });
         this.interactionLayer = fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" });
-        this.plot = new InteractivePlot([600, 400], fig, autoProjection(6/4, ...lss.extent));
+        this.plot = new InteractivePlot([600, 400], fig, autoProjection(6/4, ...system.extent));
         this.drawInteraction();
     }
 
     drawInteraction(): void {
-        this.interactionLayer.shapes = this.lss.states.map(state => ({
+        this.interactionLayer.shapes = this.system.states.map(state => ({
             kind: "polytope", vertices: state.polytope.vertices,
             events: {
                 click: () => this.click(state),
@@ -318,8 +338,9 @@ export class SystemView extends ObservableMixin<null> {
     }
 
     drawClickOperator(): void {
-        if (this.selection != null && !(this.selection.isOutside && this.clickOperator.text == "Posterior")) {
-            this.clickOperatorLayer.shapes = this.clickOperator.value(this.selection).map(
+        let operator = this.viewSettings.clickOperator;
+        if (this.selection != null && !(this.selection.isOutside && operator.text == "Posterior")) {
+            this.clickOperatorLayer.shapes = operator.value(this.selection).map(
                 poly => ({ kind: "polytope", vertices: poly.vertices })
             );
         } else {
@@ -329,10 +350,31 @@ export class SystemView extends ObservableMixin<null> {
 
     drawKind(): void {
         let shapes = [];
-        if (this.toggleKind.value) {
-            shapes = this.lss.states.map(toShape);
+        if (this.viewSettings.toggleKind.value) {
+            shapes = this.system.states.map(toShape);
         }
         this.kindLayer.shapes = shapes;
+    }
+
+    drawLabels(): void {
+        let labels = [];
+        if (this.viewSettings.toggleLabel.value) {
+            labels = this.system.states.map(state => ({
+                kind: "text", coords: state.polytope.centroid, text: state.label, style: {dy: "3"}
+            }));
+        }
+        this.labelLayer.shapes = labels;
+    }
+
+    drawAction(action: ?Action): void {
+        if (action == null) {
+            this.actionLayer.shapes = [];
+        } else {
+            let a = action;
+            this.actionLayer.shapes = a.targets.map(
+                target => ({ kind: "arrow", origin: a.origin.polytope.centroid, target: target.polytope.centroid })
+            );
+        }
     }
 
     click(state: State): void {
@@ -349,8 +391,9 @@ export class SystemView extends ObservableMixin<null> {
     }
 
     mouseover(state: State): void {
+        let operator = this.viewSettings.hoverOperator;
         if (this.selection != null && !this.selection.isOutside) {
-            this.hoverOperatorLayer.shapes = this.hoverOperator.value(this.selection, state).map(
+            this.hoverOperatorLayer.shapes = operator.value(this.selection, state).map(
                 poly => ({ kind: "polytope", vertices: poly.vertices })
             );
         }
@@ -366,10 +409,10 @@ export class SystemView extends ObservableMixin<null> {
 export class SystemSummary {
 
     +node: HTMLDivElement;
-    +lss: LSS;
+    +system: AbstractedLSS;
 
-    constructor(lss: LSS): void {
-        this.lss = lss;
+    constructor(system: AbstractedLSS): void {
+        this.system = system;
         this.node = document.createElement("div");
         this.node.className = "summary"
         this.changeHandler();
@@ -378,29 +421,27 @@ export class SystemSummary {
     changeHandler() {
         clearNode(this.node);
         appendChild(this.node,
-            createElement("p", {}, [this.lss.states.length + " states"]),
-            createElement("p", {"class": "undecided"}, [this.lss.states.filter(s => s.kind == 0).length + " undecided"]),
-            createElement("p", {"class": "satisfying"}, [this.lss.states.filter(s => s.kind > 0).length + " satisfying"]),
-            createElement("p", {"class": "nonsatisfying"}, [this.lss.states.filter(s => s.kind < 0).length + " non-satisfying"]),
+            createElement("p", {}, [this.system.states.length + " states"]),
+            createElement("p", {"class": "undecided"}, [this.system.states.filter(s => s.kind == 0).length + " undecided"]),
+            createElement("p", {"class": "satisfying"}, [this.system.states.filter(s => s.kind > 0).length + " satisfying"]),
+            createElement("p", {"class": "nonsatisfying"}, [this.system.states.filter(s => s.kind < 0).length + " non-satisfying"]),
         )
     }
 
 }
 
 
-
-
-export class StateSummary {
+export class StateView {
 
     +node: Element;
+    +systemView: SystemView;
     +view: AxesPlot;
     +viewLayer: FigureLayer;
     +summary: Element;
-    _state: ?State;
-    state: ?State;
 
-    constructor(state?: State): void {
-        this._state = state;
+    constructor(systemView: SystemView): void {
+        this.systemView = systemView;
+        this.systemView.attach(() => this.changeHandler());
 
         let fig = new Figure();
         this.viewLayer = fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#069" });
@@ -411,19 +452,10 @@ export class StateSummary {
         this.changeHandler();
     }
 
-    get state(): ?State {
-        return this._state;
-    }
-
-    set state(state: ?State) {
-        this._state = state;
-        this.changeHandler();
-    }
-
     changeHandler() {
         clearNode(this.summary);
-        if (this._state != null) {
-            let state = this._state;
+        let state = this.systemView.selection;
+        if (state != null) {
             this.view.projection = autoProjection(1, ...state.polytope.extent);
             this.viewLayer.shapes = [{ kind: "polytope", "vertices": state.polytope.vertices }];
             appendChild(this.summary,
@@ -440,16 +472,91 @@ export class StateSummary {
 }
 
 
-export class ControlSummary {
+export class ControlView {
 
     +node: Element;
+    +controlSpace: ConvexPolytope;
+    +actionLayer: FigureLayer;
 
-    constructor(space: ConvexPolytope): void {
+    constructor(system: AbstractedLSS): void {
+        this.controlSpace = system.controlSpace;
         let fig = new Figure();
-        let layer = fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF" });
-        layer.shapes = [{ kind: "polytope", "vertices": space.vertices }];
-        let view = new AxesPlot([90, 90], fig, autoProjection(1, ...space.extent));
+        this.actionLayer = fig.newLayer({ "stroke": color.action, "fill": color.action });
+        let layer = fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" });
+        layer.shapes = [{ kind: "polytope", vertices: this.controlSpace.vertices }];
+        let view = new AxesPlot([90, 90], fig, autoProjection(1, ...this.controlSpace.extent));
         this.node = createElement("div", {}, [view.node]);
+    }
+
+    drawAction(action: ?Action): void {
+        if (action == null) {
+            this.actionLayer.shapes = [];
+        } else {
+            console.log(action.controls);
+            this.actionLayer.shapes = action.controls.map(
+                poly => ({ kind: "polytope", vertices: poly.vertices })
+            );
+        }
+    }
+
+}
+
+
+export class ActionsView {
+
+    +node: Element;
+    +systemView: SystemView;
+    +controlView: ControlView;
+
+    constructor(systemView: SystemView, controlView: ControlView): void {
+        this.systemView = systemView;
+        this.systemView.attach(() => this.changeHandler());
+        this.controlView = controlView;
+        this.node = createElement("div", { "class": "actions" }, []);
+    }
+
+    changeHandler(): void {
+        this.clear();
+        let state = this.systemView.selection;
+        if (state != null && state.actions.length > 0) {
+            let nodes = state.actions.map(action => {
+                let targets = [];
+                for (let t of action.targets) {
+                    let attrs = {};
+                    if (t === state) {
+                        attrs["class"] = "selected";
+                    } else if (t.isSatisfying) {
+                        attrs["class"] = "satisfying";
+                    } else if (t.isNonSatisfying) {
+                        attrs["class"] = "nonsatisfying";
+                    }
+                    targets.push(createElement("span", attrs, [t.label]));
+                    targets.push(", ");
+                }
+                targets.pop();
+                let node = createElement("div", {}, [
+                    createElement("span", { "class": "selected" }, [action.origin.label]),
+                    " → {", ...targets, "}"
+                ]);
+                node.addEventListener("mouseover", () => this.draw(action));
+                node.addEventListener("mouseout", () => this.clear())
+                return node;
+            });
+            clearNode(this.node);
+            appendChild(this.node, ...nodes);
+        } else {
+            this.node.innerHTML = "none";
+        }
+    }
+
+    draw(action: Action): void {
+        this.systemView.drawAction(action);
+        this.controlView.drawAction(action);
+    }
+
+    clear(): void {
+        this.systemView.drawAction(null);
+        this.controlView.drawAction(null);
     }
 
 }

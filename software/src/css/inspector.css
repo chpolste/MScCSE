@@ -66,6 +66,15 @@ p {
     padding-right: 0;
 }
 
+.hsep > div {
+    border-bottom: 1px solid #999;
+    padding-bottom: 20px;
+}
+.hsep > div:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
 
 label {
     display: block;
@@ -82,10 +91,10 @@ sub {
 }
 
 a {
-    color: #666666;
+    color: #666;
 }
 a:hover {
-    color: #000000;
+    color: #000;
 }
 
 .text {
@@ -151,4 +160,21 @@ table.math {
     flex: 1 0 auto;
 }
 
-
+.actions {
+    height: 12em;
+    overflow-y: auto;
+}
+.actions div:hover {
+    background-color: #EEE;
+    cursor: default;
+    border-right: 12pt solid #F60;
+}
+.actions .selected {
+    color: #069;
+}
+.actions .satisfying {
+    color: #093;
+}
+.actions .nonsatisfying {
+    color: #666;
+}

@@ -3,7 +3,7 @@
 
 import type { Matrix, Vector } from "./linalg.js";
 import type { ConvexPolytope, Halfspace } from "./geometry.js";
-import type { Decomposition } from "./lss.js";
+import type { Decomposition } from "./system.js";
 import type { LayeredFigure, FigureLayer, Shape } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
@@ -12,9 +12,10 @@ import { clearNode, replaceNode, appendChild, createElement } from "./domtools.j
 import { Figure, autoProjection } from "./figure.js";
 import { AxesPlot } from "./widgets-plot.js";
 import { SelectInput } from "./widgets-input.js";
-import { EvolutionEquationInput, PolytopeInput, DecompositionInput, SystemSummary,
-         StateSummary, ControlSummary, SystemView, toShape, evolutionEquation } from "./widgets-inspector.js";
-import { LSS, State } from "./lss.js";
+import { EvolutionEquationInput, PolytopeInput, DecompositionInput, ViewSettings, SystemSummary,
+         StateView, ControlView, SystemView, ActionsView, toShape, evolutionEquation
+       } from "./widgets-inspector.js";
+import { AbstractedLSS, State } from "./system.js";
 
 
 
@@ -88,10 +89,10 @@ class ProblemSetup {
     +decomposition: Input<Decomposition>;
     +preview: Plot;
     +previewLayer: FigureLayer;
-    +callback: (lss: LSS) => void;
-    +lss: LSS;
+    +callback: (lss: AbstractedLSS) => void;
+    +lss: AbstractedLSS;
 
-    constructor(callback: (lss: LSS) => void) {
+    constructor(callback: (lss: AbstractedLSS) => void) {
         this.callback = callback;
 
         this.node = document.createElement("form");
@@ -148,8 +149,8 @@ class ProblemSetup {
             && this.decomposition.isValid;
     }
 
-    get lss(): LSS {
-        return new LSS(
+    get lss(): AbstractedLSS {
+        return new AbstractedLSS(
             this.equation.A.value, this.equation.B.value,
             this.ss.value, this.rs.value, this.cs.value,
             this.decomposition.value
@@ -190,43 +191,46 @@ class Inspector {
 
     +node: Element;
 
-    +view: SystemView;
-    +summary: SystemSummary;
-    +selection: StateSummary;
-    +control: ControlSummary;
+    +systemView: SystemView;
+    +actionsView: ActionsView;
+    +systemSummary: SystemSummary;
+    +viewSettings: ViewSettings;
+    +stateView: StateView;
+    +controlView: ControlView;
 
-    lss: LSS;
+    lss: AbstractedLSS;
 
-    constructor(lss: LSS) {
+    constructor(lss: AbstractedLSS) {
         this.lss = lss;
 
-        this.view = new SystemView(lss);
-        this.view.attach(() => { this.selection.state = this.view.selection });
-        this.summary = new SystemSummary(lss);
-        this.selection = new StateSummary();
-        this.control = new ControlSummary(lss.controlSpace);
+        this.viewSettings = new ViewSettings();
+        this.systemView = new SystemView(this.lss, this.viewSettings);
+        this.systemSummary = new SystemSummary(this.lss);
+        this.stateView = new StateView(this.systemView);
+        this.controlView = new ControlView(this.lss);
+        this.actionsView = new ActionsView(this.systemView, this.controlView);
         this.node = createElement("div", {}, [
             createElement("h2", {}, ["Algorithm Inspector"]),
             createElement("h3", {}, ["Evolution Equation"]), evolutionEquation(tableify(lss.A), tableify(lss.B)),
             createElement("div", {"class": "cols"}, [
                 createElement("div", {}, [
-                    this.view.plot.node,
-                    createElement("h3", {}, ["Actions"])
+                    this.systemView.plot.node,
+                    createElement("h3", {}, ["Abstraction refinement"]),
+                    "TODO: split selected state, control algoritm, ..."
                 ]),
-                createElement("div", {}, [
+                createElement("div", { "class": "hsep" }, [
                     createElement("div", {"class": "cols vsep"}, [
                         createElement("div", { "class": "sidebar1" }, [
-                            createElement("h3", {}, ["View Settings"]), this.view.controlNode,
-                            createElement("h3", {}, ["System Information"]), this.summary.node,
+                            createElement("h3", {}, ["View Settings"]), this.viewSettings.node,
+                            createElement("h3", {}, ["System Information"]), this.systemSummary.node
                         ]),
                         createElement("div", { "class": "sidebar2" }, [
-                            createElement("h3", {}, ["Selected State"]), this.selection.node,
-                            createElement("h3", {}, ["Control Space"]), this.control.node
+                            createElement("h3", {}, ["Control Space"]), this.controlView.node,
+                            createElement("h3", {}, ["Selected State"]), this.stateView.node
                         ])
                     ]),
                     createElement("div", {}, [
-                        createElement("h3", {}, ["Abstraction refinement"]),
-                        "TODO: split selected state, control algoritm, ..."
+                        createElement("h3", {}, ["Actions"]), this.actionsView.node
                     ]),
                 ])
             ])
@@ -241,9 +245,11 @@ if (contentNode == null) {
     throw new Error();
 }
 
-let problemSetup = new ProblemSetup(function (lss: LSS) {
-    console.log(lss);
+let problemSetup = new ProblemSetup(function (lss: AbstractedLSS) {
     let inspector = new Inspector(lss);
+    if (contentNode == null) {
+        throw new Error();
+    }
     clearNode(contentNode);
     contentNode.appendChild(inspector.node);
     contentNode.scrollIntoView();

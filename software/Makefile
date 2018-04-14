@@ -95,5 +95,5 @@ $(DIST_JS)/%.js: $(SRC_JS)/%.js
 	$(BROWSERIFY) $< > $@
 
 $(DIST_JS)/inspector.js: $(SRC_JS)/figure.js $(SRC_JS)/tools.js $(SRC_JS)/geometry.js \
-        $(SRC_JS)/linalg.js $(SRC_JS)/lss.js $(SRC_JS)/widgets-input.js $(SRC_JS)/widgets-plot.js \
+        $(SRC_JS)/linalg.js $(SRC_JS)/system.js $(SRC_JS)/widgets-input.js $(SRC_JS)/widgets-plot.js \
 		$(SRC_JS)/widgets-inspector.js

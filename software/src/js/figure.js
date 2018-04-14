@@ -1,18 +1,19 @@
 // @flow
 "use strict";
 
+import type { ElementAttributes, ElementEvents } from "./domtools.js";
 import type { Observer, Observable } from "./tools.js";
 import { ObservableMixin } from "./tools.js";
 
 
-export type StyleMap = { [string]: string };
-export type EventMap = { [string]: () => void };
-type ShapeExt = { style?: StyleMap, events?: EventMap };
-type Polytope = { kind: "polytope", vertices: Point[] } & ShapeExt;
-export type Shape = Polytope;
+type ShapeExt = { style?: ElementAttributes, events?: ElementEvents };
+export type Shape = ({ kind: "polytope", vertices: Point[] } & ShapeExt)
+                  | ({ kind: "arrow", origin: Point, target: Point } & ShapeExt)
+                  | ({ kind: "text", coords: Point, text: string} & ShapeExt);
 
-type Polygon = { kind: "polygon", points: Point[]};
-export type Primitive = Polygon;
+export type Primitive = { kind: "polygon", points: Point[] }
+                      | { kind: "arrow", origin: Point, target: Point }
+                      | { kind: "text", coords: Point, text: string };
 
 
 
@@ -20,7 +21,7 @@ export type Primitive = Polygon;
 
 export type LayeredFigureEvent = { event: string, layer: FigureLayer };
 export interface LayeredFigure extends Observable<LayeredFigureEvent> {
-    newLayer(style?: StyleMap): FigureLayer;
+    newLayer(style?: ElementAttributes): FigureLayer;
     layers: FigureLayer[];
 }
 
@@ -33,7 +34,7 @@ export class Figure extends ObservableMixin<LayeredFigureEvent> implements Layer
         this.layers = [];
     }
 
-    newLayer(style?: StyleMap): FigureLayer {
+    newLayer(style?: ElementAttributes): FigureLayer {
         let layer = new Layer(this, style);
         this.layers.push(layer);
         this.notify({event: "newLayer", layer: layer});
@@ -45,19 +46,19 @@ export class Figure extends ObservableMixin<LayeredFigureEvent> implements Layer
 
 export type LayerEvent = null;
 export interface FigureLayer extends Observable<LayerEvent> {
-    constructor(figure: LayeredFigure, style?: StyleMap): void;
+    constructor(figure: LayeredFigure, style?: ElementAttributes): void;
     +figure: LayeredFigure;
-    +style: StyleMap;
+    +style: ElementAttributes;
     shapes: Shape[];
 }
 
 export class Layer extends ObservableMixin<LayerEvent> implements FigureLayer {
 
     +figure: LayeredFigure;
-    +style: StyleMap;
+    +style: ElementAttributes;
     _shapes: Shape[];
 
-    constructor(figure: LayeredFigure, style?: StyleMap): void {
+    constructor(figure: LayeredFigure, style?: ElementAttributes): void {
         super();
         this.figure = figure;
         this._shapes = [];
@@ -139,11 +140,19 @@ export class Cartesian2D implements Projection {
 
     project(shape: Shape): Primitive[] {
         let primitives = [];
-        if (shape.kind == "polytope") {
+        if (shape.kind === "polytope") {
             primitives.push({
                 kind: "polygon",
                 points: shape.vertices.map(vertex => this.fwd(vertex))
             });
+        } else if (shape.kind === "arrow") {
+            primitives.push({
+                kind: "arrow",
+                origin: this.fwd(shape.origin),
+                target: this.fwd(shape.target)
+            });
+        } else if (shape.kind === "text") {
+            primitives.push({ kind: "text", coords: this.fwd(shape.coords), text: shape.text });
         } else {
             throw new Error("unknown shape kind");
         }
@@ -203,7 +212,7 @@ export class Horizontal1D implements Projection {
 
     project(shape: Shape): Primitive[] {
         let primitives = [];
-        if (shape.kind == "polytope") {
+        if (shape.kind === "polytope") {
             if (shape.vertices.length < 2) {
                 return [];
             }
@@ -212,6 +221,10 @@ export class Horizontal1D implements Projection {
                 kind: "polygon",
                 points: [[l[0], 0.6], [l[0], 0.4], [r[0], 0.4], [r[0], 0.6]]
             });
+        } else if (shape.kind === "arrow") {
+            primitives.push({ kind: "arrow", origin: shape.origin, target: shape.target });
+        } else if (shape.kind === "text") {
+            primitives.push({ kind: "text", coords: [shape.coords[0], 0.5], text: shape.text });
         } else {
             throw new Error("unknown shape kind");
         }

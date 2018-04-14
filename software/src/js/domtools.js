@@ -2,7 +2,8 @@
 "use strict";
 
 
-type ElementAttributes = { [string]: string };
+export type ElementAttributes = { [string]: string };
+export type ElementEvents = { [string]: () => void };
 type ElementChild = Element | string;
 type ElementCreator = (tag: string, attributes?: ElementAttributes, children?: ElementChild[]) => Element;
 
@@ -55,6 +56,23 @@ export function appendChild(parentNode: ?Element, ...childNodes: (null|Element|s
         }
     }
 }
+
+export function setAttributes(node: ?Element, attributes: ?ElementAttributes): void {
+    if (node != null && attributes != null) {
+        for (let name in attributes) {
+            node.setAttribute(name, attributes[name]);
+        }
+    }
+}
+
+export function addEventListeners(node: ?Element, handlers: ?ElementEvents): void {
+    if (node != null && handlers != null) {
+        for (let event in handlers) {
+            node.addEventListener(event, handlers[event]);
+        }
+    }
+}
+
 
 export function setCursor(cursor: string): void {
     let body = document.body;

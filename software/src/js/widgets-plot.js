@@ -3,12 +3,16 @@
 
 import type { LayeredFigure, FigureLayer, Shape, Primitive, Projection } from "./figure.js";
 
-import { setCursor, clearNode, createElement, createElementSVG, SVGNS } from "./domtools.js";
+import * as linalg from "./linalg.js";
+import { setCursor, clearNode, createElement, createElementSVG, SVGNS,
+         setAttributes, addEventListeners, appendChild } from "./domtools.js";
 
 
 /* Plots */
 
-const PREC = 3;
+function toStr(x: number): string {
+    return x.toFixed(3);
+}
 
 type Range = [number, number];
 export interface Plot {
@@ -183,14 +187,14 @@ export class AxesPlot implements Plot {
 
     _createTickLine(x1: number, x2: number, y1: number, y2: number): void {
         this.ticks.appendChild(createElementSVG("line", {
-            "x1": x1.toFixed(PREC), "y1": y1.toFixed(PREC),
-            "x2": x2.toFixed(PREC), "y2": y2.toFixed(PREC)
+            "x1": toStr(x1), "y1": toStr(y1),
+            "x2": toStr(x2), "y2": toStr(y2)
         }));
     }
 
     _createTickLabel(x: number, y: number, anchor: string, label: string): void {
         this.tickLabels.appendChild(createElementSVG("text", {
-            "x": x.toFixed(PREC), "y": y.toFixed(PREC), "text-anchor": anchor
+            "x": toStr(x), "y": toStr(y), "text-anchor": anchor
         }, [label]));
     }
 
@@ -318,28 +322,76 @@ class ShapeGroup {
 
     draw(): void {
         clearNode(this.node);
+        let children = [];
         for (let shape of this.layer.shapes) {
             let primitives = this.shapePlot.project(shape);
+            // A shape can turn into multiple primitives
             for (let primitive of primitives) {
-                let node;
-                if (primitive.kind == "polygon") {
-                    node = createElementSVG("polygon", {
+
+                if (primitive.kind === "polygon") {
+                    let node = createElementSVG("polygon", {
                         points: primitive.points.map(point => {
-                            return this.shapePlot.scaleFwd(point).map(x => x.toFixed(PREC)).join(",");
+                            return this.shapePlot.scaleFwd(point).map(toStr).join(",");
                         }).join(" ")
                     });
+                    setAttributes(node, shape.style);
+                    addEventListeners(node, shape.events);
+                    children.push(node);
+
+                } else if (primitive.kind === "text") {
+                    let xy = this.shapePlot.scaleFwd(primitive.coords);
+                    let node = createElementSVG("text", {
+                        x: toStr(xy[0]), y: toStr(xy[1])
+                    }, [primitive.text]);
+                    setAttributes(node, shape.style);
+                    addEventListeners(node, shape.events);
+                    children.push(node);
+
+                } else if (primitive.kind === "arrow") {
+                    let [x1, y1] = this.shapePlot.scaleFwd(primitive.origin);
+                    let [x2, y2] = this.shapePlot.scaleFwd(primitive.target);
+                    // Draw zero-length arrows as circles
+                    if (linalg.areClose(primitive.origin, primitive.target)) {
+                        let node = createElementSVG("circle", {
+                            cx: toStr(x1), cy: toStr(y1), r: "4"
+                        });
+                        setAttributes(node, shape.style);
+                        addEventListeners(node, shape.events);
+                        children.push(node);
+                    // Draw a line with a triangle at the end. Because there is
+                    // no convenient way to apply styling to markers, they are
+                    // not used and the triangle is painted explicitly.
+                    } else {
+                        let line = createElementSVG("line", {
+                            x1: toStr(x1), y1: toStr(y1), x2: toStr(x2), y2: toStr(y2)
+                        });
+                        setAttributes(line, shape.style);
+                        addEventListeners(line, shape.events);
+                        // Vector from target to origin of vector, scaled to length 6
+                        let sqrt2 = Math.sqrt(2);
+                        let vec = [x2 - x1, y2 - y1];
+                        let norm = linalg.norm2(vec);
+                        vec = [7 * vec[0] / norm, 7 * vec[1] / norm];
+                        // Rotate by 45° and -45° and subtract from endpoint to
+                        // obtain other triangle points
+                        let l = [x2 - (vec[0] - vec[1]) / sqrt2, y2 - (vec[0] + vec[1]) / sqrt2];
+                        let r = [x2 - (vec[0] + vec[1]) / sqrt2, y2 - (vec[1] - vec[0]) / sqrt2];
+                        let triangle = createElementSVG("polygon", {
+                            points: [[x2, y2], l, r].map(p => p.map(toStr).join(",")).join(" ")
+                        });
+                        setAttributes(triangle, shape.style);
+                        addEventListeners(triangle, shape.events);
+                        children.push(line, triangle);
+                    }
+
                 } else {
                     throw new Error("unknown primitive");
                 }
-                for (let attr in shape.style) {
-                    node.setAttribute(attr, shape.style[attr]);
-                }
-                for (let event in shape.events) {
-                    node.addEventListener(event, shape.events[event]);
-                }
-                this.node.appendChild(node);
+
             }
         }
+        appendChild(this.node, ...children);
     }
 
 }
+

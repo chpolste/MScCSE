@@ -353,7 +353,7 @@ class ShapeGroup {
                     // Draw zero-length arrows as circles
                     if (linalg.areClose(primitive.origin, primitive.target)) {
                         let node = createElementSVG("circle", {
-                            cx: toStr(x1), cy: toStr(y1), r: "4"
+                            cx: toStr(x1), cy: toStr(y1), r: "3"
                         });
                         setAttributes(node, shape.style);
                         addEventListeners(node, shape.events);
@@ -371,7 +371,7 @@ class ShapeGroup {
                         let sqrt2 = Math.sqrt(2);
                         let vec = [x2 - x1, y2 - y1];
                         let norm = linalg.norm2(vec);
-                        vec = [7 * vec[0] / norm, 7 * vec[1] / norm];
+                        vec = [6 * vec[0] / norm, 6 * vec[1] / norm];
                         // Rotate by 45° and -45° and subtract from endpoint to
                         // obtain other triangle points
                         let l = [x2 - (vec[0] - vec[1]) / sqrt2, y2 - (vec[0] + vec[1]) / sqrt2];

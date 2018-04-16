@@ -11,7 +11,7 @@ import type { Input } from "./widgets-input.js";
 
 import { ObservableMixin } from "./tools.js";
 import { clearNode, appendChild, createElement } from "./domtools.js";
-import { HalfspaceInequation, polytopeType } from "./geometry.js";
+import { HalfspaceInequation, polytopeType, union } from "./geometry.js";
 import { Figure, autoProjection } from "./figure.js";
 import { InteractivePlot, AxesPlot } from "./widgets-plot.js";
 import { ValidationError, CheckboxInput, SelectInput, MultiLineInput, MatrixInput } from "./widgets-input.js";
@@ -25,8 +25,8 @@ export const color = {
     nonSatisfying: "#CCC",
     undecided: "#FFF",
     selection: "#069",
-    clickOperator: "#FC0",
-    hoverOperator: "#09C",
+    highlight: "#FC0",
+    support: "#09C",
     action: "#F60",
     split: "#C00"
 };
@@ -207,7 +207,7 @@ export class DecompositionInput extends ObservableMixin<null> implements Input<D
         this.node = document.createElement("div");
         appendChild(this.node,
             createElement("h3", {}, ["State Space Decomposition"]),
-            createElement("p", {}, ["Split with satisfying predicate(s):"]),
+            createElement("p", {}, ["Only reachability problems are supported. Split with satisfying predicate(s):"]),
             this.predicates.node
         );
     }
@@ -248,36 +248,26 @@ export class ViewSettings extends ObservableMixin<null> {
     +system: AbstractedLSS;
     +toggleKind: Input<boolean>;
     +toggleLabel: Input<boolean>;
-    +clickOperator: Input<ClickOperatorWrapper>;
-    +hoverOperator: Input<HoverOperatorWrapper>
+    +highlight: Input<ClickOperatorWrapper>;
     
     constructor(): void {
         super();
         this.toggleKind = new CheckboxInput(false);
         this.toggleLabel = new CheckboxInput(false);
-        this.clickOperator = new SelectInput({
+        this.highlight = new SelectInput({
             "None": state => [],
-            "Posterior": state => [state.post(state.system.controlSpace)],
-            "Predecessor": state => state.system.pre(state.system.stateSpace, state.system.controlSpace, state.polytope),
-            "Robust Predecessor": state => state.system.preR(state.system.stateSpace, state.system.controlSpace, state.polytope),
-            "Attractor": state => state.system.attr(state.system.stateSpace, state.system.controlSpace, state.polytope),
-            "Robust Attractor": state => state.system.attrR(state.system.stateSpace, state.system.controlSpace, state.polytope)
+            "Posterior": state => state.post(state.system.controlSpace),
+            "Predecessor": state => state.system.pre(state.system.stateSpace, state.system.controlSpace, [state.polytope]),
+            "Robust Predecessor": state => state.system.preR(state.system.stateSpace, state.system.controlSpace, [state.polytope]),
+            "Attractor": state => state.system.attr(state.system.stateSpace, state.system.controlSpace, [state.polytope]),
+            "Robust Attractor": state => state.system.attrR(state.system.stateSpace, state.system.controlSpace, [state.polytope])
         }, "Posterior");
-        this.hoverOperator = new SelectInput({
-            "None": (origin, target) => [],
-            "Predecessor": (origin, target) => origin.pre(origin.system.controlSpace, target),
-            "Robust Predecessor": (origin, target) => origin.preR(origin.system.controlSpace, target), 
-            "Attractor": (origin, target) => origin.attr(origin.system.controlSpace, target), 
-            "Robust Attractor": (origin, target) => origin.attrR(origin.system.controlSpace, target), 
-        }, "Attractor");
 
         this.node = createElement("div", { "class": "summary" }, [
             createElement("label", {}, [this.toggleKind.node, "state kind colors"]),
             createElement("label", {}, [this.toggleLabel.node, "state labels"]),
             createElement("p", { "class": "posterior" }, ["Highlight operator:"]),
-            createElement("p", {}, [this.clickOperator.node]),
-            createElement("p", { "class": "operator" }, ["Mouseover operator:"]),
-            createElement("p", {}, [this.hoverOperator.node])
+            createElement("p", {}, [this.highlight.node])
         ]);
     }
 
@@ -289,9 +279,10 @@ export class SystemView extends ObservableMixin<null> {
     +viewSettings: ViewSettings;
     +plot: Plot;
     +kindLayer: FigureLayer;
-    +clickOperatorLayer: FigureLayer;
+    +highlight1Layer: FigureLayer;
     +selectionLayer: FigureLayer;
-    +hoverOperatorLayer: FigureLayer;
+    +highlight2Layer: FigureLayer;
+    +supportLayer: FigureLayer;
     +actionLayer: FigureLayer;
     +labelLayer: FigureLayer;
     +interactionLayer: FigureLayer;
@@ -304,14 +295,15 @@ export class SystemView extends ObservableMixin<null> {
         this.viewSettings = viewSettings;
         this.viewSettings.toggleKind.attach(() => this.drawKind());
         this.viewSettings.toggleLabel.attach(() => this.drawLabels());
-        this.viewSettings.clickOperator.attach(() => this.drawClickOperator());
+        this.viewSettings.highlight.attach(() => this.drawHighlight());
 
         let fig = new Figure();
         this.kindLayer = fig.newLayer({ "stroke": "none" });
-        this.clickOperatorLayer = fig.newLayer({ "stroke": color.clickOperator, "fill": color.clickOperator });
+        this.highlight1Layer = fig.newLayer({ "stroke": color.highlight, "fill": color.highlight });
         this.selectionLayer = fig.newLayer({ "stroke": color.selection, "fill": color.selection });
-        this.hoverOperatorLayer = fig.newLayer({ "stroke": color.hoverOperator, "fill": color.hoverOperator });
-        this.actionLayer = fig.newLayer({ "stroke": color.action, "stroke-width": "3", "fill": color.action });
+        this.highlight2Layer = fig.newLayer({ "stroke": "none", "fill": color.highlight, "fill-opacity": "0.3" });
+        this.supportLayer = fig.newLayer({ "stroke": color.support, "fill": color.support });
+        this.actionLayer = fig.newLayer({ "stroke": color.action, "stroke-width": "2.5", "fill": color.action });
         this.labelLayer = fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" });
         this.interactionLayer = fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" });
         this.plot = new InteractivePlot([600, 400], fig, autoProjection(6/4, ...system.extent));
@@ -323,8 +315,6 @@ export class SystemView extends ObservableMixin<null> {
             kind: "polytope", vertices: state.polytope.vertices,
             events: {
                 click: () => this.click(state),
-                mouseout: () => this.mouseout(state),
-                mouseover: () => this.mouseover(state)
             }
         }));
     }
@@ -337,14 +327,17 @@ export class SystemView extends ObservableMixin<null> {
         }
     }
 
-    drawClickOperator(): void {
-        let operator = this.viewSettings.clickOperator;
+    drawHighlight(): void {
+        let operator = this.viewSettings.highlight;
         if (this.selection != null && !(this.selection.isOutside && operator.text == "Posterior")) {
-            this.clickOperatorLayer.shapes = operator.value(this.selection).map(
+            let shapes = operator.value(this.selection).map(
                 poly => ({ kind: "polytope", vertices: poly.vertices })
             );
+            this.highlight1Layer.shapes = shapes;
+            this.highlight2Layer.shapes = shapes;
         } else {
-            this.clickOperatorLayer.shapes = [];
+            this.highlight1Layer.shapes = [];
+            this.highlight2Layer.shapes = [];
         }
     }
 
@@ -384,23 +377,8 @@ export class SystemView extends ObservableMixin<null> {
             this.selection = state;
         }
         this.drawSelection();
-        this.drawClickOperator();
-        this.hoverOperatorLayer.shapes = [];
-        this.mouseover(state);
+        this.drawHighlight();
         this.notify();
-    }
-
-    mouseover(state: State): void {
-        let operator = this.viewSettings.hoverOperator;
-        if (this.selection != null && !this.selection.isOutside) {
-            this.hoverOperatorLayer.shapes = operator.value(this.selection, state).map(
-                poly => ({ kind: "polytope", vertices: poly.vertices })
-            );
-        }
-    }
-
-    mouseout(state: State): void {
-        this.hoverOperatorLayer.shapes = [];
     }
 
 }
@@ -425,6 +403,7 @@ export class SystemSummary {
             createElement("p", {"class": "undecided"}, [this.system.states.filter(s => s.kind == 0).length + " undecided"]),
             createElement("p", {"class": "satisfying"}, [this.system.states.filter(s => s.kind > 0).length + " satisfying"]),
             createElement("p", {"class": "nonsatisfying"}, [this.system.states.filter(s => s.kind < 0).length + " non-satisfying"]),
+            createElement("p", {}, [this.system.states.map(s => s.actions.length).reduce((x, y) => x + y, 0) + " actions"])
         )
     }
 
@@ -475,7 +454,7 @@ export class StateView {
 export class ControlView {
 
     +node: Element;
-    +controlSpace: ConvexPolytope;
+    +controlSpace: ConvexPolytopeUnion;
     +actionLayer: FigureLayer;
 
     constructor(system: AbstractedLSS): void {
@@ -483,8 +462,8 @@ export class ControlView {
         let fig = new Figure();
         this.actionLayer = fig.newLayer({ "stroke": color.action, "fill": color.action });
         let layer = fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" });
-        layer.shapes = [{ kind: "polytope", vertices: this.controlSpace.vertices }];
-        let view = new AxesPlot([90, 90], fig, autoProjection(1, ...this.controlSpace.extent));
+        layer.shapes = this.controlSpace.map(u => ({ kind: "polytope", vertices: u.vertices }));
+        let view = new AxesPlot([90, 90], fig, autoProjection(1, ...union.extent(this.controlSpace)));
         this.node = createElement("div", {}, [view.node]);
     }
 
@@ -492,7 +471,6 @@ export class ControlView {
         if (action == null) {
             this.actionLayer.shapes = [];
         } else {
-            console.log(action.controls);
             this.actionLayer.shapes = action.controls.map(
                 poly => ({ kind: "polytope", vertices: poly.vertices })
             );

@@ -152,7 +152,7 @@ class ProblemSetup {
     get lss(): AbstractedLSS {
         return new AbstractedLSS(
             this.equation.A.value, this.equation.B.value,
-            this.ss.value, this.rs.value, this.cs.value,
+            this.ss.value, this.rs.value, [this.cs.value],
             this.decomposition.value
         );
     }

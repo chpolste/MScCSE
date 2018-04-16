@@ -49,7 +49,7 @@ export class AbstractedLSS {
     +B: Matrix;
     +stateSpace: ConvexPolytope;
     +randomSpace: ConvexPolytope;
-    +controlSpace: ConvexPolytope;
+    +controlSpace: ConvexPolytopeUnion;
     +decomposition: Decomposition;
 
     +extendedStateSpace: ConvexPolytopeUnion;
@@ -58,7 +58,7 @@ export class AbstractedLSS {
     states: State[];
 
     constructor(A: Matrix, B: Matrix, stateSpace: ConvexPolytope, randomSpace: ConvexPolytope,
-                controlSpace: ConvexPolytope, decomposition: Decomposition): void {
+                controlSpace: ConvexPolytopeUnion, decomposition: Decomposition): void {
         this.A = A;
         this.B = B;
         this.stateSpace = stateSpace;
@@ -70,20 +70,21 @@ export class AbstractedLSS {
         this.labelNum = 0;
 
         let oneStepReachable = this.post(stateSpace, controlSpace);
-        this.extendedStateSpace = union.disjunctify([this.stateSpace, oneStepReachable]);
+        this.extendedStateSpace = union.disjunctify([this.stateSpace, ...oneStepReachable]);
 
         // Initial abstraction into states is given by decomposition and
         // partition of outside region into convex polytopes
-        this.states = oneStepReachable.remove(stateSpace).map(poly => new State(this, poly, OUTSIDE));
+        this.states = union.remove(oneStepReachable, [stateSpace]).map(poly => new State(this, poly, OUTSIDE));
         this.states.push(...decomposition.decompose(this));
 
         for (let state of this.states) {
             state.actions = this.computeActions(state, this.controlSpace);
+            // TODO: assert that union of all action controls is Same as controlSpace -> unit test
         }
     }
 
     get extent(): Vector[] {
-        let ext1 = this.post(this.stateSpace, this.controlSpace).extent;
+        let ext1 = union.extent(this.post(this.stateSpace, this.controlSpace));
         let ext2 = this.stateSpace.extent;
         return zip2map((a, b) => [Math.min(a[0], b[0]), Math.max(a[1], b[1])], ext1, ext2);
     }
@@ -93,113 +94,77 @@ export class AbstractedLSS {
         return "X" + this.labelNum.toString();
     }
 
-    // Posterior: Post(x, u)
-    post(x: ConvexPolytope, u: ConvexPolytope): ConvexPolytope {
+    // Posterior: Post(x, {u0, ...})
+    post(x: ConvexPolytope, us: ConvexPolytopeUnion): ConvexPolytopeUnion {
         let xvs = x.vertices;
-        let uvs = u.vertices;
         let wvs = this.randomSpace.vertices;
-        return polytopeType(this.dim).hull(
-            linalg.minkowski.axpy(this.A, xvs, linalg.minkowski.axpy(this.B, uvs, wvs))
-        );
+        let posts = [];
+        for (let u of us) {
+            let uvs = u.vertices;
+            posts.push(
+                polytopeType(this.dim).hull(
+                    linalg.minkowski.axpy(this.A, xvs, linalg.minkowski.axpy(this.B, uvs, wvs))
+                )
+            );
+        }
+        return union.simplify(posts);
     }
 
-    // Predecessor: Pre(x, u, {y0, y1, ...})
-    pre(x: ConvexPolytope, u: ConvexPolytope, ...ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        // Minkowski sum: hull of translated vertices (union of translated polygons)
-        let Bupws = linalg.minkowski.axpy(this.B, u.vertices, this.randomSpace.vertices);
-        return union.disjunctify(ys.map(y => {
-            // "Project" backward (inverse Ax + Bu)
-            let poly = polytopeType(this.dim).hull(linalg.minkowski.xmy(y.vertices, Bupws));
-            return x.intersect(poly.applyRight(this.A));
-        }).filter(y => !y.isEmpty));
+    // Predecessor: Pre(x, {u0, ...}, {y0, ...})
+    pre(x: ConvexPolytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
+        let pres = [];
+        for (let u of us) {
+            // Minkowski sum: hull of translated vertices (union of translated polygons)
+            let Bupws = linalg.minkowski.axpy(this.B, u.vertices, this.randomSpace.vertices);
+            for (let y of ys) {
+                let pre = polytopeType(this.dim).hull(linalg.minkowski.xmy(y.vertices, Bupws));
+                pres.push(x.intersect(pre.applyRight(this.A)));
+            }
+        }
+        return union.simplify(pres);
     }
 
-    // Robust Predecessor: PreR(x, u, {y0, y1, ...})
-    preR(x: ConvexPolytope, u: ConvexPolytope, ...ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        let Bus = u.vertices.map(uv => linalg.apply(this.B, uv));
+    // Robust Predecessor: PreR(x, {u0, ...}, {y0, ...})
+    preR(x: ConvexPolytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
         let pontrys = union.pontryagin(ys, this.randomSpace);
-        return pontrys.map(e => {
-            // "Project" backward (inverse Ax + Bu)
-            let poly = polytopeType(this.dim).hull(linalg.minkowski.xmy(e.vertices, Bus));
-            return x.intersect(poly.applyRight(this.A));
-        }).filter(y => !y.isEmpty);
+        let prers = [];
+        for (let u of us) {
+            let Bus = u.vertices.map(uv => linalg.apply(this.B, uv));
+            for (let pontry of pontrys) {
+                let poly = polytopeType(this.dim).hull(linalg.minkowski.xmy(pontry.vertices, Bus));
+                prers.push(x.intersect(poly.applyRight(this.A)));
+            }
+        }
+        return union.simplify(prers);
     }
 
-    // Attractor: Attr(x, u, {y0, y1, ...})
-    attr(x: ConvexPolytope, u: ConvexPolytope, ...ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        return x.remove(...this.preR(x, u, ...union.remove(this.extendedStateSpace, ys)));
+    // Attractor: Attr(x, {u0, ...}, {y0, ...})
+    attr(x: ConvexPolytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
+        return x.remove(...this.preR(x, us, union.remove(this.extendedStateSpace, ys)));
     }
 
-    // Robust Attractor: AttrR(x, u, {y0, y1, ...})
-    attrR(x: ConvexPolytope, u: ConvexPolytope, ...ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        return x.remove(...this.pre(x, u, ...union.remove(this.extendedStateSpace, ys)));
+    // Robust Attractor: AttrR(x, {u0, ...}, {y0, ...})
+    attrR(x: ConvexPolytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
+        return x.remove(...this.pre(x, us, union.remove(this.extendedStateSpace, ys)));
     }
 
     // Action Polytope
-    actionPolytope(x: ConvexPolytope, y: ConvexPolytope): ConvexPolytope {
+    // TODO: accept a u that isn't the entire control space
+    actionPolytope(x: ConvexPolytope, y: ConvexPolytope): ConvexPolytopeUnion {
         let Axpws = linalg.minkowski.axpy(this.A, x.vertices, this.randomSpace.vertices);
         let poly = polytopeType(this.dim).hull(linalg.minkowski.xmy(y.vertices, Axpws));
-        return poly.applyRight(this.B).intersect(this.controlSpace);
+        return union.intersect([poly.applyRight(this.B)], this.controlSpace);
     }
 
-    computeActions(state: State, u: ConvexPolytope): Action[] {
+    computeActions(state: State, us: ConvexPolytopeUnion): Action[] {
         if (state.isOutside) {
             return []; // Outside states have no actions
         }
-        let reachableStates = state.oneStepReachable(u);
-        let actions = [];
-        for (let target of reachableStates) {
-            // Collect new actions in separate array so they are not visited
-            // immediately when looping over actions
-            let newActions: Action[] = [];
-            // Start with all control inputs that can lead to target state: Uc
-            let ucs = [state.actionPolytope(target)];
-            for (let action of actions) {
-                // Stop early when there is no control subset Uc left
-                if (union.isEmpty(ucs)) {
-                    break;
-                }
-                // Control inputs from the intersection of the action's control
-                // inputs and Uc can lead to action's targets and currently
-                // considered target. This must be incorporated in the action.
-                let u1s = union.intersect(ucs, action.controls);
-                if (!union.isEmpty(u1s)) {
-                    // By removing the intersection, only control inputs are
-                    // left that cannot lead to the currently considered target
-                    let u2s = union.remove(action.controls, u1s);
-                    // Nothing left, entire action.controls can lead to target,
-                    // therefore include it as a target of the action
-                    if (union.isEmpty(u2s)) {
-                        action.targets.push(target);
-                    // Restrict action.controls to those controls that will not
-                    // lead to the currently considered target and create a new
-                    // action that can lead to the action's targets and the
-                    // considered target
-                    } else {
-                        action.controls = u2s;
-                        newActions.push({
-                            origin: state,
-                            targets: action.targets.concat([target]),
-                            controls: u1s
-                        });
-                    }
-                    // Remove the just processed subset of Uc
-                    ucs = union.remove(ucs, u1s);
-                }
-            }
-            // What is left of Uc can only lead to the target (or reachable
-            // state that have not been considered yet). Create a new action.
-            if (!union.isEmpty(ucs)) {
-                newActions.push({
-                    origin: state,
-                    targets: [target],
-                    controls: ucs
-                });
-            }
-            // Commit new actions
-            actions.push(...newActions);
-        }
-        return actions;
+        let reachableStates = state.oneStepReachable(us);
+        let op = target => state.actionPolytope(target);
+        return preciseOperatorPartition(reachableStates, op).map(
+            part => ({ origin: state, targets: part.items, controls: part.polys })
+        );
     }
 
 }
@@ -240,34 +205,82 @@ export class State {
         return this.kind <= -10;
     }
 
-    post(u: ConvexPolytope): ConvexPolytope {
-        return this.system.post(this.polytope, u);
+    post(us: ConvexPolytopeUnion): ConvexPolytopeUnion {
+        return this.system.post(this.polytope, us);
     }
 
-    pre(u: ConvexPolytope, ...ys: State[]): ConvexPolytopeUnion {
-        return this.system.pre(this.polytope, u, ...ys.map(y => y.polytope));
+    pre(us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
+        return this.system.pre(this.polytope, us, ys.map(y => y.polytope));
     }
     
-    preR(u: ConvexPolytope, ...ys: State[]): ConvexPolytopeUnion {
-        return this.system.preR(this.polytope, u, ...ys.map(y => y.polytope));
+    preR(us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
+        return this.system.preR(this.polytope, us, ys.map(y => y.polytope));
     } 
     
-    attr(u: ConvexPolytope, ...ys: State[]): ConvexPolytopeUnion {
-        return this.system.attr(this.polytope, u, ...ys.map(y => y.polytope));
+    attr(us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
+        return this.system.attr(this.polytope, us, ys.map(y => y.polytope));
     }
     
-    attrR(u: ConvexPolytope, ...ys: State[]): ConvexPolytopeUnion {
-        return this.system.attrR(this.polytope, u, ...ys.map(y => y.polytope));
+    attrR(us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
+        return this.system.attrR(this.polytope, us, ys.map(y => y.polytope));
     }
 
-    oneStepReachable(u: ConvexPolytope): State[] {
-        let post = this.post(u);
-        return this.system.states.filter(state => !post.intersect(state.polytope).isEmpty);
+    oneStepReachable(us: ConvexPolytopeUnion): State[] {
+        let post = this.post(us);
+        return this.system.states.filter(state => !union.isEmpty(union.intersect(post, [state.polytope])));
     }
 
-    actionPolytope(y: State): ConvexPolytope {
+    actionPolytope(y: State): ConvexPolytopeUnion {
         return this.system.actionPolytope(this.polytope, y.polytope);
     }
 
+}
+
+
+function preciseOperatorPartition<T>(items: T[], operator: (T) => ConvexPolytopeUnion): { polys: ConvexPolytopeUnion, items: T[] }[] {
+    let parts = [];
+    for (let item of items) {
+        // Collect new parts in a separate array so they are not visited
+        // immediately when looping over the existing parts
+        let newParts = [];
+        // Start with the set (points in space, represented as a union of
+        // convex polytopes) that is related to the current item
+        let remaining = operator(item);
+        // Loop over the existing parts and refine them according to the
+        // current item
+        for (let part of parts) {
+            // Stop early when nothing remains
+            if (union.isEmpty(remaining)) {
+                break;
+            }
+            let common = union.intersect(remaining, part.polys);
+            // The subset that the current item and the existing part have in
+            // common must be associated with the current item too
+            if (!union.isEmpty(common)) {
+                let notCommon = union.remove(part.polys, common);
+                // If all of the part's set is associated with the current
+                // item, extend the association of the part
+                if (union.isEmpty(notCommon)) {
+                    part.items.push(item);
+                // Else split the set into a subset that is still exclusively
+                // associated with the part and a subset that is also
+                // associated with the current item (a new part)
+                } else {
+                    part.polys = notCommon;
+                    newParts.push({ polys: common, items: part.items.concat([item]) });
+                }
+                // Remove the just processed subset of remaining
+                remaining = union.remove(remaining, common);
+            }
+        }
+        // What is not common with the already existing parts is a new part
+        // that is (for now) exclusively associated with the current item
+        if (!union.isEmpty(remaining)) {
+            newParts.push({ polys: remaining, items: [item] });
+        }
+        // Commit new parts
+        parts.push(...newParts);
+    }
+    return parts;
 }
 

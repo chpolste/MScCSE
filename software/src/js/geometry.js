@@ -868,19 +868,34 @@ export const union = {
         return polytopeType(xs[0].dim).hull(bbox);
     },
 
+    // TODO: hull
+
+    covers(xs: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): boolean {
+        return union.isEmpty(union.remove(ys, xs));
+    },
+
+    isSameAs(xs: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): boolean {
+        return union.covers(xs, ys) && union.covers(ys, xs);
+    },
+
     disjunctify(xs: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        // Sort by volume in ascending order (this should favour the removal of
-        // small polytopes).
-        let xxs = xs.sort((x, y) => x.volume - y.volume);
+        // Sort by volume in descending order (this should favour the removal
+        // of small polytopes).
+        let xxs = xs.sort((x, y) => y.volume - x.volume);
         let out = [];
         for (let xx of xxs) {
-            if (out.length == 0) {
+            if (out.length === 0) {
                 out.push(xx);
             } else {
                 out.push(...xx.remove(...out));
             }
         }
-        return out;
+        return out.filter(p => !p.isEmpty);
+    },
+
+    simplify(xs: ConvexPolytopeUnion): ConvexPolytopeUnion {
+        // TODO: merging
+        return union.disjunctify(xs);
     },
 
     intersect(xs: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {

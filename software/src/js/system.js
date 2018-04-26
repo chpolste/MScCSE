@@ -9,14 +9,18 @@ import * as linalg from "./linalg.js";
 import { polytopeType, union } from "./geometry.js";
 
 
+// State status coded as integer:
 type StateKind = number;
-
+// < 0: non-satisfying
+// = 0: undecided
+// > 0: satisfying
 const OUTSIDE = -10;
 const NOTSATISFYING = -1;
 const UNDECIDED = 0;
 const SATISFYING = 1;
 
 
+// TODO: named predicates
 export interface Decomposition {
     decompose(lss: AbstractedLSS): State[];
 }
@@ -40,7 +44,8 @@ export class SplitWithSatisfyingPredicates implements Decomposition {
 }
 
 
-export type Action = { origin: State, targets: State[], controls: ConvexPolytopeUnion };
+export type Action = { origin: State, targets: State[], controls: ConvexPolytopeUnion, supports: ActionSupport[] };
+export type ActionSupport = { action: Action, targets: State[], supports: ConvexPolytopeUnion };
 
 export class AbstractedLSS {
 
@@ -79,6 +84,9 @@ export class AbstractedLSS {
 
         for (let state of this.states) {
             state.actions = this.computeActions(state, this.controlSpace);
+            for (let action of state.actions) {
+                action.supports = this.computeActionSupports(action);
+            }
             // TODO: assert that union of all action controls is Same as controlSpace -> unit test
         }
     }
@@ -163,8 +171,33 @@ export class AbstractedLSS {
         let reachableStates = state.oneStepReachable(us);
         let op = target => state.actionPolytope(target);
         return preciseOperatorPartition(reachableStates, op).map(
-            part => ({ origin: state, targets: part.items, controls: part.polys })
+            part => ({ origin: state, targets: part.items, controls: part.polys, supports: [] })
         );
+    }
+
+    computeActionSupports(action: Action): ActionSupport[] {
+        let op = target => action.origin.pre(action.controls, [target]);
+        let prer = action.origin.preR(action.controls, action.targets);
+        let sup = preciseOperatorPartition(action.targets, op).map(
+            part => ({ action: action, targets: part.items, supports: union.intersect(part.polys, prer) })
+        );
+        return sup;
+        // TODO: turn this into a unit test
+        /*
+        let ps = [];
+        let ok = true;
+        for (let s of sup) {
+            ps.push(...s.supports);
+        }
+        ok = ok && union.isSameAs(ps, [action.origin.polytope]);
+        for (let s of sup) {
+            for (let ss of sup) {
+                //if (s === ss) continue;
+                ok = ok && union.isEmpty(union.intersect(s.supports, ss.supports));
+            }
+        }
+        console.log("support tests: ", ok);
+        */
     }
 
 }

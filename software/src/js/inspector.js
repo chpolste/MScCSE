@@ -13,7 +13,7 @@ import { Figure, autoProjection } from "./figure.js";
 import { AxesPlot } from "./widgets-plot.js";
 import { SelectInput } from "./widgets-input.js";
 import { EvolutionEquationInput, PolytopeInput, DecompositionInput, ViewSettings, SystemSummary,
-         StateView, ControlView, SystemView, ActionsView, toShape, evolutionEquation
+         StateView, ControlView, SystemView, ActionsView, SupportsView, toShape, evolutionEquation
        } from "./widgets-inspector.js";
 import { AbstractedLSS, State } from "./system.js";
 
@@ -192,11 +192,12 @@ class Inspector {
     +node: Element;
 
     +systemView: SystemView;
-    +actionsView: ActionsView;
     +systemSummary: SystemSummary;
     +viewSettings: ViewSettings;
     +stateView: StateView;
     +controlView: ControlView;
+    +actionsView: ActionsView;
+    +supportsView: SupportsView;
 
     lss: AbstractedLSS;
 
@@ -209,9 +210,9 @@ class Inspector {
         this.stateView = new StateView(this.systemView);
         this.controlView = new ControlView(this.lss);
         this.actionsView = new ActionsView(this.systemView, this.controlView);
+        this.supportsView = new SupportsView(this.systemView, this.actionsView);
         this.node = createElement("div", {}, [
-            createElement("h2", {}, ["Algorithm Inspector"]),
-            createElement("h3", {}, ["Evolution Equation"]), evolutionEquation(tableify(lss.A), tableify(lss.B)),
+            createElement("h2", {}, ["System Inspector"]),
             createElement("div", {"class": "cols"}, [
                 createElement("div", {}, [
                     this.systemView.plot.node,
@@ -230,7 +231,8 @@ class Inspector {
                         ])
                     ]),
                     createElement("div", {}, [
-                        createElement("h3", {}, ["Actions"]), this.actionsView.node
+                        createElement("h3", {}, ["Actions"]), this.actionsView.node,
+                        createElement("h3", {}, ["Action Supports"]), this.supportsView.node
                     ]),
                 ])
             ])
@@ -251,8 +253,12 @@ let problemSetup = new ProblemSetup(function (lss: AbstractedLSS) {
         throw new Error();
     }
     clearNode(contentNode);
-    contentNode.appendChild(inspector.node);
-    contentNode.scrollIntoView();
+    appendChild(contentNode,
+        createElement("h2", {}, ["Problem"]),
+        createElement("h3", {}, ["Evolution Equation"]), evolutionEquation(tableify(lss.A), tableify(lss.B)),
+        inspector.node
+    );
+    inspector.node.scrollIntoView();
 });
 let sessionManager = new SessionManager(problemSetup);
 

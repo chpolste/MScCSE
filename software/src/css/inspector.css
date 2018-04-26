@@ -148,6 +148,16 @@ table.math {
     border-right: 12pt solid #FC0;
 }
 
+span.selected {
+    color: #069;
+}
+span.satisfying {
+    color: #093;
+}
+span.nonsatisfying {
+    color: #666;
+}
+
 .sidebar1 {
     min-width: 180px;
 }
@@ -161,20 +171,25 @@ table.math {
 }
 
 .actions {
-    height: 12em;
+    height: 10em;
     overflow-y: auto;
 }
 .actions div:hover {
+    cursor: pointer;
     background-color: #EEE;
-    cursor: default;
+}
+.actions div.selected {
+    background-color: #EEE;
     border-right: 12pt solid #F60;
 }
-.actions .selected {
-    color: #069;
+
+.supports {
+    height: 8em;
+    overflow-y: auto;
 }
-.actions .satisfying {
-    color: #093;
+.supports div:hover {
+    cursor: default;
+    background-color: #EEE;
+    border-right: 12pt solid #09C;
 }
-.actions .nonsatisfying {
-    color: #666;
-}
+

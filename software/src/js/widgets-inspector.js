@@ -4,7 +4,7 @@
 // Widgets here take other inputs as dimension/shape args, to allow change
 
 import type { ConvexPolytope, ConvexPolytopeUnion, Halfspace } from "./geometry.js";
-import type { Decomposition, Action } from "./system.js";
+import type { Decomposition, Action, ActionSupport } from "./system.js";
 import type { LayeredFigure, FigureLayer, Shape } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
@@ -42,9 +42,10 @@ export function toShape(state: State): Shape {
 }
 
 export function toSummaryLine(state: State): Element {
-    let cls = "undecided", name = "undecided";
+    let cls = "undecided";
+    let name = "undecided";
     if (state.isSatisfying) {
-        cls = name  = "satisfying"
+        cls = name = "satisfying"
     } else if (state.isNonSatisfying) {
         cls = name = "non-satisfying"
         if (state.isOutside) {
@@ -52,6 +53,18 @@ export function toSummaryLine(state: State): Element {
         }
     }
     return createElement("p", { "class": cls.replace("-", "") }, [name]);
+}
+
+export function styledStateLabel(state: State, markSelected?: ?State): Element {
+    let attributes = {};
+    if (markSelected != null && markSelected === state) {
+        attributes["class"] = "selected";
+    } else if (state.isSatisfying) {
+        attributes["class"] = "satisfying";
+    } else if (state.isNonSatisfying) {
+        attributes["class"] = "nonsatisfying";
+    }
+    return createElement("span", attributes, [state.label]);
 }
 
 export function evolutionEquation(nodeA: Element, nodeB: Element): Element {
@@ -370,6 +383,20 @@ export class SystemView extends ObservableMixin<null> {
         }
     }
 
+    drawActionSupport(support: ?ActionSupport): void {
+        if (support == null) {
+            this.actionLayer.shapes = [];
+            this.supportLayer.shapes = [];
+        } else {
+            // TODO
+            this.actionLayer.shapes = [];
+            let s = support;
+            this.supportLayer.shapes = s.supports.map(
+                support => ({ kind: "polytope", vertices: support.vertices })
+            );
+        }
+    }
+
     click(state: State): void {
         if (this.selection != null && this.selection === state) {
             this.selection = null;
@@ -438,13 +465,14 @@ export class StateView {
             this.view.projection = autoProjection(1, ...state.polytope.extent);
             this.viewLayer.shapes = [{ kind: "polytope", "vertices": state.polytope.vertices }];
             appendChild(this.summary,
+                createElement("p", {}, [state.label]),
                 toSummaryLine(state),
                 createElement("p", {}, [state.actions.length + " actions"])
             );
         } else {
             this.view.projection = autoProjection(1);
             this.viewLayer.shapes = [];
-            appendChild(this.summary, createElement("p", {}, ["nothing selected"]));
+            appendChild(this.summary, createElement("p", {}, ["no state selected"]));
         }
     }
 
@@ -480,35 +508,32 @@ export class ControlView {
 }
 
 
-export class ActionsView {
+export class ActionsView extends ObservableMixin<null> {
 
     +node: Element;
     +systemView: SystemView;
     +controlView: ControlView;
+    selection: ?Action;
+    selectionNode: ?Element;
 
     constructor(systemView: SystemView, controlView: ControlView): void {
+        super();
         this.systemView = systemView;
         this.systemView.attach(() => this.changeHandler());
         this.controlView = controlView;
         this.node = createElement("div", { "class": "actions" }, []);
+        this.changeHandler();
+        this.attach(() => this.systemView.drawAction(this.selection));
+        this.attach(() => this.controlView.drawAction(this.selection));
     }
 
     changeHandler(): void {
-        this.clear();
         let state = this.systemView.selection;
         if (state != null && state.actions.length > 0) {
             let nodes = state.actions.map(action => {
                 let targets = [];
                 for (let t of action.targets) {
-                    let attrs = {};
-                    if (t === state) {
-                        attrs["class"] = "selected";
-                    } else if (t.isSatisfying) {
-                        attrs["class"] = "satisfying";
-                    } else if (t.isNonSatisfying) {
-                        attrs["class"] = "nonsatisfying";
-                    }
-                    targets.push(createElement("span", attrs, [t.label]));
+                    targets.push(styledStateLabel(t, state));
                     targets.push(", ");
                 }
                 targets.pop();
@@ -516,25 +541,85 @@ export class ActionsView {
                     createElement("span", { "class": "selected" }, [action.origin.label]),
                     " → {", ...targets, "}"
                 ]);
-                node.addEventListener("mouseover", () => this.draw(action));
-                node.addEventListener("mouseout", () => this.clear())
+                node.addEventListener("click", () => this.click(action, node));
+                //node.addEventListener("mouseover", () => this.draw(action));
+                //node.addEventListener("mouseout", () => this.clear())
                 return node;
             });
             clearNode(this.node);
             appendChild(this.node, ...nodes);
+        } else if (state == null) {
+            this.node.innerHTML = "no state selected";
         } else {
             this.node.innerHTML = "none";
         }
+        this.selection = null;
+        this.selectionNode = null;
+        this.notify();
     }
 
-    draw(action: Action): void {
-        this.systemView.drawAction(action);
-        this.controlView.drawAction(action);
+    click(action: Action, node: Element): void {
+        if (this.selectionNode != null) {
+            this.selectionNode.removeAttribute("class");
+        }
+        if (action == this.selection) {
+            this.selection = null;
+            this.selectionNode = null;
+        } else {
+            node.setAttribute("class", "selected");
+            this.selectionNode = node;
+            this.selection = action;
+        }
+        this.notify();
     }
 
-    clear(): void {
-        this.systemView.drawAction(null);
-        this.controlView.drawAction(null);
+}
+
+
+export class SupportsView {
+
+    +node: Element;
+    +systemView: SystemView;
+    +actionsView: ActionsView;
+
+    constructor(systemView: SystemView, actionsView: ActionsView): void {
+        this.systemView = systemView;
+        this.actionsView = actionsView;
+        this.actionsView.attach(() => this.changeHandler());
+        this.node = createElement("div", { "class": "supports" }, []);
+        this.changeHandler();
+    }
+
+    changeHandler(): void {
+        clearNode(this.node);
+        let action = this.actionsView.selection;
+        if (action != null) {
+            for (let support of action.supports) {
+                let targets = [];
+                for (let target of support.targets) {
+                    targets.push(styledStateLabel(target));
+                    targets.push(", ");
+                }
+                targets.pop();
+                let node = createElement("div", {}, [
+                    "{", ...targets, "}"
+                ]);
+                node.addEventListener("mouseover", () => this.mouseover(support));
+                node.addEventListener("mouseout", () => this.mouseout());
+                this.node.appendChild(node);
+            }
+        } else {
+            appendChild(this.node, "no action selected");
+        }
+    }
+
+    mouseover(actionSupport: ActionSupport): void {
+        this.systemView.drawActionSupport(actionSupport);
+    }
+
+    mouseout(): void {
+        this.systemView.drawActionSupport(null);
+        this.systemView.drawAction(this.actionsView.selection);
     }
 
 }

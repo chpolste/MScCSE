@@ -315,4 +315,84 @@ export class MatrixInput<T> extends ObservableMixin<null> implements Input<T[][]
 }
 
 
+export class SelectableNodes<T> extends ObservableMixin<boolean> {
+    
+    +node: HTMLDivElement;
+    +itemToNode: (item: T) => Element;
+    +emptyMessage: string;
+    +nodeMap: Map<T, Element>;
+    hoverSelection: ?T;
+    _selection: ?T;
+
+    constructor(itemToNode: (item: T) => Element, emptyMessage: string): void {
+        super();
+        this.itemToNode = itemToNode;
+        this.emptyMessage = emptyMessage;
+
+        this._selection = null;
+        this.hoverSelection = null;
+        this.nodeMap = new Map();
+
+        this.node = document.createElement("div");
+        this.node.innerHTML = emptyMessage;
+    }
+
+    set items(items: T[]): void {
+        clearNode(this.node);
+        this.nodeMap.clear();
+        this.selection = null;
+        this.hoverSelection = null;
+        if (items.length == 0) {
+            this.node.innerHTML = this.emptyMessage;
+        } else {
+            for (let item of items) {
+                let node = this.itemToNode(item);
+                node.addEventListener("click", () => this.onClick(item));
+                node.addEventListener("mouseover", () => this.onMouseOver(item));
+                node.addEventListener("mouseout", () => this.onMouseOut(item));
+                this.nodeMap.set(item, node);
+                this.node.appendChild(node);
+            }
+        }
+        this.notify();
+    }
+
+    get selection(): ?T {
+        return this._selection;
+    }
+
+    set selection(item: ?T): void {
+        if (this.selection != null) {
+            let curNode = this.nodeMap.get(this.selection);
+            if (curNode != null) {
+                curNode.removeAttribute("class");
+            }
+        }
+        if (item != null) {
+            let selNode = this.nodeMap.get(item);
+            if (selNode != null) {
+                selNode.setAttribute("class", "selection");
+            } else {
+                throw new ValidationError();
+            }
+        }
+        this._selection = item;
+        this.notify(true);
+    }
+
+    onClick(item: T): void {
+        this.selection = this.selection === item ? null : item;
+    }
+
+    onMouseOver(item: T): void {
+        this.hoverSelection = item;
+        this.notify(false);
+    }
+
+    onMouseOut(item: T): void {
+        this.hoverSelection = null;
+        this.notify(false);
+    }
+
+}
 

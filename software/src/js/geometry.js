@@ -267,6 +267,7 @@ export interface ConvexPolytope extends HalfspaceContainer{
     constructor(vertices: ?Vector[], halfspaces: ?Halfspace[]): void;
     isSameAs(other: ConvexPolytope): boolean;
     contains(p: Vector): boolean;
+    fulfils(predicate: Halfspace): boolean;
     translate(v: Vector): ConvexPolytope;
     invert(): ConvexPolytope;
     apply(m: Matrix): ConvexPolytope;
@@ -402,6 +403,16 @@ class AbstractConvexPolytope implements ConvexPolytope {
         linalg.assertEqualDims(this.dim, p.length);
         for (let halfspace of this.halfspaces) {
             if (!halfspace.contains(p)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    fulfils(predicate: Halfspace): boolean {
+        linalg.assertEqualDims(this.dim, predicate.dim);
+        for (let v of this.vertices) {
+            if (!predicate.contains(v))  {
                 return false;
             }
         }

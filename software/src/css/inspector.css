@@ -13,7 +13,6 @@ body > div {
 }
 body > header {
     margin: 0 0 10px 0;
-    border-bottom: 5px solid #069;
     background-color: #333;
     color: #FFF;
 }
@@ -53,7 +52,7 @@ p {
     margin-right: 20px;
 }
 .cols > div:last-child {
-    flex: 1 0 auto;
+    flex: 1 1 auto;
     margin-right: 0;
 }
 
@@ -139,10 +138,6 @@ table.math {
     padding-right: 5px;
     border-right: 12pt solid #093
 }
-.summary .operator {
-    padding-right: 5px;
-    border-right: 12pt solid #09C;
-}
 .summary .posterior {
     padding-right: 5px;
     border-right: 12pt solid #FC0;
@@ -174,11 +169,14 @@ span.nonsatisfying {
     height: 10em;
     overflow-y: auto;
 }
-.actions div:hover {
+.actions > div {
+    display: block;
+}
+.actions > div:hover {
     cursor: pointer;
     background-color: #EEE;
 }
-.actions div.selected {
+.actions > div.selection {
     background-color: #EEE;
     border-right: 12pt solid #F60;
 }
@@ -187,9 +185,18 @@ span.nonsatisfying {
     height: 8em;
     overflow-y: auto;
 }
-.supports div:hover {
-    cursor: default;
+.supports > div {
+    display: inline-block;
+    border-right: 12pt solid transparent;
+    padding-right: 2px;
+    margin-right: 2px;
+}
+.supports > div.selection {
     background-color: #EEE;
-    border-right: 12pt solid #09C;
+    border-color: #09C;
+}
+.supports > div:hover {
+    cursor: pointer;
+    background-color: #EEE;
 }
 

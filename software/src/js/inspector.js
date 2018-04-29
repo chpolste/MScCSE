@@ -3,19 +3,19 @@
 
 import type { Matrix, Vector } from "./linalg.js";
 import type { ConvexPolytope, Halfspace } from "./geometry.js";
-import type { Decomposition } from "./system.js";
 import type { LayeredFigure, FigureLayer, Shape } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
 
+import { union } from "./geometry.js";
 import { clearNode, replaceNode, appendChild, createElement } from "./domtools.js";
 import { Figure, autoProjection } from "./figure.js";
 import { AxesPlot } from "./widgets-plot.js";
 import { SelectInput } from "./widgets-input.js";
-import { EvolutionEquationInput, PolytopeInput, DecompositionInput, ViewSettings, SystemSummary,
-         StateView, ControlView, SystemView, ActionsView, SupportsView, toShape, evolutionEquation
-       } from "./widgets-inspector.js";
-import { AbstractedLSS, State } from "./system.js";
+import { EvolutionEquationInput, PolytopeInput, PredicatesInput, SystemViewSettings,
+         SystemSummary, StateView, ActionView, ActionSupportView, ControlView, SystemView,
+         color, toShape, evolutionEquation } from "./widgets-inspector.js";
+import { LSS, AbstractedLSS, State } from "./system.js";
 
 
 
@@ -56,7 +56,7 @@ class SessionManager {
         ps.ss.text = "0 < x\nx < 4\n0 < y\ny < 2";
         ps.rs.text = "-0.1 < x\nx < 0.1\n-0.1 < y\ny < 0.1";
         ps.cs.text = "-1 < x\nx < 1\n-1 < y\ny < 1";
-        ps.decomposition.text = "x > 2";
+        ps.predicates.text = "x > 2";
     }
 
     applyPreset2() {
@@ -68,7 +68,7 @@ class SessionManager {
         ps.ss.text = "-5 < x\nx < 5\n-3 < y\ny < 3";
         ps.rs.text = "-0.1 < x\nx < 0.1\n-0.1 < y\ny < 0.1";
         ps.cs.text = "-1 < x\nx < 1";
-        ps.decomposition.text = "-1 < x\nx < 1\n-1 < y\ny < 1";
+        ps.predicates.text = "-1 < x\nx < 1\n-1 < y\ny < 1";
     }
 
 }
@@ -76,6 +76,8 @@ class SessionManager {
 
 
 /* Problem Setup */
+
+type ProblemCallback = (lss: LSS, predicates: Halfspace[]) => void;
 
 class ProblemSetup {
     
@@ -86,13 +88,13 @@ class ProblemSetup {
     +ss: Input<ConvexPolytope>;
     +rs: Input<ConvexPolytope>;
     +cs: Input<ConvexPolytope>;
-    +decomposition: Input<Decomposition>;
+    +predicates: Input<Halfspace[]>;
     +preview: Plot;
     +previewLayer: FigureLayer;
-    +callback: (lss: AbstractedLSS) => void;
-    +lss: AbstractedLSS;
+    +callback: ProblemCallback;
+    +system: AbstractedLSS;
 
-    constructor(callback: (lss: AbstractedLSS) => void) {
+    constructor(callback: ProblemCallback) {
         this.callback = callback;
 
         this.node = document.createElement("form");
@@ -102,7 +104,7 @@ class ProblemSetup {
         this.ss = new PolytopeInput(this.ssDim, false);
         this.rs = new PolytopeInput(this.ssDim, false);
         this.cs = new PolytopeInput(this.csDim, false);
-        this.decomposition = new DecompositionInput(this.ssDim);
+        this.predicates = new PredicatesInput(this.ssDim);
 
         let fig = new Figure();
         this.preview = new AxesPlot([600, 400], fig, autoProjection(6/4));
@@ -124,7 +126,7 @@ class ProblemSetup {
             createElement("div", {"class": "cols"}, [
                 createElement("div", {}, [
                     createElement("h3", {}, ["System Preview"]), this.preview.node,
-                    this.decomposition.node
+                    this.predicates.node
                 ]),
                 createElement("div", {}, [
                     createElement("h3", {}, ["State Space Predicates"]), this.ss.node,
@@ -141,31 +143,46 @@ class ProblemSetup {
         this.ss.attach(() => this.draw());
         this.rs.attach(() => this.draw());
         this.cs.attach(() => this.draw());
-        this.decomposition.attach(() => this.draw());
+        this.predicates.attach(() => this.draw());
     }
 
-    get isValid(): boolean {
-        return this.equation.isValid && this.ss.isValid && this.rs.isValid && this.cs.isValid
-            && this.decomposition.isValid;
+    get lssIsValid(): boolean {
+        return this.equation.isValid && this.ss.isValid && this.rs.isValid && this.cs.isValid;
     }
 
-    get lss(): AbstractedLSS {
-        return new AbstractedLSS(
+    get lss(): LSS {
+        return new LSS(
             this.equation.A.value, this.equation.B.value,
-            this.ss.value, this.rs.value, [this.cs.value],
-            this.decomposition.value
+            this.ss.value, this.rs.value, [this.cs.value]
         );
     }
 
+    get systemIsValid(): boolean {
+        return this.lssIsValid && this.predicates.isValid;
+    }
+
+    get system(): AbstractedLSS {
+        return this.lss.decompose(this.predicates.value);
+    }
+
     submit(): void {
-        this.callback(this.lss);
+        this.callback(this.lss, this.predicates.value);
     }
 
     draw(): void {
-        if (this.isValid) {
+        if (this.systemIsValid) {
+            let system = this.system;
+            this.preview.projection = autoProjection(3/2, ...system.extent);
+            this.previewLayer.shapes = system.states.map(toShape);
+        } else if (this.lssIsValid) {
             let lss = this.lss;
             this.preview.projection = autoProjection(3/2, ...lss.extent);
-            this.previewLayer.shapes = lss.states.map(toShape);
+            this.previewLayer.shapes = [
+                { kind: "polytope", vertices: lss.stateSpace.vertices, style: { fill: color.undecided } },
+                ...union.remove(lss.oneStepReachable, [lss.stateSpace]).map(
+                    poly => ({ kind: "polytope", vertices: poly.vertices, style: { fill: color.nonSatisfying } })
+                )
+            ];
         } else {
             this.preview.projection = autoProjection(3/2);
         }
@@ -191,26 +208,39 @@ class Inspector {
 
     +node: Element;
 
-    +systemView: SystemView;
     +systemSummary: SystemSummary;
-    +viewSettings: ViewSettings;
     +stateView: StateView;
+    +actionView: ActionView;
     +controlView: ControlView;
-    +actionsView: ActionsView;
-    +supportsView: SupportsView;
+    +actionSupportView: ActionSupportView;
+    +systemViewSettings: SystemViewSettings;
+    +systemView: SystemView;
 
-    lss: AbstractedLSS;
+    lss: LSS;
+    system: AbstractedLSS;
 
-    constructor(lss: AbstractedLSS) {
+    constructor(lss: LSS, predicates: Halfspace[]) {
         this.lss = lss;
+        this.system = this.lss.decompose(predicates);
 
-        this.viewSettings = new ViewSettings();
-        this.systemView = new SystemView(this.lss, this.viewSettings);
-        this.systemSummary = new SystemSummary(this.lss);
-        this.stateView = new StateView(this.systemView);
-        this.controlView = new ControlView(this.lss);
-        this.actionsView = new ActionsView(this.systemView, this.controlView);
-        this.supportsView = new SupportsView(this.systemView, this.actionsView);
+        this.systemSummary = new SystemSummary(this.system);
+
+        this.stateView = new StateView();
+        this.actionView = new ActionView(this.stateView);
+        this.controlView = new ControlView(this.lss.controlSpace, this.actionView);
+        this.actionSupportView = new ActionSupportView(this.actionView);
+        this.actionView.node.className = "actions";
+        this.actionSupportView.node.className = "supports";
+
+        this.systemViewSettings = new SystemViewSettings(this.system);
+        this.systemView = new SystemView(
+            this.system,
+            this.systemViewSettings,
+            this.stateView,
+            this.actionView,
+            this.actionSupportView
+        );
+
         this.node = createElement("div", {}, [
             createElement("h2", {}, ["System Inspector"]),
             createElement("div", {"class": "cols"}, [
@@ -222,7 +252,7 @@ class Inspector {
                 createElement("div", { "class": "hsep" }, [
                     createElement("div", {"class": "cols vsep"}, [
                         createElement("div", { "class": "sidebar1" }, [
-                            createElement("h3", {}, ["View Settings"]), this.viewSettings.node,
+                            createElement("h3", {}, ["View Settings"]), this.systemViewSettings.node,
                             createElement("h3", {}, ["System Information"]), this.systemSummary.node
                         ]),
                         createElement("div", { "class": "sidebar2" }, [
@@ -231,8 +261,8 @@ class Inspector {
                         ])
                     ]),
                     createElement("div", {}, [
-                        createElement("h3", {}, ["Actions"]), this.actionsView.node,
-                        createElement("h3", {}, ["Action Supports"]), this.supportsView.node
+                        createElement("h3", {}, ["Actions"]), this.actionView.node,
+                        createElement("h3", {}, ["Action Supports"]), this.actionSupportView.node
                     ]),
                 ])
             ])
@@ -247,8 +277,8 @@ if (contentNode == null) {
     throw new Error();
 }
 
-let problemSetup = new ProblemSetup(function (lss: AbstractedLSS) {
-    let inspector = new Inspector(lss);
+let problemSetup = new ProblemSetup(function (lss: LSS, predicates: Halfspace[]) {
+    let inspector = new Inspector(lss, predicates);
     if (contentNode == null) {
         throw new Error();
     }

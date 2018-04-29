@@ -15,39 +15,12 @@ type StateKind = number;
 // = 0: undecided
 // > 0: satisfying
 const OUTSIDE = -10;
-const NOTSATISFYING = -1;
+const NONSATISFYING = -1;
 const UNDECIDED = 0;
 const SATISFYING = 1;
 
 
-// TODO: named predicates
-export interface Decomposition {
-    decompose(lss: AbstractedLSS): State[];
-}
-
-
-export class SplitWithSatisfyingPredicates implements Decomposition {
-
-    +predicates: Halfspace[];
-
-    constructor(predicates: Halfspace[]): void {
-        this.predicates = predicates;
-    }
-
-    decompose(lss: AbstractedLSS): State[] {
-        let satisfying = lss.stateSpace.intersect(...this.predicates);
-        return lss.stateSpace.split(...this.predicates).map(poly => {
-            return new State(lss, poly, poly.isSameAs(satisfying) ? SATISFYING : UNDECIDED);
-        });
-    }
-
-}
-
-
-export type Action = { origin: State, targets: State[], controls: ConvexPolytopeUnion, supports: ActionSupport[] };
-export type ActionSupport = { action: Action, targets: State[], supports: ConvexPolytopeUnion };
-
-export class AbstractedLSS {
+export class LSS {
 
     +dim: number;
     +A: Matrix;
@@ -55,51 +28,30 @@ export class AbstractedLSS {
     +stateSpace: ConvexPolytope;
     +randomSpace: ConvexPolytope;
     +controlSpace: ConvexPolytopeUnion;
-    +decomposition: Decomposition;
-
+    +oneStepReachable: ConvexPolytopeUnion;
     +extendedStateSpace: ConvexPolytopeUnion;
 
-    labelNum: number;
-    states: State[];
-
     constructor(A: Matrix, B: Matrix, stateSpace: ConvexPolytope, randomSpace: ConvexPolytope,
-                controlSpace: ConvexPolytopeUnion, decomposition: Decomposition): void {
+                controlSpace: ConvexPolytopeUnion): void {
         this.A = A;
         this.B = B;
         this.stateSpace = stateSpace;
         this.randomSpace = randomSpace;
         this.controlSpace = controlSpace;
-        this.decomposition = decomposition;
         this.dim = stateSpace.dim;
 
-        this.labelNum = 0;
+        this.oneStepReachable = this.post(stateSpace, controlSpace);
+        this.extendedStateSpace = union.disjunctify([this.stateSpace, ...this.oneStepReachable]);
+    }
 
-        let oneStepReachable = this.post(stateSpace, controlSpace);
-        this.extendedStateSpace = union.disjunctify([this.stateSpace, ...oneStepReachable]);
-
-        // Initial abstraction into states is given by decomposition and
-        // partition of outside region into convex polytopes
-        this.states = union.remove(oneStepReachable, [stateSpace]).map(poly => new State(this, poly, OUTSIDE));
-        this.states.push(...decomposition.decompose(this));
-
-        for (let state of this.states) {
-            state.actions = this.computeActions(state, this.controlSpace);
-            for (let action of state.actions) {
-                action.supports = this.computeActionSupports(action);
-            }
-            // TODO: assert that union of all action controls is Same as controlSpace -> unit test
-        }
+    decompose(predicates: Halfspace[]): AbstractedLSS {
+        return new AbstractedLSS(this, predicates);
     }
 
     get extent(): Vector[] {
         let ext1 = union.extent(this.post(this.stateSpace, this.controlSpace));
         let ext2 = this.stateSpace.extent;
         return zip2map((a, b) => [Math.min(a[0], b[0]), Math.max(a[1], b[1])], ext1, ext2);
-    }
-
-    genLabel(): string {
-        this.labelNum++;
-        return "X" + this.labelNum.toString();
     }
 
     // Posterior: Post(x, {u0, ...})
@@ -164,40 +116,75 @@ export class AbstractedLSS {
         return union.intersect([poly.applyRight(this.B)], this.controlSpace);
     }
 
-    computeActions(state: State, us: ConvexPolytopeUnion): Action[] {
-        if (state.isOutside) {
-            return []; // Outside states have no actions
+}
+
+
+export class AbstractedLSS {
+
+    +lss: LSS;
+    +predicates: Map<string, Halfspace>; // TODO
+    labelNum: number;
+    states: State[];
+
+    // TODO: labeled predicates
+    constructor(lss: LSS, predicates: Halfspace[], predicateLabels?: (?string)[]): void {
+        this.lss = lss;
+
+        this.labelNum = 0;
+        this.states = [];
+
+        // Initial abstraction into states is given by decomposition and
+        // partition of outside region into convex polytopes
+        let outer = union.remove(this.lss.oneStepReachable, [this.lss.stateSpace]);
+        for (let polytope of outer) {
+            this.newState(polytope, OUTSIDE);
         }
-        let reachableStates = state.oneStepReachable(us);
-        let op = target => state.actionPolytope(target);
-        return preciseOperatorPartition(reachableStates, op).map(
-            part => ({ origin: state, targets: part.items, controls: part.polys, supports: [] })
-        );
+        // TODO: use preciseOperatorPartition to split while attaching predicates!
+        for (let polytope of this.lss.stateSpace.split(...predicates)) {
+            this.newState(polytope, UNDECIDED);
+        }
+
     }
 
-    computeActionSupports(action: Action): ActionSupport[] {
-        let op = target => action.origin.pre(action.controls, [target]);
-        let prer = action.origin.preR(action.controls, action.targets);
-        let sup = preciseOperatorPartition(action.targets, op).map(
-            part => ({ action: action, targets: part.items, supports: union.intersect(part.polys, prer) })
-        );
-        return sup;
-        // TODO: turn this into a unit test
-        /*
-        let ps = [];
-        let ok = true;
-        for (let s of sup) {
-            ps.push(...s.supports);
-        }
-        ok = ok && union.isSameAs(ps, [action.origin.polytope]);
-        for (let s of sup) {
-            for (let ss of sup) {
-                //if (s === ss) continue;
-                ok = ok && union.isEmpty(union.intersect(s.supports, ss.supports));
-            }
-        }
-        console.log("support tests: ", ok);
-        */
+    get extent(): Vector[] {
+        return this.lss.extent;
+    }
+
+    newState(polytope: ConvexPolytope, kind: StateKind): State {
+        let state = new State(this, this.genLabel(), polytope, kind);
+        this.states.push(state);
+        return state;
+    }
+
+    genLabel(): string {
+        this.labelNum++;
+        return "X" + this.labelNum.toString();
+    }
+
+    // Convenience wrappers for polytopic operators
+
+    post(x: State, us: ConvexPolytopeUnion): ConvexPolytopeUnion {
+        return this.lss.post(x.polytope, us);
+    }
+
+    pre(x: State, us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
+        return this.lss.pre(x.polytope, us, ys.map(y => y.polytope));
+    }
+
+    preR(x: State, us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
+        return this.lss.preR(x.polytope, us, ys.map(y => y.polytope));
+    }
+
+    attr(x: State, us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
+        return this.lss.attr(x.polytope, us, ys.map(y => y.polytope));
+    }
+
+    attrR(x: State, us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
+        return this.lss.attrR(x.polytope, us, ys.map(y => y.polytope));
+    }
+
+    actionPolytope(x: State, y: State) {
+        return this.lss.actionPolytope(x.polytope, y.polytope);
     }
 
 }
@@ -208,19 +195,32 @@ export class State {
     +system: AbstractedLSS;
     +polytope: ConvexPolytope;
     +label: string;
+    +actions: Action[];
+    _actions: ?Action[];
     kind: StateKind;
-    actions: Action[];
 
-    constructor(system: AbstractedLSS, polytope: ConvexPolytope, kind: StateKind): void {
+    constructor(system: AbstractedLSS, label: string, polytope: ConvexPolytope, kind: StateKind): void {
         this.system = system;
         this.polytope = polytope;
-        this.label = system.genLabel();
+        this.label = label;
         this.kind = kind;
-        // Actions are given to each state later by the system (it would be
-        // very inefficient to recompute actions after each state-related
-        // change).
-        this.actions = [];
+        this._actions = this.isOutside ? [] : null; // Outside states have no actions
     }
+
+    get actions(): Action[] {
+        if (this._actions != null) {
+            return this._actions;
+        } else {
+            let reachableStates = this.oneStepReachable(this.system.lss.controlSpace);
+            let op = target => this.actionPolytope(target);
+            this._actions = preciseOperatorPartition(reachableStates, op).map(
+                part => new Action(this, part.items, part.polys)
+            );
+            return this.actions;
+        }
+    }
+
+    // State kind properties
 
     get isUndecided(): boolean {
         return this.kind == 0;
@@ -238,24 +238,26 @@ export class State {
         return this.kind <= -10;
     }
 
+    // Convenience wrappers for polytopic operators
+
     post(us: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        return this.system.post(this.polytope, us);
+        return this.system.post(this, us);
     }
 
     pre(us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
-        return this.system.pre(this.polytope, us, ys.map(y => y.polytope));
+        return this.system.pre(this, us, ys);
     }
     
     preR(us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
-        return this.system.preR(this.polytope, us, ys.map(y => y.polytope));
+        return this.system.preR(this, us, ys);
     } 
     
     attr(us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
-        return this.system.attr(this.polytope, us, ys.map(y => y.polytope));
+        return this.system.attr(this, us, ys);
     }
     
     attrR(us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
-        return this.system.attrR(this.polytope, us, ys.map(y => y.polytope));
+        return this.system.attrR(this, us, ys);
     }
 
     oneStepReachable(us: ConvexPolytopeUnion): State[] {
@@ -264,13 +266,80 @@ export class State {
     }
 
     actionPolytope(y: State): ConvexPolytopeUnion {
-        return this.system.actionPolytope(this.polytope, y.polytope);
+        return this.system.actionPolytope(this, y);
     }
 
 }
 
 
-function preciseOperatorPartition<T>(items: T[], operator: (T) => ConvexPolytopeUnion): { polys: ConvexPolytopeUnion, items: T[] }[] {
+export class Action {
+
+    +origin: State;
+    +targets: State[];
+    +controls: ConvexPolytopeUnion;
+    +supports: ActionSupport[];
+    _supports: ?ActionSupport[];
+
+    constructor(origin: State, targets: State[], controls: ConvexPolytopeUnion): void {
+        this.origin = origin;
+        this.targets = targets;
+        this.controls = controls;
+        this._supports = null;
+    }
+
+    get supports(): ActionSupport[] {
+        if (this._supports != null) {
+            return this._supports;
+        } else {
+            let op = target => this.origin.pre(this.controls, [target]);
+            let prer = this.origin.preR(this.controls, this.targets);
+            this._supports = preciseOperatorPartition(this.targets, op).map(
+                part => new ActionSupport(this, part.items, union.intersect(part.polys, prer))
+            );
+            return this.supports;
+        }
+    }
+
+        /*
+    computeActionSupports(action: Action): ActionSupport[] {
+        return sup;
+        // TODO: turn this into a unit test
+        let ps = [];
+        let ok = true;
+        for (let s of sup) {
+            ps.push(...s.supports);
+        }
+        ok = ok && union.isSameAs(ps, [action.origin.polytope]);
+        for (let s of sup) {
+            for (let ss of sup) {
+                //if (s === ss) continue;
+                ok = ok && union.isEmpty(union.intersect(s.supports, ss.supports));
+            }
+        }
+        console.log("support tests: ", ok);
+    }
+        */
+
+}
+
+
+export class ActionSupport {
+
+    +action: Action;
+    +targets: State[];
+    +origins: ConvexPolytopeUnion;
+
+    constructor(action: Action, targets: State[], origins: ConvexPolytopeUnion): void {
+        this.action = action;
+        this.targets = targets;
+        this.origins = origins;
+    }
+
+}
+
+
+type PrecisePart<T> = { polys: ConvexPolytopeUnion, items: T[] };
+function preciseOperatorPartition<T>(items: T[], operator: (T) => ConvexPolytopeUnion): PrecisePart<T>[] {
     let parts = [];
     for (let item of items) {
         // Collect new parts in a separate array so they are not visited

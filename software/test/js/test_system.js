@@ -8,27 +8,26 @@ let system = require("../../src/js/system.js");
 
 describe("Svoreňová et al. (2017): illustrative example system", function () {
 
-    let sys = new system.AbstractedLSS(
+    let lss = new system.LSS(
         [[1, 0], [0, 1]], // A
         [[1, 0], [0, 1]], // B
         geometry.Polygon.hull([[0, 0], [4, 0], [4, 2], [0, 2]]), // state space
         geometry.Polygon.hull([[-0.1, -0.1], [-0.1, 0.1], [0.1, -0.1], [0.1, 0.1]]), // random space
-        [geometry.Polygon.hull([[-1, -1], [-1, 1], [1, -1], [1, 1]])], // control space
-        new system.SplitWithSatisfyingPredicates([
-            geometry.HalfspaceInequation.parse("x > 2", "xy")
-        ])
+        [geometry.Polygon.hull([[-1, -1], [-1, 1], [1, -1], [1, 1]])] // control space
     );
+
+    let sys = new system.AbstractedLSS(lss, [geometry.HalfspaceInequation.parse("x > 2", "xy")]);
 
     it("has 6 states", function () {
         assert.equal(sys.states.length, 6);
     });
 
-    it("has 1 satisfying state", function () {
-        assert.equal(sys.states.filter(s => s.isSatisfying).length, 1);
+    it("has 0 satisfying states", function () {
+        assert.equal(sys.states.filter(s => s.isSatisfying).length, 0);
     });
 
-    it("has 1 undecided state", function () {
-        assert.equal(sys.states.filter(s => s.isUndecided).length, 1);
+    it("has 2 undecided states", function () {
+        assert.equal(sys.states.filter(s => s.isUndecided).length, 2);
     });
 
     it("has 18 actions", function () {
@@ -47,7 +46,7 @@ describe("Svoreňová et al. (2017): illustrative example system", function () {
             for (let action of state.actions) {
                 actionPolytopes.push(...action.controls);
             }
-            assert(geometry.union.isSameAs(actionPolytopes, sys.controlSpace));
+            assert(geometry.union.isSameAs(actionPolytopes, lss.controlSpace));
         }
     });
 
@@ -67,30 +66,31 @@ describe("Svoreňová et al. (2017): illustrative example system", function () {
 
 describe("Svoreňová et al. (2017): double integrator system", function () {
 
-    let sys = new system.AbstractedLSS(
+    let lss = new system.LSS(
         [[1, 1], [0, 1]], // A
         [[0.5], [1]], // B
         geometry.Polygon.hull([[-5, 3], [-5, -3], [5, 3], [5, -3]]), // state space
         geometry.Polygon.hull([[-0.1, -0.1], [-0.1, 0.1], [0.1, -0.1], [0.1, 0.1]]), // random space
-        [geometry.Interval.hull([[-1], [1]])], // control space
-        new system.SplitWithSatisfyingPredicates([
-            geometry.HalfspaceInequation.parse("-1 < x", "xy"),
-            geometry.HalfspaceInequation.parse("x < 1", "xy"),
-            geometry.HalfspaceInequation.parse("-1 < y", "xy"),
-            geometry.HalfspaceInequation.parse("y < 1", "xy")
-        ])
+        [geometry.Interval.hull([[-1], [1]])] // control space
     );
+
+    let sys = new system.AbstractedLSS(lss, [
+        geometry.HalfspaceInequation.parse("-1 < x", "xy"),
+        geometry.HalfspaceInequation.parse("x < 1", "xy"),
+        geometry.HalfspaceInequation.parse("-1 < y", "xy"),
+        geometry.HalfspaceInequation.parse("y < 1", "xy")
+    ]);
 
     it("has 13 states", function () {
         assert.equal(sys.states.length, 13);
     });
 
-    it("has 1 satisfying state", function () {
-        assert.equal(sys.states.filter(s => s.isSatisfying).length, 1);
+    it("has 0 satisfying states", function () {
+        assert.equal(sys.states.filter(s => s.isSatisfying).length, 0);
     });
 
-    it("has 8 undecided states", function () {
-        assert.equal(sys.states.filter(s => s.isUndecided).length, 8);
+    it("has 9 undecided states", function () {
+        assert.equal(sys.states.filter(s => s.isUndecided).length, 9);
     });
 
     it("has 27 actions", function () {
@@ -109,7 +109,7 @@ describe("Svoreňová et al. (2017): double integrator system", function () {
             for (let action of state.actions) {
                 actionPolytopes.push(...action.controls);
             }
-            assert(geometry.union.isSameAs(actionPolytopes, sys.controlSpace));
+            assert(geometry.union.isSameAs(actionPolytopes, lss.controlSpace));
         }
     });
 

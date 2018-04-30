@@ -6,6 +6,66 @@ let linalg = require("../../src/js/linalg.js");
 let system = require("../../src/js/system.js");
 
 
+function actionPolytopesCoverControlSpace(sys) {
+    return function () {
+        for (let state of sys.states.filter(s => !s.isOutside)) {
+            let actionPolytopes = [];
+            for (let action of state.actions) {
+                actionPolytopes.push(...action.controls);
+            }
+            assert(geometry.union.isSameAs(actionPolytopes, sys.lss.controlSpace));
+        }
+    }
+}
+
+function actionPolytopesDoNotOverlap(sys) {
+    return function () {
+        for (let state of sys.states) {
+            for (let action1 of state.actions) {
+                for (let action2 of state.actions) {
+                    if (action1 === action2) continue;
+                    assert(!geometry.union.doIntersect(action1.controls, action2.controls));
+                }
+            }
+        }
+    }
+}
+
+function actionSupportsDoNotOverlap(sys) {
+    return function () {
+        for (let state of sys.states) {
+            for (let action of state.actions) {
+                for (let support1 of action.supports) {
+                    for (let support2 of action.supports) {
+                        if (support1 == support2) continue;
+                        assert(!geometry.union.doIntersect(support1.origins, support2.origins));
+                    }
+                }
+            }
+        }
+    }
+}
+
+function actionSupportsArePreP(sys) {
+    return function () {
+        for (let state of sys.states) {
+            for (let action of state.actions) {
+                let preR = sys.preR(action.origin, action.controls, action.targets);
+                for (let support of action.supports) {
+                    // Origin is subset of PreR
+                    assert(geometry.union.doIntersect(support.origins, preR));
+                    assert(!geometry.union.doIntersect(support.origins, state.polytope.remove(...preR)));
+                    // Every target is reachable
+                    for (let target of support.targets) {
+                        let pre = action.origin.pre(action.controls, [target]);
+                        assert(geometry.union.doIntersect(support.origins, pre));
+                    }
+                }
+            }
+        }
+    }
+}
+
 describe("Svoreňová et al. (2017): illustrative example system", function () {
 
     let lss = new system.LSS(
@@ -40,26 +100,10 @@ describe("Svoreňová et al. (2017): illustrative example system", function () {
         )
     });
 
-    it("union of action polytopes of each state is entire control space", function () {
-        for (let state of sys.states.filter(s => !s.isOutside)) {
-            let actionPolytopes = [];
-            for (let action of state.actions) {
-                actionPolytopes.push(...action.controls);
-            }
-            assert(geometry.union.isSameAs(actionPolytopes, lss.controlSpace));
-        }
-    });
-
-    it("action polytopes of each state do not overlap", function () {
-        for (let state of sys.states) {
-            for (let action1 of state.actions) {
-                for (let action2 of state.actions) {
-                    if (action1 === action2) continue;
-                    assert(geometry.union.isEmpty(geometry.union.intersect(action1.controls, action2.controls)));
-                }
-            }
-        }
-    });
+    it("union of action polytopes of each state is entire control space", actionPolytopesCoverControlSpace(sys));
+    it("action polytopes of each state do not overlap", actionPolytopesDoNotOverlap(sys));
+    it("supports of each action do not overlap", actionSupportsDoNotOverlap(sys));
+    it("supports of each action fulfil PreP properties", actionSupportsArePreP(sys));
 
 });
 
@@ -103,26 +147,10 @@ describe("Svoreňová et al. (2017): double integrator system", function () {
         )
     });
 
-    it("union of action polytopes of each state is entire control space", function () {
-        for (let state of sys.states.filter(s => !s.isOutside)) {
-            let actionPolytopes = [];
-            for (let action of state.actions) {
-                actionPolytopes.push(...action.controls);
-            }
-            assert(geometry.union.isSameAs(actionPolytopes, lss.controlSpace));
-        }
-    });
-
-    it("action polytopes of each state do not overlap", function () {
-        for (let state of sys.states) {
-            for (let action1 of state.actions) {
-                for (let action2 of state.actions) {
-                    if (action1 === action2) continue;
-                    assert(geometry.union.isEmpty(geometry.union.intersect(action1.controls, action2.controls)));
-                }
-            }
-        }
-    });
+    it("union of action polytopes of each state is entire control space", actionPolytopesCoverControlSpace(sys));
+    it("action polytopes of each state do not overlap", actionPolytopesDoNotOverlap(sys));
+    it("supports of each action do not overlap", actionSupportsDoNotOverlap(sys));
+    it("supports of each action fulfil PreP properties", actionSupportsArePreP(sys));
 
 });
 

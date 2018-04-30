@@ -922,6 +922,17 @@ export const union = {
         return out;
     },
 
+    doIntersect(xs: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): boolean {
+        for (let x of xs) {
+            for (let y of ys) {
+                if (!x.intersect(y).isEmpty) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    },
+
     remove(xs: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
         let out = [];
         for (let x of xs) {

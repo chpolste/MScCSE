@@ -67,7 +67,7 @@ export class LSS {
                 )
             );
         }
-        return union.simplify(posts);
+        return union.disjunctify(posts);
     }
 
     // Predecessor: Pre(x, {u0, ...}, {y0, ...})
@@ -81,7 +81,7 @@ export class LSS {
                 pres.push(x.intersect(pre.applyRight(this.A)));
             }
         }
-        return union.simplify(pres);
+        return union.disjunctify(pres);
     }
 
     // Robust Predecessor: PreR(x, {u0, ...}, {y0, ...})
@@ -95,7 +95,7 @@ export class LSS {
                 prers.push(x.intersect(poly.applyRight(this.A)));
             }
         }
-        return union.simplify(prers);
+        return union.disjunctify(prers);
     }
 
     // Attractor: Attr(x, {u0, ...}, {y0, ...})
@@ -214,7 +214,7 @@ export class State {
             let reachableStates = this.oneStepReachable(this.system.lss.controlSpace);
             let op = target => this.actionPolytope(target);
             this._actions = preciseOperatorPartition(reachableStates, op).map(
-                part => new Action(this, part.items, part.polys)
+                part => new Action(this, part.items, union.simplify(part.polys))
             );
             return this.actions;
         }
@@ -294,7 +294,7 @@ export class Action {
             let op = target => this.origin.pre(this.controls, [target]);
             let prer = this.origin.preR(this.controls, this.targets);
             this._supports = preciseOperatorPartition(this.targets, op).map(
-                part => new ActionSupport(this, part.items, union.intersect(part.polys, prer))
+                part => new ActionSupport(this, part.items, union.simplify(union.intersect(part.polys, prer)))
             );
             return this.supports;
         }

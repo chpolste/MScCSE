@@ -641,5 +641,19 @@ describe("geometry.union", function () {
         assert(pont[0].isSameAs(poly1.pontryagin(poly3)));
     });
 
+    it("simplify merges a union of intervals", function () {
+        let i = geometry.Interval.hull([[0], [1]]);
+        let ref = geometry.Interval.hull([[-1], [2]]);
+        let s1 = geometry.union.simplify([i, i.translate([1]), i.translate([-1])]);
+        let s2 = geometry.union.simplify([i.translate([1]), i, i.translate([-1])]);
+        let s3 = geometry.union.simplify([i.translate([1]), i.translate([-1]), i]);
+        assert.equal(s1.length, 1);
+        assert.equal(s2.length, 1);
+        assert.equal(s3.length, 1);
+        assert(s1[0].isSameAs(ref));
+        assert(s2[0].isSameAs(ref));
+        assert(s3[0].isSameAs(ref));
+    });
+
 });
 

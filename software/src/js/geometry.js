@@ -879,7 +879,16 @@ export const union = {
         return polytopeType(xs[0].dim).hull(bbox);
     },
 
-    // TODO: hull
+    hull(xs: ConvexPolytopeUnion): ConvexPolytope {
+        if (union.isEmpty(xs)) {
+            throw new ValueError("Union is empty, cannot determine dim");
+        }
+        let vertices = [];
+        for (let x of xs) {
+            vertices.push(...x.vertices);
+        }
+        return polytopeType(xs[0].dim).hull(vertices);
+    },
 
     covers(xs: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): boolean {
         return union.isEmpty(union.remove(ys, xs));
@@ -905,7 +914,14 @@ export const union = {
     },
 
     simplify(xs: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        // TODO: merging
+        if (xs.length <= 1) {
+            return xs;
+        }
+        let hull = [union.hull(xs)];
+        if (union.covers(xs, hull)) {
+            return hull;
+        }
+        // TODO: merging of individual polytopes?
         return union.disjunctify(xs);
     },
 

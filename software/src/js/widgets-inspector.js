@@ -408,10 +408,14 @@ export class SystemView {
         const action = this.actionView.hoverSelection == null
                      ? this.actionView.selection
                      : this.actionView.hoverSelection;
+        const support = this.actionSupportView.hoverSelection == null
+                      ? this.actionSupportView.selection
+                      : this.actionSupportView.hoverSelection;
         if (action == null) {
             this.layers.action.shapes = [];
         } else {
-            this.layers.action.shapes = action.targets.map(
+            let polys = support != null && this.actionView.hoverSelection == null ? support.targets : action.targets;
+            this.layers.action.shapes = polys.map(
                 target => ({
                     kind: "arrow",
                     origin: action.origin.polytope.centroid,
@@ -425,17 +429,10 @@ export class SystemView {
         const support = this.actionSupportView.hoverSelection == null
                       ? this.actionSupportView.selection
                       : this.actionSupportView.hoverSelection;
+        this.drawAction();
         if (support == null) {
             this.layers.support.shapes = [];
-            this.drawAction();
         } else {
-            this.layers.action.shapes = support.targets.map(
-                target => ({
-                    kind: "arrow",
-                    origin: support.action.origin.polytope.centroid,
-                    target: target.polytope.centroid
-                })
-            );
             this.layers.support.shapes = support.origins.map(
                 origin => ({ kind: "polytope", vertices: origin.vertices })
             );

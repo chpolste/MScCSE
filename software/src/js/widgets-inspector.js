@@ -612,7 +612,9 @@ export class ControlView {
     }
 
     drawAction(): void {
-        let action = this.actionView.selection;
+        const action = this.actionView.hoverSelection == null
+                     ? this.actionView.selection
+                     : this.actionView.hoverSelection;
         if (action == null) {
             this.actionLayer.shapes = [];
         } else {

@@ -27,7 +27,11 @@ export function assertEqualDims(n: number, m: number): void {
 /* Vector operations */
 
 export function norm2(v: Vector): number {
-    return Math.sqrt(v.reduce((a, b) => a + b*b, 0));
+    let squares = 0;
+    for (let x of v) {
+        squares += x * x;
+    }
+    return Math.sqrt(squares);
 }
 
 
@@ -35,7 +39,11 @@ export function norm2(v: Vector): number {
 
 export function dot(v: Vector, w: Vector): number {
     assertEqualDims(v.length, w.length);
-    return zip2map((a, b) => a * b, v, w).reduce((c, d) => c + d, 0);
+    let sum = 0;
+    for (let i = 0; i < v.length; i++) {
+        sum += v[i] * w[i];
+    }
+    return sum;
 }
 
 export function add(v: Vector, w: Vector): Vector {
@@ -50,7 +58,7 @@ export function sub(v: Vector, w: Vector): Vector {
 
 export function areClose(v: Vector, w: Vector): boolean {
     assertEqualDims(v.length, w.length);
-    return norm2(zip2map((x, y) => x - y, v, w)) < TOL;
+    return norm2(sub(v, w)) < TOL;
 }
 
 
@@ -71,9 +79,9 @@ export function applyRight(m: Matrix, v: Vector): Vector {
 /* Matrix operations */
 
 export function eye(size: number): Matrix {
-    let m = [];
+    const m = [];
     for (let i = 0; i < size; i++) {
-        let row = new Array(size);
+        const row = new Array(size);
         row.fill(0);
         row[i] = 1;
         m.push(row);
@@ -92,7 +100,7 @@ export function det(m: Matrix): number {
 
 export function inv(m: Matrix): Matrix {
     assertEqualDims(m.length, m[0].length);
-    let d = det(m);
+    const d = det(m);
     if (Math.abs(d) < TOL) {
         throw new MathError("matrix not invertible");
     } else {
@@ -106,9 +114,9 @@ export function inv(m: Matrix): Matrix {
 }
 
 export function transpose(m: Matrix): Matrix {
-    let result = [];
+    const result = [];
     for (let j = 0; j < m[0].length; j++) {
-        let row = [];
+        const row = [];
         for (let i = 0; i < m.length; i++) {
             row.push(m[i][j]);
         }
@@ -122,13 +130,13 @@ export function transpose(m: Matrix): Matrix {
 
 export function matmul(m: Matrix, n: Matrix): Matrix {
     assertEqualDims(m[0].length, n.length);
-    let result = [];
+    const result = [];
     for (let i = 0; i < m.length; i++) {
-        let row = [];
+        const row = [];
         for (let j = 0; j < n[0].length; j++) {
             let akkumulator = 0;
             for (let k = 0; k < n.length; k++) {
-                akkumulator = akkumulator + m[i][k] * n[k][j];
+                akkumulator += m[i][k] * n[k][j];
             }
             row.push(akkumulator);
         }
@@ -143,9 +151,9 @@ export function matmul(m: Matrix, n: Matrix): Matrix {
 // for common patterns in Minkowski sums are provided.
 export const minkowski = {
 
-    // x + y
+    // x - y
     xmy(xs: Vector[], ys: Vector[]): Vector[] {
-        let out = [];
+        const out = [];
         for (let x of xs) {
             for (let y of ys) {
                 out.push(sub(x, y));
@@ -156,9 +164,9 @@ export const minkowski = {
 
     // Ax + y
     axpy(A: Matrix, xs: Vector[], ys: Vector[]): Vector[] {
-        let out = [];
+        const out = [];
         for (let x of xs) {
-            let Ax = apply(A, x);
+            const Ax = apply(A, x);
             for (let y of ys) {
                 out.push(add(Ax, y));
             }

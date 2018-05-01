@@ -13,7 +13,8 @@ References:
 import type { Vector, Matrix } from "./linalg.js";
 
 import * as linalg from "./linalg.js";
-import { zip2map, cyc2map, NotImplementedError, ValueError, ParseError } from "./tools.js";
+import { zip2map, cyc2map, cyc2mapl, merge, NotImplementedError, ValueError,
+         ParseError } from "./tools.js";
 
 
 // Reuse float-comparison tolerance from linalg
@@ -33,9 +34,23 @@ function cartesian<T>(...tuples: T[][]): T[][] {
 
 /* 2D helpers */
 
+// Canonical ordering in 2D:
+// Vertices: ascending x then descending y
+// Halfspaces: by angle wrt normal [-1, 0]
+// /!\ This is carefully tuned so that canonical sets of halfspaces can be
+//     combined into a canonical set with a single merge operation.
+
+function vertexOrdering2D(p: Vector, q: Vector): number {
+    return p[0] == q[0] ? q[1] - p[1] : p[0] - q[0];
+}
+
+function halfspaceOrdering2D(g: Halfspace, h: Halfspace): number {
+    return angleCCW([-1, 0], g.normal) - angleCCW([-1, 0], h.normal);
+}
+
 // Counterclockwise angle between two vectors, normalized to range [0, 2π).
 function angleCCW(v: Vector, w: Vector): number {
-    let angle = Math.atan2(w[1], w[0]) - Math.atan2(v[1], v[0]);
+    const angle = Math.atan2(w[1], w[0]) - Math.atan2(v[1], v[0]);
     // Because atan2 delivers range [-π, π] (both inclusive), some
     // post-processing of the interval is necessary:
     if (angle < -TOL) {
@@ -53,9 +68,9 @@ function isCCWTurn(p: Vector, q: Vector, r: Vector): boolean {
 }
 
 function halfplaneIntersection(g: Halfspace, h: Halfspace): ?Vector {
-    let [g0, g1] = g.normal;
-    let [h0, h1] = h.normal;
-    let det = g0 * h1 - g1 * h0;
+    const [g0, g1] = g.normal;
+    const [h0, h1] = h.normal;
+    const det = g0 * h1 - g1 * h0;
     if (Math.abs(det) < TOL) {
         return null;
     } else {
@@ -285,6 +300,9 @@ export interface ConvexPolytope extends HalfspaceContainer{
 interface ConvexPolytopeType {
     empty(): ConvexPolytope;
     hull(points: Vector[]): ConvexPolytope;
+    // intersection takes any collection of halfspaces, noredund expects
+    // halfspaces to be in proper order and without infeasible/trivial ones
+    intersection(halfspaces: Halfspace[]): ConvexPolytope;
     noredund(halfspaces: Halfspace[]): ConvexPolytope;
 }
 
@@ -443,7 +461,7 @@ class AbstractConvexPolytope implements ConvexPolytope {
     // the matrix m.
     applyRight(m: Matrix): ConvexPolytope {
         linalg.assertEqualDims(m.length, this.dim);
-        return polytopeType(m[0].length).noredund(this.halfspaces.map(h => h.applyRight(m)));
+        return polytopeType(m[0].length).intersection(this.halfspaces.map(h => h.applyRight(m)));
     }
 
     // Minkowski sum as defined by Baotić (2009).
@@ -463,10 +481,13 @@ class AbstractConvexPolytope implements ConvexPolytope {
     // difference between a square and a triangle).
     pontryagin(other: ConvexPolytope): ConvexPolytope {
         linalg.assertEqualDims(this.dim, other.dim);
-        let otheri = other.invert();
-        let halfspaces = [];
+        const ws = other.invert().vertices;
+        const halfspaces = [];
+        // this.halfspaces has the proper ordering for noredund, translate does
+        // not affect the halfspace normals, therefore the ordering is
+        // preserved when iterating through the halfspaces in the outer loop
         for (let h of this.halfspaces) {
-            for (let w of otheri.vertices) {
+            for (let w of ws) {
                 halfspaces.push(h.translate(w));
             }
         }
@@ -480,9 +501,9 @@ class AbstractConvexPolytope implements ConvexPolytope {
         if (halfspaces == null || halfspaces.length == 0) {
             return [this];
         }
-        let rest = halfspaces.splice(1);
-        let split1 = this.intersect(halfspaces[0]).split(...rest).filter(h => !h.isEmpty);
-        let split2 = this.intersect(halfspaces[0].flip()).split(...rest).filter(h => !h.isEmpty);
+        const rest = halfspaces.splice(1);
+        const split1 = this.intersect(halfspaces[0]).split(...rest).filter(h => !h.isEmpty);
+        const split2 = this.intersect(halfspaces[0].flip()).split(...rest).filter(h => !h.isEmpty);
         return split1.concat(split2)
     }
 
@@ -492,12 +513,12 @@ class AbstractConvexPolytope implements ConvexPolytope {
         if (others == null || others.length == 0) {
             return polytopeType(this.dim).empty();
         }
-        let halfspaces = this.halfspaces.slice();
+        const halfspaces = this.halfspaces.slice();
         for (let other of others) {
             linalg.assertEqualDims(this.dim, other.dim);
             halfspaces.push(...other.halfspaces);
         }
-        return polytopeType(this.dim).noredund(halfspaces);
+        return polytopeType(this.dim).intersection(halfspaces);
     }
 
     // Set difference, yields a union of convex polytopes (in general).
@@ -515,13 +536,13 @@ class AbstractConvexPolytope implements ConvexPolytope {
                 return [this];
             }
         }
-        let region = [];
+        const region = [];
         let poly = this;
         // Use the halfspaces of the polytope that is removed to cut the
         // remainder into convex polytopes, then continue removal recursively
         // with the remaining elements in other.
         for (let halfspace of others[k].halfspaces) {
-            let polyCandidate = poly.intersect(halfspace.flip());
+            const polyCandidate = poly.intersect(halfspace.flip());
             if (!polyCandidate.isEmpty) {
                 if (k < others.length - 1) {
                     region.push(...polyCandidate.remove(...others.slice(k+1)));
@@ -567,8 +588,12 @@ export class Interval extends AbstractConvexPolytope implements ConvexPolytope {
         }
     }
 
+    static intersection(halfspaces: Halfspace[]): Interval {
+        return Interval.noredund(halfspaces);
+    }
+
     static noredund(halfspaces: Halfspace[]): Interval {
-        let hs = [];
+        const hs = [];
         // Sort out trivial halfspaces or return empty if an infeasible
         // halfspace is encountered.
         for (let h of halfspaces) {
@@ -603,12 +628,12 @@ export class Interval extends AbstractConvexPolytope implements ConvexPolytope {
     }
 
     get volume(): number {
-        let [left, right] = this.vertices;
+        const [left, right] = this.vertices;
         return right[0] - left[0];
     }
 
     get centroid(): Vector {
-        let [l, r] = this.vertices;
+        const [l, r] = this.vertices;
         return [(l[0] + r[0]) / 2];
     }
 
@@ -628,7 +653,7 @@ export class Interval extends AbstractConvexPolytope implements ConvexPolytope {
         if (this._vertices == null) {
             throw new ValueError();
         }
-        let [left, right] = this._vertices;
+        const [left, right] = this._vertices;
         this._halfspaces = [new HalfspaceInequation([-1], -left[0]),
                             new HalfspaceInequation([1], right[0])]
     }
@@ -653,11 +678,11 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
     static hull(ps: Vector[]): Polygon {
         ps.map(p => linalg.assertEqualDims(p.length, 2));
         // Sort a copy of points by x-coordinate (ascending, y as fallback).
-        let points = ps.slice().sort((p, q) => (p[0] == q[0] ? p[1] - q[1] : p[0] - q[0]));
+        const points = ps.slice().sort(vertexOrdering2D);
         // Lower part of convex hull: start with leftmost point and pick
         // vertices such that each angle between 3 vertices makes
         // a counterclockwise angle.
-        let ls = [];
+        const ls = [];
         for (let i = 0; i < points.length; i++) {
             while (ls.length > 1 && (!isCCWTurn(ls[ls.length - 2], ls[ls.length - 1], points[i])
                                      || linalg.areClose(ls[ls.length - 1], points[i]))) {
@@ -666,7 +691,7 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
             ls.push(points[i]);
         }
         // Upper part of convex hull: like lower part but start from right
-        let us = [];
+        const us = [];
         for (let i = points.length - 1; i >= 0; i--) {
             while (us.length > 1 && (!isCCWTurn(us[us.length - 2], us[us.length - 1], points[i])
                                      || linalg.areClose(us[us.length - 1], points[i]))) {
@@ -680,44 +705,48 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
         return new Polygon(ls.length + us.length < 3 ? [] : ls.concat(us), null);
     }
 
-    static noredund(halfspaces: Halfspace[]): Polygon {
-        let hs = [];
+    static intersection(halfspaces: Halfspace[]): Polygon {
+        const hs = [];
         // Sort out trivial halfspaces or return empty if an infeasible
         // halfspace is encountered.
         for (let h of halfspaces) {
             linalg.assertEqualDims(h.dim, 2);
             if (h.isInfeasible) {
                 return Polygon.empty();
-            } else if (!h.isTrivial) {
-                hs.push(h);
             }
+            hs.push(h);
         }
-        // Sort by CCW angles relative to [0, -1, 0] (upper halfspace of
-        // coordinate system)
-        let halfplanes = hs.slice().sort(function (g, h) {
-            return angleCCW([0, -1], g.normal) - angleCCW([0, -1], h.normal);
-        });
+        // Order halfspaces properly for noredund
+        return Polygon.noredund(hs.sort(halfspaceOrdering2D));
+    }
+
+    static noredund(halfplanes: Halfspace[]): Polygon {
         // Build a tight loop of halfspaces
-        let loop = [];
-        let cuts = [];
+        const loop = [];
+        const cuts = [];
         let idx = 0;
         while (idx < halfplanes.length) {
+            const next = halfplanes[idx];
+            // Skip trivial halfplanes
+            if (next.isTrivial) {
+                idx++;
+                continue;
+            }
             // Empty loop: add the halfspace to start one
             if (loop.length == 0) {
-                loop.push(halfplanes[idx]);
+                loop.push(next);
                 idx++;
                 continue;
             }
             // Loop contains halfplane(s): case distinction
-            let last = loop[loop.length - 1];
-            let next = halfplanes[idx];
-            let angle = angleCCW(last.normal, next.normal);
+            const last = loop[loop.length - 1];
+            const angle = angleCCW(last.normal, next.normal);
             // Case 1: angle between last inserted and next halfplane is larger
             // than 180°. The there is an "open end", the region is not finite.
             if (angle > Math.PI - TOL) {
                 return Polygon.empty();
             }
-            let nextCut = halfplaneIntersection(last, next);
+            const nextCut = halfplaneIntersection(last, next);
             // Case 2 : the next halfplane is parallel to the last inserted.
             // Case 2a: the inequality constant of the last is larger than the
             //          one of the next halfplane, i.e. it is less specific.
@@ -753,13 +782,13 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
         let lidx = 0;
         let ridx = loop.length;
         while (ridx - lidx >= 3) {
-            let angle = angleCCW(loop[ridx - 1].normal, loop[lidx].normal);
+            const angle = angleCCW(loop[ridx - 1].normal, loop[lidx].normal);
             // Ends don't close loop, polygon is unbounded
             if (angle > Math.PI - TOL) {
                 return Polygon.empty();
             }
             // Determine cut of loop ends.
-            let endCut = halfplaneIntersection(loop[lidx], loop[ridx - 1]);
+            const endCut = halfplaneIntersection(loop[lidx], loop[ridx - 1]);
             // No cut, loop ends are parallel. Pick more specific halfplane.
             if (endCut == null || angle < TOL) {
                 if (loop[lidx].offset > loop[ridx].offset) {
@@ -781,7 +810,7 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
             }
         }
         // Return the leftover loop, if it still is a bounded region
-        let out = ridx - lidx < 3 || angleCCW(loop[ridx - 1].normal, loop[lidx].normal) > Math.PI - TOL
+        const out = ridx - lidx < 3 || angleCCW(loop[ridx - 1].normal, loop[lidx].normal) > Math.PI - TOL
                   ? []
                   : loop.slice(lidx, ridx);
         return new Polygon(null, out);
@@ -794,20 +823,38 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
 
     // https://en.wikipedia.org/wiki/Centroid#Centroid_of_a_polygon
     get centroid(): Vector {
-        let vol = this.volume;
-        let x = cyc2map((a, b) => (a[0] + b[0]) * (a[0]*b[1] - b[0]*a[1]), this.vertices).reduce((a, b) => a + b, 0);
-        let y = cyc2map((a, b) => (a[1] + b[1]) * (a[0]*b[1] - b[0]*a[1]), this.vertices).reduce((a, b) => a + b, 0);
+        const vol = this.volume;
+        const x = cyc2map((a, b) => (a[0] + b[0]) * (a[0]*b[1] - b[0]*a[1]), this.vertices).reduce((a, b) => a + b, 0);
+        const y = cyc2map((a, b) => (a[1] + b[1]) * (a[0]*b[1] - b[0]*a[1]), this.vertices).reduce((a, b) => a + b, 0);
         return [x / 6 / vol, y / 6 / vol];
+    }
+
+    intersect(...others: HalfspaceContainer[]): ConvexPolytope {
+        if (others == null || others.length === 0) {
+            return polytopeType(this.dim).empty();
+        // Because HalfspaceContainers must maintain proper ordering of
+        // halfspaces, all that's necessary to produce a joint set of
+        // halfspaces with proper ordering is one merge step.
+        } else if (others.length === 1) {
+            linalg.assertEqualDims(this.dim, others[0].dim);
+            return polytopeType(this.dim).noredund(
+                merge(halfspaceOrdering2D, this.halfspaces, others[0].halfspaces)
+            );
+        // TODO: implement n-way merge
+        } else {
+            return super.intersect(...others);
+        }
     }
 
     _HtoV(): void {
         if (this._halfspaces == null) {
             throw new ValueError();
         } else {
-            // Because halfspaces are ordered CCW in canonical form, just find
-            // the intersections of neighbours.
-            this._vertices = cyc2map(function (v, w) {
-                let cut = halfplaneIntersection(v, w);
+            // To maintain consistency between canonical vertex and halfspace
+            // ordering, the intersection between the first and last halfspace
+            // must be the first vertex. Therefore cyc2mapl is used.
+            this._vertices = cyc2mapl(function (v, w) {
+                const cut = halfplaneIntersection(v, w);
                 if (cut == null) {
                     throw {};
                 } else {
@@ -821,7 +868,8 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
         if (this._vertices == null) {
             throw new ValueError();
         } else {
-            // Turn each edge into a halfspace.
+            // Turn each edge into a halfspace. Use cyc2map to obtain
+            // halfspaces in proper canonical order.
             this._halfspaces = cyc2map(function (v, w) {
                 return HalfspaceInequation.normalized([w[1] - v[1], v[0] - w[0]], v[0]*w[1] - w[0]*v[1]);
             }, this._vertices);
@@ -837,7 +885,7 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
 const _PolytopeTypes: (?ConvexPolytopeType)[] = [null, Interval, Polygon];
 
 export function polytopeType(dim: number): ConvexPolytopeType {
-    let polytopeType = _PolytopeTypes[dim];
+    const polytopeType = _PolytopeTypes[dim];
     if (polytopeType == null) {
         throw new NotImplementedError();
     } else {
@@ -875,19 +923,14 @@ export const union = {
     },
 
     boundingBox(xs: ConvexPolytopeUnion): ConvexPolytope {
-        let bbox = cartesian(...union.extent(xs));
-        return polytopeType(xs[0].dim).hull(bbox);
+        return polytopeType(xs[0].dim).hull(cartesian(...union.extent(xs)));
     },
 
     hull(xs: ConvexPolytopeUnion): ConvexPolytope {
         if (union.isEmpty(xs)) {
             throw new ValueError("Union is empty, cannot determine dim");
         }
-        let vertices = [];
-        for (let x of xs) {
-            vertices.push(...x.vertices);
-        }
-        return polytopeType(xs[0].dim).hull(vertices);
+        return polytopeType(xs[0].dim).hull([].concat(...xs.map(x => x.vertices)));
     },
 
     covers(xs: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): boolean {
@@ -901,8 +944,8 @@ export const union = {
     disjunctify(xs: ConvexPolytopeUnion): ConvexPolytopeUnion {
         // Sort by volume in descending order (this should favour the removal
         // of small polytopes).
-        let xxs = xs.sort((x, y) => y.volume - x.volume);
-        let out = [];
+        const xxs = xs.slice().sort((x, y) => y.volume - x.volume);
+        const out = [];
         for (let xx of xxs) {
             if (out.length === 0) {
                 out.push(xx);
@@ -917,7 +960,7 @@ export const union = {
         if (xs.length <= 1) {
             return xs;
         }
-        let hull = [union.hull(xs)];
+        const hull = [union.hull(xs)];
         if (union.covers(xs, hull)) {
             return hull;
         }
@@ -926,10 +969,10 @@ export const union = {
     },
 
     intersect(xs: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        let out = [];
+        const out = [];
         for (let x of xs) {
             for (let y of ys) {
-                let intersection = x.intersect(y);
+                const intersection = x.intersect(y);
                 if (!intersection.isEmpty) {
                     out.push(intersection);
                 }
@@ -950,7 +993,7 @@ export const union = {
     },
 
     remove(xs: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        let out = [];
+        const out = [];
         for (let x of xs) {
             out.push(...x.remove(...ys));
         }
@@ -970,8 +1013,8 @@ export const union = {
     pontryagin(xs: ConvexPolytopeUnion, y: ConvexPolytope): ConvexPolytopeUnion {
         // Since unbounded polygons are not representable by this library, use
         // bbox as a substitute for the complement
-        let bbox = union.boundingBox(xs);
-        let complement = bbox.remove(...xs);
+        const bbox = union.boundingBox(xs);
+        const complement = bbox.remove(...xs);
         // Apply Pontryagin difference also to bbox or else edges in xs that
         // are shared with bbox are not properly handled (necessary due to bbox
         // use for complement)

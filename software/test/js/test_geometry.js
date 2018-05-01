@@ -4,6 +4,8 @@ let assert = require("assert");
 let geometry = require("../../src/js/geometry.js");
 let linalg = require("../../src/js/linalg.js");
 
+let tools = require("../../src/js/tools.js");
+
 
 
 describe("geometry.HalfspaceIneqation.parse", function () {
@@ -335,7 +337,14 @@ describe("geometry.Interval", function () {
 
 describe("geometry.Polygon with square", function () {
 
-    const poly = new geometry.Polygon([[0, 0], [1, 0], [1, 1], [0, 1]], null);
+    const poly = new geometry.Polygon([[0, 1], [0, 0], [1, 0], [1, 1]], null);
+
+    it("transformations between vertices and halfspaces are consistent", function () {
+        let fromVtoH = new geometry.Polygon(null, poly.halfspaces);
+        let fromHtoV = new geometry.Polygon(fromVtoH.vertices, null);
+        assert(poly.isSameAs(fromHtoV));
+        assert.deepEqual(poly.vertices, fromHtoV.vertices);
+    });
 
     it("dim", function () {
         assert.equal(poly.dim, 2);

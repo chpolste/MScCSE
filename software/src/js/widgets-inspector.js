@@ -164,7 +164,7 @@ export class PolytopeInput extends ObservableMixin<null> implements Input<Convex
     }
 
     get value(): ConvexPolytope {
-        return polytopeType(this.variables.length).noredund(this.predicates.value);
+        return polytopeType(this.variables.length).intersection(this.predicates.value);
     }
 
     get text(): string {

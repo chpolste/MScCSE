@@ -11,10 +11,11 @@ References:
 */
 
 import type { Vector, Matrix } from "./linalg.js";
+import type { ASTNode } from "./parser.js";
 
 import * as linalg from "./linalg.js";
-import { zip2map, cyc2map, cyc2mapl, merge, NotImplementedError, ValueError,
-         ParseError } from "./tools.js";
+import { zip2map, cyc2map, cyc2mapl, merge, NotImplementedError, ValueError } from "./tools.js";
+import { ASTParser, ParseError } from "./parser.js";
 
 
 // Reuse float-comparison tolerance from linalg
@@ -85,63 +86,45 @@ HalfspaceInequation contains a parser of textual inequation representation,
 which requires some helpers.
 */
 
-function splitInequation(text: string): [string, string, string] {
-    let parts = text.split(/\s*([<>]=?)\s*/);
-    if (parts.length != 3) {
-        throw new ParseError("not a valid inequation (requires one of <=, <, >, >=)");
-    }
-    // No distinction between < and <= and > and >= (float arithmetic with TOL)
-    return [parts[0], parts[1][0], parts[2]];
+const hsieParse = ASTParser(/\+|-|([0-9\.]+\s*\*?\s*[a-z]?)|[0-9\.]+|[a-z]/, [
+    { op: "+", precedence: 20, associativity: -1 },
+    { op: "-", precedence: 20, associativity: -1 },
+    { op: "+", precedence: 50, associativity:  0 },
+    { op: "-", precedence: 50, associativity:  0 }
+]);
+
+function hsieSplit(text: string): [ASTNode, string, ASTNode] {
+    // Capture group in splitting regex preserves comparison operator
+    const parts = text.split(/\s*([<>]=?)\s*/);
+    if (parts.length != 3) throw new ParseError(
+        "not a valid inequation (requires exactly one of <=, <, >, >=)"
+    );
+    // No distinction between < and <= and > and >=
+    return [hsieParse(parts[0]), parts[1][0], hsieParse(parts[2])];
 }
 
-interface Term { variable: string, coefficient: number }
-
-function splitTerms(text: string): Term[] {
-    let tokens = text.split(/\s*([\+-])\s*/).filter(token => token.length > 0);
-    let terms = [];
-    let sign = 0;
-    if (tokens[0] != "-") {
-        sign = 1;
+const hsieNumVarPattern = /^((?:\d+(?:\.\d+)?)|(?:\.\d+))?\s*\*?\s*([a-z])?$/;
+// Transform AST into flattened list of terms by recursive descent.
+function hsieTerms(node: ASTNode, flip: boolean): { "coefficient": number, "variable": string }[] {
+    if (typeof node === "string") {
+        const match = node.match(hsieNumVarPattern);
+        if (match == null) throw new ParseError("unrecognized term " + node);
+        return [{
+            coefficient: (flip ? -1 : 1) * (match[1] == null ? 1 : parseFloat(match[1])),
+            variable: match[2] == null ? "" : match[2]
+        }];
+    } else if (node.op === "-" || node.op === "+") {
+        const isMinus = node.op === "-";
+        const isUnary = node.args.length === 1;
+        // Flip sign of first term only for unary minus
+        const out = hsieTerms(node.args[0], isUnary && isMinus ? !flip : flip);
+        // Add terms of second argument for binary operators
+        if (!isUnary) out.push(...hsieTerms(node.args[1], isMinus ? !flip : flip));
+        return out;
+    } else {
+        throw new ParseError("unexpected operator " + node.op);
     }
-    for (let token of tokens) {
-        if (sign == 0) {
-            if (token == "+") {
-                sign = 1;
-            } else if (token == "-") {
-                sign = -1;
-            } else {
-                throw new ParseError("unexpected token '" + token + "'");
-            }
-        } else {
-            let term = parseTerm(token);
-            term.coefficient = sign * term.coefficient;
-            terms.push(term);
-            sign = 0;
-        }
-    }
-    return terms;
 }
-
-const _varRegex = /^([a-zA-Z])$/;
-const _numRegex = /^((?:\d+(?:\.\d+)?)|(?:\.\d+))$/;
-const _numvarRegex = /^((?:\d+(?:\.\d+)?)|(?:\.\d+))\s*\*?\s*([a-zA-Z])$/;
-
-function parseTerm(token): Term {
-    let match = token.match(_varRegex);
-    if (match != null) {
-        return { variable: match[1], coefficient: 1 };
-    }
-    match = token.match(_numRegex);
-    if (match != null) {
-        return { variable: "", coefficient: parseFloat(match[1]) };
-    }
-    match = token.match(_numvarRegex);
-    if (match != null) {
-        return { variable: match[2], coefficient: parseFloat(match[1]) };
-    }
-    throw new ParseError("invalid term '" + token +"'");
-}
-
 
 
 /* Halfspaces */
@@ -203,25 +186,18 @@ export class HalfspaceInequation implements Halfspace {
 
     // Parse expressions such as "x + 4y < 3".
     static parse(text: string, variables: string): HalfspaceInequation {
-        let [lhs, comp, rhs] = splitInequation(text.trim());
-        let terms = splitTerms(comp == ">" ? rhs : lhs);
-        terms.push(...splitTerms(comp == ">" ? lhs : rhs).map(function (term: Term) {
-            term.coefficient = -term.coefficient;
-            return term;
-        }));
+        const [lhs, comp, rhs] = hsieSplit(text);
+        const terms = hsieTerms(lhs, comp === ">").concat(hsieTerms(rhs, comp === "<"));
         let offset = 0;
         let normal = new Array(variables.length);
         normal.fill(0);
         for (let term of terms) {
-            if (term.variable == "") {
-                offset = offset - term.coefficient;
+            if (term.variable === "") {
+                offset -= term.coefficient;
             } else {
-                let idx = variables.indexOf(term.variable);
-                if (idx >= 0) {
-                    normal[idx] = normal[idx] + term.coefficient;
-                } else {
-                    throw new ParseError("unexpected variable '" + term.variable + "'");
-                }
+                const idx = variables.indexOf(term.variable);
+                if (idx < 0) throw new ParseError("unexpected variable '" + term.variable + "'");
+                normal[idx] += term.coefficient;
             }
         }
         return HalfspaceInequation.normalized(normal, offset);

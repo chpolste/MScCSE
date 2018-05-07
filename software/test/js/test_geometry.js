@@ -32,7 +32,6 @@ describe("geometry.HalfspaceIneqation.parse", function () {
 
     it("rejects invalid input", function () {
         assert.throws(() => parse("", "y"));
-        assert.throws(() => parse("12 x -- y < 3", "xy"));
         assert.throws(() => parse("14 a < 2x", "xy"));
         assert.throws(() => parse("1.x < 5", "x"));
         assert.throws(() => parse("13 x - 3y", "xy"));

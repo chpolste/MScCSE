@@ -11,11 +11,13 @@ body > div {
     padding: 0 10px;
     max-width: 1200px;
 }
+
 body > header {
     margin: 0 0 10px 0;
     background-color: #333;
     color: #FFF;
 }
+
 h1 {
     max-width: 1200px;
     padding: 15px 10px;
@@ -24,14 +26,14 @@ h1 {
     font-weight: normal;
 }
 h2 {
-    margin: 18px 0 8px 0;
-    padding: 0 0 3px 0;
+    margin: 20px 0 12px 0;
+    padding: 0 0 2px 0;
     border-bottom: 1px solid #999;
     font-size: 12pt;
     font-weight: normal;
 }
 h3 {
-    margin: 16px 0 8px 0;
+    margin: 12px 0 8px 0;
     padding: 0;
     font-size: 10.5pt;
     font-weight: normal;
@@ -43,42 +45,11 @@ p {
     text-align: justify;
 }
 
-.cols {
-    display: flex;
-    flex-direction: columns;
-}
-.cols > div {
-    flex: 0 0 auto;
-    margin-right: 20px;
-}
-.cols > div:last-child {
-    flex: 1 1 auto;
-    margin-right: 0;
-}
-
-.vsep > div {
-    border-right: 1px solid #999;
-    padding-right: 20px;
-}
-.vsep > div:last-child {
-    border-right: none;
-    padding-right: 0;
-}
-
-.hsep > div {
-    border-bottom: 1px solid #999;
-    padding-bottom: 20px;
-}
-.hsep > div:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-}
-
-
 label {
     display: block;
     margin: 4px 0;
 }
+
 input[type=checkbox], input[type=radio] {
     display: inline-block;
     vertical-align: top;
@@ -96,9 +67,87 @@ a:hover {
     color: #000;
 }
 
-.text {
-    line-height: 1.5;
+.cols {
+    display: flex;
+    flex-direction: columns;
 }
+
+/* Interactive system inspector */
+
+.inspector {
+    display: flex;
+    flex-direction: columns;
+    margin: 20px 0;
+}
+.inspector > .left {
+    width: 640px;
+    margin-right: 16px;
+    padding: 0 35px 0 0;
+}
+.inspector > .left > .plot {
+    margin-right: -35px;
+}
+.inspector > .right {
+    flex: 1 1 auto;
+}
+.inspector > .right > .cols > .left {
+    flex: 0 0 auto;
+    min-width: 180px;
+    padding: 0 16px 12px 0;
+    border-right: 1px solid #999;
+    margin-right: 16px;
+}
+.inspector > .right > .cols > .right {
+    flex: 1 1 auto;
+    padding: 0 0 12px 0;
+}
+.inspector > .right > .rest {
+    margin-top: 8px;
+}
+
+
+/* Info Boxes */
+
+.info_button {
+    display: inline-block;
+    padding: 0;
+    margin-left: 5px;
+    float: right;
+    text-align: center;
+    vertical-align: middle;
+    cursor: help;
+    width: 1.1em;
+    height: 1.1em;
+    border: 1px solid #999;
+    border-radius: 1em;
+    font-size: 1em;
+    color: #999;
+}
+.info_button:hover {
+    background-color: #EEE;
+    color: #666;
+    border-color: #666;
+}
+
+.info_content {
+    border: 1px solid #666;
+    background-color: #EEE;
+    max-width: 390px;
+    padding: 5px;
+    margin: 0;
+    display: none;
+    position: absolute;
+    font-size: 9pt;
+    line-height: 1.4;
+    text-align: justify;
+}
+.info_content ul {
+    margin: 0.4em 0;
+    padding: 0 0 0 1.5em;
+}
+
+
+/* Additional widget styling */
 
 .matrix input {
     text-align: center;
@@ -108,8 +157,7 @@ a:hover {
 }
 
 .math {
-   background-color: #EEE;
-   padding: 1px 3px;
+   padding: 0 1px;
    font-family: DejaVu Serif, serif;
 }
 .math td {
@@ -129,6 +177,7 @@ table.math {
 .polytope_builder textarea {
     margin: 5px 5px 25px 0;
 }
+
 
 .summary .nonsatisfying {
     padding-right: 5px;
@@ -153,10 +202,6 @@ span.nonsatisfying {
     color: #666;
 }
 
-.sidebar1 {
-    min-width: 180px;
-}
-
 .selection {
     display: flex;
     vertical-align: top;
@@ -167,7 +212,8 @@ span.nonsatisfying {
 
 .actions {
     height: 10em;
-    overflow-y: auto;
+    overflow-y: scroll;
+    padding-right: 4px;
 }
 .actions > div {
     display: block;
@@ -183,7 +229,8 @@ span.nonsatisfying {
 
 .supports {
     height: 8em;
-    overflow-y: auto;
+    overflow-y: scroll;
+    padding-right: 4px;
 }
 .supports > div {
     display: inline-block;

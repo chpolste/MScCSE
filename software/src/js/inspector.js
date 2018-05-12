@@ -8,7 +8,7 @@ import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
 
 import { union } from "./geometry.js";
-import { clearNode, replaceNode, appendChild, createElement } from "./domtools.js";
+import { clearNode, replaceNode, appendChild, setAttributes, createElement } from "./domtools.js";
 import { Figure, autoProjection } from "./figure.js";
 import { AxesPlot } from "./widgets-plot.js";
 import { SelectInput } from "./widgets-input.js";
@@ -16,6 +16,30 @@ import { EvolutionEquationInput, PolytopeInput, PredicatesInput, SystemViewSetti
          SystemSummary, StateView, ActionView, ActionSupportView, ControlView, SystemView,
          color, toShape, evolutionEquation } from "./widgets-inspector.js";
 import { LSS, AbstractedLSS, State } from "./system.js";
+
+
+/* Inline Information display*/
+
+function infoBox(contentID: string): Element {
+    let node = document.createElement("div");
+    node.className = "info_button";
+    node.innerHTML = "?";
+    node.addEventListener("mouseover", (e: MouseEvent) => {
+        let content = document.getElementById(contentID);
+        if (content != null) {
+            content.style.display = "block";
+            content.style.top = String(node.offsetTop) + "px";
+            content.style.left = String(node.offsetLeft - content.offsetWidth - 5) + "px";
+        }
+    });
+    node.addEventListener("mouseout", (e: MouseEvent) => {
+        let content = document.getElementById(contentID);
+        if (content != null) {
+            content.style.display = "none";
+        }
+    });
+    return node;
+}
 
 
 
@@ -243,26 +267,33 @@ class Inspector {
 
         this.node = createElement("div", {}, [
             createElement("h2", {}, ["System Inspector"]),
-            createElement("div", {"class": "cols"}, [
-                createElement("div", {}, [
+            createElement("p", {}, ["Explore the linear stochastic system and its abstraction interactively and control the abstraction refinement process."]),
+            createElement("div", {"class": "inspector"}, [
+                createElement("div", { "class": "left" }, [
                     this.systemView.plot.node,
-                    createElement("h3", {}, ["Abstraction refinement"]),
-                    "TODO: split selected state, control algoritm, ..."
+                    createElement("h3", {}, ["Abstraction refinement", infoBox("info_abstraction_refinement")]),
+                    "TODO: split selected state, control algorithm, ...",
                 ]),
-                createElement("div", { "class": "hsep" }, [
-                    createElement("div", {"class": "cols vsep"}, [
-                        createElement("div", { "class": "sidebar1" }, [
-                            createElement("h3", {}, ["View Settings"]), this.systemViewSettings.node,
-                            createElement("h3", {}, ["System Information"]), this.systemSummary.node
+                createElement("div", { "class": "right" }, [
+                    createElement("div", {"class": "cols"}, [
+                        createElement("div", { "class": "left" }, [
+                            createElement("h3", {}, ["View Settings", infoBox("info_view_settings")]),
+                            this.systemViewSettings.node,
+                            createElement("h3", {}, ["System Information"]),
+                            this.systemSummary.node
                         ]),
-                        createElement("div", { "class": "sidebar2" }, [
-                            createElement("h3", {}, ["Control Space"]), this.controlView.node,
-                            createElement("h3", {}, ["Selected State"]), this.stateView.node
+                        createElement("div", { "class": "right" }, [
+                            createElement("h3", {}, ["Control Space", infoBox("info_control_space")]),
+                            this.controlView.node,
+                            createElement("h3", {}, ["Selected State", infoBox("info_selected_state")]),
+                            this.stateView.node
                         ])
                     ]),
-                    createElement("div", {}, [
-                        createElement("h3", {}, ["Actions"]), this.actionView.node,
-                        createElement("h3", {}, ["Action Supports"]), this.actionSupportView.node
+                    createElement("div", { "class": "rest" }, [
+                        createElement("h3", {}, ["Actions", infoBox("info_actions")]),
+                        this.actionView.node,
+                        createElement("h3", {}, ["Action Supports", infoBox("info_action_supports")]),
+                        this.actionSupportView.node
                     ]),
                 ])
             ])

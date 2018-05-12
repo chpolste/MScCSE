@@ -23,6 +23,36 @@
         Implementation based on [<a href="#ref1">1</a>].
         <a href="https://github.com/chpolste/MScCSE">Source code</a> by Christopher Polster.
       </p>
+    </div>
+
+    <div class="info_content" id="info_view_settings">
+      The highlight operator shows one of the following polytopic operators related to the selected state <span class="math">X'</span>:
+      <ul>
+        <li class="math">Post(X', U) ⊆ (X ∪ X<sub>out</sub>)</li>
+        <li class="math">Pre(X, U, {X'}) ⊆ X</li>
+        <li class="math">PreR(X, U, {X'}) ⊆ X</li>
+        <li class="math">Attr(X, U, {X'}) ⊆ X</li>
+        <li class="math">AttrR(X, U, {X'}) ⊆ X</li>
+      </ul>
+      where <span class="math">X</span> and <span class="math">U</span> are the (entire) state and control space, respectively.
+    </div>
+    <div class="info_content" id="info_control_space">
+      TODO
+    </div>
+    <div class="info_content" id="info_selected_state">
+      TODO
+    </div>
+    <div class="info_content" id="info_actions">
+      TODO
+    </div>
+    <div class="info_content" id="info_action_supports">
+      TODO
+    </div>
+    <div class="info_content" id="info_abstraction_refinement">
+      TODO
+    </div>
+
+    <div class="text">
       <h3>Polytopic Operators</h3>
       <p>The Posterior operator (Post) yields the one step-reachable set originating from <span class="math">X'</span> when applying the control input <span class="math">U'</span>:</p>
       <table class="math">
@@ -61,11 +91,6 @@
           <td>{x ∈ X' | ∀u ∈ U' : Post(x, u) ⊆ ⋃<sub>j∈J</sub> X<sub>j</sub>}</td>
         </tr>
       </table>
-      <p>
-        Special cases of these polytopic operators associated with the selected state of the abstracted LSS are visualized in the following way:
-        The highlight operators show the Posterior <span class="math">Post(X', U)</span> of the selected state <span class="math">X' ⊆ X</span> or Pre, PreR, Attr and AttrR evaluated with arguments <span class="math">(X, U, {X'})</span>, where <span class="math">X</span> is the (entire) state space and <span class="math">U</span> is the (entire) control space.
-        The hover operators Pre, PreP, Attr and AttrR are evaluated with arguments <span class="math">(X', U, {Y})</span>, where <span class="math">Y ⊆ X ∪ X<sub>out</sub></span> is the state over which the mouse pointer currently resides. Because PreP and PreR are identical when their third argument consists of a single non-empty set, only the Robust Predecessor is available for selection.
-      </p>
       
       <h2>References</h2>
         <p id="ref1">[1] <a href="https://www.sciencedirect.com/science/article/pii/S1751570X16300218">Svoreňová et al. (2017)</a></p>

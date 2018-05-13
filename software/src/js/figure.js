@@ -222,7 +222,7 @@ export class Horizontal1D implements Projection {
                 points: [[l[0], 0.6], [l[0], 0.4], [r[0], 0.4], [r[0], 0.6]]
             });
         } else if (shape.kind === "arrow") {
-            primitives.push({ kind: "arrow", origin: shape.origin, target: shape.target });
+            primitives.push({ kind: "arrow", origin: this.fwd(shape.origin), target: this.fwd(shape.target) });
         } else if (shape.kind === "text") {
             primitives.push({ kind: "text", coords: [shape.coords[0], 0.5], text: shape.text });
         } else {

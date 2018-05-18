@@ -5,9 +5,9 @@
 export type ElementAttributes = { [string]: string };
 export type ElementEvents = { [string]: () => void };
 type ElementChild = Element | string;
-type ElementCreator = (tag: string, attributes?: ElementAttributes, children?: ElementChild[]) => Element;
+type ElementCreator<T> = (tag: string, attributes?: ElementAttributes, children?: ElementChild[]) => T;
 
-export function createElementFactory(create: (tag: string) => Element): ElementCreator {
+export function createElementFactory<T: Element>(create: (tag: string) => T): ElementCreator<T> {
     return function (tag, attributes, children) {
         let node = create(tag);
         if (attributes != null) {
@@ -26,8 +26,12 @@ export function createElementFactory(create: (tag: string) => Element): ElementC
 
 export const SVGNS = "http://www.w3.org/2000/svg";
 
-export const createElement = createElementFactory(tag => document.createElement(tag));
-export const createElementSVG = createElementFactory(tag => document.createElementNS(SVGNS, tag));
+export const createElement: ElementCreator<HTMLElement> = createElementFactory(
+    tag => document.createElement(tag)
+);
+export const createElementSVG: ElementCreator<Element> = createElementFactory(
+    tag => document.createElementNS(SVGNS, tag)
+);
 
 export function clearNode(node: Element) {
     while(node.firstChild) {

@@ -206,6 +206,11 @@ export class AbstractedLSS {
             );
             this.newState(part.polys[0], UNDECIDED, part.items.map(lp => lp[0]).filter(l => l.length > 0));
         });
+        // Add the part of the state space not covered by any predicate
+        const leftOverPoly = this.lss.stateSpace.intersect(...predicates.map(p => p.flip()));
+        if (!leftOverPoly.isEmpty) {
+            this.newState(leftOverPoly, UNDECIDED, []);
+        }
     }
 
     get extent(): Vector[] {

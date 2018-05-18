@@ -39,7 +39,8 @@ DIST_HTML = $(DIST)
 
 # Compiled JS modules for use with node
 JS_MODULES = ./modules
-JS_MODULES_FILES = $(JS_MODULES)/geometry.js $(JS_MODULES)/linalg.js $(JS_MODULES)/tools.js $(JS_MODULES)/parser.js
+JS_MODULES_FILES = $(JS_MODULES)/geometry.js $(JS_MODULES)/linalg.js $(JS_MODULES)/tools.js \
+                   $(JS_MODULES)/parser.js $(JS_MODULES)/presets.js $(JS_MODULES)/logic.js
 
 
 # General rules
@@ -96,4 +97,4 @@ $(DIST_JS)/%.js: $(SRC_JS)/%.js
 
 $(DIST_JS)/inspector.js: $(SRC_JS)/figure.js $(SRC_JS)/tools.js $(SRC_JS)/geometry.js \
         $(SRC_JS)/linalg.js $(SRC_JS)/system.js $(SRC_JS)/widgets-input.js $(SRC_JS)/widgets-plot.js \
-		$(SRC_JS)/widgets-inspector.js $(SRC_JS)/parser.js
+		$(SRC_JS)/widgets-inspector.js $(SRC_JS)/parser.js $(SRC_JS)/presets.js $(SRC_JS)/logic.js

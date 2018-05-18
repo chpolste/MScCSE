@@ -1,24 +1,21 @@
 // @flow
 "use strict";
 
-import type { Matrix, Vector } from "./linalg.js";
-import type { ConvexPolytope, Halfspace } from "./geometry.js";
-import type { LayeredFigure, FigureLayer, Shape } from "./figure.js";
-import type { Plot } from "./widgets-plot.js";
+import type { Halfspace, ConvexPolytope } from "./geometry.js";
+import type { Objective } from "./logic.js";
 import type { Input } from "./widgets-input.js";
 
-import { union } from "./geometry.js";
-import { clearNode, replaceNode, appendChild, setAttributes, createElement } from "./domtools.js";
-import { Figure, autoProjection } from "./figure.js";
-import { AxesPlot } from "./widgets-plot.js";
+import * as presets from "./presets.js";
+import { LSS, AbstractedLSS } from "./system.js";
+import { clearNode, appendChild, createElement } from "./domtools.js";
 import { SelectInput } from "./widgets-input.js";
-import { EvolutionEquationInput, PolytopeInput, PredicatesInput, SystemViewSettings,
-         SystemSummary, StateView, ActionView, ActionSupportView, ControlView, SystemView,
-         color, toShape, evolutionEquation } from "./widgets-inspector.js";
-import { LSS, AbstractedLSS, State } from "./system.js";
+import { color, toShape, evolutionEquation, tableify,
+         ProblemSetupPreview, EvolutionEquationInput, PolytopeInput, PredicatesInput, ObjectiveInput,
+         SystemViewSettings, SystemSummary, StateView, ControlView, SystemView, ActionView,
+         ActionSupportView } from "./widgets-inspector.js";
 
 
-/* Inline Information display*/
+/* Inline Information display */
 
 function infoBox(contentID: string): Element {
     let node = document.createElement("div");
@@ -42,57 +39,50 @@ function infoBox(contentID: string): Element {
 }
 
 
-
 /* Session Management */
 
-class SessionManager {
+type SystemSetup = {
+    dimension: {
+        stateSpace: string,
+        controlSpace: string
+    },
+    equation: {
+        A: string,
+        B: string,
+    },
+    polytope: {
+        controlSpace: string,
+        randomSpace: string,
+        stateSpace: string
+    },
+    predicates: string,
+    objective: string
+};
+
+
+// Load and resume sessions from files and provide presets for problem setup
+class SessionManagerWidget {
 
     +node: HTMLDivElement;
-    +problemSetup: ProblemSetup;
+    +problemSetup: ProblemSetupWidget;
 
-    constructor(problemSetup: ProblemSetup): void {
+    constructor(problemSetup: ProblemSetupWidget): void {
         this.node = document.createElement("div");
         this.problemSetup = problemSetup;
-        let presetSelect = new SelectInput({
-            "[1]'s Illustrative Example": () => this.applyPreset1(),
-            "[1]'s Double Integrator": () => this.applyPreset2()
-        });
+        let presetSelect = new SelectInput(presets.setups);
         let presetButton = createElement("input", {"type": "button", "value": "fill in"});
-        presetButton.addEventListener("click", () => presetSelect.value());
+        presetButton.addEventListener("click", () => this.problemSetup.load(presetSelect.value));
         appendChild(this.node,
             createElement("h2", {}, ["Session Management"]),
             createElement("h3", {}, ["Load session from file"]),
             createElement("p", {}, [createElement("input", {"type": "file", "disabled": "true"})]),
             createElement("p", {}, [
-                createElement("input", {"type": "button", "value": "resume session", "disabled": "true"}),
+                createElement("input", {"type": "button", "value": "resume session", "disabled": "true"}), " ",
+                createElement("input", {"type": "button", "value": "fill in setup only", "disabled": "true"}),
             ]),
             createElement("h3", {}, ["Start from a preset"]),
-            createElement("p", {}, [
-                presetSelect.node, " ", presetButton
-            ])
+            createElement("p", {}, [presetSelect.node, " ", presetButton])
         );
-    }
-
-    applyPreset1() {
-        let ps = this.problemSetup;
-        ps.ssDim.text = ps.csDim.text = "2-dimensional";
-        ps.equation.A.text = ps.equation.B.text = "1\n0\n0\n1";
-        ps.ss.text = "0 < x\nx < 4\n0 < y\ny < 2";
-        ps.rs.text = "-0.1 < x\nx < 0.1\n-0.1 < y\ny < 0.1";
-        ps.cs.text = "-1 < x\nx < 1\n-1 < y\ny < 1";
-        ps.predicates.text = "x > 2";
-    }
-
-    applyPreset2() {
-        let ps = this.problemSetup;
-        ps.ssDim.text = "2-dimensional";
-        ps.csDim.text = "1-dimensional";
-        ps.equation.A.text = "1\n1\n0\n1";
-        ps.equation.B.text = "0.5\n1";
-        ps.ss.text = "-5 < x\nx < 5\n-3 < y\ny < 3";
-        ps.rs.text = "-0.1 < x\nx < 0.1\n-0.1 < y\ny < 0.1";
-        ps.cs.text = "-1 < x\nx < 1";
-        ps.predicates.text = "-1 < x\nx < 1\n-1 < y\ny < 1";
     }
 
 }
@@ -101,20 +91,20 @@ class SessionManager {
 
 /* Problem Setup */
 
-type ProblemCallback = (lss: LSS, predicates: Halfspace[]) => void;
+type ProblemCallback = (LSS, Halfspace[], string[], Objective) => void;
 
-class ProblemSetup {
+class ProblemSetupWidget {
     
     +node: HTMLFormElement;
     +ssDim: Input<number>;
     +csDim: Input<number>;
     +equation: EvolutionEquationInput;
+    +preview: ProblemSetupPreview;
     +ss: Input<ConvexPolytope>;
     +rs: Input<ConvexPolytope>;
     +cs: Input<ConvexPolytope>;
-    +predicates: Input<Halfspace[]>;
-    +preview: Plot;
-    +previewLayer: FigureLayer;
+    +predicates: Input<[Halfspace[], string[]]>;
+    +objective: Input<Objective>;
     +callback: ProblemCallback;
     +system: AbstractedLSS;
 
@@ -125,14 +115,13 @@ class ProblemSetup {
         this.ssDim = new SelectInput({"1-dimensional": 1, "2-dimensional": 2}, "2-dimensional");
         this.csDim = new SelectInput({"1-dimensional": 1, "2-dimensional": 2}, "2-dimensional");
         this.equation = new EvolutionEquationInput(this.ssDim, this.csDim);
+        this.preview = new ProblemSetupPreview();
         this.ss = new PolytopeInput(this.ssDim, false);
         this.rs = new PolytopeInput(this.ssDim, false);
         this.cs = new PolytopeInput(this.csDim, false);
         this.predicates = new PredicatesInput(this.ssDim);
+        this.objective = new ObjectiveInput(this.predicates);
 
-        let fig = new Figure();
-        this.preview = new AxesPlot([600, 400], fig, autoProjection(6/4));
-        this.previewLayer = fig.newLayer({ "stroke": "#000", "stroke-width": "1" });
         let submit = createElement("input", {"type": "submit", "value": "run inspector"});
         submit.addEventListener("click", (e: Event) => {
             if (this.node.checkValidity()) {
@@ -147,15 +136,20 @@ class ProblemSetup {
             createElement("p", {}, [this.ssDim.node, " state space"]),
             createElement("p", {}, [this.csDim.node, " control space"]),
             createElement("h3", {}, ["Evolution Equation"]), this.equation.node,
-            createElement("div", {"class": "cols"}, [
-                createElement("div", {}, [
+            createElement("div", { "class": "inspector", "style": "margin:0;" }, [
+                createElement("div", { "class": "left" }, [
                     createElement("h3", {}, ["System Preview"]), this.preview.node,
-                    this.predicates.node
+                    createElement("h3", {}, ["Objective Property"]), this.objective.node
                 ]),
-                createElement("div", {}, [
-                    createElement("h3", {}, ["State Space Predicates"]), this.ss.node,
-                    createElement("h3", {}, ["Random Space Predicates"]), this.rs.node,
-                    createElement("h3", {}, ["Control Space Predicates"]), this.cs.node
+                createElement("div", { "class": "right" }, [
+                    createElement("h3", {}, ["Control Space Polytope"]),
+                    this.cs.node,
+                    createElement("h3", {}, ["Random Space Polytope"]),
+                    this.rs.node,
+                    createElement("h3", {}, ["State Space Polytope"]),
+                    this.ss.node,
+                    createElement("h3", {}, ["Initial State Space Decomposition"]),
+                    this.predicates.node
                 ])
             ]),
             createElement("h3", {}, ["Continue"]),
@@ -186,49 +180,42 @@ class ProblemSetup {
     }
 
     get system(): AbstractedLSS {
-        return this.lss.decompose(this.predicates.value);
+        return this.lss.decompose(...this.predicates.value);
+    }
+
+    // Fill in text fields based on a saved preset
+    load(setup: SystemSetup) {
+        this.ssDim.text = setup.dimension.stateSpace;
+        this.csDim.text = setup.dimension.controlSpace;
+        this.equation.A.text = setup.equation.A;
+        this.equation.B.text = setup.equation.B;
+        this.cs.text = setup.polytope.controlSpace;
+        this.rs.text = setup.polytope.randomSpace;
+        this.ss.text = setup.polytope.stateSpace;
+        this.predicates.text = setup.predicates;
+        this.objective.text = setup.objective;
     }
 
     submit(): void {
-        this.callback(this.lss, this.predicates.value);
+        this.callback(this.lss, ...this.predicates.value, this.objective.value);
     }
 
     draw(): void {
         if (this.systemIsValid) {
-            let system = this.system;
-            this.preview.projection = autoProjection(3/2, ...system.extent);
-            this.previewLayer.shapes = system.states.map(toShape);
+            this.preview.drawAbsLSS(this.system);
         } else if (this.lssIsValid) {
-            let lss = this.lss;
-            this.preview.projection = autoProjection(3/2, ...lss.extent);
-            this.previewLayer.shapes = [
-                { kind: "polytope", vertices: lss.stateSpace.vertices, style: { fill: color.undecided } },
-                ...union.remove(lss.oneStepReachable, [lss.stateSpace]).map(
-                    poly => ({ kind: "polytope", vertices: poly.vertices, style: { fill: color.nonSatisfying } })
-                )
-            ];
+            this.preview.drawLSS(this.lss);
         } else {
-            this.preview.projection = autoProjection(3/2);
+            this.preview.clear();
         }
     }
 
 }
 
 
-
 /* Inspector */
 
-function tableify(m: Matrix): Element {
-    return createElement("table", { "class": "matrix" },
-        m.map(row => createElement("tr", {},
-            row.map(x => createElement("td", {}, [
-                createElement("span", {}, [String(x)])
-            ]))
-        ))
-    );
-}
-
-class Inspector {
+class InspectorWidget {
 
     +node: Element;
 
@@ -242,20 +229,18 @@ class Inspector {
 
     lss: LSS;
     system: AbstractedLSS;
+    objective: Objective;
 
-    constructor(lss: LSS, predicates: Halfspace[]) {
+    constructor(lss: LSS, predicates: Halfspace[], predicateLabels: string[], objective: Objective) {
         this.lss = lss;
-        this.system = this.lss.decompose(predicates);
+        this.system = this.lss.decompose(predicates, predicateLabels);
+        this.objective = objective;
 
         this.systemSummary = new SystemSummary(this.system);
-
         this.stateView = new StateView();
         this.actionView = new ActionView(this.stateView);
         this.controlView = new ControlView(this.lss.controlSpace, this.actionView);
         this.actionSupportView = new ActionSupportView(this.actionView);
-        this.actionView.node.className = "actions";
-        this.actionSupportView.node.className = "supports";
-
         this.systemViewSettings = new SystemViewSettings(this.system);
         this.systemView = new SystemView(
             this.system,
@@ -308,8 +293,8 @@ if (contentNode == null) {
     throw new Error();
 }
 
-let problemSetup = new ProblemSetup(function (lss: LSS, predicates: Halfspace[]) {
-    let inspector = new Inspector(lss, predicates);
+let problemSetup = new ProblemSetupWidget(function (lss, predicates, predicateLabels, objective) {
+    let inspector = new InspectorWidget(lss, predicates, predicateLabels, objective);
     if (contentNode == null) {
         throw new Error();
     }
@@ -321,12 +306,12 @@ let problemSetup = new ProblemSetup(function (lss: LSS, predicates: Halfspace[])
     );
     inspector.node.scrollIntoView();
 });
-let sessionManager = new SessionManager(problemSetup);
+let sessionManager = new SessionManagerWidget(problemSetup);
 
 clearNode(contentNode);
 contentNode.appendChild(sessionManager.node);
 contentNode.appendChild(problemSetup.node);
 // Temporarily start inspector with preset 2 immediately
-sessionManager.applyPreset2();
+problemSetup.load(presets.setups["Svorenova et al. (2017)'s Double Integrator"]);
 //problemSetup.submit();
 

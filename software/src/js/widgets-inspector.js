@@ -3,19 +3,23 @@
 
 // Widgets here take other inputs as dimension/shape args, to allow change
 
+import type { Matrix } from "./linalg.js";
 import type { ConvexPolytope, ConvexPolytopeUnion, Halfspace } from "./geometry.js";
+import type { Proposition, ObjectiveKind } from "./logic.js";
 import type { Action, ActionSupport } from "./system.js";
 import type { LayeredFigure, FigureLayer, Shape } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
 
+import * as presets from "./presets.js";
 import { ObservableMixin } from "./tools.js";
 import { clearNode, appendChild, createElement } from "./domtools.js";
 import { HalfspaceInequation, polytopeType, union } from "./geometry.js";
+import { Objective, AtomicProposition, parseProposition, traverseProposition } from "./logic.js";
 import { Figure, autoProjection } from "./figure.js";
 import { InteractivePlot, AxesPlot } from "./widgets-plot.js";
 import { ValidationError, CheckboxInput, SelectInput, MultiLineInput, MatrixInput,
-         SelectableNodes } from "./widgets-input.js";
+         SelectableNodes, LineInput } from "./widgets-input.js";
 import { LSS, AbstractedLSS, State } from "./system.js";
 
 
@@ -50,7 +54,7 @@ export function toSummaryLine(state: State): Element {
     } else if (state.isNonSatisfying) {
         cls = name = "non-satisfying"
         if (state.isOutside) {
-            name = name + "/outer";
+            name = "outer";
         }
     }
     return createElement("p", { "class": cls.replace("-", "") }, [name]);
@@ -77,8 +81,52 @@ export function evolutionEquation(nodeA: Element, nodeB: Element): Element {
     ]);
 }
 
+export function tableify(m: Matrix): Element {
+    return createElement("table", { "class": "matrix" },
+        m.map(row => createElement("tr", {},
+            row.map(x => createElement("td", {}, [
+                createElement("span", {}, [String(x)])
+            ]))
+        ))
+    );
+}
+
 
 /* Problem Setup */
+
+export class ProblemSetupPreview {
+
+    +node: HTMLElement;
+    +plot: Plot;
+    +layer: FigureLayer;
+
+    constructor(): void {
+        let fig = new Figure();
+        this.plot = new AxesPlot([630, 420], fig, autoProjection(3/2));
+        this.layer = fig.newLayer({ "stroke": "#000", "stroke-width": "1" });
+        this.node = createElement("div", {}, [this.plot.node]);
+    }
+
+    drawLSS(lss: LSS): void {
+        this.plot.projection = autoProjection(3/2, ...lss.extent);
+        this.layer.shapes = [
+            { kind: "polytope", vertices: lss.stateSpace.vertices, style: { fill: color.undecided } },
+            ...union.remove(lss.oneStepReachable, [lss.stateSpace]).map(
+                poly => ({ kind: "polytope", vertices: poly.vertices, style: { fill: color.nonSatisfying } })
+            )
+        ];
+    }
+
+    drawAbsLSS(abslss: AbstractedLSS): void {
+        this.plot.projection = autoProjection(3/2, ...abslss.extent);
+        this.layer.shapes = abslss.states.map(toShape);
+    }
+
+    clear(): void {
+        this.plot.projection = autoProjection(3/2);
+    }
+
+}
 
 // Input of Matrix A and B of LSS that adapts to dimensions selection.
 // Recognize non-NaN numeric entries.
@@ -94,8 +142,8 @@ export class EvolutionEquationInput {
     constructor(ssDim: Input<number>, csDim: Input<number>) {
         this.ssDim = ssDim;
         this.csDim = csDim;
-        this.A = new MatrixInput(EvolutionEquationInput.parseNumber, [2, 2], 2);
-        this.B = new MatrixInput(EvolutionEquationInput.parseNumber, [2, 2], 2);
+        this.A = new MatrixInput(EvolutionEquationInput.parseNumber, [2, 2], 5);
+        this.B = new MatrixInput(EvolutionEquationInput.parseNumber, [2, 2], 5);
         this.node = createElement("div", {}, [evolutionEquation(this.A.node, this.B.node)]);
         ssDim.attach(() => {
             this.A.shape = [ssDim.value, ssDim.value];
@@ -205,11 +253,11 @@ export class PolytopeInput extends ObservableMixin<null> implements Input<Convex
 // Input of predicates (as linear inequations) that define the initial state
 // partition. Predicates can be labeled for use in objective specification.
 // Validation adapts to external dimensions selection.
-export class PredicatesInput extends ObservableMixin<null> implements Input<Halfspace[]> {
+export class PredicatesInput extends ObservableMixin<null> implements Input<[Halfspace[], string[]]> {
 
-    +node: HTMLDivElement;
+    +node: HTMLElement;
     +dim: Input<number>;
-    +predicates: Input<Halfspace[]>;
+    +predicates: Input<[Halfspace, string][]>;
     variables: string;
 
     constructor(dim: Input<number>): void {
@@ -220,22 +268,19 @@ export class PredicatesInput extends ObservableMixin<null> implements Input<Half
             this.predicates.changeHandler();
         });
         this.variables = VAR_NAMES.substring(0, this.dim.value);
-        this.predicates = new MultiLineInput(
-            line => HalfspaceInequation.parse(line, this.variables),
-            [8, 30]
-        );
+        this.predicates = new MultiLineInput(line => this.parsePredicate(line), [10, 30]);
         this.predicates.attach(() => this.changeHandler());
-        
-        this.node = document.createElement("div");
-        appendChild(this.node,
-            createElement("h3", {}, ["State Space Decomposition"]),
-            createElement("p", {}, ["Only reachability problems are supported. Split with satisfying predicate(s):"]),
-            this.predicates.node
-        );
+        this.node = this.predicates.node;
     }
 
-    get value(): Halfspace[] {
-        return this.predicates.value;
+    get value(): [Halfspace[], string[]] {
+        let predicates = [];
+        let names = [];
+        for (let predicate of this.predicates.value) {
+            predicates.push(predicate[0]);
+            names.push(predicate[1]);
+        }
+        return [predicates, names];
     }
 
     get text(): string {
@@ -252,11 +297,120 @@ export class PredicatesInput extends ObservableMixin<null> implements Input<Half
     }
 
     changeHandler(): void {
-        // TODO validate number of predicates
         this.notify();
     }
 
+    parsePredicate(line: string): [Halfspace, string] {
+        const match = line.match(/(?:\s*([a-z][a-z0-9]*)\s*:\s*)?(.*)/);
+        if (match == null || match[2] == null) throw new Error(
+            "..." // TODO
+        );
+        const name = match[1] == null ? "" : match[1];
+        const pred = HalfspaceInequation.parse(match[2], this.variables);
+        return [pred, name];
+    }
+
 }
+
+
+// Objective specification
+export class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
+
+    +node: HTMLElement;
+    +predicates: Input<[Halfspace[], string[]]>;
+    +kind: Input<ObjectiveKind>;
+    +termContainer: HTMLElement;
+    terms: Input<Proposition>[];
+
+    constructor(predicates: Input<[Halfspace[], string[]]>): void {
+        super();
+        this.terms = [];
+        this.kind = new SelectInput(presets.objectives, "Reachability");
+        const formula = createElement("code", {}, []);
+        this.termContainer = createElement("div", {}, []);
+        this.kind.attach(() => {
+            const objKind = this.kind.value;
+            formula.innerHTML = objKind.formula;
+            this.updateTerms(objKind.variables);
+            // TODO: plot automaton with one-pair Streett objective/parity
+            this.changeHandler();
+        });
+        // The quickest way to properly initialize the widget:
+        this.kind.notify();
+
+        // React to changes in predicates by re-evaluating the term inputs,
+        // which reference named predicates
+        this.predicates = predicates;
+        this.predicates.attach(() => {
+            for (let term of this.terms) term.changeHandler()
+        });
+
+        this.node = createElement("div", {}, [
+            createElement("p", {}, [this.kind.node, ": ", formula, ", where"]),
+            this.termContainer
+        ]);
+    }
+
+    get value(): Objective {
+        return new Objective(this.kind.value, this.terms.map(term => term.value));
+    }
+
+    get text(): string {
+        return this.kind.text + "\n" + this.terms.map(t => t.text).join("\n");
+    }
+    
+    set text(text: string): void {
+        const lines = text.split("\n");
+        if (lines.length < 1) throw new Error(
+            "Invalid ..." // TODO
+        );
+        this.kind.text = lines[0];
+        for (let i = 0; i < this.terms.length; i++) {
+            this.terms[i].text = i + 1 < lines.length ? lines[i + 1] : "";
+        }
+    }
+
+    get isValid(): boolean {
+        for (let term of this.terms) {
+            if (!term.isValid) return false;
+        }
+        return true;
+    }
+
+    changeHandler(): void {
+        this.notify();
+    }
+
+    // Update term input fields to match variable requirements of objective
+    updateTerms(variables: string): void {
+        const terms = [];
+        clearNode(this.termContainer);
+        for (let i = 0; i < variables.length; i++) {
+            // Preserve contents of previous term input fields
+            const oldText = i < this.terms.length ? this.terms[i].text : "";
+            terms.push(new LineInput(s => this.parseTerm(s), 70, oldText));
+            this.termContainer.appendChild(createElement("label", {}, [
+                createElement("code", {}, [variables[i]]), " = ", terms[i].node
+            ]));
+            terms[i].attach(() => this.changeHandler());
+        }
+        this.terms = terms;
+    }
+
+    parseTerm(text: string): Proposition {
+        const formula = parseProposition(text);
+        const predicateNames = new Set(this.predicates.value[1]);
+        traverseProposition(prop => {
+            if (prop instanceof AtomicProposition && !predicateNames.has(prop.symbol)) {
+                throw new Error("Unknown linear predicate '" + prop.symbol + "'");
+            }
+        }, formula);
+        return formula;
+    }
+
+}
+
+
 
 
 /* Inspector */
@@ -274,7 +428,7 @@ export class SystemViewSettings extends ObservableMixin<null> {
     
     constructor(system: AbstractedLSS): void {
         super();
-        this.toggleKind = new CheckboxInput(false);
+        this.toggleKind = new CheckboxInput(true);
         this.toggleLabel = new CheckboxInput(false);
 
         const lss = system.lss;
@@ -349,6 +503,9 @@ export class SystemView {
         this.plot = new InteractivePlot([630, 420], fig, autoProjection(6/4, ...system.extent));
 
         this.drawInteraction();
+        this.drawHighlight();
+        this.drawKind();
+        this.drawLabels();
     }
 
     drawInteraction(): void {
@@ -459,9 +616,9 @@ export class SystemSummary {
         clearNode(this.node);
         appendChild(this.node,
             createElement("p", {}, [this.system.states.length + " states:"]),
-            createElement("p", {"class": "undecided"}, [this.system.states.filter(s => s.kind == 0).length + " undecided"]),
-            createElement("p", {"class": "satisfying"}, [this.system.states.filter(s => s.kind > 0).length + " satisfying"]),
-            createElement("p", {"class": "nonsatisfying"}, [this.system.states.filter(s => s.kind < 0).length + " non-satisfying"])
+            createElement("p", {"class": "undecided"}, [this.system.states.filter(s => s.isUndecided).length + " undecided"]),
+            createElement("p", {"class": "satisfying"}, [this.system.states.filter(s => s.isSatisfying).length + " satisfying"]),
+            createElement("p", {"class": "nonsatisfying"}, [this.system.states.filter(s => s.isNonSatisfying).length + " non-satisfying"])
         )
     }
 
@@ -508,7 +665,7 @@ export class StateView extends ObservableMixin<null> {
             appendChild(this.summary,
                 createElement("p", {}, [state.label]),
                 toSummaryLine(state),
-                createElement("p", {}, [state.actions.length + " actions"])
+                createElement("p", {}, [state.actions.length + " actions"]),
             );
         } else {
             this.view.projection = autoProjection(1);
@@ -528,8 +685,8 @@ export class ActionView extends SelectableNodes<Action> {
     +stateView: StateView;
 
     constructor(stateView: StateView): void {
-        super(action => ActionView.toNode(action), "none");
-
+        super(action => ActionView.asNode(action), "none");
+        this.node.className = "actions";
         this.stateView = stateView;
         this.stateView.attach(() => this.changeHandler());
     }
@@ -539,7 +696,7 @@ export class ActionView extends SelectableNodes<Action> {
         this.items = state == null ? [] : state.actions;
     }
 
-    static toNode(action: Action): Element {
+    static asNode(action: Action): Element {
         let labels = [styledStateLabel(action.origin, action.origin), " → {"];
         for (let target of action.targets) {
             labels.push(styledStateLabel(target, action.origin));
@@ -560,7 +717,8 @@ export class ActionSupportView extends SelectableNodes<ActionSupport> {
     +actionView: ActionView;
 
     constructor(actionView: ActionView): void {
-        super(support => ActionSupportView.toNode(support), "none");
+        super(support => ActionSupportView.asNode(support), "none");
+        this.node.className = "supports";
         this.actionView = actionView;
         this.actionView.attach(wasClick => {
             if (wasClick) this.changeHandler();
@@ -572,7 +730,7 @@ export class ActionSupportView extends SelectableNodes<ActionSupport> {
         this.items = action == null ? [] : action.supports;
     }
 
-    static toNode(support: ActionSupport): Element {
+    static asNode(support: ActionSupport): Element {
         let labels = ["{"];
         for (let target of support.targets) {
             labels.push(styledStateLabel(target, support.action.origin));

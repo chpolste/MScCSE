@@ -9,16 +9,55 @@ import * as linalg from "./linalg.js";
 import { polytopeType, union } from "./geometry.js";
 
 
-// State status coded as integer:
-type StateKind = number;
-// < 0: non-satisfying
-// = 0: undecided
-// > 0: satisfying
-const OUTSIDE = -10;
-const NONSATISFYING = -1;
-const UNDECIDED = 0;
-const SATISFYING = 1;
+type PrecisePart<T> = { polys: ConvexPolytopeUnion, items: T[] };
+// Partition the region operator(items) based on each operator(items[i]) and
+// associate the items with each corresponding part.
+function preciseOperatorPartition<T>(items: T[], operator: (T) => ConvexPolytopeUnion): PrecisePart<T>[] {
+    let parts = [];
+    for (let item of items) {
+        // Collect new parts in a separate array so they are not visited
+        // immediately when looping over the existing parts
+        let newParts = [];
+        // Start with the set (points in space, represented as a union of
+        // convex polytopes) that is related to the current item
+        let remaining = operator(item);
+        // Refine existing parts according to the current item
+        for (let part of parts) {
+            if (union.isEmpty(remaining)) {
+                break;
+            }
+            let common = union.intersect(remaining, part.polys);
+            // The subset that the current item and the existing part have in
+            // common must be associated with the current item too
+            if (!union.isEmpty(common)) {
+                let notCommon = union.remove(part.polys, common);
+                // If all of the part's set is associated with the current
+                // item, extend the association of the part, else split the set
+                // into a subset that is still exclusively associated with the
+                // part and a subset that is also associated with the current
+                // item (a new part)
+                if (union.isEmpty(notCommon)) {
+                    part.items.push(item);
+                } else {
+                    part.polys = notCommon;
+                    newParts.push({ polys: common, items: part.items.concat([item]) });
+                }
+                // Remove the just processed subset of remaining
+                remaining = union.remove(remaining, common);
+            }
+        }
+        // What is not common with the already existing parts is a new part
+        // that is (for now) exclusively associated with the current item
+        if (!union.isEmpty(remaining)) {
+            newParts.push({ polys: remaining, items: [item] });
+        }
+        parts.push(...newParts);
+    }
+    return parts;
+}
 
+
+/* Linear Stochastic System */
 
 export class LSS {
 
@@ -44,8 +83,8 @@ export class LSS {
         this.extendedStateSpace = union.disjunctify([this.stateSpace, ...this.oneStepReachable]);
     }
 
-    decompose(predicates: Halfspace[]): AbstractedLSS {
-        return new AbstractedLSS(this, predicates);
+    decompose(predicates: Halfspace[], predicateLabels?: string[]): AbstractedLSS {
+        return new AbstractedLSS(this, predicates, predicateLabels);
     }
 
     get extent(): Vector[] {
@@ -119,6 +158,19 @@ export class LSS {
 }
 
 
+/* LSS with state space abstraction */
+
+// State status coded as integer:
+type StateKind = number;
+// < 0: non-satisfying
+// = 0: undecided
+// > 0: satisfying
+const OUTSIDE = -10;
+const NONSATISFYING = -1;
+const UNDECIDED = 0;
+const SATISFYING = 1;
+
+
 export class AbstractedLSS {
 
     +lss: LSS;
@@ -126,10 +178,8 @@ export class AbstractedLSS {
     labelNum: number;
     states: State[];
 
-    // TODO: labeled predicates
-    constructor(lss: LSS, predicates: Halfspace[], predicateLabels?: (?string)[]): void {
+    constructor(lss: LSS, predicates: Halfspace[], predicateLabels?: string[]): void {
         this.lss = lss;
-
         this.labelNum = 0;
         this.states = [];
 
@@ -139,19 +189,31 @@ export class AbstractedLSS {
         for (let polytope of outer) {
             this.newState(polytope, OUTSIDE);
         }
-        // TODO: use preciseOperatorPartition to split while attaching predicates!
-        for (let polytope of this.lss.stateSpace.split(...predicates)) {
-            this.newState(polytope, UNDECIDED);
-        }
 
+        // Collect named predicates
+        const labeledPredicates = zip2map(
+            (pred, label) => [label, pred],
+            predicates,
+            predicateLabels == null ? predicates.map(pred => "") : predicateLabels
+        );
+        this.predicates = new Map(labeledPredicates.filter(lp => lp[0].length > 0));
+        // Split state space according to given predicates
+        preciseOperatorPartition(labeledPredicates, lp => {
+            return [this.lss.stateSpace.intersect(lp[1])];
+        }).forEach(part => {
+            if (part.polys.length > 1) throw new Error(
+                "State space was not split properly by linear predicates"
+            );
+            this.newState(part.polys[0], UNDECIDED, part.items.map(lp => lp[0]).filter(l => l.length > 0));
+        });
     }
 
     get extent(): Vector[] {
         return this.lss.extent;
     }
 
-    newState(polytope: ConvexPolytope, kind: StateKind): State {
-        let state = new State(this, this.genLabel(), polytope, kind);
+    newState(polytope: ConvexPolytope, kind: StateKind, predicates?: string[]): State {
+        let state = new State(this, this.genLabel(), polytope, kind, predicates);
         this.states.push(state);
         return state;
     }
@@ -195,18 +257,22 @@ export class State {
     +system: AbstractedLSS;
     +polytope: ConvexPolytope;
     +label: string;
+    +predicates: string[];
     +actions: Action[];
     _actions: ?Action[];
     kind: StateKind;
 
-    constructor(system: AbstractedLSS, label: string, polytope: ConvexPolytope, kind: StateKind): void {
+    constructor(system: AbstractedLSS, label: string, polytope: ConvexPolytope, kind: StateKind,
+                predicates?: string[]): void {
         this.system = system;
         this.polytope = polytope;
         this.label = label;
         this.kind = kind;
+        this.predicates = predicates == null ? [] : predicates;
         this._actions = this.isOutside ? [] : null; // Outside states have no actions
     }
 
+    // Lazy evaluation and memoization of actions
     get actions(): Action[] {
         if (this._actions != null) {
             return this._actions;
@@ -287,6 +353,7 @@ export class Action {
         this._supports = null;
     }
 
+    // Lazy evaluation and memoization of action supports
     get supports(): ActionSupport[] {
         if (this._supports != null) {
             return this._supports;
@@ -299,26 +366,6 @@ export class Action {
             return this.supports;
         }
     }
-
-        /*
-    computeActionSupports(action: Action): ActionSupport[] {
-        return sup;
-        // TODO: turn this into a unit test
-        let ps = [];
-        let ok = true;
-        for (let s of sup) {
-            ps.push(...s.supports);
-        }
-        ok = ok && union.isSameAs(ps, [action.origin.polytope]);
-        for (let s of sup) {
-            for (let ss of sup) {
-                //if (s === ss) continue;
-                ok = ok && union.isEmpty(union.intersect(s.supports, ss.supports));
-            }
-        }
-        console.log("support tests: ", ok);
-    }
-        */
 
 }
 
@@ -335,54 +382,5 @@ export class ActionSupport {
         this.origins = origins;
     }
 
-}
-
-
-type PrecisePart<T> = { polys: ConvexPolytopeUnion, items: T[] };
-function preciseOperatorPartition<T>(items: T[], operator: (T) => ConvexPolytopeUnion): PrecisePart<T>[] {
-    let parts = [];
-    for (let item of items) {
-        // Collect new parts in a separate array so they are not visited
-        // immediately when looping over the existing parts
-        let newParts = [];
-        // Start with the set (points in space, represented as a union of
-        // convex polytopes) that is related to the current item
-        let remaining = operator(item);
-        // Loop over the existing parts and refine them according to the
-        // current item
-        for (let part of parts) {
-            // Stop early when nothing remains
-            if (union.isEmpty(remaining)) {
-                break;
-            }
-            let common = union.intersect(remaining, part.polys);
-            // The subset that the current item and the existing part have in
-            // common must be associated with the current item too
-            if (!union.isEmpty(common)) {
-                let notCommon = union.remove(part.polys, common);
-                // If all of the part's set is associated with the current
-                // item, extend the association of the part
-                if (union.isEmpty(notCommon)) {
-                    part.items.push(item);
-                // Else split the set into a subset that is still exclusively
-                // associated with the part and a subset that is also
-                // associated with the current item (a new part)
-                } else {
-                    part.polys = notCommon;
-                    newParts.push({ polys: common, items: part.items.concat([item]) });
-                }
-                // Remove the just processed subset of remaining
-                remaining = union.remove(remaining, common);
-            }
-        }
-        // What is not common with the already existing parts is a new part
-        // that is (for now) exclusively associated with the current item
-        if (!union.isEmpty(remaining)) {
-            newParts.push({ polys: remaining, items: [item] });
-        }
-        // Commit new parts
-        parts.push(...newParts);
-    }
-    return parts;
 }
 

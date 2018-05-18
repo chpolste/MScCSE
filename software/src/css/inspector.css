@@ -50,6 +50,10 @@ label {
     margin: 4px 0;
 }
 
+textarea, input[type=text] {
+    font-size: 9pt;
+    font-family: monospace;
+}
 input[type=checkbox], input[type=radio] {
     display: inline-block;
     vertical-align: top;
@@ -58,6 +62,9 @@ input[type=checkbox], input[type=radio] {
 
 sub {
     font-size: 7pt;
+}
+code {
+    font-family: monospace;
 }
 
 a {

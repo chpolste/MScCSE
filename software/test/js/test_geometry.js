@@ -25,6 +25,9 @@ describe("geometry.HalfspaceIneqation.parse", function () {
 
     it("accepts trivial/infeasible inputs", function () {
         assert(parse("2 < 5", "").isTrivial);
+        assert(parse("2 < 5", "x").isTrivial);
+        assert(parse("5 < 2", "").isInfeasible);
+        assert(parse("5 < 2", "y").isInfeasible);
         assert(parse("23 < 2", "xy").isInfeasible);
         // Ties are broken towards trivial
         assert(parse("x < x", "x").isTrivial);

@@ -94,7 +94,14 @@ export class MultiLineInput<T> extends ObservableMixin<null> implements Input<T[
     }
 
     get value(): T[] {
-        return this.text.split("\n").filter(line => line.length > 0).map(this.parseLine);
+        return this.text.split("\n").filter(line => line.length > 0).map((line, i) => {
+            try {
+                return this.parseLine(line);
+            } catch (e) {
+                e.message = "Line " + (i + 1) + ": " + e.message;
+                throw e;
+            }
+        });
     }
 
     get text(): string {

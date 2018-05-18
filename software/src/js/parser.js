@@ -49,9 +49,10 @@ class TokenStream {
         if (this.pattern.lastIndex == this.text.length) {
             this.current = null;
         } else {
+            const lastIndex = this.pattern.lastIndex;
             const match = this.pattern.exec(this.text);
             if (match == null) throw new ParseError(
-                "unable to tokenize " + this.text.slice(this.pattern.lastIndex)
+                "unable to tokenize '" + this.text.slice(lastIndex) + "'"
             );
             this.current = match[1];
         }

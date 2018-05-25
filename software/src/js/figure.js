@@ -9,7 +9,8 @@ import { ObservableMixin } from "./tools.js";
 type ShapeExt = { style?: ElementAttributes, events?: ElementEvents };
 export type Shape = ({ kind: "polytope", vertices: Point[] } & ShapeExt)
                   | ({ kind: "arrow", origin: Point, target: Point } & ShapeExt)
-                  | ({ kind: "text", coords: Point, text: string} & ShapeExt);
+                  | ({ kind: "text", coords: Point, text: string} & ShapeExt)
+                  | ({ kind: "vectorField", fun: Point => Point, n?: number[] } & ShapeExt);
 
 export type Primitive = { kind: "polygon", points: Point[] }
                       | { kind: "arrow", origin: Point, target: Point }
@@ -94,16 +95,26 @@ export interface Projection {
 }
 
 
+function largestPowerOf10In(x: number): number {
+    return Math.pow(10, Math.floor(Math.log10(x)));
+}
+
 function linearTicks(min: number, max: number, n: number): number[] {
-    let power = Math.pow(10, Math.floor(Math.log10(max - min)));
-    let lower = Math.ceil(min / power);
-    let upper = Math.floor(max / power);
-    let increment = Math.max(Math.ceil((upper - lower) / n), 1);
-    let ticks = [];
-    for (let i = lower; i <= upper; i = i + increment) {
-        ticks.push(i * power);
+    const diff = (max - min) / n;
+    const lp10 = largestPowerOf10In(diff);
+    const increment = Math.ceil(diff / lp10) * lp10
+    let init;
+    if (min <= 0 && 0 <= max) {
+        init = 0;
+    } else if (max - min > lp10 * 10) {
+        init = Math.ceil(min / 10) * 10;
+    } else {
+        init = Math.ceil(min / lp10) * lp10;
     }
-    return ticks;
+    const ticks = [];
+    for (let i = init; i >= min; i = i - increment) ticks.push(i);
+    for (let i = init + increment; i <= max; i = i + increment) ticks.push(i);
+    return ticks.sort();
 }
 
 
@@ -153,6 +164,16 @@ export class Cartesian2D implements Projection {
             });
         } else if (shape.kind === "text") {
             primitives.push({ kind: "text", coords: this.fwd(shape.coords), text: shape.text });
+        } else if (shape.kind === "vectorField") {
+            for (let x of linearTicks(this.minX, this.maxX, shape.n == null ? 10 : shape.n[0])) {
+                for (let y of linearTicks(this.minY, this.maxY, shape.n == null ? 10 : shape.n[1])) {
+                    primitives.push({
+                        kind: "arrow",
+                        origin: this.fwd([x, y]),
+                        target: this.fwd(shape.fun([x, y]))
+                    });
+                }
+            }
         } else {
             throw new Error("unknown shape kind");
         }
@@ -225,6 +246,14 @@ export class Horizontal1D implements Projection {
             primitives.push({ kind: "arrow", origin: this.fwd(shape.origin), target: this.fwd(shape.target) });
         } else if (shape.kind === "text") {
             primitives.push({ kind: "text", coords: [shape.coords[0], 0.5], text: shape.text });
+        } else if (shape.kind === "vectorField") {
+            for (let x of linearTicks(this.min, this.max, shape.n == null ? 10 : shape.n[0])) {
+                primitives.push({
+                    kind: "arrow",
+                    origin: this.fwd([x]),
+                    target: this.fwd(shape.fun([x]))
+                });
+            }
         } else {
             throw new Error("unknown shape kind");
         }

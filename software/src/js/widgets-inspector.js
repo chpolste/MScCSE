@@ -12,6 +12,7 @@ import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
 
 import * as presets from "./presets.js";
+import * as linalg from "./linalg.js";
 import { ObservableMixin } from "./tools.js";
 import { clearNode, appendChild, createElement } from "./domtools.js";
 import { HalfspaceInequation, polytopeType, union } from "./geometry.js";
@@ -33,7 +34,8 @@ export const color = {
     highlight: "#FC0",
     support: "#09C",
     action: "#F60",
-    split: "#C00"
+    split: "#C00",
+    vectorField: "#000"
 };
 
 export function toShape(state: State): Shape {
@@ -424,12 +426,14 @@ export class SystemViewSettings extends ObservableMixin<null> {
     +node: Element;
     +toggleKind: Input<boolean>;
     +toggleLabel: Input<boolean>;
+    +toggleVectorField: Input<boolean>;
     +highlight: Input<ClickOperatorWrapper>;
     
     constructor(system: AbstractedLSS): void {
         super();
         this.toggleKind = new CheckboxInput(true);
         this.toggleLabel = new CheckboxInput(false);
+        this.toggleVectorField = new CheckboxInput(false);
 
         const lss = system.lss;
         this.highlight = new SelectInput({
@@ -444,6 +448,7 @@ export class SystemViewSettings extends ObservableMixin<null> {
         this.node = createElement("div", { "class": "summary" }, [
             createElement("label", {}, [this.toggleKind.node, "state kind colors"]),
             createElement("label", {}, [this.toggleLabel.node, "state labels"]),
+            createElement("label", {}, [this.toggleVectorField.node, "vector field"]),
             createElement("p", { "class": "posterior" }, ["Highlight operator:"]),
             createElement("p", {}, [this.highlight.node])
         ]);
@@ -477,6 +482,7 @@ export class SystemView {
         this.settings = settings;
         this.settings.toggleKind.attach(() => this.drawKind());
         this.settings.toggleLabel.attach(() => this.drawLabels());
+        this.settings.toggleVectorField.attach(() => this.drawVectorField());
         this.settings.highlight.attach(() => this.drawHighlight());
 
         this.stateView = stateView;
@@ -496,6 +502,7 @@ export class SystemView {
             selection:      fig.newLayer({ "stroke": color.selection, "fill": color.selection }),
             highlight2:     fig.newLayer({ "stroke": "none", "fill": color.highlight, "fill-opacity": "0.2" }),
             support:        fig.newLayer({ "stroke": color.support, "fill": color.support }),
+            vectorField:    fig.newLayer({ "stroke": color.vectorField, "stroke-width": "1", "fill": color.vectorField }),
             action:         fig.newLayer({ "stroke": color.action, "stroke-width": "2.5", "fill": color.action }),
             label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" }),
             interaction:    fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" })
@@ -505,6 +512,7 @@ export class SystemView {
         this.drawInteraction();
         this.drawHighlight();
         this.drawKind();
+        this.drawVectorField();
         this.drawLabels();
     }
 
@@ -532,6 +540,18 @@ export class SystemView {
             this.layers.highlight1.shapes = [];
             this.layers.highlight2.shapes = [];
         }
+    }
+
+    drawVectorField(): void {
+        const shapes = [];
+        if (this.settings.toggleVectorField.value) {
+            shapes.push({
+                kind: "vectorField",
+                fun: x => linalg.apply(this.system.lss.A, x),
+                n: [12, 12]
+            });
+        }
+        this.layers.vectorField.shapes = shapes;
     }
 
     drawKind(): void {

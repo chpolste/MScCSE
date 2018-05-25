@@ -173,12 +173,12 @@ export class AxesPlot implements Plot {
         this.node.setAttribute("height", String(sizeY + 30))
         clearNode(this.ticks);
         clearNode(this.tickLabels);
-        for (let tick of this.projection.getXTicks(Math.floor(sizeX / 60))) {
+        for (let tick of this.projection.getXTicks(Math.ceil(sizeX / 50))) {
             let x = 5 + tick[0] * sizeX
             this._createTickLine(x, x, sizeY + 4, sizeY + 10);
             this._createTickLabel(x, sizeY + 25, "middle", tick[1]);
         }
-        for (let tick of this.projection.getYTicks(Math.floor(sizeY / 30))) {
+        for (let tick of this.projection.getYTicks(Math.ceil(sizeY / 30))) {
             let y = (1 - tick[0]) * sizeY + 5;
             this._createTickLine(4 + sizeX, 10 + sizeX, y, y);
             this._createTickLabel(15 + sizeX, y + 4, "start", tick[1]);

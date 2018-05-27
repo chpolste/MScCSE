@@ -47,5 +47,5 @@ In particular, dimensionality of vectors, matrices, geometrical shapes etc. is n
 
 ## Miscellaneous
 
-- Color codes for visualizations: grey (`#CCC`), blue (`#069`), lightblue (`#09C`), green (`#093`), yellow (`#FC0`), orange (`#F60`), red (`#C00`).
+- Color codes for visualizations: grey (`#CCC`), blue (`#069`), lightblue (`#09C`), green (`#093`), yellow (`#FC0`), orange (`#F60`), red (`#C00`), purple (`#606`).
 

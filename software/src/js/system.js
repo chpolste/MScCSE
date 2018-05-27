@@ -217,7 +217,7 @@ export class AbstractedLSS {
         return this.lss.extent;
     }
 
-    newState(polytope: ConvexPolytope, kind: StateKind, predicates?: string[]): State {
+    newState(polytope: ConvexPolytope, kind: StateKind, predicates?: Iterable<string>): State {
         let state = new State(this, this.genLabel(), polytope, kind, predicates);
         this.states.push(state);
         return state;
@@ -226,6 +226,14 @@ export class AbstractedLSS {
     genLabel(): string {
         this.labelNum++;
         return "X" + this.labelNum.toString();
+    }
+
+    getPredicate(label: string): Halfspace {
+        const pred = this.predicates.get(label);
+        if (pred == null) throw new Error(
+            "..."
+        );
+        return pred;
     }
 
     // Convenience wrappers for polytopic operators
@@ -262,18 +270,18 @@ export class State {
     +system: AbstractedLSS;
     +polytope: ConvexPolytope;
     +label: string;
-    +predicates: string[];
+    +predicates: Set<string>;
     +actions: Action[];
     _actions: ?Action[];
     kind: StateKind;
 
     constructor(system: AbstractedLSS, label: string, polytope: ConvexPolytope, kind: StateKind,
-                predicates?: string[]): void {
+                predicates?: Iterable<string>): void {
         this.system = system;
         this.polytope = polytope;
         this.label = label;
         this.kind = kind;
-        this.predicates = predicates == null ? [] : predicates;
+        this.predicates = new Set(predicates == null ? [] : predicates);
         this._actions = this.isOutside ? [] : null; // Outside states have no actions
     }
 

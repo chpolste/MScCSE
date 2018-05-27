@@ -13,7 +13,7 @@ import type { Input } from "./widgets-input.js";
 
 import * as presets from "./presets.js";
 import * as linalg from "./linalg.js";
-import { ObservableMixin } from "./tools.js";
+import { ObservableMixin, intersperse } from "./tools.js";
 import { clearNode, appendChild, createElement } from "./domtools.js";
 import { HalfspaceInequation, polytopeType, union } from "./geometry.js";
 import { Objective, AtomicProposition, parseProposition, traverseProposition } from "./logic.js";
@@ -34,11 +34,12 @@ export const color = {
     highlight: "#FC0",
     support: "#09C",
     action: "#F60",
+    predicate: "#606",
     split: "#C00",
     vectorField: "#000"
 };
 
-export function toShape(state: State): Shape {
+function toShape(state: State): Shape {
     let fill = color.undecided;
     if (state.isSatisfying) {
         fill = color.satisfying;
@@ -48,21 +49,19 @@ export function toShape(state: State): Shape {
     return { kind: "polytope", vertices: state.polytope.vertices, style: { fill: fill } };
 }
 
-export function toSummaryLine(state: State): Element {
-    let cls = "undecided";
-    let name = "undecided";
+function stateKindString(state: State): string {
     if (state.isSatisfying) {
-        cls = name = "satisfying"
+        return "satisfying";
+    } else if (state.isOutside) {
+        return "outer";
     } else if (state.isNonSatisfying) {
-        cls = name = "non-satisfying"
-        if (state.isOutside) {
-            name = "outer";
-        }
+        return "non-satisfying";
+    } else {
+        return "undecided";
     }
-    return createElement("p", { "class": cls.replace("-", "") }, [name]);
 }
 
-export function styledStateLabel(state: State, markSelected?: ?State): Element {
+function styledStateLabel(state: State, markSelected?: ?State): HTMLElement {
     let attributes = {};
     if (markSelected != null && markSelected === state) {
         attributes["class"] = "selected";
@@ -74,7 +73,11 @@ export function styledStateLabel(state: State, markSelected?: ?State): Element {
     return createElement("span", attributes, [state.label]);
 }
 
-export function evolutionEquation(nodeA: Element, nodeB: Element): Element {
+function styledPredicateLabel(label: string): HTMLElement {
+    return createElement("span", {}, [label]);
+}
+
+export function evolutionEquation(nodeA: Element, nodeB: Element): HTMLElement {
     return createElement("p", {}, [
         "x", createElement("sub", {}, ["t+1"]),
         " = ", nodeA, " x", createElement("sub", {}, ["t"]),
@@ -83,7 +86,7 @@ export function evolutionEquation(nodeA: Element, nodeB: Element): Element {
     ]);
 }
 
-export function tableify(m: Matrix): Element {
+export function tableify(m: Matrix): HTMLElement {
     return createElement("table", { "class": "matrix" },
         m.map(row => createElement("tr", {},
             row.map(x => createElement("td", {}, [
@@ -490,6 +493,7 @@ export class SystemView {
             this.drawSelection();
             this.drawHighlight();
         });
+        this.stateView.predicates.attach(() => this.drawPredicate());
         this.actionView = actionView;
         this.actionView.attach(() => this.drawAction());
         this.actionSupportView = actionSupportView;
@@ -504,6 +508,7 @@ export class SystemView {
             support:        fig.newLayer({ "stroke": color.support, "fill": color.support }),
             vectorField:    fig.newLayer({ "stroke": color.vectorField, "stroke-width": "1", "fill": color.vectorField }),
             action:         fig.newLayer({ "stroke": color.action, "stroke-width": "2.5", "fill": color.action }),
+            predicate:      fig.newLayer({ "stroke": color.predicate, "fill": color.predicate, "fill-opacity": "0.2" }),
             label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" }),
             interaction:    fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" })
         };
@@ -514,6 +519,7 @@ export class SystemView {
         this.drawKind();
         this.drawVectorField();
         this.drawLabels();
+        this.drawPredicate();
     }
 
     drawInteraction(): void {
@@ -616,6 +622,20 @@ export class SystemView {
         }
     }
 
+    drawPredicate(): void {
+        const label = this.stateView.predicates.hoverSelection;
+        if (label == null) {
+            this.layers.predicate.shapes = [];
+        } else {
+            const predicate = this.system.getPredicate(label);
+            this.layers.predicate.shapes = [{
+                kind: "halfspace",
+                normal: predicate.normal,
+                offset: predicate.offset
+            }];
+        }
+    }
+
 }
 
 
@@ -652,18 +672,21 @@ export class StateView extends ObservableMixin<null> {
     +node: Element;
     +view: AxesPlot;
     +viewLayer: FigureLayer;
-    +summary: Element;
+    +predicates: SelectableNodes<string>;
+    +summary: HTMLElement;
     _selection: ?State;
 
     constructor(): void {
         super();
-
         let fig = new Figure();
         this.viewLayer = fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#069" });
         this.view = new AxesPlot([90, 90], fig, autoProjection(1));
         this.summary = createElement("div", { "class": "summary" });
-
-        this.node = createElement("div", { "class": "selection" }, [this.view.node, this.summary]);
+        this.predicates = new SelectableNodes(styledPredicateLabel, ", ", "");
+        this.predicates.node.className = "predicates";
+        this.node = createElement("div", { "class": "state_view" }, [
+            this.view.node, this.summary, this.predicates.node
+        ]);
         this.changeHandler();
     }
 
@@ -682,15 +705,16 @@ export class StateView extends ObservableMixin<null> {
         if (state != null) {
             this.view.projection = autoProjection(1, ...state.polytope.extent);
             this.viewLayer.shapes = [{ kind: "polytope", "vertices": state.polytope.vertices }];
+            this.predicates.items = Array.from(state.predicates);
             appendChild(this.summary,
-                createElement("p", {}, [state.label]),
-                toSummaryLine(state),
+                createElement("p", {}, [state.label, " (", stateKindString(state), ")"]),
                 createElement("p", {}, [state.actions.length + " actions"]),
+                this.predicates.node
             );
         } else {
             this.view.projection = autoProjection(1);
             this.viewLayer.shapes = [];
-            appendChild(this.summary, createElement("p", {}, ["no state selected"]));
+            appendChild(this.summary, createElement("p", {}, ["no selection"]));
         }
         this.notify();
     }
@@ -705,7 +729,7 @@ export class ActionView extends SelectableNodes<Action> {
     +stateView: StateView;
 
     constructor(stateView: StateView): void {
-        super(action => ActionView.asNode(action), "none");
+        super(action => ActionView.asNode(action), null, "none");
         this.node.className = "actions";
         this.stateView = stateView;
         this.stateView.attach(() => this.changeHandler());
@@ -717,13 +741,13 @@ export class ActionView extends SelectableNodes<Action> {
     }
 
     static asNode(action: Action): Element {
-        let labels = [styledStateLabel(action.origin, action.origin), " → {"];
-        for (let target of action.targets) {
-            labels.push(styledStateLabel(target, action.origin));
-            labels.push(", ");
-        }
-        labels[labels.length - 1] = "}";
-        return createElement("div", {}, labels);
+        return createElement("div", {}, [
+            styledStateLabel(action.origin, action.origin), " → {",
+            ...intersperse(", ", action.targets.map(
+                target => styledStateLabel(target, action.origin)
+            )),
+            "}"
+        ]);
     }
 
 }
@@ -737,7 +761,7 @@ export class ActionSupportView extends SelectableNodes<ActionSupport> {
     +actionView: ActionView;
 
     constructor(actionView: ActionView): void {
-        super(support => ActionSupportView.asNode(support), "none");
+        super(support => ActionSupportView.asNode(support), null, "none");
         this.node.className = "supports";
         this.actionView = actionView;
         this.actionView.attach(wasClick => {
@@ -751,13 +775,13 @@ export class ActionSupportView extends SelectableNodes<ActionSupport> {
     }
 
     static asNode(support: ActionSupport): Element {
-        let labels = ["{"];
-        for (let target of support.targets) {
-            labels.push(styledStateLabel(target, support.action.origin));
-            labels.push(", ");
-        }
-        labels[labels.length - 1] = "}";
-        return createElement("div", {}, labels);
+        return createElement("div", {}, [
+            "{",
+            ...intersperse(", ", support.targets.map(
+                target => styledStateLabel(target, support.action.origin)
+            )),
+            "}"
+        ]);
     }
 
 }

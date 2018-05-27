@@ -99,7 +99,7 @@ a:hover {
 }
 .inspector > .right > .cols > .left {
     flex: 0 0 auto;
-    min-width: 180px;
+    min-width: 170px;
     padding: 0 16px 12px 0;
     border-right: 1px solid #999;
     margin-right: 16px;
@@ -107,6 +107,9 @@ a:hover {
 .inspector > .right > .cols > .right {
     flex: 1 1 auto;
     padding: 0 0 12px 0;
+}
+.inspector > .right > .cols > .right svg {
+    margin-right: 10px;
 }
 .inspector > .right > .rest {
     margin-top: 8px;
@@ -209,12 +212,20 @@ span.nonsatisfying {
     color: #666;
 }
 
-.selection {
+.state_view {
     display: flex;
     vertical-align: top;
 }
-.selection .summary {
+.state_view .summary {
     flex: 1 0 auto;
+}
+.state_view .predicates {
+    cursor: default;
+}
+.state_view .predicates > span:hover {
+    padding: 2px;
+    margin: -2px;
+    background-color: rgba(102, 0, 102 , 0.2);
 }
 
 .actions {

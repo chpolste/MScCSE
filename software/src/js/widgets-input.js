@@ -4,8 +4,8 @@
 import type { Observable } from "./tools.js";
 import type { Matrix } from "./linalg.js";
 
-import { createElement, clearNode } from "./domtools.js";
-import { ObservableMixin, zip2map } from "./tools.js";
+import { createElement, clearNode, appendChild } from "./domtools.js";
+import { ObservableMixin, zip2map, intersperse } from "./tools.js";
 
 
 export class ValidationError extends Error {};
@@ -326,14 +326,16 @@ export class SelectableNodes<T> extends ObservableMixin<boolean> {
     
     +node: HTMLDivElement;
     +itemToNode: (item: T) => Element;
+    +delimiter: ?string;
     +emptyMessage: string;
     +nodeMap: Map<T, Element>;
     hoverSelection: ?T;
     _selection: ?T;
 
-    constructor(itemToNode: (item: T) => Element, emptyMessage: string): void {
+    constructor(itemToNode: (item: T) => Element, delimiter: ?string, emptyMessage: string): void {
         super();
         this.itemToNode = itemToNode;
+        this.delimiter = delimiter;
         this.emptyMessage = emptyMessage;
 
         this._selection = null;
@@ -352,14 +354,19 @@ export class SelectableNodes<T> extends ObservableMixin<boolean> {
         if (items.length == 0) {
             this.node.innerHTML = this.emptyMessage;
         } else {
+            let itemNodes = [];
             for (let item of items) {
                 let node = this.itemToNode(item);
                 node.addEventListener("click", () => this.onClick(item));
                 node.addEventListener("mouseover", () => this.onMouseOver(item));
                 node.addEventListener("mouseout", () => this.onMouseOut(item));
                 this.nodeMap.set(item, node);
-                this.node.appendChild(node);
+                itemNodes.push(node);
             }
+            if (this.delimiter != null) {
+                itemNodes = intersperse(this.delimiter, itemNodes);
+            }
+            appendChild(this.node, ...itemNodes);
         }
         this.notify();
     }

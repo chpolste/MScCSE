@@ -9,7 +9,7 @@ import * as presets from "./presets.js";
 import { LSS, AbstractedLSS } from "./system.js";
 import { clearNode, appendChild, createElement } from "./domtools.js";
 import { SelectInput } from "./widgets-input.js";
-import { color, toShape, evolutionEquation, tableify,
+import { color, evolutionEquation, tableify,
          ProblemSetupPreview, EvolutionEquationInput, PolytopeInput, PredicatesInput, ObjectiveInput,
          SystemViewSettings, SystemSummary, StateView, ControlView, SystemView, ActionView,
          ActionSupportView } from "./widgets-inspector.js";

@@ -10,6 +10,38 @@ import { ObservableMixin, zip2map, intersperse } from "./tools.js";
 
 export class ValidationError extends Error {};
 
+type KeyCallback = (event?: KeyboardEvent) => void;
+
+export class Keybindings {
+
+    +bindings: Map<string, KeyCallback>;
+
+    constructor() {
+        this.bindings = new Map();
+        document.addEventListener("keypress", (e: KeyboardEvent) => this.keyPress(e));
+    }
+
+    bind(key: string, callback: KeyCallback): void {
+        this.bindings.set(key, callback);
+    }
+
+    keyPress(event: KeyboardEvent): void {
+        const callback = this.bindings.get(event.key);
+        if (!event.ctrlKey && !event.altKey && callback != null) {
+            callback(event);
+        }
+    }
+
+    static inputTextRotation<T>(input: Input<T>, texts: string[]): KeyCallback {
+        if (texts.length < 1) throw new Error("texts must contain at least one choice");
+        return function () {
+            const idx = texts.indexOf(input.text);
+            input.text = idx < 0 ? texts[0] : texts[(idx + 1) % texts.length];
+        }
+    }
+
+}
+
 
 export interface Input<T> extends Observable<null> {
     +node: HTMLElement;
@@ -170,7 +202,7 @@ export class SelectInput<T> extends ObservableMixin<null> implements Input<T> {
             throw new Error("text not in options");
         }
         this.node.value = text;
-        this.notify();
+        this.changeHandler();
     }
 
     changeHandler(): void {
@@ -204,6 +236,7 @@ export class CheckboxInput extends ObservableMixin<null> implements Input<boolea
 
     set text(text: string): void {
         this.node.checked = text === "t";
+        this.changeHandler();
     }
 
     changeHandler(): void {

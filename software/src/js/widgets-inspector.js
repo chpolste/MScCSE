@@ -20,7 +20,7 @@ import { Objective, AtomicProposition, parseProposition, traverseProposition } f
 import { Figure, autoProjection } from "./figure.js";
 import { InteractivePlot, AxesPlot } from "./widgets-plot.js";
 import { ValidationError, CheckboxInput, SelectInput, MultiLineInput, MatrixInput,
-         SelectableNodes, LineInput } from "./widgets-input.js";
+         SelectableNodes, LineInput, Keybindings } from "./widgets-input.js";
 import { LSS, AbstractedLSS, State } from "./system.js";
 
 
@@ -432,7 +432,7 @@ export class SystemViewSettings extends ObservableMixin<null> {
     +toggleVectorField: Input<boolean>;
     +highlight: Input<ClickOperatorWrapper>;
     
-    constructor(system: AbstractedLSS): void {
+    constructor(system: AbstractedLSS, keybindings: Keybindings): void {
         super();
         this.toggleKind = new CheckboxInput(true);
         this.toggleLabel = new CheckboxInput(false);
@@ -449,12 +449,19 @@ export class SystemViewSettings extends ObservableMixin<null> {
         }, "None");
 
         this.node = createElement("div", { "class": "summary" }, [
-            createElement("label", {}, [this.toggleKind.node, "state kind colors"]),
-            createElement("label", {}, [this.toggleLabel.node, "state labels"]),
-            createElement("label", {}, [this.toggleVectorField.node, "vector field"]),
-            createElement("p", { "class": "posterior" }, ["Highlight operator:"]),
+            createElement("label", {}, [this.toggleKind.node, "state ", createElement("u", {}, ["k"]), "ind colors"]),
+            createElement("label", {}, [this.toggleLabel.node, "state ", createElement("u", {}, ["l"]), "abels"]),
+            createElement("label", {}, [this.toggleVectorField.node, createElement("u", {}, ["v"]), "ector field"]),
+            createElement("p", { "class": "posterior" }, ["Highlight ", createElement("u", {}, ["o"]), "perator:"]),
             createElement("p", {}, [this.highlight.node])
         ]);
+
+        keybindings.bind("k", Keybindings.inputTextRotation(this.toggleKind, ["t", "f"]));
+        keybindings.bind("l", Keybindings.inputTextRotation(this.toggleLabel, ["t", "f"]));
+        keybindings.bind("v", Keybindings.inputTextRotation(this.toggleVectorField, ["t", "f"]));
+        keybindings.bind("o", Keybindings.inputTextRotation(this.highlight, [
+            "None", "Posterior", "Predecessor", "Robust Predecessor", "Attractor", "Robust Attractor"
+        ]));
     }
 
 }

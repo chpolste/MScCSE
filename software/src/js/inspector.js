@@ -8,7 +8,7 @@ import type { Input } from "./widgets-input.js";
 import * as presets from "./presets.js";
 import { LSS, AbstractedLSS } from "./system.js";
 import { clearNode, appendChild, createElement } from "./domtools.js";
-import { SelectInput } from "./widgets-input.js";
+import { Keybindings, SelectInput } from "./widgets-input.js";
 import { color, evolutionEquation, tableify,
          ProblemSetupPreview, EvolutionEquationInput, PolytopeInput, PredicatesInput, ObjectiveInput,
          SystemViewSettings, SystemSummary, StateView, ControlView, SystemView, ActionView,
@@ -219,6 +219,7 @@ class InspectorWidget {
 
     +node: Element;
 
+    +keybindings: Keybindings;
     +systemSummary: SystemSummary;
     +stateView: StateView;
     +actionView: ActionView;
@@ -236,12 +237,13 @@ class InspectorWidget {
         this.system = this.lss.decompose(predicates, predicateLabels);
         this.objective = objective;
 
+        this.keybindings = new Keybindings();
         this.systemSummary = new SystemSummary(this.system);
         this.stateView = new StateView();
         this.actionView = new ActionView(this.stateView);
         this.controlView = new ControlView(this.lss.controlSpace, this.actionView);
         this.actionSupportView = new ActionSupportView(this.actionView);
-        this.systemViewSettings = new SystemViewSettings(this.system);
+        this.systemViewSettings = new SystemViewSettings(this.system, this.keybindings);
         this.systemView = new SystemView(
             this.system,
             this.systemViewSettings,

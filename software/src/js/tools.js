@@ -7,6 +7,13 @@ export class NotImplementedError extends Error {}
 export class ValueError extends Error {}
 
 
+/* Logical Connectives */
+
+export function xor(p: boolean, q: boolean): boolean {
+    return p ? !q : q;
+}
+
+
 /* Functional Helpers */
 
 export function zip2map<A,B,C>(fun: (x: A, y: B) => C, xs: A[], ys: B[]): C[] {
@@ -50,6 +57,16 @@ export function merge<T>(comp: (x: T, y: T) => number, xs: T[], ys: T[]): T[] {
     while (i < xs.length) merged.push(xs[i++]);
     while (j < ys.length) merged.push(ys[j++]);
     return merged;
+}
+
+export function intersperse<T>(delim: T, items: T[]): T[] {
+    const out = [];
+    for (let item of items) {
+        out.push(item);
+        out.push(delim);
+    }
+    out.pop();
+    return out;
 }
 
 

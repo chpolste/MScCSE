@@ -13,7 +13,7 @@ import type { Input } from "./widgets-input.js";
 
 import * as presets from "./presets.js";
 import * as linalg from "./linalg.js";
-import { ObservableMixin, intersperse } from "./tools.js";
+import { n2s, ObservableMixin, intersperse } from "./tools.js";
 import { Keybindings, clearNode, appendChild, createElement } from "./domtools.js";
 import { HalfspaceInequation, polytopeType, union } from "./geometry.js";
 import { Objective, AtomicProposition, parseProposition, traverseProposition } from "./logic.js";
@@ -84,19 +84,19 @@ function asInequation(h: Halfspace): string {
             terms.push("+");
         }
         if (h.normal[i] !== 1 && h.normal[i] !== -1) {
-            terms.push(String(Math.abs(h.normal[i])));
+            terms.push(n2s(Math.abs(h.normal[i])));
         }
         terms.push(VAR_NAMES[i]);
     }
-    return  terms.join(" ") + " < " + h.offset
+    return  terms.join(" ") + " < " + n2s(h.offset)
 }
 
-function styledPredicateLabel(label: string): HTMLElement {
-    return createElement("span", {}, [label]);
+function styledPredicateLabel(label: string, system: AbstractedLSS): HTMLElement {
+    return createElement("span", { "title": asInequation(system.getPredicate(label)) }, [label]);
 }
 
 function evolutionEquation(nodeA: Element, nodeB: Element): HTMLElement {
-    return createElement("p", {}, [
+    return createElement("p", { "class": "math" }, [
         "x", createElement("sub", {}, ["t+1"]),
         " = ", nodeA, " x", createElement("sub", {}, ["t"]),
         " + ", nodeB, " u", createElement("sub", {}, ["t"]),
@@ -181,12 +181,14 @@ export class SessionManager {
         presetButton.addEventListener("click", () => this.problemSetup.load(presetSelect.value));
         appendChild(this.node,
             createElement("h2", {}, ["Session Management"]),
+            /*
             createElement("h3", {}, ["Load session from file"]),
             createElement("p", {}, [createElement("input", {"type": "file", "disabled": "true"})]),
             createElement("p", {}, [
                 createElement("input", {"type": "button", "value": "resume session", "disabled": "true"}), " ",
                 createElement("input", {"type": "button", "value": "fill in setup only", "disabled": "true"}),
             ]),
+            */
             createElement("h3", {}, ["Start from a preset"]),
             createElement("p", {}, [presetSelect.node, " ", presetButton])
         );
@@ -675,8 +677,11 @@ export class ProblemSummary {
                 createElement("div", {}, [createElement("h3", {}, ["State Space Polytope"]), ss.node]),
                 createElement("div", {}, [
                     createElement("h3", {}, ["Labeled Predicates"]),
-                    ...Array.from(system.predicates.entries()).map(
-                        ([label, halfspace]) => createElement("p", {}, [label, ": ", asInequation(halfspace)])
+                    ...Array.from(system.predicates.entries()).map(([label, halfspace]) =>
+                        createElement("p", {}, [
+                            label, ": ",
+                            createElement("span", { "class": "math" }, [asInequation(halfspace)])
+                        ])
                     )
                 ])
             ]),
@@ -718,7 +723,7 @@ export class SystemInspector {
 
         this.keybindings = keybindings;
         this.systemSummary = new SISummary(this.system);
-        this.stateView = new SIStateView();
+        this.stateView = new SIStateView(this.system);
         this.actionView = new SIActionView(this.stateView);
         this.controlView = new SIControlView(system.lss.controlSpace, this.actionView);
         this.actionSupportView = new SIActionSupportView(this.actionView);
@@ -1028,13 +1033,13 @@ class SIStateView extends ObservableMixin<null> {
     +summary: HTMLElement;
     _selection: ?State;
 
-    constructor(): void {
+    constructor(system: AbstractedLSS): void {
         super();
         let fig = new Figure();
         this.viewLayer = fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#069" });
         this.view = new AxesPlot([90, 90], fig, autoProjection(1));
         this.summary = createElement("div", { "class": "summary" });
-        this.predicates = new SelectableNodes(styledPredicateLabel, ", ", "");
+        this.predicates = new SelectableNodes(p => styledPredicateLabel(p, system), ", ", "");
         this.predicates.node.className = "predicates";
         this.node = createElement("div", { "class": "state_view" }, [
             this.view.node, this.summary, this.predicates.node

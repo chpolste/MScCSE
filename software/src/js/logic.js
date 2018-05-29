@@ -17,9 +17,11 @@ export type ObjectiveKind = {
 };
 
 export class Objective {
+    
+    +kind: ObjectiveKind;
 
     constructor(kind: ObjectiveKind, terms: Proposition[] ): void {
-
+        this.kind = kind;
     }
 
 }

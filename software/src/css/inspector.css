@@ -79,6 +79,17 @@ a:hover {
     flex-direction: columns;
 }
 
+/* Problem Summary*/
+
+.problem_summary > .boxes {
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+}
+.problem_summary > .boxes > div {
+    width: 25%;
+}
+
 /* Interactive system inspector */
 
 .inspector {

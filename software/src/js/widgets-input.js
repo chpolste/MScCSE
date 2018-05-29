@@ -3,44 +3,13 @@
 
 import type { Observable } from "./tools.js";
 import type { Matrix } from "./linalg.js";
+import type { KeyCallback } from "./domtools.js";
 
 import { createElement, clearNode, appendChild } from "./domtools.js";
 import { ObservableMixin, zip2map, intersperse } from "./tools.js";
 
 
 export class ValidationError extends Error {};
-
-type KeyCallback = (event?: KeyboardEvent) => void;
-
-export class Keybindings {
-
-    +bindings: Map<string, KeyCallback>;
-
-    constructor() {
-        this.bindings = new Map();
-        document.addEventListener("keypress", (e: KeyboardEvent) => this.keyPress(e));
-    }
-
-    bind(key: string, callback: KeyCallback): void {
-        this.bindings.set(key, callback);
-    }
-
-    keyPress(event: KeyboardEvent): void {
-        const callback = this.bindings.get(event.key);
-        if (!event.ctrlKey && !event.altKey && callback != null) {
-            callback(event);
-        }
-    }
-
-    static inputTextRotation<T>(input: Input<T>, texts: string[]): KeyCallback {
-        if (texts.length < 1) throw new Error("texts must contain at least one choice");
-        return function () {
-            const idx = texts.indexOf(input.text);
-            input.text = idx < 0 ? texts[0] : texts[(idx + 1) % texts.length];
-        }
-    }
-
-}
 
 
 export interface Input<T> extends Observable<null> {
@@ -49,6 +18,15 @@ export interface Input<T> extends Observable<null> {
     +value: T;
     +isValid: boolean;
     text: string;
+}
+
+
+export function inputTextRotation<T>(input: Input<T>, texts: string[]): KeyCallback {
+    if (texts.length < 1) throw new Error("texts must contain at least one choice");
+    return function () {
+        const idx = texts.indexOf(input.text);
+        input.text = idx < 0 ? texts[0] : texts[(idx + 1) % texts.length];
+    }
 }
 
 

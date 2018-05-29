@@ -85,3 +85,27 @@ export function setCursor(cursor: string): void {
     }
 }
 
+
+export type KeyCallback = (event?: KeyboardEvent) => void;
+
+export class Keybindings {
+
+    +bindings: Map<string, KeyCallback>;
+
+    constructor() {
+        this.bindings = new Map();
+        document.addEventListener("keypress", (e: KeyboardEvent) => this.keyPress(e));
+    }
+
+    bind(key: string, callback: KeyCallback): void {
+        this.bindings.set(key, callback);
+    }
+
+    keyPress(event: KeyboardEvent): void {
+        const callback = this.bindings.get(event.key);
+        if (!event.ctrlKey && !event.altKey && callback != null) {
+            callback(event);
+        }
+    }
+
+}

@@ -5,7 +5,7 @@ import type { ElementAttributes, ElementEvents } from "./domtools.js";
 import type { Observer, Observable } from "./tools.js";
 
 import * as linalg from "./linalg.js";
-import { ObservableMixin, xor } from "./tools.js";
+import { n2s, ObservableMixin, xor } from "./tools.js";
 
 
 type ShapeExt = { style?: ElementAttributes, events?: ElementEvents };
@@ -236,11 +236,11 @@ export class Cartesian2D implements Projection {
     }
 
     getXTicks(n: number): Tick[] {
-        return linearTicks(this.minX, this.maxX, n).map(t => [this.fwd([t, 0])[0], String(t)]);
+        return linearTicks(this.minX, this.maxX, n).map(t => [this.fwd([t, 0])[0], n2s(t)]);
     }
 
     getYTicks(n: number): Tick[] {
-        return linearTicks(this.minY, this.maxY, n).map(t => [this.fwd([0, t])[1], String(t)]);
+        return linearTicks(this.minY, this.maxY, n).map(t => [this.fwd([0, t])[1], n2s(t)]);
     }
 
 }
@@ -331,7 +331,7 @@ export class Horizontal1D implements Projection {
     }
 
     getXTicks(n: number): Tick[] {
-        return linearTicks(this.min, this.max, n).map(t => [this.fwd([t])[0], String(t)]);
+        return linearTicks(this.min, this.max, n).map(t => [this.fwd([t])[0], n2s(t)]);
     }
 
     getYTicks(n: number): Tick[] {

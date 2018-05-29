@@ -70,9 +70,15 @@ export function intersperse<T>(delim: T, items: T[]): T[] {
 }
 
 
-/* Patterns */
+/* Formatting */
 
-/* Observer Pattern:
+export function n2s(x: number): string {
+    // TODO: Change to scientific notation when numbers are small
+    return x.toFixed(5).replace(/\.?0*$/, "");
+}
+
+
+/* Observer Pattern
 
 Automatically invoke callback functions (Observers) when the state of an
 Observable changes. Supports push and push-update notifications.

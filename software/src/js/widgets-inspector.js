@@ -13,7 +13,7 @@ import type { Input } from "./widgets-input.js";
 
 import * as presets from "./presets.js";
 import * as linalg from "./linalg.js";
-import { n2s, ObservableMixin, intersperse } from "./tools.js";
+import { map, count, filter, n2s, ObservableMixin, intersperse } from "./tools.js";
 import { Keybindings, clearNode, appendChild, createElement } from "./domtools.js";
 import { HalfspaceInequation, polytopeType, union } from "./geometry.js";
 import { Objective, AtomicProposition, parseProposition, traverseProposition } from "./logic.js";
@@ -350,7 +350,7 @@ class ProblemSetupSystemPreview {
 
     drawAbsLSS(abslss: AbstractedLSS): void {
         this.plot.projection = autoProjection(3/2, ...abslss.extent);
-        this.layer.shapes = abslss.states.map(toShape);
+        this.layer.shapes = map(toShape, abslss.states.values());
     }
 
     clear(): void {
@@ -880,14 +880,14 @@ class SISystemView {
     }
 
     drawInteraction(): void {
-        this.layers.interaction.shapes = this.system.states.map(state => ({
+        this.layers.interaction.shapes = map(state => ({
             kind: "polytope", vertices: state.polytope.vertices,
             events: {
                 "click": () => {
                     this.stateView.selection = this.stateView.selection === state ? null : state;
                 }
             }
-        }));
+        }), this.system.states.values());
     }
 
     drawHighlight(): void {
@@ -920,7 +920,7 @@ class SISystemView {
     drawKind(): void {
         let shapes = [];
         if (this.settings.toggleKind.value) {
-            shapes = this.system.states.map(toShape);
+            shapes = map(toShape, this.system.states.values());
         }
         this.layers.kind.shapes = shapes;
     }
@@ -928,9 +928,9 @@ class SISystemView {
     drawLabels(): void {
         let labels = [];
         if (this.settings.toggleLabel.value) {
-            labels = this.system.states.map(state => ({
+            labels = map(state => ({
                 kind: "text", coords: state.polytope.centroid, text: state.label, style: {dy: "3"}
-            }));
+            }), this.system.states.values());
         }
         this.layers.label.shapes = labels;
     }
@@ -1012,10 +1012,10 @@ class SISummary {
     changeHandler() {
         clearNode(this.node);
         appendChild(this.node,
-            createElement("p", {}, [this.system.states.length + " states:"]),
-            createElement("p", {"class": "undecided"}, [this.system.states.filter(s => s.isUndecided).length + " undecided"]),
-            createElement("p", {"class": "satisfying"}, [this.system.states.filter(s => s.isSatisfying).length + " satisfying"]),
-            createElement("p", {"class": "nonsatisfying"}, [this.system.states.filter(s => s.isNonSatisfying).length + " non-satisfying"])
+            createElement("p", {}, [this.system.states.size + " states:"]),
+            createElement("p", {"class": "undecided"}, [count(filter(s => s.isUndecided, this.system.states.values())) + " undecided"]),
+            createElement("p", {"class": "satisfying"}, [count(filter(s => s.isSatisfying, this.system.states.values())) + " satisfying"]),
+            createElement("p", {"class": "nonsatisfying"}, [count(filter(s => s.isNonSatisfying, this.system.states.values())) + " non-satisfying"])
         )
     }
 

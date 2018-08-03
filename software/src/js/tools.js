@@ -16,6 +16,28 @@ export function xor(p: boolean, q: boolean): boolean {
 
 /* Functional Helpers */
 
+export function count<A>(xs: Iterable<A>): number {
+    let c = 0;
+    for (let x of xs) {
+        c++;
+    }
+    return c;
+}
+
+export function* map<A,B>(fun: (A) => B, xs: Iterable<A>): Iterator<B> {
+    for (let x of xs) {
+        yield fun(x);
+    }
+}
+
+export function* filter<A>(test: (A) => boolean, xs: Iterable<A>): Iterator<A> {
+    for (let x of xs) {
+        if (test(x)) {
+            yield x;
+        }
+    }
+}
+
 export function zip2map<A,B,C>(fun: (x: A, y: B) => C, xs: A[], ys: B[]): C[] {
     let zs = [];
     for (let i = 0; i < xs.length; i++) {

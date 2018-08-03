@@ -12,7 +12,7 @@ import { polytopeType, union } from "./geometry.js";
 type PrecisePart<T> = { polys: ConvexPolytopeUnion, items: T[] };
 // Partition the region operator(items) based on each operator(items[i]) and
 // associate the items with each corresponding part.
-function preciseOperatorPartition<T>(items: T[], operator: (T) => ConvexPolytopeUnion): PrecisePart<T>[] {
+function preciseOperatorPartition<T>(items: Iterable<T>, operator: (T) => ConvexPolytopeUnion): PrecisePart<T>[] {
     let parts = [];
     for (let item of items) {
         // Collect new parts in a separate array so they are not visited
@@ -174,14 +174,14 @@ const SATISFYING = 1;
 export class AbstractedLSS {
 
     +lss: LSS;
+    +states: Map<string, State>;
     +predicates: Map<string, Halfspace>; // TODO
     labelNum: number;
-    states: State[];
 
     constructor(lss: LSS, predicates: Halfspace[], predicateLabels?: string[]): void {
         this.lss = lss;
         this.labelNum = 0;
-        this.states = [];
+        this.states = new Map();
 
         // Initial abstraction into states is given by decomposition and
         // partition of outside region into convex polytopes
@@ -218,8 +218,9 @@ export class AbstractedLSS {
     }
 
     newState(polytope: ConvexPolytope, kind: StateKind, predicates?: Iterable<string>): State {
-        let state = new State(this, this.genLabel(), polytope, kind, predicates);
-        this.states.push(state);
+        const label = this.genLabel();
+        const state = new State(this, label, polytope, kind, predicates);
+        this.states.set(label, state);
         return state;
     }
 
@@ -339,9 +340,13 @@ export class State {
         return this.system.attrR(this, us, ys);
     }
 
-    oneStepReachable(us: ConvexPolytopeUnion): State[] {
-        let post = this.post(us);
-        return this.system.states.filter(state => !union.isEmpty(union.intersect(post, [state.polytope])));
+    oneStepReachable(us: ConvexPolytopeUnion): Set<State> {
+        const post = this.post(us);
+        const out = new Set();
+        for (let state of this.system.states.values()) {
+            if (!union.isEmpty(union.intersect(post, [state.polytope]))) out.add(state);
+        }
+        return out;
     }
 
     actionPolytope(y: State): ConvexPolytopeUnion {
@@ -354,7 +359,7 @@ export class State {
 export class Action {
 
     +origin: State;
-    +targets: State[];
+    +targets: State[]; // TODO: Set<State> (?)
     +controls: ConvexPolytopeUnion;
     +supports: ActionSupport[];
     _supports: ?ActionSupport[];
@@ -386,7 +391,7 @@ export class Action {
 export class ActionSupport {
 
     +action: Action;
-    +targets: State[];
+    +targets: State[]; // TODO: Set<State> (?)
     +origins: ConvexPolytopeUnion;
 
     constructor(action: Action, targets: State[], origins: ConvexPolytopeUnion): void {

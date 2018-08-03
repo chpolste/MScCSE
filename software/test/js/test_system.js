@@ -1,14 +1,19 @@
 // @flow
 
 let assert = require("assert");
+let tools = require("../../src/js/tools.js");
 let geometry = require("../../src/js/geometry.js");
 let linalg = require("../../src/js/linalg.js");
 let system = require("../../src/js/system.js");
 
+const map = tools.map;
+const filter = tools.filter;
+const count = tools.count;
+
 
 function actionPolytopesCoverControlSpace(sys) {
     return function () {
-        for (let state of sys.states.filter(s => !s.isOutside)) {
+        for (let state of filter(s => !s.isOutside, sys.states.values())) {
             let actionPolytopes = [];
             for (let action of state.actions) {
                 actionPolytopes.push(...action.controls);
@@ -20,7 +25,7 @@ function actionPolytopesCoverControlSpace(sys) {
 
 function actionPolytopesDoNotOverlap(sys) {
     return function () {
-        for (let state of sys.states) {
+        for (let state of sys.states.values()) {
             for (let action1 of state.actions) {
                 for (let action2 of state.actions) {
                     if (action1 === action2) continue;
@@ -33,7 +38,7 @@ function actionPolytopesDoNotOverlap(sys) {
 
 function actionSupportsDoNotOverlap(sys) {
     return function () {
-        for (let state of sys.states) {
+        for (let state of sys.states.values()) {
             for (let action of state.actions) {
                 for (let support1 of action.supports) {
                     for (let support2 of action.supports) {
@@ -48,7 +53,7 @@ function actionSupportsDoNotOverlap(sys) {
 
 function actionSupportsArePreP(sys) {
     return function () {
-        for (let state of sys.states) {
+        for (let state of sys.states.values()) {
             for (let action of state.actions) {
                 let preR = sys.preR(action.origin, action.controls, action.targets);
                 for (let support of action.supports) {
@@ -79,25 +84,27 @@ describe("Svoreňová et al. (2017): illustrative example system", function () {
     let sys = new system.AbstractedLSS(lss, [geometry.HalfspaceInequation.parse("x > 2", "xy")]);
 
     it("has 6 states", function () {
-        assert.equal(sys.states.length, 6);
+        assert.equal(sys.states.size, 6);
     });
 
     it("has 0 satisfying states", function () {
-        assert.equal(sys.states.filter(s => s.isSatisfying).length, 0);
+        assert.equal(count(filter(s => s.isSatisfying, sys.states.values())), 0);
     });
 
     it("has 2 undecided states", function () {
-        assert.equal(sys.states.filter(s => s.isUndecided).length, 2);
+        assert.equal(count(filter(s => s.isUndecided, sys.states.values())), 2);
     });
 
     it("has 18 actions", function () {
-        assert.equal(sys.states.map(s => s.actions.length).reduce((x, y) => x + y, 0), 18);
+        let n = 0;
+        for (let s of sys.states.values()) {
+            n += s.actions.length;
+        }
+        assert.equal(n, 18);
     });
 
     it("outside states have no actions", function () {
-        sys.states.filter(s => s.isOutside).map(
-            s => assert.equal(s.actions.length, 0)
-        )
+        map(s => assert.equal(s.actions.length, 0), filter(s => s.isOutside, sys.states.values()));
     });
 
     it("union of action polytopes of each state is entire control space", actionPolytopesCoverControlSpace(sys));
@@ -126,25 +133,27 @@ describe("Svoreňová et al. (2017): double integrator system", function () {
     ]);
 
     it("has 13 states", function () {
-        assert.equal(sys.states.length, 13);
+        assert.equal(sys.states.size, 13);
     });
 
     it("has 0 satisfying states", function () {
-        assert.equal(sys.states.filter(s => s.isSatisfying).length, 0);
+        assert.equal(count(filter(s => s.isSatisfying, sys.states.values())), 0);
     });
 
     it("has 9 undecided states", function () {
-        assert.equal(sys.states.filter(s => s.isUndecided).length, 9);
+        assert.equal(count(filter(s => s.isUndecided, sys.states.values())), 9);
     });
 
     it("has 27 actions", function () {
-        assert.equal(sys.states.map(s => s.actions.length).reduce((x, y) => x + y, 0), 27);
+        let n = 0;
+        for (let s of sys.states.values()) {
+            n += s.actions.length;
+        }
+        assert.equal(n, 27);
     });
 
     it("outside states have no actions", function () {
-        sys.states.filter(s => s.isOutside).map(
-            s => assert.equal(s.actions.length, 0)
-        )
+        map(s => assert.equal(s.actions.length, 0), filter(s => s.isOutside, sys.states.values()));
     });
 
     it("union of action polytopes of each state is entire control space", actionPolytopesCoverControlSpace(sys));

@@ -53,7 +53,7 @@ export interface FigureLayer extends Observable<LayerEvent> {
     constructor(figure: LayeredFigure, style?: ElementAttributes): void;
     +figure: LayeredFigure;
     +style: ElementAttributes;
-    shapes: Shape[];
+    shapes: Iterable<Shape>;
 }
 
 export class Layer extends ObservableMixin<LayerEvent> implements FigureLayer {
@@ -73,8 +73,8 @@ export class Layer extends ObservableMixin<LayerEvent> implements FigureLayer {
         return this._shapes;
     }
 
-    set shapes(shapes: Shape[]): void {
-        this._shapes = shapes.slice();
+    set shapes(shapes: Iterable<Shape>): void {
+        this._shapes = Array.from(shapes);
         this.notify();
     }
 

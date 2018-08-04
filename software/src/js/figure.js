@@ -287,7 +287,7 @@ export class Horizontal1D implements Projection {
             primitives.push({ kind: "arrow", origin: this.fwd(shape.origin), target: this.fwd(shape.target) });
         // Text is a primitive
         } else if (shape.kind === "text") {
-            primitives.push({ kind: "text", coords: [shape.coords[0], 0.5], text: shape.text });
+            primitives.push({ kind: "text", coords: this.fwd(shape.coords), text: shape.text });
         } else if (shape.kind === "halfspace") {
             const normal = shape.normal;
             const offset = shape.offset;

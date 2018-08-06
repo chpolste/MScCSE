@@ -10,7 +10,7 @@ export type Matrix = number[][];
 
 // Robust floating point arithmetic requires a small tolerance value for
 // comparisons involving zero, here an absolute value is chosen.
-export const TOL = exports.TOL = 1.0e-8;
+export const TOL = 1.0e-8;
 
 // Exceptions
 export class DimensionMismatch extends Error {}

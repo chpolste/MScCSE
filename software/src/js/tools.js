@@ -110,6 +110,21 @@ export function intersperse<T>(delim: T, items: T[]): T[] {
 }
 
 
+/* Hashing */
+
+// Source: http://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
+export function hashString(s: string): number {
+    let hash = 0;
+    if (s.length !== 0) {
+        for (let i = 0; i < s.length; i++) {
+            hash  = ((hash << 5) - hash) + s.charCodeAt(i);
+            hash |= 0; // Convert to 32bit integer
+        }
+    }
+    return hash;
+}
+
+
 /* Formatting */
 
 export function n2s(x: number): string {
@@ -165,3 +180,92 @@ export class ObservableMixin<T> implements Observable<T> {
     }
 
 }
+
+
+/* UniqueCollection
+
+A set of objects with a user-defined equality relation. Requesting an object
+(take) that already exists in the collection, returns the object from the
+collection. If no object equal to the requested one exists, it will be added.
+By ensuring that always the same object of an equivalence class defined by the
+equality relation is returned, JavaScript's === can be used while implicitly
+adhering to the user-defined equality relation. This makes it possible to use
+the built-in Set and Map as long as all elements are taken from the
+UniqueCollection. Hashing of objects is used to speed up requests.
+*/
+
+type HashFunction<T> = (T) => number;
+type EqualityTest<T> = (T, T) => boolean;
+
+export class UniqueCollection<T> {
+
+    +_hash: HashFunction<T>;
+    +_areEqual: EqualityTest<T>;
+    +_buckets: Map<number,Set<T>>;
+    _size: number;
+
+    constructor(hash: HashFunction<T>, areEqual: EqualityTest<T>): void {
+        this._hash = hash;
+        this._areEqual = areEqual;
+        this._buckets = new Map();
+        this._size = 0;
+    }
+
+    get size(): number {
+        return this._size;
+    }
+
+    has(value: T): boolean {
+        const hash = this._hash(value);
+        const bucket = this._buckets.get(hash);
+        if (bucket != null) {
+            for (let item of bucket) {
+                if (this._areEqual(item, value)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    take(value: T): T {
+        const hash = this._hash(value);
+        let bucket = this._buckets.get(hash);
+        // No bucket exists, create new and add value
+        if (bucket == null) {
+            bucket = this._newBucket(hash);
+            bucket.add(value);
+            this._size++;
+            return value;
+        }
+        // Search bucket for value, return existing item...
+        for (let item of bucket) {
+            if (this._areEqual(item, value)) {
+                return item;
+            }
+        }
+        // ... or add value if not found
+        bucket.add(value);
+        this._size++;
+        return value;
+    }
+
+    _newBucket(hash: number): Set<T> {
+        const bucket = new Set();
+        this._buckets.set(hash, bucket);
+        return bucket;
+    }
+
+    // Flow is unable to deal with Symbols as method names and uses @@...
+    // instead, therefore a bit of trickery is required to properly type the
+    // iterator proctocol implementation:
+    /*:: @@iterator(): Iterator<T> { return (({}: any): Iterator<T>); } */
+    // $FlowFixMe
+    *[Symbol.iterator]() {
+        for (let values of this._buckets.values()) {
+            yield* values;
+        }
+    }
+
+}
+

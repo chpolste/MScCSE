@@ -45,7 +45,7 @@ JS_MODULES_FILES = $(JS_MODULES)/geometry.js $(JS_MODULES)/linalg.js $(JS_MODULE
 
 # General rules
 
-.PHONY: all release set-up-environment clean test check
+.PHONY: all release set-up-environment clean test check inspector
 
 all: $(JS_MODULES_FILES) inspector
 
@@ -78,7 +78,8 @@ check:
 
 # Apps
 
-inspector: $(DIST_HTML)/inspector.html $(DIST_JS)/inspector.js $(DIST_CSS)/inspector.css $(DIST_CSS)/widgets.css
+inspector: $(DIST_HTML)/inspector.html $(DIST_CSS)/inspector.css $(DIST_CSS)/widgets.css \
+		$(DIST_JS)/inspector.js
 
 
 # File rules
@@ -95,6 +96,51 @@ $(JS_MODULES)/%.js: $(SRC_JS)/%.js
 $(DIST_JS)/%.js: $(SRC_JS)/%.js
 	$(BROWSERIFY) $< > $@
 
-$(DIST_JS)/inspector.js: $(SRC_JS)/figure.js $(SRC_JS)/tools.js $(SRC_JS)/geometry.js \
-        $(SRC_JS)/linalg.js $(SRC_JS)/system.js $(SRC_JS)/widgets-input.js $(SRC_JS)/widgets-plot.js \
-		$(SRC_JS)/widgets-inspector.js $(SRC_JS)/parser.js $(SRC_JS)/presets.js $(SRC_JS)/logic.js
+
+# There are no intermediate files that communicate changes of non-direct
+# dependencies to the apps built by browserify, so either all dependencies have
+# to be listed explicitly for each app (error-prone) or the dependency graph
+# can be represented by empty targets that propagate changes by touching each
+# dependency in a chain. This causes unnecessary rebuilds of the module files
+# and sometimes vim will complain about outdated files but it creates a proper
+# dependency chain for the browserify builds. 
+
+# See: https://www.gnu.org/software/make/manual/make.html#Empty-Targets
+# Bonus TODO: generate these automatically from imports in the files (like gcc -M)
+
+$(SRC_JS)/figure.js: $(SRC_JS)/linalg.js $(SRC_JS)/tools.js
+	@touch $(SRC_JS)/figure.js
+
+$(SRC_JS)/game.js: $(SRC_JS)/tools.js $(SRC_JS)/logic.js
+	@touch $(SRC_JS)/game.js
+
+$(SRC_JS)/geometry.js: $(SRC_JS)/linalg.js $(SRC_JS)/tools.js $(SRC_JS)/parser.js
+	@touch $(SRC_JS)/geometry.js
+
+$(SRC_JS)/inspector.js: $(SRC_JS)/presets.js $(SRC_JS)/system.js $(SRC_JS)/domtools.js \
+		$(SRC_JS)/widgets-inspector.js
+	@touch $(SRC_JS)/inspector.js
+
+$(SRC_JS)/inspector-worker.js: $(SRC_JS)/tools.js $(SRC_JS)/game.js
+	@touch $(SRC_JS)/inspector-worker.js
+
+$(SRC_JS)/linalg.js: $(SRC_JS)/tools.js
+	@touch $(SRC_JS)/linalg.js
+
+$(SRC_JS)/logic.js: $(SRC_JS)/parser.js $(SRC_JS)/tools.js
+	@touch $(SRC_JS)/logic.js
+
+$(SRC_JS)/system.js: $(SRC_JS)/tools.js $(SRC_JS)/linalg.js $(SRC_JS)/geometry.js
+	@touch $(SRC_JS)/system.js
+
+$(SRC_JS)/widgets-input.js: $(SRC_JS)/domtools.js $(SRC_JS)/tools.js
+	@touch $(SRC_JS)/widgets-input.js
+
+$(SRC_JS)/widgets-inspector.js: $(SRC_JS)/presets.js $(SRC_JS)/linalg.js $(SRC_JS)/tools.js \
+		$(SRC_JS)/domtools.js $(SRC_JS)/geometry.js $(SRC_JS)/logic.js $(SRC_JS)/figure.js \
+		$(SRC_JS)/widgets-plot.js $(SRC_JS)/widgets-input.js $(SRC_JS)/system.js
+	@touch $(SRC_JS)/widgets-inspector.js
+
+$(SRC_JS)/widgets-plot.js: $(SRC_JS)/linalg.js $(SRC_JS)/domtools.js
+	@touch $(SRC_JS)/widgets-plot.js
+

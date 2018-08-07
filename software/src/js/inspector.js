@@ -8,7 +8,7 @@ import type { Input } from "./widgets-input.js";
 import * as presets from "./presets.js";
 import { LSS, AbstractedLSS } from "./system.js";
 import { Keybindings, clearNode, appendChild, createElement } from "./domtools.js";
-import { SessionManager, ProblemSetup, ProblemSummary, SystemInspector } from "./widgets-inspector.js";
+import { SessionManager, ProblemSetup, ProblemSummary, SystemInspector } from "./inspector-widgets.js";
 
 
 const contentNode = document.getElementById("content");
@@ -24,18 +24,19 @@ const problemSetup = new ProblemSetup(function (lss, predicates, predicateLabels
 
     // Show a summary of the problem setup and the interactive system inspector
     const problem = new ProblemSummary(system, objective);
-    const inspector = new SystemInspector(system, keybindings);
+    const inspector = new SystemInspector(system, objective, keybindings);
+    const inspectorTitle = createElement("h2", {}, ["System Inspector"]);
 
     if (contentNode == null) throw new Error();
     clearNode(contentNode);
     appendChild(contentNode,
         createElement("h2", {}, ["Problem Summary"]),
         problem.node,
-        createElement("h2", {}, ["System Inspector"]),
+        inspectorTitle,
         createElement("p", {}, ["Explore the linear stochastic system and its abstraction interactively and control the abstraction refinement process."]),
         inspector.node
     );
-    inspector.node.scrollIntoView();
+    inspectorTitle.scrollIntoView();
 
 });
 const sessionManager = new SessionManager(problemSetup);

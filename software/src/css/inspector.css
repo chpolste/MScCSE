@@ -26,8 +26,8 @@ h1 {
     font-weight: normal;
 }
 h2 {
-    margin: 20px 0 12px 0;
-    padding: 0 0 2px 0;
+    margin: 12px 0 12px 0;
+    padding: 10px 0 2px 0;
     border-bottom: 1px solid #999;
     font-size: 12pt;
     font-weight: normal;
@@ -42,7 +42,6 @@ h3 {
 p {
     margin: 6px 0;
     padding: 0;
-    text-align: justify;
 }
 
 label {
@@ -160,7 +159,6 @@ a:hover {
     position: absolute;
     font-size: 9pt;
     line-height: 1.4;
-    text-align: justify;
 }
 .info_content ul {
     margin: 0.4em 0;
@@ -223,11 +221,11 @@ span.nonsatisfying {
     color: #666;
 }
 
-.state_view {
+.state_view, .control_view {
     display: flex;
     vertical-align: top;
 }
-.state_view .summary {
+.state_view .summary, .control_view .summary {
     flex: 1 0 auto;
 }
 .state_view .predicates {

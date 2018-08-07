@@ -717,15 +717,17 @@ export class SystemInspector {
     +systemView: SISystemView;
 
     system: AbstractedLSS;
+    objective: Objective;
 
-    constructor(system: AbstractedLSS, keybindings: Keybindings) {
+    constructor(system: AbstractedLSS, objective: Objective, keybindings: Keybindings) {
         this.system = system;
+        this.objective = objective;
 
         this.keybindings = keybindings;
         this.systemSummary = new SISummary(this.system);
         this.stateView = new SIStateView(this.system);
         this.actionView = new SIActionView(this.stateView);
-        this.controlView = new SIControlView(system.lss.controlSpace, this.actionView);
+        this.controlView = new SIControlView(system.lss.controlSpace, this.stateView, this.actionView);
         this.actionSupportView = new SIActionSupportView(this.actionView);
         this.systemViewSettings = new SISystemViewSettings(this.system, this.keybindings);
         this.systemView = new SISystemView(
@@ -739,8 +741,10 @@ export class SystemInspector {
         this.node = createElement("div", { "class": "inspector" }, [
             createElement("div", { "class": "left" }, [
                 this.systemView.plot.node,
-                createElement("h3", {}, ["Abstraction refinement", infoBox("info_abstraction_refinement")]),
-                "TODO: split selected state, control algorithm, ...",
+                createElement("h3", {}, ["System Analysis", infoBox("info_analysis")]),
+                "TODO",
+                createElement("h3", {}, ["Abstraction Refinement", infoBox("info_abstraction_refinement")]),
+                "TODO"
             ]),
             createElement("div", { "class": "right" }, [
                 createElement("div", {"class": "cols"}, [
@@ -1027,22 +1031,17 @@ class SISummary {
 class SIStateView extends ObservableMixin<null> {
 
     +node: Element;
-    +view: AxesPlot;
-    +viewLayer: FigureLayer;
     +predicates: SelectableNodes<string>;
     +summary: HTMLElement;
     _selection: ?State;
 
     constructor(system: AbstractedLSS): void {
         super();
-        let fig = new Figure();
-        this.viewLayer = fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#069" });
-        this.view = new AxesPlot([90, 90], fig, autoProjection(1));
         this.summary = createElement("div", { "class": "summary" });
         this.predicates = new SelectableNodes(p => styledPredicateLabel(p, system), ", ", "");
         this.predicates.node.className = "predicates";
         this.node = createElement("div", { "class": "state_view" }, [
-            this.view.node, this.summary, this.predicates.node
+            this.summary, this.predicates.node
         ]);
         this.changeHandler();
     }
@@ -1060,17 +1059,12 @@ class SIStateView extends ObservableMixin<null> {
         clearNode(this.summary);
         let state = this._selection;
         if (state != null) {
-            this.view.projection = autoProjection(1, ...state.polytope.extent);
-            this.viewLayer.shapes = [{ kind: "polytope", "vertices": state.polytope.vertices }];
             this.predicates.items = Array.from(state.predicates);
             appendChild(this.summary,
                 createElement("p", {}, [state.label, " (", stateKindString(state), ")"]),
-                createElement("p", {}, [state.actions.length + " actions"]),
                 this.predicates.node
             );
         } else {
-            this.view.projection = autoProjection(1);
-            this.viewLayer.shapes = [];
             appendChild(this.summary, createElement("p", {}, ["no selection"]));
         }
         this.notify();
@@ -1144,17 +1138,22 @@ class SIActionSupportView extends SelectableNodes<ActionSupport> {
 }
 
 
-// Information on and preview of the control space. Observes SIActionView to
-// display the control subset of the currently selected action.
+// Information on and preview of the control space. Observes SIStateView to
+// display the number of actions of the currently selected state. Observes
+// SIActionView to display the control subset of the currently selected action.
 class SIControlView {
 
-    +node: Element;
+    +node: HTMLElement;
+    +summary: HTMLElement;
     +controlSpace: ConvexPolytopeUnion;
+    +stateView: SIStateView;
     +actionView: SIActionView;
     +actionLayer: FigureLayer;
 
-    constructor(controlSpace: ConvexPolytopeUnion, actionView: SIActionView): void {
+    constructor(controlSpace: ConvexPolytopeUnion, stateView: SIStateView, actionView: SIActionView): void {
         this.controlSpace = controlSpace;
+        this.stateView = stateView;
+        this.stateView.attach(() => this.changeHandler());
         this.actionView = actionView;
         this.actionView.attach(() => this.drawAction());
 
@@ -1164,7 +1163,18 @@ class SIControlView {
         layer.shapes = this.controlSpace.map(u => ({ kind: "polytope", vertices: u.vertices }));
         let view = new AxesPlot([90, 90], fig, autoProjection(1, ...union.extent(this.controlSpace)));
 
-        this.node = createElement("div", {}, [view.node]);
+        this.summary = createElement("div", { "class": "summary" });
+        this.node = createElement("div", { "class": "control_view" }, [view.node, this.summary]);
+    }
+
+    changeHandler(): void {
+        clearNode(this.summary);
+        const state = this.stateView.selection;
+        if (state != null) {
+            appendChild(this.summary,
+                createElement("p", {}, [state.actions.length + " actions"]),
+            );
+        }
     }
 
     drawAction(): void {

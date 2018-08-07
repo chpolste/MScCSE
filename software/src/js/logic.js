@@ -4,6 +4,7 @@
 import type { ASTNode } from "./parser.js";
 
 import { ASTParser, ParseError } from "./parser.js";
+import { zip2, hashString, UniqueCollection } from "./tools.js";
 
 
 /* Objective specification */
@@ -11,17 +12,23 @@ import { ASTParser, ParseError } from "./parser.js";
 export type ObjectiveKind = {
     name: string,
     formula: string,
-    variables: string,
-    automaton: null,
-    acceptance: [null, null]
+    variables: string[],
+    automaton: string
 };
 
 export class Objective {
     
     +kind: ObjectiveKind;
+    +propositions: Map<string, Proposition>;
+    +automaton: OnePairStreettAutomaton;
 
     constructor(kind: ObjectiveKind, terms: Proposition[] ): void {
         this.kind = kind;
+        if (terms.length !== kind.variables.length) throw new Error(
+            "" // TODO
+        );
+        this.propositions = new Map(zip2(kind.variables, terms));
+        this.automaton = OnePairStreettAutomaton.parse(kind.automaton);
     }
 
 }
@@ -42,6 +49,10 @@ export class AtomicProposition {
 
     evalWith(valuate: Valuation): boolean {
         return valuate(this);
+    }
+
+    toString(): string {
+        return this.symbol;
     }
 
 }
@@ -131,10 +142,8 @@ export function parseProposition(text: string): Proposition {
 
 // Call a function for every node of the expression tree
 export function traverseProposition(fun: (Proposition) => void, prop: Proposition): void {
-    if (prop instanceof AtomicProposition) {
-        fun(prop);
-    } else {
-        fun(prop);
+    fun(prop);
+    if (!(prop instanceof AtomicProposition)) {
         for (let arg of prop.args) {
             traverseProposition(fun, arg);
         }
@@ -142,6 +151,116 @@ export function traverseProposition(fun: (Proposition) => void, prop: Propositio
 }
 
 
-/* TODO: Automata */
+/* Deterministic ω-Automata with one-pair Streett acceptance condition
 
+States and transitions are identified by string labels. A default transition
+(else-case) is specified by an empty label.
+*/
+
+export class OnePairStreettAutomaton {
+
+    +states: UniqueCollection<State>;
+    +acceptanceSet1: Set<State>;
+    +acceptanceSet2: Set<State>;
+    _initialState: State;
+
+    constructor(): void {
+        this.states = new UniqueCollection(State.hash, State.areEqual);
+        this.acceptanceSet1 = new Set();
+        this.acceptanceSet2 = new Set();
+    }
+
+    get initialState(): State {
+        return this._initialState;
+    }
+
+    takeStateByLabel(label: string): State {
+        return this.states.take(new State(label));
+    }
+
+    // Serialization to "A|B|C|D", where
+    // A: transitions in the form ORIGIN>LABEL>TARGET, comma-separated
+    // B: initial state
+    // C: acceptance set 1 of states, comma-separated
+    // D: acceptance set 2 of states, comma-separated
+    stringify(): string {
+        const transitions = [];
+        const accept1 = [];
+        const accept2 = [];
+        for (let state of this.states) {
+            for (let [prop, target] of state.transitions) {
+                transitions.push(state.label + ">" + prop + ">" + target.label);
+            }
+            if (state.defaultTarget != null) {
+                transitions.push(state.label + ">>" + state.defaultTarget.label);
+            }
+            if (this.acceptanceSet1.has(state)) {
+                accept1.push(state.label);
+            }
+            if (this.acceptanceSet2.has(state)) {
+                accept2.push(state.label);
+            }
+        }
+        return [
+            transitions.join(","),
+            this.initialState.label,
+            accept1.join(","),
+            accept2.join(",")
+        ].join(" | ");
+    }
+
+    // Deserialization
+    static parse(s: string): OnePairStreettAutomaton {
+        const automaton = new OnePairStreettAutomaton();
+        const [transitions, initialState, acceptanceSet1, acceptanceSet2] = s.split("|");
+        for (let transition of transitions.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
+            const [o, p, t] = transition.split(/\s*>\s*/);
+            const origin = automaton.takeStateByLabel(o);
+            const target = automaton.takeStateByLabel(t);
+            if (p === "") {
+                if (origin.defaultTarget != null) throw new Error(
+                    "Default target set twice for state '" + o + "'"
+                );
+                origin.defaultTarget = target;
+            } else {
+                if (origin.transitions.has(p)) throw new Error(
+                    "Transition with label '" + o + "' specified twice for state '" + o + "'"
+                );
+                origin.transitions.set(p, target);
+            }
+        }
+        for (let label of acceptanceSet1.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
+            automaton.acceptanceSet1.add(automaton.takeStateByLabel(label));
+        }
+        for (let label of acceptanceSet2.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
+            automaton.acceptanceSet2.add(automaton.takeStateByLabel(label));
+        }
+        automaton._initialState = automaton.takeStateByLabel(initialState.trim());
+        // TODO: test for unreachable states
+        return automaton;
+    }
+
+}
+
+class State {
+
+    +label: string;
+    +transitions: Map<string, State>;
+    defaultTarget: ?State;
+
+    constructor(label: string): void {
+        this.label = label;
+        this.transitions = new Map();
+        this.defaultTarget = null;
+    }
+
+    static hash(x: State): number {
+        return hashString(x.label);
+    }
+
+    static areEqual(x: State, y: State): boolean {
+        return x.label == y.label;
+    }
+
+}
 

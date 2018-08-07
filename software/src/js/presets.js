@@ -7,9 +7,9 @@ export const objectives = {
     "Reachability": {
         name: "Reachability",
         formula: "Fφ",
-        variables: "φ",
-        automaton: null,
-        acceptance: [null, null]
+        variables: ["φ"],
+        // TODO: composite variables that are made up of other variables
+        automaton: "q0>φ>q1,q0>>q0,q1>>q1 | q0 | q0 | q1"
     }
 
 }

@@ -5,7 +5,7 @@
 
 import type { Matrix } from "./linalg.js";
 import type { ConvexPolytope, ConvexPolytopeUnion, Halfspace } from "./geometry.js";
-import type { Proposition, ObjectiveKind } from "./logic.js";
+import type { Proposition, ObjectiveKind, OnePairStreettAutomaton } from "./logic.js";
 import type { Action, ActionSupport } from "./system.js";
 import type { LayeredFigure, FigureLayer, Shape } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
@@ -613,7 +613,7 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
     }
 
     // Update term input fields to match variable requirements of objective
-    updateTerms(variables: string): void {
+    updateTerms(variables: string[]): void {
         const terms = [];
         clearNode(this.termContainer);
         for (let i = 0; i < variables.length; i++) {

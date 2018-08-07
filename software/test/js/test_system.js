@@ -6,14 +6,14 @@ let geometry = require("../../src/js/geometry.js");
 let linalg = require("../../src/js/linalg.js");
 let system = require("../../src/js/system.js");
 
-const map = tools.map;
-const filter = tools.filter;
-const count = tools.count;
+const imap = tools.imap;
+const ifilter = tools.ifilter;
+const icount = tools.icount;
 
 
 function actionPolytopesCoverControlSpace(sys) {
     return function () {
-        for (let state of filter(s => !s.isOutside, sys.states.values())) {
+        for (let state of ifilter(s => !s.isOutside, sys.states.values())) {
             let actionPolytopes = [];
             for (let action of state.actions) {
                 actionPolytopes.push(...action.controls);
@@ -88,11 +88,11 @@ describe("Svoreňová et al. (2017): illustrative example system", function () {
     });
 
     it("has 0 satisfying states", function () {
-        assert.equal(count(filter(s => s.isSatisfying, sys.states.values())), 0);
+        assert.equal(icount(ifilter(s => s.isSatisfying, sys.states.values())), 0);
     });
 
     it("has 2 undecided states", function () {
-        assert.equal(count(filter(s => s.isUndecided, sys.states.values())), 2);
+        assert.equal(icount(ifilter(s => s.isUndecided, sys.states.values())), 2);
     });
 
     it("has 18 actions", function () {
@@ -104,7 +104,7 @@ describe("Svoreňová et al. (2017): illustrative example system", function () {
     });
 
     it("outside states have no actions", function () {
-        map(s => assert.equal(s.actions.length, 0), filter(s => s.isOutside, sys.states.values()));
+        imap(s => assert.equal(s.actions.length, 0), ifilter(s => s.isOutside, sys.states.values()));
     });
 
     it("union of action polytopes of each state is entire control space", actionPolytopesCoverControlSpace(sys));
@@ -137,11 +137,11 @@ describe("Svoreňová et al. (2017): double integrator system", function () {
     });
 
     it("has 0 satisfying states", function () {
-        assert.equal(count(filter(s => s.isSatisfying, sys.states.values())), 0);
+        assert.equal(icount(ifilter(s => s.isSatisfying, sys.states.values())), 0);
     });
 
     it("has 9 undecided states", function () {
-        assert.equal(count(filter(s => s.isUndecided, sys.states.values())), 9);
+        assert.equal(icount(ifilter(s => s.isUndecided, sys.states.values())), 9);
     });
 
     it("has 27 actions", function () {
@@ -153,7 +153,7 @@ describe("Svoreňová et al. (2017): double integrator system", function () {
     });
 
     it("outside states have no actions", function () {
-        map(s => assert.equal(s.actions.length, 0), filter(s => s.isOutside, sys.states.values()));
+        imap(s => assert.equal(s.actions.length, 0), ifilter(s => s.isOutside, sys.states.values()));
     });
 
     it("union of action polytopes of each state is entire control space", actionPolytopesCoverControlSpace(sys));

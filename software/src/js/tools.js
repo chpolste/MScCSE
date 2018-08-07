@@ -14,9 +14,10 @@ export function xor(p: boolean, q: boolean): boolean {
 }
 
 
-/* Functional Helpers */
+/* Functional Helpers for Iterables */
 
-export function count<A>(xs: Iterable<A>): number {
+// Exhaust Iterable and return number of returned elements
+export function icount<A>(xs: Iterable<A>): number {
     let c = 0;
     for (let x of xs) {
         c++;
@@ -24,13 +25,15 @@ export function count<A>(xs: Iterable<A>): number {
     return c;
 }
 
-export function* map<A,B>(fun: (A) => B, xs: Iterable<A>): Iterator<B> {
+// Apply a function to each returned element of the Iterable
+export function* imap<A,B>(fun: (A) => B, xs: Iterable<A>): Iterator<B> {
     for (let x of xs) {
         yield fun(x);
     }
 }
 
-export function* filter<A>(test: (A) => boolean, xs: Iterable<A>): Iterator<A> {
+// Only keep elements of the Iterable that pass a test
+export function* ifilter<A>(test: (A) => boolean, xs: Iterable<A>): Iterator<A> {
     for (let x of xs) {
         if (test(x)) {
             yield x;
@@ -38,6 +41,11 @@ export function* filter<A>(test: (A) => boolean, xs: Iterable<A>): Iterator<A> {
     }
 }
 
+
+/* Functional Helpers for Arrays */
+
+// Zip two arrays and apply a function to the tuples (arguments supplied
+// separately, not as tuples)
 export function zip2map<A,B,C>(fun: (x: A, y: B) => C, xs: A[], ys: B[]): C[] {
     let zs = [];
     for (let i = 0; i < xs.length; i++) {
@@ -46,6 +54,13 @@ export function zip2map<A,B,C>(fun: (x: A, y: B) => C, xs: A[], ys: B[]): C[] {
     return zs;
 }
 
+// Zip two arrays
+export function zip2<A,B>(xs: A[], ys: B[]): [A, B][] {
+    return zip2map((x, y) => [x, y], xs, ys);
+}
+
+// Apply function to tuples of subsequent elements in array, with wrap-around
+// at the end
 export function cyc2map<A,B>(fun: (x: A, y: A) => B, xs: A[]): B[] {
     if (xs.length == 0) return [];
     const zs = [];
@@ -56,6 +71,7 @@ export function cyc2map<A,B>(fun: (x: A, y: A) => B, xs: A[]): B[] {
     return zs;
 }
 
+// cyc2map but with wrap-around at the start
 export function cyc2mapl<A,B>(fun: (x: A, y: A) => B, xs: A[]): B[] {
     if (xs.length == 0) return [];
     const zs = [fun(xs[xs.length - 1], xs[0])];
@@ -65,6 +81,7 @@ export function cyc2mapl<A,B>(fun: (x: A, y: A) => B, xs: A[]): B[] {
     return zs;
 }
 
+// Merge two sorted arrays into a sorted array
 export function merge<T>(comp: (x: T, y: T) => number, xs: T[], ys: T[]): T[] {
     let i = 0;
     let j = 0;
@@ -81,6 +98,7 @@ export function merge<T>(comp: (x: T, y: T) => number, xs: T[], ys: T[]): T[] {
     return merged;
 }
 
+// Put a delimiter between elements of an array
 export function intersperse<T>(delim: T, items: T[]): T[] {
     const out = [];
     for (let item of items) {

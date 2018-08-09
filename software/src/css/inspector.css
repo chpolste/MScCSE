@@ -3,46 +3,83 @@ body {
     padding: 0;
     font-family: DejaVu Sans, sans-serif;
     font-size: 10pt;
-    line-height: 1.2;
+    line-height: 1.5;
+    background-color: #EEE;
 }
 
 body > div {
-    margin: 5px auto;
-    padding: 0 10px;
-    max-width: 1200px;
+    width: 950px;
+    margin: 0 auto 25px auto;
+    padding: 25px;
+    background-color: #FFF;
 }
 
-body > header {
-    margin: 0 0 10px 0;
+.header {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border-bottom: 3px solid #FC0;
     background-color: #333;
     color: #FFF;
 }
 
 h1 {
-    max-width: 1200px;
-    padding: 15px 10px;
+    max-width: 990px;
+    padding: 45px 0 15px 0;
     margin: 0 auto;
-    font-size: 16pt;
-    font-weight: normal;
-}
-h2 {
-    margin: 12px 0 12px 0;
-    padding: 10px 0 2px 0;
-    border-bottom: 1px solid #999;
-    font-size: 12pt;
-    font-weight: normal;
-}
-h3 {
-    margin: 12px 0 8px 0;
-    padding: 0;
-    font-size: 10.5pt;
+    font-size: 18pt;
     font-weight: normal;
 }
 
-p {
-    margin: 6px 0;
-    padding: 0;
+h2 {
+    width: 990px;
+    margin: 25px auto 0 auto;
+    padding: 5px;
+    font-size: 16pt;
+    font-weight: normal;
+    border-bottom: 2px solid #999;
 }
+
+h3 {
+    margin: 14pt 0 6pt 0;
+    font-size: 12pt;
+    font-weight: normal;
+}
+body > div > h3:first-child {
+    margin-top: 0;
+}
+
+p {
+    margin: 0 0 6pt 0;
+}
+
+
+/* Wide insert: interactive content */
+
+h2.wide {
+    border-bottom: 0;
+}
+
+div.wide {
+    width: 100%;
+    margin: 0 auto 25px auto;
+    padding: 25px 0;
+    border-top: 2px solid #999;
+    border-bottom: 2px solid #999;
+}
+
+.wide-inner {
+    width: 1200px;
+    margin: 0 auto;
+}
+
+#content {
+    line-height: 1.2;
+}
+
+
+
+/* ... */
 
 label {
     display: block;
@@ -53,6 +90,7 @@ textarea, input[type=text] {
     font-size: 9pt;
     font-family: monospace;
 }
+
 input[type=checkbox], input[type=radio] {
     display: inline-block;
     vertical-align: top;
@@ -62,15 +100,20 @@ input[type=checkbox], input[type=radio] {
 sub {
     font-size: 7pt;
 }
+
 code {
     font-family: monospace;
+}
+
+pre {
+    line-height: 1.2;
 }
 
 a {
     color: #666;
 }
 a:hover {
-    color: #000;
+    text-decoration: none;
 }
 
 .cols {
@@ -94,35 +137,28 @@ a:hover {
 .inspector {
     display: flex;
     flex-direction: columns;
-    margin: 20px 0;
+    margin-top: 20px;
 }
 .inspector > .left {
     width: 640px;
-    margin-right: 16px;
-    padding: 0 35px 0 0;
-}
-.inspector > .left > .plot {
-    margin-right: -35px;
+    margin-right: 20px;
+    padding: 0 20px 0 0;
 }
 .inspector > .right {
     flex: 1 1 auto;
+    margin-top: -12pt;
 }
 .inspector > .right > .cols > .left {
     flex: 0 0 auto;
     min-width: 170px;
-    padding: 0 16px 12px 0;
-    border-right: 1px solid #999;
-    margin-right: 16px;
+    padding: 0 20px 20px 0;
+    margin-right: 20px;
 }
 .inspector > .right > .cols > .right {
     flex: 1 1 auto;
-    padding: 0 0 12px 0;
-}
-.inspector > .right > .cols > .right svg {
-    margin-right: 10px;
 }
 .inspector > .right > .rest {
-    margin-top: 8px;
+    margin-top: 20px;
 }
 
 
@@ -140,8 +176,9 @@ a:hover {
     height: 1.1em;
     border: 1px solid #999;
     border-radius: 1em;
-    font-size: 1em;
+    font-size: 10pt;
     color: #999;
+    line-height: 1.2;
 }
 .info_button:hover {
     background-color: #EEE;
@@ -158,7 +195,7 @@ a:hover {
     display: none;
     position: absolute;
     font-size: 9pt;
-    line-height: 1.4;
+    line-height: 1.5;
 }
 .info_content ul {
     margin: 0.4em 0;

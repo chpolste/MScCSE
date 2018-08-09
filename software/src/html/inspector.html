@@ -3,60 +3,103 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Linear Stochastic System Abstraction Refinement and Analysis</title>
+    <title>Linear Stochastic System Analysis and Abstraction Refinement</title>
     <link rel="stylesheet" type="text/css" href="css/inspector.css">
     <link rel="stylesheet" type="text/css" href="css/widgets.css">
   </head>
 
   <body>
-    <header>
-      <h1>Linear Stochastic System Abstraction Refinement and Analysis</h1>
-    </header>
-
-    <div id="content">
-      <p>Please wait while the application is loading...</p>
+    
+    <div class="header">
+      <h1>Linear Stochastic System Analysis and Abstraction Refinement</h1>
     </div>
 
-    <div class="text">
-      <h2>About</h2>
+    <h2>Introduction</h2>
+    <div>
       <p>
-        Implementation based on [<a href="#ref1">1</a>].
-        <a href="https://github.com/chpolste/MScCSE">Source code</a> by Christopher Polster.
+        Problem: compute the set of initial states of a dynamical system (TODO: hybrid system) such that there exists a control strategy to ensure that the trajectories satisfy a temporal logic specification with probability 1 (almost-surely).
+        Here, the dynamical system is characterized by a discrete time evolution, and a linear, stochastic dynamic in the spatial dimensions.
+        The objective specification is given in the General Reactivity(1) fragment of Linear Temporal Logic over linear predicates (i.e. halfspaces) of the dynamical system.
+      </p>
+      <p>
+        Application in robotics and other fields.
+      </p>
+      <p>
+        Approach (<a href ="#Svorenova2017">Svorenova et al. 2017</a>):
+        abstraction in the spatial dimension into convex states which induce a MDP-like (? TODO) non-determinsitic transition system (NTS).
+        Synchronized product of NTS with automaton of LTL formula results in a probabilistic 2-player game (2½-player game) with a parity-3 objective.
+        Solution of the game while treating player 2 as an adversary or cooperative determines which states satisfy the objective, which do not and which have to be refined in order to decide.
+        Refinement of these states is then supported by analysis of the dynamics (polytopic operators).
+        Iterate.
+        Controller synthesis.
       </p>
     </div>
 
-    <div class="info_content" id="info_view_settings">
-      The <span class="math">x<sub>t+1</sub> = Ax<sub>t</sub></span> part of the LSS-equation <span class="math">x<sub>t+1</sub> = Ax<sub>t</sub> + Bu<sub>t</sub> + w<sub>t</sub></span> is visualized by the <b>vector field</b>.
-      The <b>highlight operator</b> shows one of the following polytopic operators related to the selected state <span class="math">X'</span>:
-      <ul>
-        <li class="math">Post(X', U) ⊆ (X ∪ X<sub>out</sub>)</li>
-        <li class="math">Pre(X, U, {X'}) ⊆ X</li>
-        <li class="math">PreR(X, U, {X'}) ⊆ X</li>
-        <li class="math">Attr(X, U, {X'}) ⊆ X</li>
-        <li class="math">AttrR(X, U, {X'}) ⊆ X</li>
-      </ul>
-      where <span class="math">X</span> and <span class="math">U</span> are the (entire) state and control space, respectively.
-    </div>
-    <div class="info_content" id="info_control_space">
-      TODO
-    </div>
-    <div class="info_content" id="info_selected_state">
-      TODO
-    </div>
-    <div class="info_content" id="info_actions">
-      TODO
-    </div>
-    <div class="info_content" id="info_action_supports">
-      TODO
-    </div>
-    <div class="info_content" id="info_analysis">
-      TODO
-    </div>
-    <div class="info_content" id="info_abstraction_refinement">
-      TODO
+    <h2>Theoretical Foundations</h2>
+    <div>
+      <h3>Linear Stochastic Systems</h3>
+      <p>
+        aka LSS, piecewise affine systems,
+        evolution equation,
+        ...
+      </p>
+      <p class="math">x<sub>t+1</sub> = Ax<sub>t</sub> + Bu<sub>t</sub> + w<sub>t</sub></p>
+      <p>where...</p>
+      <h3>Abstraction Refinement</h3>
+      <p>
+        What is an abstraction,
+        convex geometry,
+        why is refinement necessary,
+        how can evolution equation (dynamics) of LSS be used to guide refinement
+      </p>
+      <h3>Linear Temporal Logic</h3>
+      <p>
+        objective specification,
+        GR(1) fragment,
+        translation to omega-automata,
+        Büchi implication acceptance condition = one-pair Streett
+      </p>
+      <h3>Deterministic ω-Automata</h3>
+      <p>
+        finite automaton for infinite words.
+        Acceptance conditions: Büchi, Büchi implication, general Streett, one-pair Streett
+      </p>
+      <h3>GR(1) and One-Pair Streett Objectives</h3>
+      <p>
+        Equivalence,
+        Reachability, Safety, other "classical" objectives
+        Example automaton: reachability
+      </p>
+      <h3>Probabilistic Games</h3>
+      <p>
+        aka 2½-player games,
+        explain game graph, decision making and probabilistic aspect,
+      </p>
+      <h3>Parity-3 Objectives</h3>
+      <p>
+        parity-3 game: every state is assigned the priority -1, 0 or 1, player "odd" wins a play iff the lowest priority occuring infinitly often is odd, otherwise player "even" wins.
+        vertices are partitioned (no overlap, no missing!) into "odd" and "even", depending on which player has a winning strategy when starting from the vertex.
+        Every one-pair Streett objective (L, U) can be transformed into a parity-3 objective with the following transformation: assign U vertices priority -1, assign L\U vertices priority 0, assign other vertices priority 1. An accepting run of the automaton corresponds to the odd player winning the parity-3 game.
+        generation from synchronous product of abstracted LSS and LTL automaton,
+        solution
+      </p>
     </div>
 
-    <div class="text">
+
+    <h2>Interactive System Inspector</h2>
+    <div>
+      About the app...
+    </div>
+
+    <div class="wide">
+      <div class="wide-inner" id="content">
+        <p>Please wait while the application is loading...</p>
+      </div>
+    </div>
+
+
+    <h2>...</h2>
+    <div class="normal">
       <h3>Polytopic Operators</h3>
       <p>The Posterior operator (Post) yields the one step-reachable set originating from <span class="math">X'</span> when applying the control input <span class="math">U'</span>:</p>
       <table class="math">
@@ -96,8 +139,50 @@
         </tr>
       </table>
       
-      <h2>References</h2>
-        <p id="ref1">[1] <a href="https://www.sciencedirect.com/science/article/pii/S1751570X16300218">Svoreňová et al. (2017)</a></p>
+      <h3>About</h3>
+      <p>
+        This application is based on the work of <a href="#Svorenova2017">Svoreňová et al. (2017)</a>.
+        The source code of this application can be found on <a href="https://github.com/chpolste/MScCSE">GitHub</a> and is part of the Master's thesis of Christopher Polster at the <a href="https://www7.in.tum.de/home/index.php">Chair for Foundations of Software Reliability and Theoretical Computer Science</a> at Technische Universität München, supervised by <a href="https://www7.in.tum.de/~kretinsk/">Jan Křetínský</a>.
+      </p>
+
+      <h3>References</h3>
+      <p id="Svorenova2017">Svoreňová, M., Křetínský, J., Chmelík, M., Chatterjee, K., Černá, I., & Belta, C. (2017). Temporal logic control for stochastic linear systems using abstraction refinement of probabilistic games. Nonlinear Analysis: Hybrid Systems, 23(15), 230–253. <a href="https://doi.org/10.1016/j.nahs.2016.04.006">https://doi.org/10.1016/j.nahs.2016.04.006</a></p>
+    </div>
+
+
+    <div class="info_content" id="info_view_settings">
+      The <span class="math">x<sub>t+1</sub> = Ax<sub>t</sub></span> part of the LSS-equation <span class="math">x<sub>t+1</sub> = Ax<sub>t</sub> + Bu<sub>t</sub> + w<sub>t</sub></span> is visualized by the <b>vector field</b>.
+      The <b>highlight operator</b> shows one of the following polytopic operators related to the selected state <span class="math">X'</span>:
+      <ul>
+        <li class="math">Post(X', U) ⊆ (X ∪ X<sub>out</sub>)</li>
+        <li class="math">Pre(X, U, {X'}) ⊆ X</li>
+        <li class="math">PreR(X, U, {X'}) ⊆ X</li>
+        <li class="math">Attr(X, U, {X'}) ⊆ X</li>
+        <li class="math">AttrR(X, U, {X'}) ⊆ X</li>
+      </ul>
+      where <span class="math">X</span> and <span class="math">U</span> are the (entire) state and control space, respectively.
+    </div>
+    <div class="info_content" id="info_control_space">
+      TODO
+    </div>
+    <div class="info_content" id="info_selected_state">
+      TODO
+    </div>
+    <div class="info_content" id="info_actions">
+      TODO
+    </div>
+    <div class="info_content" id="info_action_supports">
+      TODO
+    </div>
+    <div class="info_content" id="info_analysis">
+      Create a game from the synchronized product of the transition system induced by the abstracted LSS and the objective automaton and analyze it.<br>
+      The analysis is offloaded to a web worker.
+    </div>
+    <div class="info_content" id="info_abstraction_refinement">
+      TODO
+    </div>
+    <div class="info_content" id="info_snapshots">
+      Save and restore the current state of the system.
     </div>
 
     <script src="js/inspector.js"></script>

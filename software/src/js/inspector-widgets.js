@@ -180,7 +180,6 @@ export class SessionManager {
         let presetButton = createElement("input", {"type": "button", "value": "fill in"});
         presetButton.addEventListener("click", () => this.problemSetup.load(presetSelect.value));
         appendChild(this.node,
-            createElement("h2", {}, ["Session Management"]),
             /*
             createElement("h3", {}, ["Load session from file"]),
             createElement("p", {}, [createElement("input", {"type": "file", "disabled": "true"})]),
@@ -189,7 +188,7 @@ export class SessionManager {
                 createElement("input", {"type": "button", "value": "fill in setup only", "disabled": "true"}),
             ]),
             */
-            createElement("h3", {}, ["Start from a preset"]),
+            createElement("p", {}, ["Start from a preset:"]),
             createElement("p", {}, [presetSelect.node, " ", presetButton])
         );
     }
@@ -243,14 +242,13 @@ export class ProblemSetup {
         });
 
         appendChild(this.node,
-            createElement("h2", {}, ["Problem Setup"]),
             createElement("h3", {}, ["Dimensions"]),
             createElement("p", {}, [this.ssDim.node, " state space"]),
             createElement("p", {}, [this.csDim.node, " control space"]),
             createElement("h3", {}, ["Evolution Equation"]), this.equation.node,
             createElement("div", { "class": "inspector", "style": "margin:0;" }, [
                 createElement("div", { "class": "left" }, [
-                    createElement("h3", {}, ["System Preview"]), this.preview.node,
+                    this.preview.node,
                     createElement("h3", {}, ["Objective"]), this.objective.node
                 ]),
                 createElement("div", { "class": "right" }, [

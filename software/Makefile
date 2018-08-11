@@ -18,6 +18,9 @@ UGLIFYCSS = $(NODE_BIN)/uglifycss $(UGLIFYCSS_FLAGS)
 FLOW = $(NODE_BIN)/flow 
 FLOW_TYPED = $(NODE_BIN)/flow-typed
 
+HTML_INJECT_FLAGS = 
+HTML_INJECT = ./scripts/html-inject
+
 
 # Directories and files
 
@@ -35,6 +38,7 @@ TEST_JS = $(TEST)/js
 DIST = ./dist
 DIST_JS = $(DIST)/js
 DIST_CSS = $(DIST)/css
+DIST_FONTS = $(DIST_CSS)/fonts
 DIST_HTML = $(DIST)
 
 # Compiled JS modules for use with node
@@ -50,6 +54,7 @@ JS_MODULES_FILES = $(JS_MODULES)/geometry.js $(JS_MODULES)/linalg.js $(JS_MODULE
 all: $(JS_MODULES_FILES) inspector
 
 release:
+	@make clean
 	@make --always-make --no-print-directory \
 			BABEL_FLAGS="--minified --no-comments" \
 			BABELIFY_FLAGS="--minified --no-comments" \
@@ -66,6 +71,7 @@ set-up-environment:
 clean:
 	rm -f $(DIST_JS)/*.js
 	rm -f $(DIST_CSS)/*.css
+	rm -rf $(DIST_FONTS)
 	rm -f $(DIST_HTML)/*.html
 	rm -f $(JS_MODULES)/*.js
 
@@ -85,7 +91,7 @@ inspector: $(DIST_HTML)/inspector.html $(DIST_CSS)/inspector.css $(DIST_CSS)/wid
 # File rules
 
 $(DIST_HTML)/%.html: $(SRC_HTML)/%.html
-	cp $< $@
+	$(HTML_INJECT) $(HTML_INJECT_FLAGS) $< $@
 
 $(DIST_CSS)/%.css: $(SRC_CSS)/%.css
 	$(UGLIFYCSS) --output $@ $<

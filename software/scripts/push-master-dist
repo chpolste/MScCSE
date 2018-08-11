@@ -3,7 +3,7 @@
 current_branch="$(git rev-parse --abbrev-ref HEAD)"
 git checkout master
 git checkout -B dist
-make release
+make HTML_INJECT_FLAGS="-CDN" release
 git add -f dist
 git commit -m "Add current master build"
 git push -f origin dist

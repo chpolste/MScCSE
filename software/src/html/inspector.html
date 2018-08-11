@@ -6,6 +6,7 @@
     <title>Linear Stochastic System Analysis and Abstraction Refinement</title>
     <link rel="stylesheet" type="text/css" href="css/inspector.css">
     <link rel="stylesheet" type="text/css" href="css/widgets.css">
+    <!-- INJECT KATEX -->
   </head>
 
   <body>
@@ -43,7 +44,7 @@
         evolution equation,
         ...
       </p>
-      <p class="math">x<sub>t+1</sub> = Ax<sub>t</sub> + Bu<sub>t</sub> + w<sub>t</sub></p>
+      <p class="math">x_{t+1} = Ax_t + B u_t + w_t</p>
       <p>where...</p>
       <h3>Abstraction Refinement</h3>
       <p>
@@ -102,42 +103,28 @@
     <div class="normal">
       <h3>Polytopic Operators</h3>
       <p>The Posterior operator (Post) yields the one step-reachable set originating from <span class="math">X'</span> when applying the control input <span class="math">U'</span>:</p>
-      <table class="math">
-        <tr>
-          <td class="right">Post(X', U') = </td>
-          <td>{x ∈ X ∪ X<sub>out</sub> | ∃x' ∈ X', ∃u ∈ U', ∃w ∈ W : x = Ax' + Bu + w}</td>
-        </tr>
-      </table>
-      <p>
-        The Predecessor operator (Pre) yields a subset of <span class="math">X'</span> from which the union of <span class="math">X<sub>j</sub></span> is reachable with at least one control input from the given set of control inputs <span class="math">U'</span>.
-        The Robust Predecessor (PreR) adds the restriction that the union of <span class="math">X<sub>j</sub></span> must contain the entire reachable set from <span class="math">X'</span>.
-        The Precise Predecessor (PreP) further requires that a non-empty subset of every set in the collection <span class="math">{X<sub>j</sub>}<sub>j∈J</sub></span> is reachable:
+      <p class="math">
+        \mathrm{Post}(X', U') = \{ x \in X \cup X_{out} \mid \exists x' \in X',~\exists u \in U',~\exists w \in W : x = Ax' + Bu + w \}
       </p>
-      <table class="math">
-        <tr>
-          <td class="right">Pre(X', U', {X<sub>j</sub>}<sub>j∈J</sub>) = </td>
-          <td>{x ∈ X' | ∃u ∈ U' : Post(x, u) ∩ ⋃<sub>j∈J</sub> X<sub>j</sub> is not empty}</td>
-        </tr>
-        <tr>
-          <td class="right">PreR(X', U', {X<sub>j</sub>}<sub>j∈J</sub>) = </td>
-          <td>{x ∈ X' | ∃u ∈ U' : Post(x, u) ⊆ ⋃<sub>j∈J</sub> X<sub>j</sub>}</td>
-        </tr>
-        <tr>
-          <td class="right">PreP(X', U', {X<sub>j</sub>}<sub>j∈J</sub>) = </td>
-          <td>{x ∈ X' | ∃u ∈ U' : Post(x, u) ⊆ ⋃<sub>j∈J</sub> X<sub>j</sub> and ∀j ∈ J : Post(x, u) ∩ X<sub>j</sub> is not empty}</td>
-        </tr>
-      </table>
+      <p>
+        The Predecessor operator (Pre) yields a subset of <span class="math">X'</span> from which the union of <span class="math">X_j</span> is reachable with at least one control input from the given set of control inputs <span class="math">U'</span>.
+        The Robust Predecessor (PreR) adds the restriction that the union of <span class="math">X_j</span> must contain the entire reachable set from <span class="math">X'</span>.
+        The Precise Predecessor (PreP) further requires that a non-empty subset of every set in the collection <span class="math">\{X_j\}_{j \in J}</span> is reachable:
+      </p>
+      <p class="math">
+        \begin{aligned}
+          \mathrm{Pre}(X', U', \{X_j\}_{j \in J}) &amp; = \{ x \in X' \mid \exists u \in U' : \mathrm{Post}(x, u) \cap \textstyle\bigcup_{j \in J} X_j \ne \emptyset \} \\
+          \mathrm{PreR}(X', U', \{X_j\}_{j \in J}) &amp; = \{ x \in X' \mid \exists u \in U' : \mathrm{Post}(x, u) \subseteq \textstyle\bigcup_{j \in J} X_j \} \\
+          \mathrm{PreP}(X', U', \{X_j\}_{j \in J}) &amp; = \{ x \in X' \mid \exists u \in U' : \mathrm{Post}(x, u) \subseteq \textstyle\bigcup_{j \in J} X_j \mathrm{~and~} \forall j \in J : \mathrm{Post}(x, u) \cap X_j \ne \emptyset \}
+        \end{aligned}
+      </p>
       <p>The Attractor (Attr) and Robust Attractor (AttrR) operators mirror their Predecessor counterparts but require that the conditions are met for every control input in the set <span class="math">U'</span>:</p>
-      <table class="math">
-        <tr>
-          <td class="right">Attr(X', U', {X<sub>j</sub>}<sub>j∈J</sub>) = </td>
-          <td>{x ∈ X' | ∀u ∈ U' : Post(x, u) ∩ ⋃<sub>j∈J</sub> X<sub>j</sub> is not empty}</td>
-        </tr>
-        <tr>
-          <td class="right">AttrR(X', U', {X<sub>j</sub>}<sub>j∈J</sub>) = </td>
-          <td>{x ∈ X' | ∀u ∈ U' : Post(x, u) ⊆ ⋃<sub>j∈J</sub> X<sub>j</sub>}</td>
-        </tr>
-      </table>
+      <p class="math">
+        \begin{aligned}
+          \mathrm{Attr}(X', U', \{X_j\}_{j \in J}) &amp; = \{ x \in X' \mid \forall u \in U' : \mathrm{Post}(x, u) \cap \textstyle\bigcup_{j \in J} X_j \ne \emptyset \} \\
+          \mathrm{AttrR}(X', U', \{X_j\}_{j \in J}) &amp; = \{ x \in X' \mid \forall u \in U' : \mathrm{Post}(x, u) \subseteq \textstyle\bigcup_{j \in J} X_j \}
+        \end{aligned}
+      </p>
       
       <h3>About</h3>
       <p>
@@ -151,14 +138,14 @@
 
 
     <div class="info_content" id="info_view_settings">
-      The <span class="math">x<sub>t+1</sub> = Ax<sub>t</sub></span> part of the LSS-equation <span class="math">x<sub>t+1</sub> = Ax<sub>t</sub> + Bu<sub>t</sub> + w<sub>t</sub></span> is visualized by the <b>vector field</b>.
+      The <span class="math">x_{t+1} = Ax_t</span> part of the LSS-equation <span class="math">x_{t+1} = Ax_t + Bu_t + w_t</span> is visualized by the <b>vector field</b>.
       The <b>highlight operator</b> shows one of the following polytopic operators related to the selected state <span class="math">X'</span>:
       <ul>
-        <li class="math">Post(X', U) ⊆ (X ∪ X<sub>out</sub>)</li>
-        <li class="math">Pre(X, U, {X'}) ⊆ X</li>
-        <li class="math">PreR(X, U, {X'}) ⊆ X</li>
-        <li class="math">Attr(X, U, {X'}) ⊆ X</li>
-        <li class="math">AttrR(X, U, {X'}) ⊆ X</li>
+        <li class="math">\mathrm{Post}(X', U) \subseteq (X \cup X_{out})</li>
+        <li class="math">\mathrm{Pre}(X, U, \{X'\}) \subseteq X</li>
+        <li class="math">\mathrm{PreR}(X, U, \{X'\}) \subseteq X</li>
+        <li class="math">\mathrm{Attr}(X, U, \{X'\}) \subseteq X</li>
+        <li class="math">\mathrm{AttrR}(X, U, \{X'\}) \subseteq X</li>
       </ul>
       where <span class="math">X</span> and <span class="math">U</span> are the (entire) state and control space, respectively.
     </div>

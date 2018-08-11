@@ -96,7 +96,7 @@ function styledPredicateLabel(label: string, system: AbstractedLSS): HTMLElement
 }
 
 function evolutionEquation(nodeA: Element, nodeB: Element): HTMLElement {
-    return createElement("p", { "class": "math" }, [
+    return createElement("p", {}, [
         "x", createElement("sub", {}, ["t+1"]),
         " = ", nodeA, " x", createElement("sub", {}, ["t"]),
         " + ", nodeB, " u", createElement("sub", {}, ["t"]),
@@ -678,7 +678,7 @@ export class ProblemSummary {
                     ...Array.from(system.predicates.entries()).map(([label, halfspace]) =>
                         createElement("p", {}, [
                             label, ": ",
-                            createElement("span", { "class": "math" }, [asInequation(halfspace)])
+                            createElement("span", {}, [asInequation(halfspace)])
                         ])
                     )
                 ])

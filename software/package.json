@@ -15,7 +15,8 @@
     "flow-typed": "^2.5.1",
     "mocha": "^5.0.0",
     "rewire": "^4.0.1",
-    "uglifycss": "0.0.29"
+    "uglifycss": "^0.0.29",
+    "katex": "^0.10.0-beta"
   },
   "babel": {
     "presets": [

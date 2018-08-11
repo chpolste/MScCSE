@@ -1,0 +1,69 @@
+#! /usr/bin/env python3
+
+import os
+import shutil
+import argparse
+
+join = os.path.join
+
+
+# KaTeX
+
+KATEX_DIST = "./node_modules/katex/dist/"
+
+KATEX_INIT = '''
+    <script type="text/javascript">
+      document.addEventListener("DOMContentLoaded", function () {
+        for (let node of document.querySelectorAll(".math")) {
+          katex.render(node.innerHTML.replace(/&amp;/g, "&").replace(/&gt;/g, ">").replace(/&lt;/g, "<"), node);
+        }
+      });
+    </script>
+'''
+
+KATEX_CDN = '''
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" integrity="sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js" integrity="sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm" crossorigin="anonymous"></script>
+''' + KATEX_INIT
+
+KATEX_LOCAL = '''
+    <link rel="stylesheet" href="css/katex.min.css">
+    <script defer src="js/katex.min.js"></script>
+''' + KATEX_INIT
+
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-CDN", action="store_true")
+    parser.add_argument("input", type=str, default="")
+    parser.add_argument("output", type=str, default="")
+
+    args = parser.parse_args()
+
+    assert args.input != args.output
+
+    outdir = os.path.dirname(args.output)
+
+    with open(args.input, "r") as fin, open(args.output, "w") as fout:
+        for line in fin:
+            trimmed = line.strip();
+
+            # KaTeX
+            if trimmed == "<!-- INJECT KATEX -->":
+                line = KATEX_CDN if args.CDN else KATEX_LOCAL
+                # Copy KaTeX js, css and fonts
+                if not args.CDN:
+                    katex_js = join(outdir, "js", "katex.min.js")
+                    katex_css = join(outdir, "css", "katex.min.css")
+                    katex_fonts = join(outdir, "css", "fonts")
+                    if not os.path.exists(katex_js):
+                        shutil.copy(join(KATEX_DIST, "katex.min.js"), katex_js)
+                    if not os.path.exists(katex_css):
+                        shutil.copy(join(KATEX_DIST, "katex.min.css"), katex_css)
+                    if not os.path.exists(katex_fonts):
+                        shutil.copytree(join(KATEX_DIST, "fonts"), katex_fonts)
+                    
+            fout.write(line);
+

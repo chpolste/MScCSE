@@ -15,6 +15,7 @@ I'm writing JavaScript (ES6), targeting both the [browser](https://www.mozilla.o
 - CSS minifier: [uglifycss](https://github.com/fmarcia/UglifyCSS)
 - Bundler: [browserify](http://browserify.org/), [babelify](https://github.com/babel/babelify)
 - Testing: [mocha](https://mochajs.org/), [rewire](https://github.com/jhnns/rewire)
+- Maths renderer: [KaTeX](https://github.com/Khan/KaTeX)
 
 To build all modules and bundles run
 
@@ -33,6 +34,11 @@ to build minified variants without source maps. To set up the environment run
 ```bash
 make set-up-environment
 ```
+
+### KaTeX injection
+
+By default KaTeX is included into the builds locally, i.e. all necessary files (JavaScript, CSS, fonts) are copied into the `dist` directory from the KaTeX node module. To switch to a CDN-based inclusion of KaTeX the `-CDN` flag has to be set for the `html-inject` script. This can be done by specifying `HTML_INJECT_FLAGS="-CDN"` when calling `make`.
+
 
 ### On using Flow
 

@@ -212,18 +212,9 @@ a:hover {
     padding: 0 5px;
 }
 
-.math {
-   padding: 0 1px;
-   font-family: DejaVu Serif, serif;
-}
-.math td {
-    vertical-align: top;
-}
-table.math {
-    display: block;
-}
-.math .right {
-    text-align: right;
+p.math {
+    padding-left: 20px;
+    padding-right: 20px;
 }
 
 .polytope_builder {

@@ -6,7 +6,7 @@ import type { Matrix } from "./linalg.js";
 import type { KeyCallback } from "./domtools.js";
 
 import { createElement, clearNode, appendChild } from "./domtools.js";
-import { ObservableMixin, zip2map, intersperse } from "./tools.js";
+import { arr, ObservableMixin } from "./tools.js";
 
 
 export class ValidationError extends Error {};
@@ -268,7 +268,7 @@ export class MatrixInput<T> extends ObservableMixin<null> implements Input<T[][]
 
     set text(text: string): void {
         this.isSendingNotifications = false;
-        zip2map((lineInput, text) => { lineInput.text = text; }, this.lineInputs, text.split("\n"));
+        arr.zip2map((lineInput, text) => { lineInput.text = text; }, this.lineInputs, text.split("\n"));
         this.isSendingNotifications = true;
         this.changeHandler();
     }
@@ -375,7 +375,7 @@ export class SelectableNodes<T> extends ObservableMixin<boolean> {
                 itemNodes.push(node);
             }
             if (this.delimiter != null) {
-                itemNodes = intersperse(this.delimiter, itemNodes);
+                itemNodes = arr.intersperse(this.delimiter, itemNodes);
             }
             appendChild(this.node, ...itemNodes);
         }

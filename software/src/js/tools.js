@@ -15,99 +15,183 @@ export function xor(p: boolean, q: boolean): boolean {
 
 
 /* Functional Helpers for Iterables */
+export const iter = {
 
-// Exhaust Iterable and return number of returned elements
-export function icount<A>(xs: Iterable<A>): number {
-    let c = 0;
-    for (let x of xs) {
-        c++;
-    }
-    return c;
-}
+    or: function (xs: Iterable<boolean>): boolean {
+        for (let x of xs) {
+            if (x) return true;
+        }
+        return false;
+    },
 
-// Apply a function to each returned element of the Iterable
-export function* imap<A,B>(fun: (A) => B, xs: Iterable<A>): Iterator<B> {
-    for (let x of xs) {
-        yield fun(x);
-    }
-}
+    and: function (xs: Iterable<boolean>): boolean {
+        for (let x of xs) {
+            if (!x) return false;
+        }
+        return true;
+    },
 
-// Only keep elements of the Iterable that pass a test
-export function* ifilter<A>(test: (A) => boolean, xs: Iterable<A>): Iterator<A> {
-    for (let x of xs) {
-        if (test(x)) {
-            yield x;
+    sum: function (xs: Iterable<number>): number {
+        let s = 0;
+        for (let x of xs) {
+            s += x;
+        }
+        return s;
+    },
+    
+    // Exhaust Iterable and return number of returned elements
+    count: function <A>(xs: Iterable<A>): number {
+        let c = 0;
+        for (let x of xs) {
+            c++;
+        }
+        return c;
+    },
+
+    // Apply a function to each returned element of the Iterable
+    map: function* <A,B>(fun: (A) => B, xs: Iterable<A>): Iterator<B> {
+        for (let x of xs) {
+            yield fun(x);
+        }
+    },
+
+    // Only keep elements of the Iterable that pass a test
+    filter: function* <A>(test: (A) => boolean, xs: Iterable<A>): Iterator<A> {
+        for (let x of xs) {
+            if (test(x)) {
+                yield x;
+            }
+        }
+    },
+
+    chain: function* <A>(...xss: Iterable<A>[]): Iterator<A> {
+        for (let xs of xss) {
+            yield* xs;
         }
     }
-}
+
+};
 
 
 /* Functional Helpers for Arrays */
 
-// Zip two arrays and apply a function to the tuples (arguments supplied
-// separately, not as tuples)
-export function zip2map<A,B,C>(fun: (x: A, y: B) => C, xs: A[], ys: B[]): C[] {
-    let zs = [];
-    for (let i = 0; i < xs.length; i++) {
-        zs[i] = fun(xs[i], ys[i]);
-    }
-    return zs;
-}
+export const arr = {
 
-// Zip two arrays
-export function zip2<A,B>(xs: A[], ys: B[]): [A, B][] {
-    return zip2map((x, y) => [x, y], xs, ys);
-}
-
-// Apply function to tuples of subsequent elements in array, with wrap-around
-// at the end
-export function cyc2map<A,B>(fun: (x: A, y: A) => B, xs: A[]): B[] {
-    if (xs.length == 0) return [];
-    const zs = [];
-    for (let i = 0; i < xs.length - 1; i++) {
-        zs.push(fun(xs[i], xs[i + 1]));
-    }
-    zs.push(fun(xs[xs.length - 1], xs[0]));
-    return zs;
-}
-
-// cyc2map but with wrap-around at the start
-export function cyc2mapl<A,B>(fun: (x: A, y: A) => B, xs: A[]): B[] {
-    if (xs.length == 0) return [];
-    const zs = [fun(xs[xs.length - 1], xs[0])];
-    for (let i = 0; i < xs.length - 1; i++) {
-        zs.push(fun(xs[i], xs[i + 1]));
-    }
-    return zs;
-}
-
-// Merge two sorted arrays into a sorted array
-export function merge<T>(comp: (x: T, y: T) => number, xs: T[], ys: T[]): T[] {
-    let i = 0;
-    let j = 0;
-    const merged = [];
-    while (i < xs.length && j < ys.length) {
-        if (comp(xs[i], ys[j]) <= 0) {
-            merged.push(xs[i++]);
-        } else {
-            merged.push(ys[j++]);
+    // Zip two arrays and apply a function to the tuples (arguments supplied
+    // separately, not as tuples)
+    zip2map: function <A,B,C>(fun: (x: A, y: B) => C, xs: A[], ys: B[]): C[] {
+        let zs = [];
+        for (let i = 0; i < xs.length; i++) {
+            zs[i] = fun(xs[i], ys[i]);
         }
+        return zs;
+    },
+
+    // Zip two arrays
+    zip2: function <A,B>(xs: A[], ys: B[]): [A, B][] {
+        return arr.zip2map((x, y) => [x, y], xs, ys);
+    },
+
+    // Apply function to tuples of subsequent elements in array, with wrap-around
+    // at the end
+    cyc2map: function <A,B>(fun: (x: A, y: A) => B, xs: A[]): B[] {
+        if (xs.length == 0) return [];
+        const zs = [];
+        for (let i = 0; i < xs.length - 1; i++) {
+            zs.push(fun(xs[i], xs[i + 1]));
+        }
+        zs.push(fun(xs[xs.length - 1], xs[0]));
+        return zs;
+    },
+
+    // cyc2map but with wrap-around at the start
+    cyc2mapl: function <A,B>(fun: (x: A, y: A) => B, xs: A[]): B[] {
+        if (xs.length == 0) return [];
+        const zs = [fun(xs[xs.length - 1], xs[0])];
+        for (let i = 0; i < xs.length - 1; i++) {
+            zs.push(fun(xs[i], xs[i + 1]));
+        }
+        return zs;
+    },
+
+    // Merge two sorted arrays into a sorted array
+    merge: function <T>(comp: (x: T, y: T) => number, xs: T[], ys: T[]): T[] {
+        let i = 0;
+        let j = 0;
+        const merged = [];
+        while (i < xs.length && j < ys.length) {
+            if (comp(xs[i], ys[j]) <= 0) {
+                merged.push(xs[i++]);
+            } else {
+                merged.push(ys[j++]);
+            }
+        }
+        while (i < xs.length) merged.push(xs[i++]);
+        while (j < ys.length) merged.push(ys[j++]);
+        return merged;
+    },
+
+    // Put a delimiter between elements of an array
+    intersperse: function <T>(delim: T, items: T[]): T[] {
+        const out = [];
+        for (let item of items) {
+            out.push(item);
+            out.push(delim);
+        }
+        out.pop();
+        return out;
     }
-    while (i < xs.length) merged.push(xs[i++]);
-    while (j < ys.length) merged.push(ys[j++]);
-    return merged;
+
 }
 
-// Put a delimiter between elements of an array
-export function intersperse<T>(delim: T, items: T[]): T[] {
-    const out = [];
-    for (let item of items) {
-        out.push(item);
-        out.push(delim);
+
+/* Set operations */
+
+export const sets = {
+
+    areEqual: function <T>(xs: Set<T>, ys: Set<T>): boolean {
+        if (xs.size !== ys.size) {
+            return false;
+        }
+        for (let y of ys) {
+            if (!xs.has(y)) {
+                return false;
+            }
+        }
+        return true;
+    },
+
+    isSubset: function <T>(subs: Set<T>, sups: Set<T>): boolean {
+        for (let sub of subs) {
+            if (!sups.has(sub)) {
+                return false;
+            }
+        }
+        return true;
+    },
+
+    doIntersect: function <T>(xs: Set<T>, ys: Set<T>): boolean {
+        for (let x of xs) {
+            if (ys.has(x)) {
+                return true;
+            }
+        }
+        return false;
+    },
+
+    union: function <T>(...xss: Set<T>[]): Set<T> {
+        return new Set(iter.chain(...xss));
+    },
+
+    intersection: function <T>(xs: Iterable<T>, ys: Set<T>): Set<T> {
+        return new Set(iter.filter(x => ys.has(x), xs));
+    },
+
+    difference: function <T>(xs: Iterable<T>, ys: Set<T>): Set<T> {
+        return new Set(iter.filter(x => !ys.has(x), xs));
     }
-    out.pop();
-    return out;
-}
+
+};
 
 
 /* Hashing */

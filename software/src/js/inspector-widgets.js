@@ -13,7 +13,7 @@ import type { Input } from "./widgets-input.js";
 
 import * as presets from "./presets.js";
 import * as linalg from "./linalg.js";
-import { imap, icount, ifilter, n2s, ObservableMixin, intersperse } from "./tools.js";
+import { iter, arr, n2s, ObservableMixin } from "./tools.js";
 import { Keybindings, clearNode, appendChild, createElement } from "./domtools.js";
 import { HalfspaceInequation, polytopeType, union } from "./geometry.js";
 import { Objective, AtomicProposition, parseProposition, traverseProposition } from "./logic.js";
@@ -348,7 +348,7 @@ class ProblemSetupSystemPreview {
 
     drawAbsLSS(abslss: AbstractedLSS): void {
         this.plot.projection = autoProjection(3/2, ...abslss.extent);
-        this.layer.shapes = imap(toShape, abslss.states.values());
+        this.layer.shapes = iter.map(toShape, abslss.states.values());
     }
 
     clear(): void {
@@ -882,7 +882,7 @@ class SISystemView {
     }
 
     drawInteraction(): void {
-        this.layers.interaction.shapes = imap(state => ({
+        this.layers.interaction.shapes = iter.map(state => ({
             kind: "polytope", vertices: state.polytope.vertices,
             events: {
                 "click": () => {
@@ -922,7 +922,7 @@ class SISystemView {
     drawKind(): void {
         let shapes = [];
         if (this.settings.toggleKind.value) {
-            shapes = imap(toShape, this.system.states.values());
+            shapes = iter.map(toShape, this.system.states.values());
         }
         this.layers.kind.shapes = shapes;
     }
@@ -930,7 +930,7 @@ class SISystemView {
     drawLabels(): void {
         let labels = [];
         if (this.settings.toggleLabel.value) {
-            labels = imap(state => ({
+            labels = iter.map(state => ({
                 kind: "text", coords: state.polytope.centroid, text: state.label, style: {dy: "3"}
             }), this.system.states.values());
         }
@@ -1015,9 +1015,15 @@ class SISummary {
         clearNode(this.node);
         appendChild(this.node,
             createElement("p", {}, [this.system.states.size + " states:"]),
-            createElement("p", {"class": "undecided"}, [icount(ifilter(s => s.isUndecided, this.system.states.values())) + " undecided"]),
-            createElement("p", {"class": "satisfying"}, [icount(ifilter(s => s.isSatisfying, this.system.states.values())) + " satisfying"]),
-            createElement("p", {"class": "nonsatisfying"}, [icount(ifilter(s => s.isNonSatisfying, this.system.states.values())) + " non-satisfying"])
+            createElement("p", {"class": "undecided"}, [
+                iter.count(iter.filter(s => s.isUndecided, this.system.states.values())) + " undecided"
+            ]),
+            createElement("p", {"class": "satisfying"}, [
+                iter.count(iter.filter(s => s.isSatisfying, this.system.states.values())) + " satisfying"
+            ]),
+            createElement("p", {"class": "nonsatisfying"}, [
+                iter.count(iter.filter(s => s.isNonSatisfying, this.system.states.values())) + " non-satisfying"
+            ])
         )
     }
 
@@ -1092,7 +1098,7 @@ class SIActionView extends SelectableNodes<Action> {
     static asNode(action: Action): Element {
         return createElement("div", {}, [
             styledStateLabel(action.origin, action.origin), " → {",
-            ...intersperse(", ", action.targets.map(
+            ...arr.intersperse(", ", action.targets.map(
                 target => styledStateLabel(target, action.origin)
             )),
             "}"
@@ -1126,7 +1132,7 @@ class SIActionSupportView extends SelectableNodes<ActionSupport> {
     static asNode(support: ActionSupport): Element {
         return createElement("div", {}, [
             "{",
-            ...intersperse(", ", support.targets.map(
+            ...arr.intersperse(", ", support.targets.map(
                 target => styledStateLabel(target, support.action.origin)
             )),
             "}"
@@ -1189,4 +1195,3 @@ class SIControlView {
     }
 
 }
-

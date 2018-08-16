@@ -1,7 +1,7 @@
 // @flow
 "use strict";
 
-import { zip2map, NotImplementedError } from "./tools.js";
+import { arr, NotImplementedError } from "./tools.js";
 
 
 // No special types for vectors or matrices
@@ -48,12 +48,12 @@ export function dot(v: Vector, w: Vector): number {
 
 export function add(v: Vector, w: Vector): Vector {
     assertEqualDims(v.length, w.length);
-    return zip2map((a, b) => a + b, v, w);
+    return arr.zip2map((a, b) => a + b, v, w);
 }
 
 export function sub(v: Vector, w: Vector): Vector {
     assertEqualDims(v.length, w.length);
-    return zip2map((a, b) => a - b, v, w);
+    return arr.zip2map((a, b) => a - b, v, w);
 }
 
 export function areClose(v: Vector, w: Vector): boolean {

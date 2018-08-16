@@ -6,9 +6,9 @@ let geometry = require("../../src/js/geometry.js");
 let linalg = require("../../src/js/linalg.js");
 let system = require("../../src/js/system.js");
 
-const imap = tools.imap;
-const ifilter = tools.ifilter;
-const icount = tools.icount;
+const imap = tools.iter.map;
+const ifilter = tools.iter.filter;
+const icount = tools.iter.count;
 
 
 function actionPolytopesCoverControlSpace(sys) {

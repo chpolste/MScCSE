@@ -7,6 +7,8 @@ References:
 - Baotić, M. (2009). Polytopic Computations in Constrained Optimal Control.
   Automatika, Journal for Control, Measurement, Electronics, Computing and
   Communications, 50, 119–134.
+- Kundu, S. (1987). A new O(n·log n) algorithm for computing the intersection
+  of convex polygons. Pattern Recognition, 20(4), 419–424.
 
 */
 
@@ -14,7 +16,7 @@ import type { Vector, Matrix } from "./linalg.js";
 import type { ASTNode } from "./parser.js";
 
 import * as linalg from "./linalg.js";
-import { zip2map, cyc2map, cyc2mapl, merge, NotImplementedError, ValueError } from "./tools.js";
+import { arr, iter, NotImplementedError, ValueError } from "./tools.js";
 import { ASTParser, ParseError } from "./parser.js";
 
 
@@ -301,15 +303,19 @@ class AbstractConvexPolytope implements ConvexPolytope {
     _halfspaces: ?Halfspace[];
     +dim: number;
 
-    // Methods that have to be implemented by subtypes
+    // Methods that have to be implemented by subtypes (abstract methods):
+    // Derive H-representation from V-representation and store in _halfspaces
     _VtoH() { throw new NotImplementedError() };
+    // Derive V-representation from H-representation and store in _halfspaces
     _HtoV() { throw new NotImplementedError() };
+    // Geometric properties
     get volume() { throw new NotImplementedError() };
     get centroid() { throw new NotImplementedError() };
 
-    // No post-processing, therefore canonical form of vertices/halfspaces must
-    // be provided. Use the alternative static method constructors noredund,
-    // hull and empty to create convex polytopes from non-canonical input.
+    // No processing of args in the constructor, therefore canonical form of
+    // vertices/halfspaces must be provided. Use the alternative static method
+    // constructors intersection, hull and empty to create convex polytopes
+    // from non-canonical input.
     constructor(vertices: ?Vector[], halfspaces: ?Halfspace[]): void {
         if (this.constructor === "AbstractConvexPolytope") {
             throw new TypeError("must not instanciate AbstractConvexPolytope");
@@ -318,6 +324,7 @@ class AbstractConvexPolytope implements ConvexPolytope {
         this._halfspaces = halfspaces;
     }
 
+    // Cached access to V-representation
     get vertices(): Vector[] {
         if (this._vertices != null) {
             return this._vertices;
@@ -327,6 +334,7 @@ class AbstractConvexPolytope implements ConvexPolytope {
         }
     }
 
+    // Cached access to H-representation
     get halfspaces(): Halfspace[] {
         if (this._halfspaces != null) {
             return this._halfspaces;
@@ -365,7 +373,7 @@ class AbstractConvexPolytope implements ConvexPolytope {
                 }
             });
         }
-        return zip2map((x, y) => [x, y], mins, maxs);
+        return arr.zip2map((x, y) => [x, y], mins, maxs);
     }
 
     // Test if two polytopes are identical by comparing vertices. Depends on
@@ -373,46 +381,31 @@ class AbstractConvexPolytope implements ConvexPolytope {
     isSameAs(other: ConvexPolytope): boolean {
         let thisVertices = this.vertices;
         let otherVertices = other.vertices;
-        if (this.dim != other.dim || thisVertices.length != otherVertices.length) {
+        if (this.dim !== other.dim || thisVertices.length !== otherVertices.length) {
             return false;
-        }
-        // Find a common vertex
-        let idxoff = 0;
-        while (idxoff < thisVertices.length) {
-            if (linalg.areClose(thisVertices[idxoff], otherVertices[0])) {
-                break;
-            }
-            idxoff++;
         }
         // Check if same vertex order
         for (let i = 0; i < thisVertices.length; i++) {
-            if (!linalg.areClose(thisVertices[(idxoff + i) % thisVertices.length], otherVertices[i])) {
+            if (!linalg.areClose(thisVertices[i], otherVertices[i])) {
                 return false;
             }
         }
-        return idxoff < thisVertices.length;
+        return true;
     }
 
+    // Is point p inside the polytope?
     contains(p: Vector): boolean {
         linalg.assertEqualDims(this.dim, p.length);
-        for (let halfspace of this.halfspaces) {
-            if (!halfspace.contains(p)) {
-                return false;
-            }
-        }
-        return true;
+        return iter.and(this.halfspaces.map(h => h.contains(p)));
     }
 
+    // Do all points of the polytope fulfil the linear predicate?
     fulfils(predicate: Halfspace): boolean {
         linalg.assertEqualDims(this.dim, predicate.dim);
-        for (let v of this.vertices) {
-            if (!predicate.contains(v))  {
-                return false;
-            }
-        }
-        return true;
+        return iter.and(this.vertices.map(v => predicate.contains(v)));
     }
 
+    // Polytope translated by vector v
     translate(v: Vector): ConvexPolytope {
         // TODO: is hull really necessary? Translation should not change the
         // proper order of vertices...
@@ -630,8 +623,10 @@ export class Interval extends AbstractConvexPolytope implements ConvexPolytope {
             throw new ValueError();
         }
         const [left, right] = this._vertices;
-        this._halfspaces = [new HalfspaceInequation([-1], -left[0]),
-                            new HalfspaceInequation([1], right[0])]
+        this._halfspaces = [
+            new HalfspaceInequation([-1], -left[0]),
+            new HalfspaceInequation([1], right[0])
+        ];
     }
 
 }
@@ -696,6 +691,11 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
         return Polygon.noredund(hs.sort(halfspaceOrdering2D));
     }
 
+    // noredund expects cleaned input, i.e. a list of halfplanes in canonical
+    // order and removes the redundant halfplanes. To obatain a polytope from
+    // a non-canonical collection of halfspaces, use intersection. The
+    // redundancy-removal algorithm is a custom development but has
+    // similarities with that described by Kundu (1987).
     static noredund(halfplanes: Halfspace[]): Polygon {
         // Build a tight loop of halfspaces
         const loop = [];
@@ -792,19 +792,21 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
         return new Polygon(null, out);
     }
 
-    // https://en.wikipedia.org/wiki/Centroid#Centroid_of_a_polygon
+    // https://en.wikipedia.org/wiki/Centroid#Of_a_polygon
     get volume(): number {
-        return 0.5 * cyc2map((a, b) => a[0]*b[1] - b[0]*a[1], this.vertices).reduce((a, b) => a + b, 0);
+        return 0.5 * iter.sum(arr.cyc2map((a, b) => a[0]*b[1] - b[0]*a[1], this.vertices));
     }
 
-    // https://en.wikipedia.org/wiki/Centroid#Centroid_of_a_polygon
+    // https://en.wikipedia.org/wiki/Centroid#Of_a_polygon
     get centroid(): Vector {
         const vol = this.volume;
-        const x = cyc2map((a, b) => (a[0] + b[0]) * (a[0]*b[1] - b[0]*a[1]), this.vertices).reduce((a, b) => a + b, 0);
-        const y = cyc2map((a, b) => (a[1] + b[1]) * (a[0]*b[1] - b[0]*a[1]), this.vertices).reduce((a, b) => a + b, 0);
+        const x = iter.sum(arr.cyc2map((a, b) => (a[0] + b[0]) * (a[0]*b[1] - b[0]*a[1]), this.vertices));
+        const y = iter.sum(arr.cyc2map((a, b) => (a[1] + b[1]) * (a[0]*b[1] - b[0]*a[1]), this.vertices));
         return [x / 6 / vol, y / 6 / vol];
     }
 
+    // Custom intersect implementation for 2D: make use of absolute canonical
+    // ordering and use merge to achieve linear computational complexity
     intersect(...others: HalfspaceContainer[]): ConvexPolytope {
         if (others == null || others.length === 0) {
             return polytopeType(this.dim).empty();
@@ -814,7 +816,7 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
         } else if (others.length === 1) {
             linalg.assertEqualDims(this.dim, others[0].dim);
             return polytopeType(this.dim).noredund(
-                merge(halfspaceOrdering2D, this.halfspaces, others[0].halfspaces)
+                arr.merge(halfspaceOrdering2D, this.halfspaces, others[0].halfspaces)
             );
         // TODO: implement n-way merge
         } else {
@@ -829,7 +831,7 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
             // To maintain consistency between canonical vertex and halfspace
             // ordering, the intersection between the first and last halfspace
             // must be the first vertex. Therefore cyc2mapl is used.
-            this._vertices = cyc2mapl(function (v, w) {
+            this._vertices = arr.cyc2mapl(function (v, w) {
                 const cut = halfplaneIntersection(v, w);
                 if (cut == null) {
                     throw {};
@@ -846,7 +848,7 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
         } else {
             // Turn each edge into a halfspace. Use cyc2map to obtain
             // halfspaces in proper canonical order.
-            this._halfspaces = cyc2map(function (v, w) {
+            this._halfspaces = arr.cyc2map(function (v, w) {
                 return HalfspaceInequation.normalized([w[1] - v[1], v[0] - w[0]], v[0]*w[1] - w[0]*v[1]);
             }, this._vertices);
         }
@@ -880,12 +882,7 @@ export type ConvexPolytopeUnion = ConvexPolytope[];
 export const union = {
 
     isEmpty(xs: ConvexPolytopeUnion): boolean {
-        for (let x of xs) {
-            if (!x.isEmpty) {
-                return false;
-            }
-        }
-        return true;
+        return iter.and(xs.map(x => x.isEmpty));
     },
 
     extent(xs: ConvexPolytopeUnion): Vector[] {
@@ -894,7 +891,7 @@ export const union = {
         }
         return xs.map(x => x.extent).reduce((ext, cur) => {
             linalg.assertEqualDims(ext.length, cur.length);
-            return zip2map((a, b) => [a[0] < b[0] ? a[0] : b[0], a[1] < b[1] ? b[1] : a[1]], ext, cur);
+            return arr.zip2map((a, b) => [a[0] < b[0] ? a[0] : b[0], a[1] < b[1] ? b[1] : a[1]], ext, cur);
         });
     },
 

@@ -4,7 +4,7 @@
 import type { ASTNode } from "./parser.js";
 
 import { ASTParser, ParseError } from "./parser.js";
-import { zip2, hashString, UniqueCollection } from "./tools.js";
+import { arr, hashString, UniqueCollection } from "./tools.js";
 
 
 /* Objective specification */
@@ -27,7 +27,7 @@ export class Objective {
         if (terms.length !== kind.variables.length) throw new Error(
             "" // TODO
         );
-        this.propositions = new Map(zip2(kind.variables, terms));
+        this.propositions = new Map(arr.zip2(kind.variables, terms));
         this.automaton = OnePairStreettAutomaton.parse(kind.automaton);
     }
 

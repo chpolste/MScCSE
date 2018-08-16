@@ -4,7 +4,7 @@
 import type { Matrix, Vector } from "./linalg.js";
 import type { ConvexPolytope, ConvexPolytopeUnion, Halfspace } from "./geometry.js";
 
-import { zip2map } from "./tools.js";
+import { arr, ValueError } from "./tools.js";
 import * as linalg from "./linalg.js";
 import { polytopeType, union } from "./geometry.js";
 
@@ -90,7 +90,7 @@ export class LSS {
     get extent(): Vector[] {
         let ext1 = union.extent(this.post(this.stateSpace, this.controlSpace));
         let ext2 = this.stateSpace.extent;
-        return zip2map((a, b) => [Math.min(a[0], b[0]), Math.max(a[1], b[1])], ext1, ext2);
+        return arr.zip2map((a, b) => [Math.min(a[0], b[0]), Math.max(a[1], b[1])], ext1, ext2);
     }
 
     // Posterior: Post(x, {u0, ...})
@@ -191,7 +191,7 @@ export class AbstractedLSS {
         }
 
         // Collect named predicates
-        const labeledPredicates = zip2map(
+        const labeledPredicates = arr.zip2map(
             (pred, label) => [label, pred],
             predicates,
             predicateLabels == null ? predicates.map(pred => "") : predicateLabels

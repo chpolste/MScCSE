@@ -106,3 +106,24 @@ describe("linalg Matrix-Matrix operations", function () {
 });
 
 
+describe("linalg.minkowski", function () {
+
+    const mink = linalg.minkowski;
+
+    it("xmy", function () {
+        assert.deepEqual(
+            mink.xmy([[1, 1], [2, 2]], [[3, 3], [5, 5]]),
+            [[-2, -2], [-4, -4], [-1, -1], [-3, -3]]
+        );
+    });
+
+    it("axpy", function () {
+        assert.deepEqual(
+            mink.axpy([[1, 0], [0, 2]], [[1, 1], [2, 2]], [[3, 3], [5, 5]]),
+            [[1+3, 2+3], [1+5, 2+5], [2+3, 4+3], [2+5, 4+5]]
+        );
+    });
+
+});
+
+

@@ -19,7 +19,7 @@ export type ObjectiveKind = {
 export class Objective {
     
     +kind: ObjectiveKind;
-    +propositions: Map<string, Proposition>;
+    +propositions: Map<TransitionLabel, Proposition>;
     +automaton: OnePairStreettAutomaton;
 
     constructor(kind: ObjectiveKind, terms: Proposition[] ): void {
@@ -151,23 +151,25 @@ export function traverseProposition(fun: (Proposition) => void, prop: Propositio
 }
 
 
-/* Deterministic ω-Automata with one-pair Streett acceptance condition
+/* Deterministic ω-Automata with one-pair Streett acceptance condition (E, F)
 
 States and transitions are identified by string labels. A default transition
 (else-case) is specified by an empty label.
 */
 
+export type TransitionLabel = string;
+
 export class OnePairStreettAutomaton {
 
     +states: UniqueCollection<State>;
-    +acceptanceSet1: Set<State>;
-    +acceptanceSet2: Set<State>;
+    +acceptanceSetE: Set<State>;
+    +acceptanceSetF: Set<State>;
     _initialState: State;
 
     constructor(): void {
         this.states = new UniqueCollection(State.hash, State.areEqual);
-        this.acceptanceSet1 = new Set();
-        this.acceptanceSet2 = new Set();
+        this.acceptanceSetE = new Set();
+        this.acceptanceSetF = new Set();
     }
 
     get initialState(): State {
@@ -178,15 +180,15 @@ export class OnePairStreettAutomaton {
         return this.states.take(new State(label));
     }
 
-    // Serialization to "A|B|C|D", where
-    // A: transitions in the form ORIGIN>LABEL>TARGET, comma-separated
-    // B: initial state
-    // C: acceptance set 1 of states, comma-separated
-    // D: acceptance set 2 of states, comma-separated
+    // Serialization to "1|2|3|4", where
+    // 1: transitions in the form ORIGIN>LABEL>TARGET, comma-separated
+    // 2: initial state
+    // 3: acceptance set E of states, comma-separated
+    // 4: acceptance set F of states, comma-separated
     stringify(): string {
         const transitions = [];
-        const accept1 = [];
-        const accept2 = [];
+        const acceptE = [];
+        const acceptF = [];
         for (let state of this.states) {
             for (let [prop, target] of state.transitions) {
                 transitions.push(state.label + ">" + prop + ">" + target.label);
@@ -194,25 +196,25 @@ export class OnePairStreettAutomaton {
             if (state.defaultTarget != null) {
                 transitions.push(state.label + ">>" + state.defaultTarget.label);
             }
-            if (this.acceptanceSet1.has(state)) {
-                accept1.push(state.label);
+            if (this.acceptanceSetE.has(state)) {
+                acceptE.push(state.label);
             }
-            if (this.acceptanceSet2.has(state)) {
-                accept2.push(state.label);
+            if (this.acceptanceSetF.has(state)) {
+                acceptF.push(state.label);
             }
         }
         return [
             transitions.join(","),
             this.initialState.label,
-            accept1.join(","),
-            accept2.join(",")
+            acceptE.join(","),
+            acceptF.join(",")
         ].join(" | ");
     }
 
     // Deserialization
     static parse(s: string): OnePairStreettAutomaton {
         const automaton = new OnePairStreettAutomaton();
-        const [transitions, initialState, acceptanceSet1, acceptanceSet2] = s.split("|");
+        const [transitions, initialState, acceptanceSetE, acceptanceSetF] = s.split("|");
         for (let transition of transitions.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
             const [o, p, t] = transition.split(/\s*>\s*/);
             const origin = automaton.takeStateByLabel(o);
@@ -229,11 +231,11 @@ export class OnePairStreettAutomaton {
                 origin.transitions.set(p, target);
             }
         }
-        for (let label of acceptanceSet1.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
-            automaton.acceptanceSet1.add(automaton.takeStateByLabel(label));
+        for (let label of acceptanceSetE.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
+            automaton.acceptanceSetE.add(automaton.takeStateByLabel(label));
         }
-        for (let label of acceptanceSet2.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
-            automaton.acceptanceSet2.add(automaton.takeStateByLabel(label));
+        for (let label of acceptanceSetF.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
+            automaton.acceptanceSetF.add(automaton.takeStateByLabel(label));
         }
         automaton._initialState = automaton.takeStateByLabel(initialState.trim());
         // TODO: test for unreachable states
@@ -245,7 +247,7 @@ export class OnePairStreettAutomaton {
 class State {
 
     +label: string;
-    +transitions: Map<string, State>;
+    +transitions: Map<TransitionLabel, State>;
     defaultTarget: ?State;
 
     constructor(label: string): void {
@@ -263,4 +265,3 @@ class State {
     }
 
 }
-

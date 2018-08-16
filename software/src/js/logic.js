@@ -113,31 +113,45 @@ export class Implication {
 
 }
 
-const parsePropositionAST = ASTParser(/[()!&|]|->|(?:[a-z][a-z0-9]*)/, [
-    { op: "->", precedence: 20, associativity:  1 },
-    { op: "|" , precedence: 30, associativity: -1 },
-    { op: "&" , precedence: 40, associativity: -1 },
-    { op: "!" , precedence: 50, associativity:  0 }
-]);
+
+const PROP_OPS = [
+    { op: "->", precedence: 20, associativity:  1, cls: Implication },
+    { op: "|" , precedence: 30, associativity: -1, cls: Disjunction },
+    { op: "&" , precedence: 40, associativity: -1, cls: Conjunction },
+    { op: "!" , precedence: 50, associativity:  0, cls: Negation }
+];
+
+const parsePropositionAST = ASTParser(/[()!&|]|->|(?:[a-z][a-z0-9]*)/, PROP_OPS);
 
 function asProposition(node: ASTNode): Proposition {
     if (typeof node === "string") {
         return new AtomicProposition(node);
-    } else if (node.op === "!") {
-        return new Negation(...node.args.map(asProposition));
-    } else if (node.op === "&") {
-        return new Conjunction(...node.args.map(asProposition));
-    } else if (node.op === "|") {
-        return new Disjunction(...node.args.map(asProposition));
-    } else if (node.op === "->") {
-        return new Implication(...node.args.map(asProposition));
     } else {
-        throw new ParseError();
+        for (let op of PROP_OPS) {
+            if (node.op === op.op) {
+                return new op.cls(...node.args.map(asProposition));
+            }
+        }
+        throw new ParseError(); // TODO
     }
 }
 
 export function parseProposition(text: string): Proposition {
     return asProposition(parsePropositionAST(text));
+}
+
+// Serialization
+export function stringifyProposition(prop: Proposition): string {
+    if (prop instanceof AtomicProposition) {
+        return prop.symbol;
+    }
+    for (let op of PROP_OPS) {
+        if (prop instanceof op.cls) {
+            const args = prop.args.map(stringifyProposition);
+            return "(" + (args.length == 1 ? op.op + args[0] : args.join(" " + op.op + " ")) + ")";
+        }
+    }
+    throw new Error(); // TODO
 }
 
 // Call a function for every node of the expression tree
@@ -265,3 +279,4 @@ class State {
     }
 
 }
+

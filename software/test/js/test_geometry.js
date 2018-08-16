@@ -4,8 +4,6 @@ let assert = require("assert");
 let geometry = require("../../src/js/geometry.js");
 let linalg = require("../../src/js/linalg.js");
 
-let tools = require("../../src/js/tools.js");
-
 
 
 describe("geometry.HalfspaceIneqation.parse", function () {
@@ -353,12 +351,12 @@ describe("geometry.Polygon with square", function () {
     });
 
     it("isSameAs", function () {
-        assert(poly.isSameAs(new geometry.Polygon([[0, 0], [1, 0], [1, 1], [0, 1]], null)));
-        assert(poly.isSameAs(new geometry.Polygon([[1, 0], [1, 1], [0, 1], [0, 0]], null)));
-        assert(poly.isSameAs(new geometry.Polygon([[0, 0], [1, 0], [1, 1], [0, 1]], null)));
-        assert(poly.isSameAs(new geometry.Polygon([[0, 1], [0, 0], [1, 0], [1, 1]], null)));
-        assert(!poly.isSameAs(new geometry.Polygon([[0, 1], [0, 0], [1, 0]], null)));
-        assert(!poly.isSameAs(new geometry.Polygon([[1, 0], [1, 1], [0, 1], [0.1, 0]], null)));
+        assert(poly.isSameAs(geometry.Polygon.hull([[0, 0], [1, 0], [1, 1], [0, 1]])));
+        assert(poly.isSameAs(geometry.Polygon.hull([[1, 0], [1, 1], [0, 1], [0, 0]])));
+        assert(poly.isSameAs(geometry.Polygon.hull([[0, 0], [1, 0], [1, 1], [0, 1]])));
+        assert(poly.isSameAs(geometry.Polygon.hull([[0, 1], [0, 0], [1, 0], [1, 1]])));
+        assert(!poly.isSameAs(geometry.Polygon.hull([[0, 1], [0, 0], [1, 0]])));
+        assert(!poly.isSameAs(geometry.Polygon.hull([[1, 0], [1, 1], [0, 1], [0.1, 0]])));
     });
 
     it("hull", function () {

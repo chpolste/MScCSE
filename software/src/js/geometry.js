@@ -39,30 +39,39 @@ function cartesian<T>(...tuples: T[][]): T[][] {
 
 // Canonical ordering in 2D:
 // Vertices: ascending x then descending y
-// Halfspaces: by angle wrt normal [-1, 0]
+// Halfspaces: counterclockwise by angle wrt normal [-1, 0]
 // /!\ This is carefully tuned so that canonical sets of halfspaces can be
 //     combined into a canonical set with a single merge operation.
 
+// Vertex comparator for use with sort()
 function vertexOrdering2D(p: Vector, q: Vector): number {
     return p[0] == q[0] ? q[1] - p[1] : p[0] - q[0];
 }
 
+// Halfspace comparator for use with sort()
 function halfspaceOrdering2D(g: Halfspace, h: Halfspace): number {
-    return angleCCW([-1, 0], g.normal) - angleCCW([-1, 0], h.normal);
+    return angleOrder(g.normal) - angleOrder(h.normal);
 }
 
-// Counterclockwise angle between two vectors, normalized to range [0, 2π).
-function angleCCW(v: Vector, w: Vector): number {
-    const angle = Math.atan2(w[1], w[0]) - Math.atan2(v[1], v[0]);
-    // Because atan2 delivers range [-π, π] (both inclusive), some
-    // post-processing of the interval is necessary:
-    if (angle < -TOL) {
-        return angle + 2 * Math.PI;
-    } else if (angle < 0 || angle == 2 * Math.PI) {
-        return 0;
-    } else {
-        return angle;
+// CCW angle wrt to [-1, 0]. Only used for sorting, so no remapping to [0, 2π)
+// required like for angleCCW
+function angleOrder(v) {
+    const angle = Math.atan2(v[1], v[0]);
+    return angle === Math.PI ? angle - 2 * Math.PI : angle;
+}
+
+// Counterclockwise angle between two vectors, mapped to the interval [0, 2π).
+// https://stackoverflow.com/questions/14066933/
+function angleCCW(g, h) {
+    const det = g[0] * h[1] - g[1] * h[0];
+    const dot = g[0] * h[0] + g[1] * h[1];
+    let angle = Math.atan2(det, dot);
+    if (angle < 0) {
+        angle = angle + 2 * Math.PI;
     }
+    // Because of float arithmetic, (angle + 2 * Math.PI) for angle < 0 can
+    // still be 2 * Math.PI if angle is very small
+    return angle === 2 * Math.PI ? 0 : angle;
 }
 
 // Is the turn described by the points p, q, r counterclockwise?
@@ -70,6 +79,8 @@ function isCCWTurn(p: Vector, q: Vector, r: Vector): boolean {
     return (p[0] - r[0]) * (q[1] - r[1]) - (p[1] - r[1]) * (q[0] - r[0]) >= TOL;
 }
 
+// Intersection point of the edges of two halfspaces. Returns null if edges are
+// parallel and therefore do not intersect.
 function halfplaneIntersection(g: Halfspace, h: Halfspace): ?Vector {
     const [g0, g1] = g.normal;
     const [h0, h1] = h.normal;
@@ -728,7 +739,7 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
             //          one of the next halfplane, i.e. it is less specific.
             //          Remove it and try adding the next halfplane again.
             // Case 2b: the next halfplane is less specific, skip it.
-            if (nextCut == null || angle < TOL) {
+            if (nextCut == null) {
                 if (last.offset > next.offset) {
                     cuts.pop();
                     loop.pop();
@@ -766,8 +777,8 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
             // Determine cut of loop ends.
             const endCut = halfplaneIntersection(loop[lidx], loop[ridx - 1]);
             // No cut, loop ends are parallel. Pick more specific halfplane.
-            if (endCut == null || angle < TOL) {
-                if (loop[lidx].offset > loop[ridx].offset) {
+            if (endCut == null) {
+                if (loop[lidx].offset > loop[ridx - 1].offset) {
                     lidx++;
                 } else {
                     ridx--;

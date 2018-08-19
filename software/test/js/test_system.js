@@ -42,8 +42,11 @@ function actionSupportsDoNotOverlap(sys) {
             for (let action of state.actions) {
                 for (let support1 of action.supports) {
                     for (let support2 of action.supports) {
-                        if (support1 == support2) continue;
-                        assert(!geometry.union.doIntersect(support1.origins, support2.origins));
+                        if (support1 === support2) continue;
+                        assert(
+                            !geometry.union.doIntersect(support1.origins, support2.origins),
+                            "action " + state.label + " → {" + action.targets.map(s => s.label).join(", ") + "}"
+                        );
                     }
                 }
             }

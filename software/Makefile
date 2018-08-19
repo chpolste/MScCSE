@@ -44,7 +44,8 @@ DIST_HTML = $(DIST)
 # Compiled JS modules for use with node
 JS_MODULES = ./modules
 JS_MODULES_FILES = $(JS_MODULES)/geometry.js $(JS_MODULES)/linalg.js $(JS_MODULES)/tools.js \
-                   $(JS_MODULES)/parser.js $(JS_MODULES)/presets.js $(JS_MODULES)/logic.js
+                   $(JS_MODULES)/parser.js $(JS_MODULES)/presets.js $(JS_MODULES)/logic.js \
+                   $(JS_MODULES)/game.js
 
 
 # General rules

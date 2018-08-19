@@ -2,6 +2,8 @@
 "use strict";
 
 import type { ASTNode } from "./parser.js";
+import type { PredicateID } from "./system.js";
+import type { PredicateTest } from "./game.js";
 
 import { ASTParser, ParseError } from "./parser.js";
 import { arr, hashString, UniqueCollection } from "./tools.js";
@@ -190,7 +192,7 @@ export class OnePairStreettAutomaton {
         return this._initialState;
     }
 
-    takeStateByLabel(label: string): State {
+    takeState(label: string): State {
         return this.states.take(new State(label));
     }
 
@@ -231,8 +233,8 @@ export class OnePairStreettAutomaton {
         const [transitions, initialState, acceptanceSetE, acceptanceSetF] = s.split("|");
         for (let transition of transitions.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
             const [o, p, t] = transition.split(/\s*>\s*/);
-            const origin = automaton.takeStateByLabel(o);
-            const target = automaton.takeStateByLabel(t);
+            const origin = automaton.takeState(o);
+            const target = automaton.takeState(t);
             if (p === "") {
                 if (origin.defaultTarget != null) throw new Error(
                     "Default target set twice for state '" + o + "'"
@@ -246,12 +248,12 @@ export class OnePairStreettAutomaton {
             }
         }
         for (let label of acceptanceSetE.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
-            automaton.acceptanceSetE.add(automaton.takeStateByLabel(label));
+            automaton.acceptanceSetE.add(automaton.takeState(label));
         }
         for (let label of acceptanceSetF.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
-            automaton.acceptanceSetF.add(automaton.takeStateByLabel(label));
+            automaton.acceptanceSetF.add(automaton.takeState(label));
         }
-        automaton._initialState = automaton.takeStateByLabel(initialState.trim());
+        automaton._initialState = automaton.takeState(initialState.trim());
         // TODO: test for unreachable states
         return automaton;
     }
@@ -268,6 +270,13 @@ class State {
         this.label = label;
         this.transitions = new Map();
         this.defaultTarget = null;
+    }
+
+    successor(test: PredicateTest, predicates: Set<PredicateID>): ?State {
+        for (let [label, target] of this.transitions) {
+            if (test(label, predicates)) return target;
+        }
+        return this.defaultTarget;
     }
 
     static hash(x: State): number {

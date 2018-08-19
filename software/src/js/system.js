@@ -3,8 +3,9 @@
 
 import type { Matrix, Vector } from "./linalg.js";
 import type { ConvexPolytope, ConvexPolytopeUnion, Halfspace } from "./geometry.js";
+import type { GameGraph } from "./game.js";
 
-import { arr, ValueError } from "./tools.js";
+import { iter, arr, ValueError } from "./tools.js";
 import * as linalg from "./linalg.js";
 import { polytopeType, union } from "./geometry.js";
 
@@ -161,7 +162,7 @@ export class LSS {
 /* LSS with state space abstraction */
 
 // State status coded as integer:
-type StateKind = number;
+export type StateKind = -10 | -1 | 0 | 1;
 // < 0: non-satisfying
 // = 0: undecided
 // > 0: satisfying
@@ -170,15 +171,20 @@ const NONSATISFYING = -1;
 const UNDECIDED = 0;
 const SATISFYING = 1;
 
+export type StateID = string;
+export type ActionID = number;
+export type SupportID = number;
+export type PredicateID = string;
 
-export class AbstractedLSS {
+
+export class AbstractedLSS implements GameGraph {
 
     +lss: LSS;
-    +states: Map<string, State>;
-    +predicates: Map<string, Halfspace>; // TODO
+    +states: Map<StateID, State>;
+    +predicates: Map<PredicateID, Halfspace>; // TODO
     labelNum: number;
 
-    constructor(lss: LSS, predicates: Halfspace[], predicateLabels?: string[]): void {
+    constructor(lss: LSS, predicates: Halfspace[], predicateLabels?: PredicateID[]): void {
         this.lss = lss;
         this.labelNum = 0;
         this.states = new Map();
@@ -217,19 +223,19 @@ export class AbstractedLSS {
         return this.lss.extent;
     }
 
-    newState(polytope: ConvexPolytope, kind: StateKind, predicates?: Iterable<string>): State {
+    newState(polytope: ConvexPolytope, kind: StateKind, predicates?: Iterable<PredicateID>): State {
         const label = this.genLabel();
         const state = new State(this, label, polytope, kind, predicates);
         this.states.set(label, state);
         return state;
     }
 
-    genLabel(): string {
+    genLabel(): StateID {
         this.labelNum++;
         return "X" + this.labelNum.toString();
     }
 
-    getPredicate(label: string): Halfspace {
+    getPredicate(label: PredicateID): Halfspace {
         const pred = this.predicates.get(label);
         if (pred == null) throw new Error(
             "..."
@@ -263,6 +269,67 @@ export class AbstractedLSS {
         return this.lss.actionPolytope(x.polytope, y.polytope);
     }
 
+    // AbstractLSSGraph Interface
+
+    get stateLabels(): Set<StateID> {
+        return new Set(this.states.keys());
+    }
+
+    predicateLabelsOf(stateLabel: StateID): Set<PredicateID> {
+        const state = this.states.get(stateLabel);
+        if (state == null) throw new ValueError(
+            "State with label '" + stateLabel + "' not found."
+        );
+        return state.predicates;
+    }
+
+    actionCountOf(stateLabel: StateID): number {
+        const state = this.states.get(stateLabel);
+        if (state == null) throw new ValueError(
+            "State with label '" + stateLabel + "' not found."
+        );
+        return state.actions.length;
+    }
+
+    supportCountOf(stateLabel: StateID, actionId: ActionID): number {
+        const state = this.states.get(stateLabel);
+        if (state == null) throw new ValueError(
+            "State with label '" + stateLabel + "' not found."
+        );
+        return state.actions[actionId].supports.length;
+    }
+
+    targetLabelsOf(stateLabel: StateID, actionId: ActionID, supportId: SupportID): Set<string> {
+        const state = this.states.get(stateLabel);
+        if (state == null) throw new ValueError(
+            "State with label '" + stateLabel + "' not found."
+        );
+        return new Set(iter.map(s => s.label, state.actions[actionId].supports[supportId].targets));
+    }
+
+    // JSON compatible representation
+    snapshot(includeGeometry: boolean): Snapshot {
+        // Add states
+        const states = {};
+        for (let state of this.states.values()) {
+            states[state.label] = {
+                vertices: includeGeometry ? Array.from(state.polytope.vertices) : [],
+                predicates: Array.from(state.predicates),
+                actions: state.actions.map(
+                    action => action.supports.map(
+                        support => support.targets.map(
+                            target => target.label
+                        )
+                    )
+                )
+            };
+        }
+        return {
+            predicates: {}, // TODO
+            states: states
+        };
+    }
+
 }
 
 
@@ -270,14 +337,14 @@ export class State {
 
     +system: AbstractedLSS;
     +polytope: ConvexPolytope;
-    +label: string;
-    +predicates: Set<string>;
+    +label: StateID;
+    +predicates: Set<PredicateID>;
     +actions: Action[];
     _actions: ?Action[];
     kind: StateKind;
 
-    constructor(system: AbstractedLSS, label: string, polytope: ConvexPolytope, kind: StateKind,
-                predicates?: Iterable<string>): void {
+    constructor(system: AbstractedLSS, label: StateID, polytope: ConvexPolytope, kind: StateKind,
+                predicates?: Iterable<PredicateID>): void {
         this.system = system;
         this.polytope = polytope;
         this.label = label;
@@ -401,4 +468,20 @@ export class ActionSupport {
     }
 
 }
+
+
+
+/* Snapshot */
+
+// TODO
+export type Snapshot = {
+    predicates: { [string]: {} },
+    states: {
+        [string]: {
+            vertices: Vector[],
+            predicates: string[],
+            actions: (string[])[]
+        }
+    }
+};
 

@@ -161,6 +161,7 @@ describe("tools.sets", function () {
         assert(sets.areEqual(sets.union(s12, s23), s123));
         assert(sets.areEqual(sets.union(s123, s23), s123));
         assert(sets.areEqual(sets.union(s2, s123), s123));
+        assert(sets.areEqual(sets.union(s2, s1, s3), s123));
     });
 
     it("intersection", function () {

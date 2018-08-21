@@ -26,7 +26,7 @@ export const TOL = linalg.TOL;
 // Cartesian product (no guaranteed ordering), e.g.
 //     cartesian([0, 1], [2, 3], [4, 5]) = [[0, 2, 4], [0, 2, 5], [0, 3, 4], ...]
 // Will not work correctly if T is a list (flattens as an intermediate step).
-function cartesian<T>(...tuples: T[][]): T[][] {
+function cartesian<T>(...tuples: [T, T][]): T[][] {
     let cart = [[]];
     for (let tuple of tuples) {
         cart = [].concat(...cart.map(xs => tuple.map(y => xs.concat([y]))));
@@ -267,7 +267,7 @@ export interface ConvexPolytope extends HalfspaceContainer{
     +volume: number;
     +centroid: Vector;
     +boundingBox: ConvexPolytope;
-    +extent: Vector[]; // TODO: this should rather be [number, number][] -> check with cartesian
+    +extent: [number, number][];
     constructor(vertices: ?Vector[], halfspaces: ?Halfspace[]): void;
     isSameAs(other: ConvexPolytope): boolean;
     contains(p: Vector): boolean;
@@ -369,7 +369,7 @@ class AbstractConvexPolytope implements ConvexPolytope {
     }
 
     // Axis-aligned extent of the polytope
-    get extent(): Vector[] {
+    get extent(): [number, number][] {
         let mins = new Array(this.dim);
         mins.fill(Infinity);
         let maxs = new Array(this.dim);
@@ -384,7 +384,7 @@ class AbstractConvexPolytope implements ConvexPolytope {
                 }
             });
         }
-        return arr.zip2map((x, y) => [x, y], mins, maxs);
+        return arr.zip2(mins, maxs);
     }
 
     // Test if two polytopes are identical by comparing vertices. Depends on
@@ -896,13 +896,16 @@ export const union = {
         return iter.and(xs.map(x => x.isEmpty));
     },
 
-    extent(xs: ConvexPolytopeUnion): Vector[] {
+    extent(xs: ConvexPolytopeUnion): [number, number][] {
         if (xs.length < 1) {
             throw new ValueError("Union is empty, cannot determine dim");
         }
         return xs.map(x => x.extent).reduce((ext, cur) => {
             linalg.assertEqualDims(ext.length, cur.length);
-            return arr.zip2map((a, b) => [a[0] < b[0] ? a[0] : b[0], a[1] < b[1] ? b[1] : a[1]], ext, cur);
+            return arr.zip2map((a, b) => [
+                a[0] < b[0] ? a[0] : b[0],
+                a[1] < b[1] ? b[1] : a[1]
+            ], ext, cur);
         });
     },
 

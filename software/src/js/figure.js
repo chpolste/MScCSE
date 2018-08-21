@@ -343,7 +343,7 @@ export class Horizontal1D implements Projection {
 
 const PADDING = 1.2;
 
-export function autoProjection(aspectRatio: number, ...ranges: number[][]) : Projection {
+export function autoProjection(aspectRatio: number, ...ranges: [number, number][]) : Projection {
     let dim = ranges.length;
     if (dim == 0) {
         return new Cartesian2D([NaN, NaN], [NaN, NaN]);

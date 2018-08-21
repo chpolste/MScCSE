@@ -88,7 +88,7 @@ export class LSS {
         return new AbstractedLSS(this, predicates, predicateLabels);
     }
 
-    get extent(): Vector[] {
+    get extent(): [number, number][] {
         let ext1 = union.extent(this.post(this.stateSpace, this.controlSpace));
         let ext2 = this.stateSpace.extent;
         return arr.zip2map((a, b) => [Math.min(a[0], b[0]), Math.max(a[1], b[1])], ext1, ext2);
@@ -219,7 +219,7 @@ export class AbstractedLSS implements GameGraph {
         }
     }
 
-    get extent(): Vector[] {
+    get extent(): [number, number][] {
         return this.lss.extent;
     }
 

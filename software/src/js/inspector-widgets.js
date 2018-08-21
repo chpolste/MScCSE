@@ -722,12 +722,12 @@ export class SystemInspector {
         this.objective = objective;
 
         this.keybindings = keybindings;
-        this.systemSummary = new SISummary(this.system);
+        this.systemViewSettings = new SISystemViewSettings(this.system, this.keybindings);
+        this.systemSummary = new SISummary(this.system, this.systemViewSettings);
         this.stateView = new SIStateView(this.system);
         this.actionView = new SIActionView(this.stateView);
         this.controlView = new SIControlView(system.lss.controlSpace, this.stateView, this.actionView);
         this.actionSupportView = new SIActionSupportView(this.actionView);
-        this.systemViewSettings = new SISystemViewSettings(this.system, this.keybindings);
         this.systemView = new SISystemView(
             this.system,
             this.systemViewSettings,
@@ -747,10 +747,12 @@ export class SystemInspector {
             createElement("div", { "class": "right" }, [
                 createElement("div", {"class": "cols"}, [
                     createElement("div", { "class": "left" }, [
+                        createElement("h3", {}, ["Analysis Summary"]),
+                        this.systemSummary.node,
                         createElement("h3", {}, ["View Settings", infoBox("info_view_settings")]),
                         this.systemViewSettings.node,
-                        createElement("h3", {}, ["System Information"]),
-                        this.systemSummary.node
+                        createElement("h3", {}, ["Trajectory", infoBox("info_trajectory")]),
+                        "TODO"
                     ]),
                     createElement("div", { "class": "right" }, [
                         createElement("h3", {}, ["Control Space", infoBox("info_control_space")]),
@@ -783,6 +785,7 @@ class SISystemViewSettings extends ObservableMixin<null> {
     +toggleLabel: Input<boolean>;
     +toggleVectorField: Input<boolean>;
     +highlight: Input<ClickOperatorWrapper>;
+    +highlightNode: HTMLElement;
     
     constructor(system: AbstractedLSS, keybindings: Keybindings): void {
         super();
@@ -799,21 +802,31 @@ class SISystemViewSettings extends ObservableMixin<null> {
             "Attractor": state => lss.attr(lss.stateSpace, lss.controlSpace, [state.polytope]),
             "Robust Attractor": state => lss.attrR(lss.stateSpace, lss.controlSpace, [state.polytope])
         }, "None");
+        this.highlight.attach(() => this.changeHandler());
 
-        this.node = createElement("div", { "class": "summary" }, [
-            createElement("label", {}, [this.toggleKind.node, "state ", createElement("u", {}, ["k"]), "ind colors"]),
-            createElement("label", {}, [this.toggleLabel.node, "state ", createElement("u", {}, ["l"]), "abels"]),
-            createElement("label", {}, [this.toggleVectorField.node, createElement("u", {}, ["v"]), "ector field"]),
-            createElement("p", { "class": "posterior" }, ["Highlight ", createElement("u", {}, ["o"]), "perator:"]),
+        this.highlightNode = createElement("div", {}, [
+            createElement("p", {}, ["Highlight ", createElement("u", {}, ["o"]), "perator:"]),
             createElement("p", {}, [this.highlight.node])
         ]);
+        this.node = createElement("div", { "class": "settings" }, [
+            createElement("label", {}, [this.toggleKind.node, "analysis ", createElement("u", {}, ["c"]), "olors"]),
+            createElement("label", {}, [this.toggleLabel.node, "state ", createElement("u", {}, ["l"]), "abels"]),
+            createElement("label", {}, [this.toggleVectorField.node, createElement("u", {}, ["v"]), "ector field"]),
+            this.highlightNode
+        ]);
 
-        keybindings.bind("k", inputTextRotation(this.toggleKind, ["t", "f"]));
+        keybindings.bind("c", inputTextRotation(this.toggleKind, ["t", "f"]));
         keybindings.bind("l", inputTextRotation(this.toggleLabel, ["t", "f"]));
         keybindings.bind("v", inputTextRotation(this.toggleVectorField, ["t", "f"]));
         keybindings.bind("o", inputTextRotation(this.highlight, [
             "None", "Posterior", "Predecessor", "Robust Predecessor", "Attractor", "Robust Attractor"
         ]));
+
+        this.changeHandler();
+    }
+
+    changeHandler(): void {
+        this.highlightNode.setAttribute("class", this.highlight.text === "None" ? "posterior" : "posterior colored");
     }
 
 }
@@ -1003,28 +1016,30 @@ class SISummary {
 
     +node: HTMLDivElement;
     +system: AbstractedLSS;
+    +settings: SISystemViewSettings;
 
-    constructor(system: AbstractedLSS): void {
+    constructor(system: AbstractedLSS, settings: SISystemViewSettings): void {
         this.system = system;
+        this.settings = settings;
         this.node = document.createElement("div");
-        this.node.className = "summary"
+        this.settings.toggleKind.attach(() => this.changeHandler());
         this.changeHandler();
     }
 
     changeHandler() {
         clearNode(this.node);
         appendChild(this.node,
-            createElement("p", {}, [this.system.states.size + " states:"]),
-            createElement("p", {"class": "undecided"}, [
-                iter.count(iter.filter(s => s.isUndecided, this.system.states.values())) + " undecided"
+            createElement("div", { "class": "satisfying", "title": "satisfying states" }, [
+                String(iter.count(iter.filter(s => s.isSatisfying, this.system.states.values())))
             ]),
-            createElement("p", {"class": "satisfying"}, [
-                iter.count(iter.filter(s => s.isSatisfying, this.system.states.values())) + " satisfying"
+            createElement("div", { "class": "undecided", "title": "undecided states" }, [
+                String(iter.count(iter.filter(s => s.isUndecided, this.system.states.values())))
             ]),
-            createElement("p", {"class": "nonsatisfying"}, [
-                iter.count(iter.filter(s => s.isNonSatisfying, this.system.states.values())) + " non-satisfying"
+            createElement("div", { "class": "nonsatisfying", "title": "non-satisfying states" }, [
+                String(iter.count(iter.filter(s => s.isNonSatisfying, this.system.states.values())))
             ])
         )
+        this.node.className = this.settings.toggleKind.value ? "state_counts colored" : "state_counts";
     }
 
 }

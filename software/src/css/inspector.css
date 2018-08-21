@@ -189,6 +189,7 @@ a:hover {
 .info_content {
     border: 1px solid #666;
     background-color: #EEE;
+    width: auto;
     max-width: 390px;
     padding: 5px;
     margin: 0;
@@ -225,18 +226,36 @@ p.math {
     margin: 5px 5px 25px 0;
 }
 
+.state_counts {
+    display: flex;
+    flex-direction: row;
+    border: 1px solid #000;
+}
+.state_counts div {
+    text-align: center;
+    padding: 1px 0;
+    width: 100%;
+}
+.state_counts.colored div.satisfying {
+    background-color: #093;
+}
+.state_counts.colored div.undecided {
+    background-color: #FFF;
+}
+.state_counts.colored div.nonsatisfying {
+    background-color: #CCC;
+}
 
-.summary .nonsatisfying {
+.settings .posterior {
+    margin-top: 6pt;
     padding-right: 5px;
-    border-right: 12pt solid #CCC;
+    border-right: 6pt solid transparent;
 }
-.summary .satisfying {
-    padding-right: 5px;
-    border-right: 12pt solid #093
+.settings .posterior select {
+    margin-top: -3pt;
 }
-.summary .posterior {
-    padding-right: 5px;
-    border-right: 12pt solid #FC0;
+.settings .posterior.colored {
+    border-color: #FC0;
 }
 
 span.selected {

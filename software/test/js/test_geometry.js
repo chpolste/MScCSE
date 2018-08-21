@@ -197,6 +197,14 @@ describe("geometry.Interval", function () {
         assert(geometry.Interval.hull([[0], [geometry.TOL/2]]).isEmpty)
     });
 
+    it("sample", function () {
+        for (let i = 0; i < 1000; i++) {
+            const sample = poly.sample();
+            assert.equal(sample.length, 1);
+            assert(poly.contains(sample));
+        }
+    });
+
     it("translate with identity", function () {
         assert(poly.isSameAs(poly.translate([0])));
     });
@@ -405,6 +413,14 @@ describe("geometry.Polygon with square", function () {
         assert(!poly.isEmpty);
         assert(poly.applyRight([[0, 1], [0, 1]]).isEmpty);
         assert(poly.apply([[geometry.TOL, 0], [0, geometry.TOL]]).isEmpty);
+    });
+
+    it("sample", function () {
+        for (let i = 0; i < 1000; i++) {
+            const sample = poly.sample();
+            assert.equal(sample.length, 2);
+            assert(poly.contains(sample));
+        }
     });
 
     it("translate with identity", function () {

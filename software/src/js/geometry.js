@@ -262,37 +262,89 @@ export class HalfspaceInequation implements Halfspace {
 
 // Interface for convex polytopes of all dimensions
 export interface ConvexPolytope extends HalfspaceContainer{
-    +vertices: Vector[]; // ordered (depends on dim)
+
+    /* Properties */
+
+    // Vertices in canonical order
+    +vertices: Vector[];
+    // Halfspaces in canonical order
+    +halfspaces: Halfspace[];
+    // All polytopes that are not full-dimensional are considered to be empty.
     +isEmpty: boolean;
     +volume: number;
     +centroid: Vector;
+    // Axis-aligned minimum bounding box
     +boundingBox: ConvexPolytope;
+    // Axis-aligned extent of the polytope
     +extent: [number, number][];
-    constructor(vertices: ?Vector[], halfspaces: ?Halfspace[]): void;
-    isSameAs(other: ConvexPolytope): boolean;
-    contains(p: Vector): boolean;
-    fulfils(predicate: Halfspace): boolean;
-    translate(v: Vector): ConvexPolytope;
+
+    /* Predicates */
+
+    // Polytope equality test
+    isSameAs(ConvexPolytope): boolean;
+    // Is the point inside the polytope?
+    contains(Vector): boolean;
+    // Do all points of the polytope fulfil the linear predicate?
+    fulfils(Halfspace): boolean;
+
+    /* Probability */
+
+    // A random point from inside the polytope, based on a uniform distribution
+    sample(): Vector;
+
+    /* Geometric transformations */
+
+    // Polytope translated by vector v
+    translate(Vector): ConvexPolytope;
+    // Reflection with respect to the origin
     invert(): ConvexPolytope;
-    apply(m: Matrix): ConvexPolytope;
-    applyRight(m: Matrix): ConvexPolytope;
-    minkowski(other: ConvexPolytope): ConvexPolytope;
-    pontryagin(other: ConvexPolytope): ConvexPolytope;
-    split(...halfspaces: Halfspace[]): ConvexPolytopeUnion;
-    intersect(...others: HalfspaceContainer[]): ConvexPolytope;
-    remove(...others: HalfspaceContainer[]): ConvexPolytopeUnion;
+    // Apply matrix from the left to every vertex
+    apply(Matrix): ConvexPolytope;
+    // Apply matrix from the right to every halfspace normal. For invertible
+    // matrices, applyRight is identical to calling apply with the inverse of
+    // the matrix.
+    applyRight(Matrix): ConvexPolytope;
+
+    /* Polytope-polytope operations */
+
+    // Minkowski sum as defined by Baotić (2009)
+    minkowski(ConvexPolytope): ConvexPolytope;
+    // Pontryagin difference as defined by Baotić (2009). Note that pontryagin
+    // is in general not the inverse of minkowski (e.g. consider the Pontryagin
+    // difference between a square and a triangle).
+    pontryagin(ConvexPolytope): ConvexPolytope;
+    // Split the convex polytope along the boundaries of the given halfspaces
+    // and return the partition.
+    split(...Halfspace[]): ConvexPolytopeUnion;
+    // Intersection
+    intersect(...HalfspaceContainer[]): ConvexPolytope;
+    // Difference
+    remove(...HalfspaceContainer[]): ConvexPolytopeUnion;
+
+    /* Internals */
+
+    // No processing of args in the constructor, therefore canonical form of
+    // vertices/halfspaces must be provided. Use the alternative static method
+    // constructors intersection, hull and empty to create convex polytopes
+    // from non-canonical input.
+    constructor(?Vector[], ?Halfspace[]): void;
+    // Derive H-representation from V-representation and store in _halfspaces
     _HtoV(): void;
+    // Derive V-representation from H-representation and store in _vertices
     _VtoH(): void;
+
 }
 
 // Interface declaring the static methods of a convex polytope type
 interface ConvexPolytopeType {
+    // Return an empty polytope
     empty(): ConvexPolytope;
-    hull(points: Vector[]): ConvexPolytope;
+    // Convex hull of a set of points
+    hull(Vector[]): ConvexPolytope;
     // intersection takes any collection of halfspaces, noredund expects
     // halfspaces to be in proper order and without infeasible/trivial ones
-    intersection(halfspaces: Halfspace[]): ConvexPolytope;
-    noredund(halfspaces: Halfspace[]): ConvexPolytope;
+    intersection(Halfspace[]): ConvexPolytope;
+    noredund(Halfspace[]): ConvexPolytope;
 }
 
 
@@ -315,18 +367,11 @@ class AbstractConvexPolytope implements ConvexPolytope {
     +dim: number;
 
     // Methods that have to be implemented by subtypes (abstract methods):
-    // Derive H-representation from V-representation and store in _halfspaces
     _VtoH() { throw new NotImplementedError() };
-    // Derive V-representation from H-representation and store in _halfspaces
     _HtoV() { throw new NotImplementedError() };
-    // Geometric properties
     get volume() { throw new NotImplementedError() };
     get centroid() { throw new NotImplementedError() };
 
-    // No processing of args in the constructor, therefore canonical form of
-    // vertices/halfspaces must be provided. Use the alternative static method
-    // constructors intersection, hull and empty to create convex polytopes
-    // from non-canonical input.
     constructor(vertices: ?Vector[], halfspaces: ?Halfspace[]): void {
         if (this.constructor === "AbstractConvexPolytope") {
             throw new TypeError("must not instanciate AbstractConvexPolytope");
@@ -355,20 +400,17 @@ class AbstractConvexPolytope implements ConvexPolytope {
         }
     }
 
-    // All polytopes that are not full-dimensional are considered to be empty.
     get isEmpty(): boolean {
         return (this._vertices != null && this._vertices.length <= this.dim)
             || (this._halfspaces != null && this._halfspaces.length <= this.dim)
             || Math.abs(this.volume) < TOL;
     }
 
-    // Axis-aligned minimum bounding box
     get boundingBox(): ConvexPolytope {
         let bbox = cartesian(...this.extent);
         return polytopeType(this.dim).hull(bbox);
     }
 
-    // Axis-aligned extent of the polytope
     get extent(): [number, number][] {
         let mins = new Array(this.dim);
         mins.fill(Infinity);
@@ -387,15 +429,14 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return arr.zip2(mins, maxs);
     }
 
-    // Test if two polytopes are identical by comparing vertices. Depends on
-    // the ordering properties of the canonical representation.
+    // Test if two polytopes are identical by comparing vertices. Because of
+    // canonical ordering vertices can be directly compared in order.
     isSameAs(other: ConvexPolytope): boolean {
         let thisVertices = this.vertices;
         let otherVertices = other.vertices;
         if (this.dim !== other.dim || thisVertices.length !== otherVertices.length) {
             return false;
         }
-        // Check if same vertex order
         for (let i = 0; i < thisVertices.length; i++) {
             if (!linalg.areClose(thisVertices[i], otherVertices[i])) {
                 return false;
@@ -404,19 +445,27 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return true;
     }
 
-    // Is point p inside the polytope?
     contains(p: Vector): boolean {
         linalg.assertEqualDims(this.dim, p.length);
         return iter.and(this.halfspaces.map(h => h.contains(p)));
     }
 
-    // Do all points of the polytope fulfil the linear predicate?
     fulfils(predicate: Halfspace): boolean {
         linalg.assertEqualDims(this.dim, predicate.dim);
         return iter.and(this.vertices.map(v => predicate.contains(v)));
     }
 
-    // Polytope translated by vector v
+    // Generic implementation is rejection based sampling
+    // TODO: this is not guaranteed to terminate
+    sample(): Vector {
+        const extent = this.extent;
+        let point;
+        do {
+            point = this.extent.map(([l, u]) => l + (u - l) * Math.random());
+        } while (!this.contains(point));
+        return point;
+    }
+
     translate(v: Vector): ConvexPolytope {
         // TODO: is hull really necessary? Translation should not change the
         // proper order of vertices...
@@ -425,26 +474,20 @@ class AbstractConvexPolytope implements ConvexPolytope {
         //return polytopeType(this.dim).noredund(this.halfspaces.map(h => h.translate(v)));
     }
 
-    // Reflection with respect to the origin.
     invert(): ConvexPolytope {
         return polytopeType(this.dim).hull(this.vertices.map(v => v.map(x => -x)));
     }
 
-    // Apply matrix m from the left to every vertex.
     apply(m: Matrix): ConvexPolytope {
         linalg.assertEqualDims(m[0].length, this.dim);
         return polytopeType(m.length).hull(this.vertices.map(v => linalg.apply(m, v)));
     }
 
-    // Apply matrix m from the right to every halfspace normal. For invertible
-    // matrices, applyRight is identical to calling apply with the inverse of
-    // the matrix m.
     applyRight(m: Matrix): ConvexPolytope {
         linalg.assertEqualDims(m.length, this.dim);
         return polytopeType(m[0].length).intersection(this.halfspaces.map(h => h.applyRight(m)));
     }
 
-    // Minkowski sum as defined by Baotić (2009).
     minkowski(other: ConvexPolytope): ConvexPolytope {
         linalg.assertEqualDims(this.dim, other.dim);
         let points = [];
@@ -456,9 +499,6 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return polytopeType(this.dim).hull(points);
     }
 
-    // Pontryagin difference as defined by Baotić (2009). Note that pontryagin
-    // is in general not the inverse of minkowski (e.g. consider the Pontryagin
-    // difference between a square and a triangle).
     pontryagin(other: ConvexPolytope): ConvexPolytope {
         linalg.assertEqualDims(this.dim, other.dim);
         const ws = other.invert().vertices;
@@ -474,8 +514,6 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return polytopeType(this.dim).noredund(halfspaces);
     }
 
-    // Split the convex polytope along the boundaries of the given halfspaces
-    // and return the partition.
     split(...halfspaces: Halfspace[]): ConvexPolytopeUnion {
         // Must test variadic arg for undefined (https://github.com/facebook/flow/issues/3648)
         if (halfspaces == null || halfspaces.length == 0) {

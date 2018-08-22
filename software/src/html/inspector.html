@@ -149,11 +149,16 @@
       </ul>
       where <span class="math">X</span> and <span class="math">U</span> are the (entire) state and control space, respectively.
     </div>
-    <div class="info_content" id="info_trajectory">
-      Trajectory Sampling TODO
-    </div>
-    <div class="info_content" id="info_control_space">
-      TODO
+    <div class="info_content" id="info_pathcontrol">
+      <p>
+        <b>Figure</b>: view of the control space polytope <span class="math">U</span> with highlighted action polytopes <span class="math">U_i^J</span> when an action is selected.
+      </p>
+      <p>
+        <b>Controls</b>: Sampling of paths through the system based on the selected strategy.
+        Paths are initiated from the currently selected polytope or the state space polytope if the selection is empty.
+        Paths are terminated when they have left the state space polytope.
+        The slider can be used to restrict the path length with a maximum of 50 steps.
+      </p>
     </div>
     <div class="info_content" id="info_selected_state">
       TODO

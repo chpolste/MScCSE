@@ -53,6 +53,10 @@ p {
     margin: 0 0 6pt 0;
 }
 
+u {
+    text-decoration: underline;
+}
+
 
 /* Wide insert: interactive content */
 
@@ -95,6 +99,10 @@ input[type=checkbox], input[type=radio] {
     display: inline-block;
     vertical-align: top;
     margin: 0 5px 0 0;
+}
+
+button {
+    display: inline-block;
 }
 
 sub {
@@ -151,7 +159,7 @@ a:hover {
 .inspector > .right > .cols > .left {
     flex: 0 0 auto;
     min-width: 170px;
-    padding: 0 20px 20px 0;
+    padding: 0 20px 0 0;
     margin-right: 20px;
 }
 .inspector > .right > .cols > .right {
@@ -202,6 +210,9 @@ a:hover {
     margin: 0.4em 0;
     padding: 0 0 0 1.5em;
 }
+.info_content p:last-child {
+    margin-bottom: 0;
+}
 
 
 /* Additional widget styling */
@@ -246,16 +257,15 @@ p.math {
     background-color: #CCC;
 }
 
-.settings .posterior {
+.settings select {
+    display: block;
+    width: 100%;
+    margin-top: 3pt;
+}
+.settings .highlight {
     margin-top: 6pt;
-    padding-right: 5px;
-    border-right: 6pt solid transparent;
-}
-.settings .posterior select {
-    margin-top: -3pt;
-}
-.settings .posterior.colored {
-    border-color: #FC0;
+    padding-right: 6pt;
+    border-right: 6pt solid #FC0;
 }
 
 span.selected {
@@ -268,20 +278,34 @@ span.nonsatisfying {
     color: #666;
 }
 
-.state_view, .control_view {
+.controlpath {
     display: flex;
-    vertical-align: top;
+    flex-direction: columns;
 }
-.state_view .summary, .control_view .summary {
-    flex: 1 0 auto;
+.controlpath > svg {
+    flex: 0 0 auto;
+    margin-right: 10px; 
 }
+.controlpath > div {
+    flex: 1 1 auto;
+}
+.controlpath select, .controlpath input[type=range] {
+    display: block;
+    width: 100%;
+    margin: 3pt 0;
+}
+.controlpath .path {
+    padding-right: 6pt;
+    border-right: 6pt solid #603;
+}
+
 .state_view .predicates {
     cursor: default;
 }
 .state_view .predicates > span:hover {
     padding: 2px;
     margin: -2px;
-    background-color: rgba(102, 0, 102 , 0.2);
+    background-color: rgba(0, 0, 0 , 0.2);
 }
 
 .actions {
@@ -298,7 +322,7 @@ span.nonsatisfying {
 }
 .actions > div.selection {
     background-color: #EEE;
-    border-right: 12pt solid #F60;
+    border-right: 6pt solid #F60;
 }
 
 .supports {
@@ -308,7 +332,7 @@ span.nonsatisfying {
 }
 .supports > div {
     display: inline-block;
-    border-right: 12pt solid transparent;
+    border-right: 6pt solid transparent;
     padding-right: 2px;
     margin-right: 2px;
 }

@@ -6,7 +6,7 @@
 import type { Matrix } from "./linalg.js";
 import type { ConvexPolytope, ConvexPolytopeUnion, Halfspace } from "./geometry.js";
 import type { Proposition, ObjectiveKind, OnePairStreettAutomaton } from "./logic.js";
-import type { Action, ActionSupport } from "./system.js";
+import type { Action, ActionSupport, StrategyGenerator, Path } from "./system.js";
 import type { LayeredFigure, FigureLayer, Shape } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
@@ -20,13 +20,13 @@ import { Objective, AtomicProposition, parseProposition, traverseProposition } f
 import { Figure, autoProjection } from "./figure.js";
 import { InteractivePlot, AxesPlot } from "./widgets-plot.js";
 import { ValidationError, CheckboxInput, SelectInput, MultiLineInput, MatrixInput,
-         SelectableNodes, LineInput, inputTextRotation } from "./widgets-input.js";
+         SelectableNodes, LineInput, RangeInput, inputTextRotation } from "./widgets-input.js";
 import { LSS, AbstractedLSS, State } from "./system.js";
 
 
 const VAR_NAMES = "xy";
 
-const color = {
+const COLORS = {
     satisfying: "#093",
     nonSatisfying: "#CCC",
     undecided: "#FFF",
@@ -34,17 +34,20 @@ const color = {
     highlight: "#FC0",
     support: "#09C",
     action: "#F60",
-    predicate: "#606",
+    predicate: "#000",
     split: "#C00",
-    vectorField: "#000"
+    vectorField: "#000",
+    path: "#603"
 };
 
+const MAX_PATH_LENGTH = 50;
+
 function toShape(state: State): Shape {
-    let fill = color.undecided;
+    let fill = COLORS.undecided;
     if (state.isSatisfying) {
-        fill = color.satisfying;
+        fill = COLORS.satisfying;
     } else if (state.isNonSatisfying) {
-        fill = color.nonSatisfying;
+        fill = COLORS.nonSatisfying;
     }
     return { kind: "polytope", vertices: state.polytope.vertices, style: { fill: fill } };
 }
@@ -339,9 +342,9 @@ class ProblemSetupSystemPreview {
     drawLSS(lss: LSS): void {
         this.plot.projection = autoProjection(3/2, ...lss.extent);
         this.layer.shapes = [
-            { kind: "polytope", vertices: lss.stateSpace.vertices, style: { fill: color.undecided } },
+            { kind: "polytope", vertices: lss.stateSpace.vertices, style: { fill: COLORS.undecided } },
             ...union.remove(lss.oneStepReachable, [lss.stateSpace]).map(
-                poly => ({ kind: "polytope", vertices: poly.vertices, style: { fill: color.nonSatisfying } })
+                poly => ({ kind: "polytope", vertices: poly.vertices, style: { fill: COLORS.nonSatisfying } })
             )
         ];
     }
@@ -697,7 +700,7 @@ export class ProblemSummary {
 
 Interactive system visualization.
 
-Sub-widgets: SISystemView, SISystemViewSettings, SISummary, SIStateView,
+Sub-widgets: SISystemView, SISettings, SISummary, SIStateView,
              SIActionView, SIActionSupportView, SIControlView
 */
 
@@ -711,7 +714,7 @@ export class SystemInspector {
     +actionView: SIActionView;
     +controlView: SIControlView;
     +actionSupportView: SIActionSupportView;
-    +systemViewSettings: SISystemViewSettings;
+    +settings: SISettings;
     +systemView: SISystemView;
 
     system: AbstractedLSS;
@@ -722,15 +725,16 @@ export class SystemInspector {
         this.objective = objective;
 
         this.keybindings = keybindings;
-        this.systemViewSettings = new SISystemViewSettings(this.system, this.keybindings);
-        this.systemSummary = new SISummary(this.system, this.systemViewSettings);
+        this.settings = new SISettings(this.system, this.keybindings);
+        this.systemSummary = new SISummary(this.system, this.settings);
         this.stateView = new SIStateView(this.system);
         this.actionView = new SIActionView(this.stateView);
-        this.controlView = new SIControlView(system.lss.controlSpace, this.stateView, this.actionView);
+        this.controlView = new SIControlView(system, this.stateView, this.actionView, this.keybindings);
         this.actionSupportView = new SIActionSupportView(this.actionView);
         this.systemView = new SISystemView(
             this.system,
-            this.systemViewSettings,
+            this.settings,
+            this.controlView,
             this.stateView,
             this.actionView,
             this.actionSupportView
@@ -750,12 +754,10 @@ export class SystemInspector {
                         createElement("h3", {}, ["Analysis Summary"]),
                         this.systemSummary.node,
                         createElement("h3", {}, ["View Settings", infoBox("info_view_settings")]),
-                        this.systemViewSettings.node,
-                        createElement("h3", {}, ["Trajectory", infoBox("info_trajectory")]),
-                        "TODO"
+                        this.settings.node,
                     ]),
                     createElement("div", { "class": "right" }, [
-                        createElement("h3", {}, ["Control Space", infoBox("info_control_space")]),
+                        createElement("h3", {}, ["Control/Path", infoBox("info_pathcontrol")]),
                         this.controlView.node,
                         createElement("h3", {}, ["Selected State", infoBox("info_selected_state")]),
                         this.stateView.node
@@ -778,7 +780,7 @@ type ClickOperatorWrapper = (state: State) => ConvexPolytopeUnion;
 type HoverOperatorWrapper = (origin: State, target: State) => ConvexPolytopeUnion;
 
 // Settings panel for the main view.
-class SISystemViewSettings extends ObservableMixin<null> {
+class SISettings extends ObservableMixin<null> {
 
     +node: HTMLElement;
     +toggleKind: Input<boolean>;
@@ -786,6 +788,7 @@ class SISystemViewSettings extends ObservableMixin<null> {
     +toggleVectorField: Input<boolean>;
     +highlight: Input<ClickOperatorWrapper>;
     +highlightNode: HTMLElement;
+    +strategy: Input<string>;
     
     constructor(system: AbstractedLSS, keybindings: Keybindings): void {
         super();
@@ -802,17 +805,14 @@ class SISystemViewSettings extends ObservableMixin<null> {
             "Attractor": state => lss.attr(lss.stateSpace, lss.controlSpace, [state.polytope]),
             "Robust Attractor": state => lss.attrR(lss.stateSpace, lss.controlSpace, [state.polytope])
         }, "None");
-        this.highlight.attach(() => this.changeHandler());
 
-        this.highlightNode = createElement("div", {}, [
-            createElement("p", {}, ["Highlight ", createElement("u", {}, ["o"]), "perator:"]),
-            createElement("p", {}, [this.highlight.node])
-        ]);
         this.node = createElement("div", { "class": "settings" }, [
             createElement("label", {}, [this.toggleKind.node, "analysis ", createElement("u", {}, ["c"]), "olors"]),
             createElement("label", {}, [this.toggleLabel.node, "state ", createElement("u", {}, ["l"]), "abels"]),
             createElement("label", {}, [this.toggleVectorField.node, createElement("u", {}, ["v"]), "ector field"]),
-            this.highlightNode
+            createElement("p", { "class": "highlight" }, [
+                "Highlight ", createElement("u", {}, ["o"]), "perator:", this.highlight.node
+            ])
         ]);
 
         keybindings.bind("c", inputTextRotation(this.toggleKind, ["t", "f"]));
@@ -821,12 +821,6 @@ class SISystemViewSettings extends ObservableMixin<null> {
         keybindings.bind("o", inputTextRotation(this.highlight, [
             "None", "Posterior", "Predecessor", "Robust Predecessor", "Attractor", "Robust Attractor"
         ]));
-
-        this.changeHandler();
-    }
-
-    changeHandler(): void {
-        this.highlightNode.setAttribute("class", this.highlight.text === "None" ? "posterior" : "posterior colored");
     }
 
 }
@@ -834,7 +828,7 @@ class SISystemViewSettings extends ObservableMixin<null> {
 // Main view of the inspector: shows the abstracted LSS and lets user select
 // states. Has layers for displaying subsets (polytopic operators, action
 // supports) and state information (selection, labels, kinds). Observes:
-//      SISystemViewSettings  -> general display settings
+//      SISettings  -> general display settings
 //      SIStateView           -> currently selected state
 //      SIActionView          -> currently selected action
 //      SIActionSupportView   -> currently selected action support
@@ -843,15 +837,17 @@ class SISystemViewSettings extends ObservableMixin<null> {
 class SISystemView {
 
     +system: AbstractedLSS;
-    +settings: SISystemViewSettings;
+    +settings: SISettings;
+    +controlView: SIControlView;
     +stateView: SIStateView;
     +actionView: SIActionView;
     +actionSupportView: SIActionSupportView;
     +plot: Plot;
     +layers: { [string]: FigureLayer };
 
-    constructor(system: AbstractedLSS, settings: SISystemViewSettings, stateView: SIStateView,
-                actionView: SIActionView, actionSupportView: SIActionSupportView): void {
+    constructor(system: AbstractedLSS, settings: SISettings, controlView: SIControlView,
+                stateView: SIStateView, actionView: SIActionView,
+                actionSupportView: SIActionSupportView): void {
         this.system = system;
 
         this.settings = settings;
@@ -859,6 +855,9 @@ class SISystemView {
         this.settings.toggleLabel.attach(() => this.drawLabels());
         this.settings.toggleVectorField.attach(() => this.drawVectorField());
         this.settings.highlight.attach(() => this.drawHighlight());
+
+        this.controlView = controlView;
+        this.controlView.attach(() => this.drawPath());
 
         this.stateView = stateView;
         this.stateView.attach(() => {
@@ -871,16 +870,17 @@ class SISystemView {
         this.actionSupportView = actionSupportView;
         this.actionSupportView.attach(() => this.drawActionSupport());
 
-        let fig = new Figure();
+        const fig = new Figure();
         this.layers = {
             kind:           fig.newLayer({ "stroke": "none" }),
-            highlight1:     fig.newLayer({ "stroke": color.highlight, "fill": color.highlight }),
-            selection:      fig.newLayer({ "stroke": color.selection, "fill": color.selection }),
-            highlight2:     fig.newLayer({ "stroke": "none", "fill": color.highlight, "fill-opacity": "0.2" }),
-            support:        fig.newLayer({ "stroke": color.support, "fill": color.support }),
-            vectorField:    fig.newLayer({ "stroke": color.vectorField, "stroke-width": "1", "fill": color.vectorField }),
-            action:         fig.newLayer({ "stroke": color.action, "stroke-width": "2.5", "fill": color.action }),
-            predicate:      fig.newLayer({ "stroke": color.predicate, "fill": color.predicate, "fill-opacity": "0.2" }),
+            highlight1:     fig.newLayer({ "stroke": COLORS.highlight, "fill": COLORS.highlight }),
+            selection:      fig.newLayer({ "stroke": COLORS.selection, "fill": COLORS.selection }),
+            highlight2:     fig.newLayer({ "stroke": "none", "fill": COLORS.highlight, "fill-opacity": "0.2" }),
+            support:        fig.newLayer({ "stroke": COLORS.support, "fill": COLORS.support }),
+            vectorField:    fig.newLayer({ "stroke": COLORS.vectorField, "stroke-width": "1", "fill": COLORS.vectorField }),
+            action:         fig.newLayer({ "stroke": COLORS.action, "stroke-width": "2.5", "fill": COLORS.action }),
+            predicate:      fig.newLayer({ "stroke": COLORS.predicate, "fill": COLORS.predicate, "fill-opacity": "0.2" }),
+            path:           fig.newLayer({ "stroke": COLORS.path, "stroke-width": "2", "fill": COLORS.path }),
             label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" }),
             interaction:    fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" })
         };
@@ -892,6 +892,7 @@ class SISystemView {
         this.drawVectorField();
         this.drawLabels();
         this.drawPredicate();
+        this.drawPath();
     }
 
     drawInteraction(): void {
@@ -1008,6 +1009,15 @@ class SISystemView {
         }
     }
 
+    drawPath(): void {
+        const path = this.controlView.path;
+        const segments = arr.cyc2map((o, t) => ({ kind: "arrow", origin: o, target: t }), path);
+        if (segments.length > 1) {
+            segments.pop();
+        }
+        this.layers.path.shapes = segments;
+    }
+
 }
 
 
@@ -1016,9 +1026,9 @@ class SISummary {
 
     +node: HTMLDivElement;
     +system: AbstractedLSS;
-    +settings: SISystemViewSettings;
+    +settings: SISettings;
 
-    constructor(system: AbstractedLSS, settings: SISystemViewSettings): void {
+    constructor(system: AbstractedLSS, settings: SISettings): void {
         this.system = system;
         this.settings = settings;
         this.node = document.createElement("div");
@@ -1057,7 +1067,7 @@ class SIStateView extends ObservableMixin<null> {
     constructor(system: AbstractedLSS): void {
         super();
         this.summary = createElement("div", { "class": "summary" });
-        this.predicates = new SelectableNodes(p => styledPredicateLabel(p, system), ", ", "");
+        this.predicates = new SelectableNodes(p => styledPredicateLabel(p, system), ", ", "-");
         this.predicates.node.className = "predicates";
         this.node = createElement("div", { "class": "state_view" }, [
             this.summary, this.predicates.node
@@ -1079,11 +1089,16 @@ class SIStateView extends ObservableMixin<null> {
         let state = this._selection;
         if (state != null) {
             this.predicates.items = Array.from(state.predicates);
+            const actionCount = state.actions.length;
+            const actionText = actionCount === 1 ? " action" : " actions";
             appendChild(this.summary,
-                createElement("p", {}, [state.label, " (", stateKindString(state), ")"]),
-                this.predicates.node
+                createElement("p", {}, [
+                    styledStateLabel(state, state),
+                    " (", stateKindString(state), ", ", String(actionCount), actionText, ")"
+                ])
             );
         } else {
+            this.predicates.items = [];
             appendChild(this.summary, createElement("p", {}, ["no selection"]));
         }
         this.notify();
@@ -1157,43 +1172,97 @@ class SIActionSupportView extends SelectableNodes<ActionSupport> {
 }
 
 
-// Information on and preview of the control space. Observes SIStateView to
-// display the number of actions of the currently selected state. Observes
-// SIActionView to display the control subset of the currently selected action.
-class SIControlView {
+// Information on and preview of the control space polytope and sampling of
+// paths through the system based on specific strategies. Observes SIActionView
+// to display the control subset (action polytope) of the currently selected
+// action.
+class SIControlView extends ObservableMixin<null> {
 
     +node: HTMLElement;
-    +summary: HTMLElement;
-    +controlSpace: ConvexPolytopeUnion;
+    +system: AbstractedLSS;
     +stateView: SIStateView;
     +actionView: SIActionView;
     +actionLayer: FigureLayer;
 
-    constructor(controlSpace: ConvexPolytopeUnion, stateView: SIStateView, actionView: SIActionView): void {
-        this.controlSpace = controlSpace;
-        this.stateView = stateView;
-        this.stateView.attach(() => this.changeHandler());
+    +strategyGen: Input<StrategyGenerator>;
+    +pathLength: Input<number>;
+    +path: Path;
+    _path: Path;
+
+    constructor(system: AbstractedLSS, stateView: SIStateView,
+                actionView: SIActionView, keybindings: Keybindings): void {
+        super();
+        this.system = system;
         this.actionView = actionView;
+        this.stateView = stateView;
+        const controlSpace = system.lss.controlSpace;
+
+        // Function 1: control space polytope visualisation with highlighting
+        // of action polytopes
+        const fig = new Figure();
+        this.actionLayer = fig.newLayer({ "stroke": COLORS.action, "fill": COLORS.action });
+        const layer = fig.newLayer({
+            "stroke": "#000", "stroke-width": "1",
+            "fill": "#FFF", "fill-opacity": "0"
+        });
+        layer.shapes = controlSpace.map(u => ({ kind: "polytope", vertices: u.vertices }));
+        const view = new AxesPlot([90, 90], fig, autoProjection(1, ...union.extent(controlSpace)));
         this.actionView.attach(() => this.drawAction());
 
-        let fig = new Figure();
-        this.actionLayer = fig.newLayer({ "stroke": color.action, "fill": color.action });
-        let layer = fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" });
-        layer.shapes = this.controlSpace.map(u => ({ kind: "polytope", vertices: u.vertices }));
-        let view = new AxesPlot([90, 90], fig, autoProjection(1, ...union.extent(this.controlSpace)));
+        // Function 2: Path sampling
+        this._path = [];
+        // Strategy selection. Because strategies must bring their own memory
+        // if needed, the values are strategy generators
+        this.strategyGen =  new SelectInput({
+            "Random": () => ((state) => controlSpace[0].sample())
+            // TODO: round-robin strategy
+        }, "random");
+        // Path creation and removal buttons
+        const newPath = createElement("button", {}, ["new ", createElement("u", {}, ["p"]), "ath"]);
+        newPath.addEventListener("click", () => this._newPath());
+        const clearPath = createElement("button", {}, ["clear"]);
+        clearPath.addEventListener("click", () => this._clearPath());
+        // Path length slider: adjusts how many steps of the path are displayed
+        // in the system view
+        this.pathLength = new RangeInput(1, MAX_PATH_LENGTH, 1, MAX_PATH_LENGTH);
+        this.pathLength.attach(() => this.notify());
+        // Keybindings for path control buttons
+        keybindings.bind("s", inputTextRotation(this.strategyGen, ["Random"]));
+        keybindings.bind("p", () => this._newPath());
 
-        this.summary = createElement("div", { "class": "summary" });
-        this.node = createElement("div", { "class": "control_view" }, [view.node, this.summary]);
+        this.node = createElement("div", { "class": "controlpath" }, [
+            view.node,
+            createElement("div", {}, [
+                createElement("p", {}, [
+                    "Control ", createElement("u", {}, ["s"]), "trategy:",
+                    this.strategyGen.node
+                ]),
+                createElement("p", { "class": "path" }, [
+                    this.pathLength.node, newPath, " ", clearPath
+                ])
+            ])
+        ]);
     }
 
-    changeHandler(): void {
-        clearNode(this.summary);
-        const state = this.stateView.selection;
-        if (state != null) {
-            appendChild(this.summary,
-                createElement("p", {}, [state.actions.length + " actions"]),
-            );
-        }
+    get path(): Path {
+        return this._path.slice(0, this.pathLength.value);
+    }
+
+    _newPath(): void {
+        // If a system state is selected, sample from its polytope, otherwise
+        // from the entire state space polytope
+        const selection = this.stateView.selection;
+        const initPoly = selection == null ? this.system.lss.stateSpace : selection.polytope;
+        // Obtain strategy from selection
+        const strategy = this.strategyGen.value();
+        // Sample a new path and update
+        this._path = this.system.samplePath(initPoly.sample(), strategy, MAX_PATH_LENGTH);
+        this.notify();
+    }
+
+    _clearPath(): void {
+        this._path = [];
+        this.notify();
     }
 
     drawAction(): void {
@@ -1210,3 +1279,4 @@ class SIControlView {
     }
 
 }
+

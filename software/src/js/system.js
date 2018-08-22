@@ -94,6 +94,10 @@ export class LSS {
         return arr.zip2map((a, b) => [Math.min(a[0], b[0]), Math.max(a[1], b[1])], ext1, ext2);
     }
 
+    eval(x: Vector, u: Vector, w: Vector): Vector {
+        return linalg.add(linalg.add(linalg.apply(this.A, x), linalg.apply(this.B, u)), w);
+    }
+
     // Posterior: Post(x, {u0, ...})
     post(x: ConvexPolytope, us: ConvexPolytopeUnion): ConvexPolytopeUnion {
         let xvs = x.vertices;
@@ -176,6 +180,13 @@ export type ActionID = number;
 export type SupportID = number;
 export type PredicateID = string;
 
+// Strategies
+export type StrategyGenerator = () => Strategy;
+type Strategy = (State) => Vector; // strategies must maintain their own memory
+
+// Paths
+export type Path = Vector[];
+
 
 export class AbstractedLSS implements GameGraph {
 
@@ -238,9 +249,41 @@ export class AbstractedLSS implements GameGraph {
     getPredicate(label: PredicateID): Halfspace {
         const pred = this.predicates.get(label);
         if (pred == null) throw new Error(
-            "..."
+            "..." // TODO
         );
         return pred;
+    }
+
+    stateOf(x: Vector): ?State {
+        for (let state of this.states.values()) {
+            if (state.polytope.contains(x)) {
+                return state;
+            }
+        }
+        return null;
+    }
+
+    // Path sampling
+    samplePath(init: Vector, strategy: Strategy, steps: number): Path {
+        // Path starts from given location
+        const path = [init];
+        // Take requested number of steps
+        while (path.length < steps + 1) {
+            const x = path[path.length - 1];
+            // Find corresponding system state
+            const state = this.stateOf(x);
+            // End trajectory when it leaves the state space polytope
+            if (state == null || state.isOutside) {
+                break;
+            }
+            // Obtain the control input from the strategy
+            const u = strategy(state);
+            // Sample the random space polytope
+            const w = this.lss.randomSpace.sample();
+            // Evaluate the evolution equation to obtain the next point
+            path.push(this.lss.eval(x, u, w));
+        }
+        return path;
     }
 
     // Convenience wrappers for polytopic operators

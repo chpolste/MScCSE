@@ -11,129 +11,178 @@
 
   <body>
     
-    <div class="header">
+    <div class="header" id="top">
       <h1>Linear Stochastic System Analysis and Abstraction Refinement</h1>
     </div>
 
     <h2>Introduction</h2>
     <div>
       <p>
-        Problem: compute the set of initial states of a dynamical system (TODO: hybrid system) such that there exists a control strategy to ensure that the trajectories satisfy a temporal logic specification with probability 1 (almost-surely).
-        Here, the dynamical system is characterized by a discrete time evolution, and a linear, stochastic dynamic in the spatial dimensions.
-        The objective specification is given in the General Reactivity(1) fragment of Linear Temporal Logic over linear predicates (i.e. halfspaces) of the dynamical system.
-      </p>
-      <p>
-        Application in robotics and other fields.
-      </p>
-      <p>
-        Approach (<a href ="#Svorenova2017">Svorenova et al. 2017</a>):
-        abstraction in the spatial dimension into convex states which induce a MDP-like (? TODO) non-determinsitic transition system (NTS).
-        Synchronized product of NTS with automaton of LTL formula results in a probabilistic 2-player game (2½-player game) with a parity-3 objective.
-        Solution of the game while treating player 2 as an adversary or cooperative determines which states satisfy the objective, which do not and which have to be refined in order to decide.
-        Refinement of these states is then supported by analysis of the dynamics (polytopic operators).
-        Iterate.
-        Controller synthesis.
+        Welcome! Additional text will arrive soon.
       </p>
     </div>
 
-    <h2>Theoretical Foundations</h2>
-    <div>
-      <h3>Linear Stochastic Systems</h3>
-      <p>
-        aka LSS, piecewise affine systems,
-        evolution equation,
-        ...
-      </p>
-      <p class="math">x_{t+1} = Ax_t + B u_t + w_t</p>
-      <p>where...</p>
-      <h3>Abstraction Refinement</h3>
-      <p>
-        What is an abstraction,
-        convex geometry,
-        why is refinement necessary,
-        how can evolution equation (dynamics) of LSS be used to guide refinement
-      </p>
-      <h3>Linear Temporal Logic</h3>
-      <p>
-        objective specification,
-        GR(1) fragment,
-        translation to omega-automata,
-        Büchi implication acceptance condition = one-pair Streett
-      </p>
-      <h3>Deterministic ω-Automata</h3>
-      <p>
-        finite automaton for infinite words.
-        Acceptance conditions: Büchi, Büchi implication, general Streett, one-pair Streett
-      </p>
-      <h3>GR(1) and One-Pair Streett Objectives</h3>
-      <p>
-        Equivalence,
-        Reachability, Safety, other "classical" objectives
-        Example automaton: reachability
-      </p>
-      <h3>Probabilistic Games</h3>
-      <p>
-        aka 2½-player games,
-        explain game graph, decision making and probabilistic aspect,
-      </p>
-      <h3>Parity-3 Objectives</h3>
-      <p>
-        parity-3 game: every state is assigned the priority -1, 0 or 1, player "odd" wins a play iff the lowest priority occuring infinitly often is odd, otherwise player "even" wins.
-        vertices are partitioned (no overlap, no missing!) into "odd" and "even", depending on which player has a winning strategy when starting from the vertex.
-        Every one-pair Streett objective (L, U) can be transformed into a parity-3 objective with the following transformation: assign U vertices priority -1, assign L\U vertices priority 0, assign other vertices priority 1. An accepting run of the automaton corresponds to the odd player winning the parity-3 game.
-        generation from synchronous product of abstracted LSS and LTL automaton,
-        solution
-      </p>
-    </div>
-
-
-    <h2>Interactive System Inspector</h2>
-    <div>
-      About the app...
+    <div class="navigation">
+      → <a href="#inspector">Algorithm Inspector</a><br>
+      → <a href="#theory">Theoretical Foundations</a><br>
+      → <a href="#solution">Problem Setup and Solution</a><br>
+      → <a href="#about">About</a><br>
+      → <a href="#references">References</a>
     </div>
 
     <div class="wide">
-      <div class="wide-inner" id="content">
+      <div class="wide-inner" id="inspector">
         <p>Please wait while the application is loading...</p>
       </div>
     </div>
 
+    <h2 id="theory">Theoretical Foundations</h2>
+    <div>
+      <h3>Linear Stochastic Systems</h3>
+      <p>
+        ...
+      </p>
 
-    <h2>...</h2>
-    <div class="normal">
+      <h3>Abstraction Refinement</h3>
+      <p>
+        ...
+      </p>
+
+      <h3>Deterministic ω-Automata</h3>
+      <p>
+        ...
+      </p>
+
+      <h3>Linear Temporal Logic and GR(1)</h3>
+      <p>
+        ...
+      </p>
+
+      <h3>Probabilistic Games</h3>
+      <p>
+        ...
+      </p>
+
+      <h3>Parity-3 Objectives</h3>
+      <p>
+        ...
+      </p>
+    </div>
+
+    <h2 id="solution">Problem Setup and Solution</h2>
+    <div>
+      <p>
+        The following problem formulation and algorithm were originally developed by <a href ="#Svorenova2017">Svorenova et al. (2017)</a>.
+        The presentation here follows their approach closely.
+      </p>
+
+      <h3>Problem</h3>
+      <p>
+        Given a linear stochastic system with a discrete time evolution specified by the evolution equation <span class="math">x_{t+1} = A x_t + B u_t + w_t</span>, find a the set of initial states <span class="math">X_{init} \subseteq X \subset \mathbb{R}^n</span> for which a control strategy exists such that the probability of a trace starting in <span class="math">x</span> and satisfying an objective given as a GR(1) formula <span class="math">\phi</span> over a set of linear predicates is 1.
+        A trace is an infinite sequence of states <span class="math">x_t \in X, \; t = 0, 1, 2, ...</span> obtained from application of the evolution equation.
+        Control is exerted in the system by choosing a control input <span class="math">u_t \in U \subset \mathbb{R}^m</span> at every time step, while stochasticity is introduced by the term <span class="math">w_t</span> which is selected from a probability distribution over <span class="math">W \subset \mathbb{R}^n</span> at every time step.
+        The search for satisfying initial states is complemented by the task of synthesizing the corresponding strategies that ensure the objective with probability 1.
+      </p>
+
+      
+      <h3>Approach</h3>
+      <ol>
+        <li>Translate the objective from a temporal logic formula to a one-pair Streett automaton.</li>
+        <li>Create the initial abstraction of the LSS based on the set of linear predicates used in the objective formula.</li>
+        <li>Obtain a 2½-player game from the synchronized product of the LSS abstraction-induced game and the objective automaton.</li>
+        <li>Analysis of the game identifies which states of the current abstraction are satisfying and non-satisfying and for which states satisfiability cannot be decided in the current abstraction.</li>
+        <li>If no undecided states remain, a solution is found. Otherwise refine the undecided states heuristically using information about the dynamics of the LSS, and go back to step 3.</li>
+      </ol>
+
       <h3>Polytopic Operators</h3>
-      <p>The Posterior operator (Post) yields the one step-reachable set originating from <span class="math">X'</span> when applying the control input <span class="math">U'</span>:</p>
+      <p>
+        Some polytopic operators expressing meaningful aspects of the system dynamics are introduced to aid the description of the components required to implement the algorithm.
+        The posterior operator
+      </p>
       <p class="math">
         \mathrm{Post}(X', U') = \{ x \in X \cup X_{out} \mid \exists x' \in X',~\exists u \in U',~\exists w \in W : x = Ax' + Bu + w \}
       </p>
       <p>
-        The Predecessor operator (Pre) yields a subset of <span class="math">X'</span> from which the union of <span class="math">X_j</span> is reachable with at least one control input from the given set of control inputs <span class="math">U'</span>.
-        The Robust Predecessor (PreR) adds the restriction that the union of <span class="math">X_j</span> must contain the entire reachable set from <span class="math">X'</span>.
-        The Precise Predecessor (PreP) further requires that a non-empty subset of every set in the collection <span class="math">\{X_j\}_{j \in J}</span> is reachable:
+        yields the one step-reachable set originating from a polytope <span class="math">X'</span> of the state space partition when applying the control input <span class="math">U' \subset U</span>.
+        The predecessor operator 
+      </p>
+      <p class="math">
+          \mathrm{Pre}(X', U', \{X_j\}_{j \in J}) = \{ x \in X' \mid \exists u \in U' : \mathrm{Post}(x, u) \cap \textstyle\bigcup_{j \in J} X_j \ne \emptyset \}
+      </p>
+      <p>
+        yields a subset of <span class="math">X'</span> from which the union of <span class="math">X_j</span> is reachable with <em>at least one</em> control input from the given set of control inputs <span class="math">U' \subset U</span>.
+        A robust and a precise variant of the predecessor operator are defined by
       </p>
       <p class="math">
         \begin{aligned}
-          \mathrm{Pre}(X', U', \{X_j\}_{j \in J}) &amp; = \{ x \in X' \mid \exists u \in U' : \mathrm{Post}(x, u) \cap \textstyle\bigcup_{j \in J} X_j \ne \emptyset \} \\
           \mathrm{PreR}(X', U', \{X_j\}_{j \in J}) &amp; = \{ x \in X' \mid \exists u \in U' : \mathrm{Post}(x, u) \subseteq \textstyle\bigcup_{j \in J} X_j \} \\
-          \mathrm{PreP}(X', U', \{X_j\}_{j \in J}) &amp; = \{ x \in X' \mid \exists u \in U' : \mathrm{Post}(x, u) \subseteq \textstyle\bigcup_{j \in J} X_j \mathrm{~and~} \forall j \in J : \mathrm{Post}(x, u) \cap X_j \ne \emptyset \}
+          \mathrm{PreP}(X', U', \{X_j\}_{j \in J}) &amp; = \{ x \in X' \mid \exists u \in U' : \mathrm{Post}(x, u) \subseteq \textstyle\bigcup_{j \in J} X_j \;\mathrm{and}\; \forall j \in J : \mathrm{Post}(x, u) \cap X_j \ne \emptyset \} \;\mathrm{.}
         \end{aligned}
       </p>
-      <p>The Attractor (Attr) and Robust Attractor (AttrR) operators mirror their Predecessor counterparts but require that the conditions are met for every control input in the set <span class="math">U'</span>:</p>
+      <p>
+        The robust predecessor adds the restriction that the union of <span class="math">X_j</span> must contain the <em>entire</em> one step-reachable set from <span class="math">X'</span>.
+        The precise Predecessor further requires that a non-empty subset of <em>every</em> set in the collection <span class="math">\{X_j\}_{j \in J}</span> is reachable.
+        The attractor and robust attractor operators mirror their predecessor counterparts but require that the conditions are met for <em>every</em> control input in the set <span class="math">U'</span>
+      </p>
       <p class="math">
         \begin{aligned}
           \mathrm{Attr}(X', U', \{X_j\}_{j \in J}) &amp; = \{ x \in X' \mid \forall u \in U' : \mathrm{Post}(x, u) \cap \textstyle\bigcup_{j \in J} X_j \ne \emptyset \} \\
-          \mathrm{AttrR}(X', U', \{X_j\}_{j \in J}) &amp; = \{ x \in X' \mid \forall u \in U' : \mathrm{Post}(x, u) \subseteq \textstyle\bigcup_{j \in J} X_j \}
+          \mathrm{AttrR}(X', U', \{X_j\}_{j \in J}) &amp; = \{ x \in X' \mid \forall u \in U' : \mathrm{Post}(x, u) \subseteq \textstyle\bigcup_{j \in J} X_j \} \;\mathrm{.}
         \end{aligned}
       </p>
       
-      <h3>About</h3>
+      <h3>Initial LSS Partition</h3>
       <p>
-        This application is based on the work of <a href="#Svorenova2017">Svoreňová et al. (2017)</a>.
-        The source code of this application can be found on <a href="https://github.com/chpolste/MScCSE">GitHub</a> and is part of the Master's thesis of Christopher Polster at the <a href="https://www7.in.tum.de/home/index.php">Chair for Foundations of Software Reliability and Theoretical Computer Science</a> at Technische Universität München, supervised by <a href="https://www7.in.tum.de/~kretinsk/">Jan Křetínský</a>.
+        The state space <span class="math">X</span> is initially partitioned by splitting it with the linear predicates used in the temporal logic formula of the objective specification.
+        For <span class="math">n</span> linear predicates, there can be at most disjunct <span class="math">2^n</span> parts <span class="math">X_i</span> of the state space, each a convex polytope since the intersection of halfspaces with a convex polytope is either empty or a convex polytope.
+        The partition creates equivalence classes of states for which the exact same (sub-)set of linear predicates holds.
+        The collection of state space subsets from the partition is denoted by <span class="math">\{ X_i \}</span> and complemented by a set of outer states <span class="math">\{ X_{i_{out}} \}</span>, which are obtained by partitioning <span class="math">\mathrm{Post}(X, U) \setminus X</span>, the set of states outside <span class="math">X</span> which can be reached in one step, into convex polytopes.
+      </p>
+      <p>
+        Based on this partition, a game-based abstraction of the linear stochastic system is built.
       </p>
 
-      <h3>References</h3>
-      <p id="Svorenova2017">Svoreňová, M., Křetínský, J., Chmelík, M., Chatterjee, K., Černá, I., & Belta, C. (2017). Temporal logic control for stochastic linear systems using abstraction refinement of probabilistic games. Nonlinear Analysis: Hybrid Systems, 23(15), 230–253. <a href="https://doi.org/10.1016/j.nahs.2016.04.006">https://doi.org/10.1016/j.nahs.2016.04.006</a></p>
+      <h3>Game-based LSS Abstraction</h3>
+      <p>
+        ...
+      </p>
+
+      <h3>Product of Game and Objective Automaton</h3>
+      <p>
+        ...
+      </p>
+
+      <h3>Game analysis</h3>
+      <p>
+        ...
+      </p>
+
+      <h3>Controller Synthesis</h3>
+      <p>
+        ...
+      </p>
+    </div>
+
+    <h2 id="about">About</h2>
+    <div>
+      <p>
+        This application is an implementation of an algorithm developed by <a href="#Svorenova2017">Svoreňová et al. (2017)</a>.
+        Their original implementation, written in Matlab and Java, served as a guideline for this port to JavaScript.
+        It is part of the Master's thesis of Christopher Polster, supervised by <a href="https://www7.in.tum.de/~kretinsk/">Jan Křetínský</a> from the <a href="https://www7.in.tum.de/home/index.php">Chair for Foundations of Software Reliability and Theoretical Computer Science</a> at Technische Universität München.
+      </p>
+      <p>
+        Source code is available on <a href="https://github.com/chpolste/MScCSE">GitHub</a>.
+      </p>
+    </div>
+
+    <h2 id="references">References</h2>
+    <div>
+      <p id="Svorenova2017">
+        Svoreňová, M., Křetínský, J., Chmelík, M., Chatterjee, K., Černá, I., & Belta, C. (2017).
+        Temporal logic control for stochastic linear systems using abstraction refinement of probabilistic games.
+        <em>Nonlinear Analysis: Hybrid Systems, 23(15)</em>, 230–253.
+        DOI: <a href="https://doi.org/10.1016/j.nahs.2016.04.006">10.1016/j.nahs.2016.04.006</a>
+      </p>
     </div>
 
 

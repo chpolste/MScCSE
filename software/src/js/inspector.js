@@ -11,7 +11,7 @@ import { Keybindings, clearNode, appendChild, createElement } from "./domtools.j
 import { SessionManager, ProblemSetup, ProblemSummary, SystemInspector } from "./inspector-widgets.js";
 
 
-const contentNode = document.getElementById("content");
+const contentNode = document.getElementById("inspector");
 if (contentNode == null) throw new Error();
 
 const keybindings = new Keybindings();

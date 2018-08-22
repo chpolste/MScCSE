@@ -16,7 +16,8 @@ import * as linalg from "./linalg.js";
 import { iter, arr, n2s, ObservableMixin } from "./tools.js";
 import { Keybindings, clearNode, appendChild, createElement } from "./domtools.js";
 import { HalfspaceInequation, polytopeType, union } from "./geometry.js";
-import { Objective, AtomicProposition, parseProposition, traverseProposition } from "./logic.js";
+import { Objective, AtomicProposition, parseProposition, traverseProposition,
+         stringifyProposition } from "./logic.js";
 import { Figure, autoProjection } from "./figure.js";
 import { InteractivePlot, AxesPlot } from "./widgets-plot.js";
 import { ValidationError, CheckboxInput, SelectInput, MultiLineInput, MatrixInput,
@@ -669,8 +670,12 @@ export class ProblemSummary {
         const rs = new AxesPlot([90, 90], rsFig, autoProjection(1, ...system.lss.randomSpace.extent));
         const ss = new AxesPlot([90, 90], ssFig, autoProjection(1, ...system.lss.stateSpace.extent));
 
+        let formula = objective.kind.formula;
+        for (let [symbol, prop] of objective.propositions) {
+            formula = formula.replace(symbol, stringifyProposition(prop));
+        }
+
         this.node = createElement("div", { "class": "problem_summary" }, [
-            createElement("h3", {}, ["Evolution Equation"]),
             evolutionEquation(tableify(system.lss.A), tableify(system.lss.B)),
             createElement("div", { "class": "boxes" }, [
                 createElement("div", {}, [createElement("h3", {}, ["Control Space Polytope"]), cs.node]),
@@ -681,14 +686,14 @@ export class ProblemSummary {
                     ...Array.from(system.predicates.entries()).map(([label, halfspace]) =>
                         createElement("p", {}, [
                             label, ": ",
-                            createElement("span", {}, [asInequation(halfspace)])
+                            createElement("span", {}, [asInequation(halfspace)]) // TODO: use KaTeX
                         ])
                     )
                 ])
             ]),
             createElement("div", {}, [
                 createElement("h3", {}, ["Objective"]),
-                objective.kind.name, ": ", objective.kind.formula
+                createElement("p", {}, [objective.kind.name, ": ", createElement("code", {}, [formula])]) // TODO: use KaTeX
             ])
         ]);
     }

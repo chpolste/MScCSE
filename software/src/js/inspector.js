@@ -29,7 +29,6 @@ const problemSetup = new ProblemSetup(function (lss, predicates, predicateLabels
     if (contentNode == null) throw new Error();
     clearNode(contentNode);
     appendChild(contentNode,
-        "Explore the linear stochastic system and its abstraction interactively and control the abstraction refinement process.",
         problem.node,
         inspector.node
     );

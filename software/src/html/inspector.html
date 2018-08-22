@@ -88,9 +88,9 @@
       <h3>Approach</h3>
       <ol>
         <li>Translate the objective from a temporal logic formula to a one-pair Streett automaton.</li>
-        <li>Create the initial abstraction of the LSS based on the set of linear predicates used in the objective formula.</li>
-        <li>Obtain a 2½-player game from the synchronized product of the LSS abstraction-induced game and the objective automaton.</li>
-        <li>Analysis of the game identifies which states of the current abstraction are satisfying and non-satisfying and for which states satisfiability cannot be decided in the current abstraction.</li>
+        <li>Create the initial abstraction of the LSS based on the set of linear predicates used in the objective formula. Combined with the dynamics of the system, this abstraction induces a probabilistic 2 player game graph over the states of the abstraction.</li>
+        <li>Obtain a 2½-player game from the synchronized product of the LSS abstraction-induced game graph and the objective automaton.</li>
+        <li>Analysis of the product game identifies satisfying and non-satisfying states of the current abstraction and states for which satisfiability cannot be decided in the current abstraction.</li>
         <li>If no undecided states remain, a solution is found. Otherwise refine the undecided states heuristically using information about the dynamics of the LSS, and go back to step 3.</li>
       </ol>
 
@@ -144,12 +144,123 @@
 
       <h3>Game-based LSS Abstraction</h3>
       <p>
-        ...
+        The LSS and its state space partition induce a probabilistic 2-player game graph <span class="math">\mathcal{G} = ( G_1, G_2, Act_\mathcal{G}, \delta_\mathcal{G} )</span> as an abstraction.
+        This game graph captures the transitions between polytopes from the state space partition and is governed by the dynamics of the system specified in its evolution equation.
+        Its player 1 states
+      </p>
+      <p class="math">
+        G_1 = \{ X_i \} \cup \{ X_{i_{out}} \}
+      </p>
+      <p>
+        correspond to the polytopes from state space polytope partition of the abstraction and the outer polytopes which accommodate the one-step reachable region of the state space.
+        Player 1 actions are the action polytopes
+      </p>
+      <p class="math">
+        U_i^J = \{ u \in U \mid \forall j \in J : \mathrm{Post}(X_i, u) \cap X_j \ne \emptyset \;\mathrm{and}\; \forall j \notin J : \mathrm{Post} \cap X_j = \emptyset \}
+      </p>
+      <p>
+        which induce a control space partition for every polytope of the state space partition based on equivalence classes of control inputs <span class="math">u</span> that result in the same set of target states <span class="math">\{ X_j \}_{j \in J}</span> when applied from a state <span class="math">x \in X_i</span>.
+        This set of target states may also be used to refer to the action.
+        Player 1 states corresponding to polytopes in <span class="math">\{ X_{i_{out}} \}</span> have no actions.
+        The player 2 states
+      <p class="math">
+        G_2 = \{ X_i \} \times \{ U_i^J \}
+      </p>
+      <p>
+        are tuples of polytopes from the state space and control space partitions.
+        Player 2 actions are based on a partition of the polytopes <span class="math">X_i</span> governed by the precise predecessor.
+        The elements of the partition are equivalence classes of states <span class="math">x \in X_i</span> for which the set of target polytopes is identical under the control input <span class="math">U_i^J</span>, i.e. the sets
+      </p>
+      <p class="math">
+        \mathrm{PreP}(X_i, U_i^J, \{ X_j \}_{j \in J'}) \subseteq X_i
+      </p>
+      <p>
+        for all possible combinations <span class="math">i</span>, <span class="math">J</span> and <span class="math">J'</span> such that the precise predecessor is not empty.
+        The set of target polytopes <span class="math">\{ X_j \}_{j \in J'}</span> or the index set <span class="math">J'</span> are also used to denote the player 2 action.
+      </p>
+      <p>
+        To complete the game, the transition probability function <span class="math">\delta_\mathcal{G}: (G_1 \cup G_2) \times Act_\mathcal{G} \rightarrow \mathcal{D}(G_1 \cup G_2)</span> has to be defined for all combinations of player states and actions.
+        Transitions from player 1 to player 2 states are deterministic and the associated probability distributions are simply
+      </p>
+      <p class="math">
+        \delta_\mathcal{G}(X_i, U_{i}^J)((X_i, U_{i}^J)) = 1
+      </p>
+      <p>
+        for all possible combinations of <span class="math">i</span> and <span class="math">J</span>.
+
+        Player 2 actions were defined in terms of a partition of <span class="math">X_i</span>, using the precise predecessor.
+        However, this definition is not sufficient to properly capture the transition probability distributions quantitatively, as there is a possibly infinite number of distinct distributions for each such action.
+        It is undesirable to split the player 2 actions further in order to accomodate this.
+        Therefore, the probability distributions associated with transitions from player 2 to player 1 states are simplified.
+        This is possible because the problem only requires an almost sure analysis, for which the support of a probability distribution is sufficient information and all possible transition probability distributions of a player 2 action as defined above have the same support set of target states.
+        The set of all these target state polytope sets, denoted by their indices, is
+      </p>
+      <p class="math">
+        \mathrm{Supp}(X_i, U_i^J) = \big\{ J' \subseteq J \mid \mathrm{PreP}(X_i, U_i^J, \{ X_j \}_{j \in J'}) \ne \emptyset \big\} \subseteq 2^J
+      </p>
+      <p>
+        and contains all player 2 actions of state <span class="math">(X_i, U_i^J)</span>.
+        The simplified transition probability function for player 2 actions is then
+      </p>
+      <p class="math">
+        \delta_\mathcal{G}\big((X_i, U_i^J), J'\big)(X_j) = \begin{cases}
+          \frac{1}{|J'|} &amp; j \in J' \;\mathrm{and}\; J' \in \mathrm{Supp}(X_i, U_i^J) \\
+          0 &amp; \mathrm{otherwise \; ,}
+        \end{cases}
+      </p>
+      <p>
+        i.e. a uniform transition probability for all elements of the support set. <span class="math">|J|</span> is the cardinality of set <span class="math">J</span>.
+        Because of the correspondence of player 2 actions to the supports of the probability distribution function, player 2 actions are called <em>action supports</em> with the singular <em>action support</em> denoting a specific set of target polytopes (or their indices).
+        The term <em>actions</em> is used to refer to player 1 actions if not further specified.
+      </p>
+      <p>
+        To summarize, a game is played by transitioning between elements of the state space partition <span class="math">X_i</span> with player 1 first chosing a subset of the control space <span class="math">U_i^J</span>, knowing which possible states <span class="math">\{ X_j \}_{j \in J}</span> this action can lead to after the turn of player 2.
+        Player 2 then chooses a set of target states <span class="math">\{ X_j \}_{j \in J'}, \; J' \in Supp(X_i, U_i^J)</span>.
+        The next element of the state space abstraction is chosen randomly from this set.
+      </p>
+      <p>
+        Note that the game construction here omits the intermediate non-deterministic transition system introduced by <a href ="#Svorenova2017">Svorenova et al. (2017)</a>.
       </p>
 
       <h3>Product of Game and Objective Automaton</h3>
       <p>
-        ...
+        In order to analyse the abstraction states with respect to satisfaction of a GR(1) objective, the synchronous product of the abstraction-induced game graph <span class="math">\mathcal{G}</span> with the objective automaton <span class="math">\mathcal{A} = (Q, 2^\Pi, \delta_\mathcal{A}, q_0, (E, F))</span> is constructed.
+        The product game is the tuple
+      </p>
+      <p class="math">
+        \mathcal{P} = \big( P_1, P_2, Act_\mathcal{P}, \delta_\mathcal{P}, (E_\mathcal{P}, F_\mathcal{P}) \big) \;\mathrm{,}
+      </p>
+      <p>
+        with player 1 states <span class="math">P_1 = G_1 \times Q</span>, player 2 states <span class="math">P_2 = G_2 \times Q</span>, actions <span class="math">Act_\mathcal{P} = Act_\mathcal{G}</span> and one-pair Streett objective
+      </p>
+      <p class="math">
+        \begin{aligned}
+          E_\mathcal{P} &amp; = (G_1 \cup G_2) \times E \;\mathrm{,}\\
+          F_\mathcal{P} &amp; = (G_1 \cup G_2) \times F \;\mathrm{.}
+        \end{aligned}
+      </p>
+      <p>
+        The transition probability function for player 1 states is given by
+      </p>
+      <p class="math">
+        \delta_\mathcal{P}\big( (X_i, q), U_i^J) \big) \big( (X_j, U_i^J), q' \big) = \begin{cases}
+          \delta_\mathcal{G}\big( X_i, U_i^J \big)\big( (X_i, U_i^J) \big) &amp; \delta_\mathcal{A}\big(q, \Pi(X_i)\big) = q' \\
+          0 &amp; \mathrm{otherwise}
+        \end{cases}
+      </p>
+      <p>
+        and for player 2 states by
+      </p>
+      <p class="math">
+        \delta_\mathcal{P}\big( ((X_i, U_i^J), q), J') \big) \big( (X_j, q') \big) = \begin{cases}
+          \delta_\mathcal{G}\big( (X_i, U_i^J), J' \big)\big( X_j \big) &amp; q = q' \\
+          0 &amp; \mathrm{otherwise\; .}
+        \end{cases}
+      </p>
+      <p>
+        Note that changes in the associated automaton state occur only during transitions from player 1 to player 2 states.
+        To reduce the product game size, only states reachable from some <span class="math">(X_i, q_0), \; X_i \in G_1</span> are considered.
+        TODO: what about deadlock states?
       </p>
 
       <h3>Game analysis</h3>

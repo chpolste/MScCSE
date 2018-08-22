@@ -5,22 +5,30 @@ import type { Observable } from "./tools.js";
 import type { Matrix } from "./linalg.js";
 import type { KeyCallback } from "./domtools.js";
 
-import { createElement, clearNode, appendChild } from "./domtools.js";
+import { createElement, clearNode, appendChild, setAttributes } from "./domtools.js";
 import { arr, ObservableMixin } from "./tools.js";
 
 
 export class ValidationError extends Error {};
 
 
+// Common observable interface for input forms
 export interface Input<T> extends Observable<null> {
     +node: HTMLElement;
     +changeHandler: () => void;
+    // Getter for the proper value (after type conversion, ...)
     +value: T;
+    // Validity flag (value may not be usable if this is false)
     +isValid: boolean;
+    // Text value of the field (before type conversion, value as serialized
+    // string corresponding to how the user inputs it)
     text: string;
 }
 
 
+// Convenience function for associating keypresses with input fields. With each
+// invocation of the returned closure, the next entry from the given list of
+// texts is set. Wraps around.
 export function inputTextRotation<T>(input: Input<T>, texts: string[]): KeyCallback {
     if (texts.length < 1) throw new Error("texts must contain at least one choice");
     return function () {
@@ -30,6 +38,7 @@ export function inputTextRotation<T>(input: Input<T>, texts: string[]): KeyCallb
 }
 
 
+// A one-line text input element
 export class LineInput<T> extends ObservableMixin<null> implements Input<T> {
 
     +node: HTMLInputElement;
@@ -84,6 +93,7 @@ export class LineInput<T> extends ObservableMixin<null> implements Input<T> {
 }
 
 
+// A textarea that is parsed line-by-line
 export class MultiLineInput<T> extends ObservableMixin<null> implements Input<T[]> {
 
     +node: HTMLTextAreaElement;
@@ -145,8 +155,7 @@ export class MultiLineInput<T> extends ObservableMixin<null> implements Input<T[
 }
 
 
-/* Select Options */
-
+// A drop-down selection of a fixed set of values
 export class SelectInput<T> extends ObservableMixin<null> implements Input<T> {
 
     +node: HTMLSelectElement;
@@ -190,6 +199,7 @@ export class SelectInput<T> extends ObservableMixin<null> implements Input<T> {
 }
 
 
+// A true/false switch
 export class CheckboxInput extends ObservableMixin<null> implements Input<boolean> {
 
     +node: HTMLInputElement;
@@ -224,8 +234,49 @@ export class CheckboxInput extends ObservableMixin<null> implements Input<boolea
 }
 
 
-/* Matrix */
+// A slider representing a range of numeric values
+export class RangeInput extends ObservableMixin<null> implements Input<number> {
 
+    +node: HTMLInputElement;
+    +isValid: boolean;
+
+    constructor(min: number, max: number, step: number, initialValue?: number): void {
+        super();
+        this.node = document.createElement("input");
+        setAttributes(this.node, {
+            "type": "range",
+            "min": String(min),
+            "max": String(max),
+            "step": String(step)
+        });
+        // Ranges should be highly-responsive, therefore listen to input events
+        // instead of change events
+        this.node.addEventListener("input", () => this.changeHandler());
+        this.node.value = initialValue != null ? String(initialValue) : String(min);
+        this.isValid = true;
+    }
+
+    get value(): number {
+        return parseFloat(this.node.value);
+    }
+
+    get text(): string {
+        return this.node.value;
+    }
+
+    set text(text: string): void {
+        this.node.value = text;
+        this.changeHandler();
+    }
+
+    changeHandler(): void {
+        this.notify();
+    }
+
+}
+
+
+// A 2-dimensional grid of text inputs
 export class MatrixInput<T> extends ObservableMixin<null> implements Input<T[][]> {
     
     +node: HTMLTableElement;
@@ -333,6 +384,11 @@ export class MatrixInput<T> extends ObservableMixin<null> implements Input<T[][]
 }
 
 
+// A collection of items (values), represented by generic DOM nodes and with
+// associated select (true) and hover (false) events. Nodes are generated from
+// the items using the itemToNode function. A delimiter can be be inserted
+// between nodes and a message set which appears when no item is currently in
+// the collection. Mutable.
 export class SelectableNodes<T> extends ObservableMixin<boolean> {
     
     +node: HTMLDivElement;

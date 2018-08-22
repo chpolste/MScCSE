@@ -726,7 +726,7 @@ export class SystemInspector {
 
         this.keybindings = keybindings;
         this.settings = new SISettings(this.system, this.keybindings);
-        this.systemSummary = new SISummary(this.system, this.settings);
+        this.systemSummary = new SISummary(this.system);
         this.stateView = new SIStateView(this.system);
         this.actionView = new SIActionView(this.stateView);
         this.controlView = new SIControlView(system, this.stateView, this.actionView, this.keybindings);
@@ -751,7 +751,7 @@ export class SystemInspector {
             createElement("div", { "class": "right" }, [
                 createElement("div", {"class": "cols"}, [
                     createElement("div", { "class": "left" }, [
-                        createElement("h3", {}, ["Analysis Summary"]),
+                        createElement("h3", {}, ["System Summary"]),
                         this.systemSummary.node,
                         createElement("h3", {}, ["View Settings", infoBox("info_view_settings")]),
                         this.settings.node,
@@ -1024,32 +1024,55 @@ class SISystemView {
 // Textual summary of system information.
 class SISummary {
 
-    +node: HTMLDivElement;
+    +node: HTMLElement;
     +system: AbstractedLSS;
-    +settings: SISettings;
 
-    constructor(system: AbstractedLSS, settings: SISettings): void {
+    constructor(system: AbstractedLSS): void {
         this.system = system;
-        this.settings = settings;
-        this.node = document.createElement("div");
-        this.settings.toggleKind.attach(() => this.changeHandler());
+        this.node = createElement("div");
         this.changeHandler();
     }
 
     changeHandler() {
+        let count = 0;
+        let volSat = 0;
+        let volUnd = 0;
+        let volNon = 0;
+        for (let state of this.system.states.values()) {
+            if (state.isSatisfying) {
+                volSat += state.polytope.volume;
+            } else if (state.isUndecided) {
+                volUnd += state.polytope.volume;
+            } else if (!state.isOutside) {
+                volNon += state.polytope.volume;
+            }
+            count++;
+        }
+        const volAll = volSat + volUnd + volNon;
+        const pctSat = volSat / volAll * 100;
+        const pctUnd = volUnd / volAll * 100;
+        const pctNon = volNon / volAll * 100;
         clearNode(this.node);
         appendChild(this.node,
-            createElement("div", { "class": "satisfying", "title": "satisfying states" }, [
-                String(iter.count(iter.filter(s => s.isSatisfying, this.system.states.values())))
-            ]),
-            createElement("div", { "class": "undecided", "title": "undecided states" }, [
-                String(iter.count(iter.filter(s => s.isUndecided, this.system.states.values())))
-            ]),
-            createElement("div", { "class": "nonsatisfying", "title": "non-satisfying states" }, [
-                String(iter.count(iter.filter(s => s.isNonSatisfying, this.system.states.values())))
+            createElement("p", {}, [count + " states"]),
+            createElement("div", { "class": "analysis_progress" }, [
+                createElement("div", {
+                    "class": "satisfying",
+                    "style": "width:" + pctSat + "%;",
+                    "title": pctSat.toFixed(1) + "% satisfying"
+                }),
+                createElement("div", {
+                    "class": "undecided",
+                    "style": "width:" + pctUnd + "%;",
+                    "title": pctUnd.toFixed(1) + "% undecided"
+                }),
+                createElement("div", {
+                    "class": "nonsatisfying",
+                    "style": "width:" + pctNon + "%;",
+                    "title": pctNon.toFixed(1) + "% non-satisfying"
+                }),
             ])
         )
-        this.node.className = this.settings.toggleKind.value ? "state_counts colored" : "state_counts";
     }
 
 }

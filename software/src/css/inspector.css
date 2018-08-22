@@ -237,23 +237,22 @@ p.math {
     margin: 5px 5px 25px 0;
 }
 
-.state_counts {
+.analysis_progress {
     display: flex;
     flex-direction: row;
     border: 1px solid #000;
+    cursor: help;
 }
-.state_counts div {
-    text-align: center;
-    padding: 1px 0;
-    width: 100%;
+.analysis_progress div {
+    height: 8px;
 }
-.state_counts.colored div.satisfying {
+.analysis_progress div.satisfying {
     background-color: #093;
 }
-.state_counts.colored div.undecided {
+.analysis_progress div.undecided {
     background-color: #FFF;
 }
-.state_counts.colored div.nonsatisfying {
+.analysis_progress div.nonsatisfying {
     background-color: #CCC;
 }
 

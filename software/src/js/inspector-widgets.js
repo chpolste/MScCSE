@@ -13,8 +13,8 @@ import type { Input } from "./widgets-input.js";
 
 import * as presets from "./presets.js";
 import * as linalg from "./linalg.js";
+import * as dom from "./domtools.js";
 import { iter, arr, n2s, ObservableMixin } from "./tools.js";
-import { Keybindings, clearNode, appendChild, createElement } from "./domtools.js";
 import { HalfspaceInequation, polytopeType, union } from "./geometry.js";
 import { Objective, AtomicProposition, parseProposition, traverseProposition,
          stringifyProposition } from "./logic.js";
@@ -65,7 +65,7 @@ function stateKindString(state: State): string {
     }
 }
 
-function styledStateLabel(state: State, markSelected?: ?State): HTMLElement {
+function styledStateLabel(state: State, markSelected?: ?State): HTMLSpanElement {
     let attributes = {};
     if (markSelected != null && markSelected === state) {
         attributes["class"] = "selected";
@@ -74,7 +74,7 @@ function styledStateLabel(state: State, markSelected?: ?State): HTMLElement {
     } else if (state.isNonSatisfying) {
         attributes["class"] = "nonsatisfying";
     }
-    return createElement("span", attributes, [state.label]);
+    return dom.span(attributes, [state.label]);
 }
 
 function asInequation(h: Halfspace): string {
@@ -95,24 +95,24 @@ function asInequation(h: Halfspace): string {
     return  terms.join(" ") + " < " + n2s(h.offset)
 }
 
-function styledPredicateLabel(label: string, system: AbstractedLSS): HTMLElement {
-    return createElement("span", { "title": asInequation(system.getPredicate(label)) }, [label]);
+function styledPredicateLabel(label: string, system: AbstractedLSS): HTMLSpanElement {
+    return dom.span({ "title": asInequation(system.getPredicate(label)) }, [label]);
 }
 
-function evolutionEquation(nodeA: Element, nodeB: Element): HTMLElement {
-    return createElement("p", {}, [
-        "x", createElement("sub", {}, ["t+1"]),
-        " = ", nodeA, " x", createElement("sub", {}, ["t"]),
-        " + ", nodeB, " u", createElement("sub", {}, ["t"]),
-        " + w", createElement("sub", {}, ["t"])
+function evolutionEquation(nodeA: Element, nodeB: Element): HTMLParagraphElement {
+    return dom.p({}, [
+        "x", dom.create("sub", {}, ["t+1"]),
+        " = ", nodeA, " x", dom.create("sub", {}, ["t"]),
+        " + ", nodeB, " u", dom.create("sub", {}, ["t"]),
+        " + w", dom.create("sub", {}, ["t"])
     ]);
 }
 
-function tableify(m: Matrix): HTMLElement {
-    return createElement("table", { "class": "matrix" },
-        m.map(row => createElement("tr", {},
-            row.map(x => createElement("td", {}, [
-                createElement("span", {}, [String(x)])
+function tableify(m: Matrix): HTMLTableElement {
+    return dom.create("table", { "class": "matrix" },
+        m.map(row => dom.create("tr", {},
+            row.map(x => dom.create("td", {}, [
+                dom.span({}, [String(x)])
             ]))
         ))
     );
@@ -125,10 +125,8 @@ A (?)-button that reveals an infobox specified elsewhere (identified by id)
 next to it on hover.
 */
 
-function infoBox(contentID: string): Element {
-    let node = document.createElement("div");
-    node.className = "info_button";
-    node.innerHTML = "?";
+function infoBox(contentID: string): HTMLDivElement {
+    let node = dom.div({ "class": "info_button" }, ["?"]);
     node.addEventListener("mouseover", (e: MouseEvent) => {
         let content = document.getElementById(contentID);
         if (content != null) {
@@ -178,23 +176,23 @@ export class SessionManager {
     +problemSetup: ProblemSetup;
 
     constructor(problemSetup: ProblemSetup): void {
-        this.node = document.createElement("div");
+        this.node = dom.div();
         this.problemSetup = problemSetup;
         let presetSelect = new SelectInput(presets.setups);
-        let presetButton = createElement("input", {"type": "button", "value": "fill in"});
+        let presetButton = dom.create("input", {"type": "button", "value": "fill in"});
         presetButton.addEventListener("click", () => this.problemSetup.load(presetSelect.value));
-        appendChild(this.node,
+        dom.appendChildren(this.node, [
             /*
-            createElement("h3", {}, ["Load session from file"]),
-            createElement("p", {}, [createElement("input", {"type": "file", "disabled": "true"})]),
-            createElement("p", {}, [
-                createElement("input", {"type": "button", "value": "resume session", "disabled": "true"}), " ",
-                createElement("input", {"type": "button", "value": "fill in setup only", "disabled": "true"}),
+            dom.h3({}, ["Load session from file"]),
+            dom.p({}, [dom.create("input", {"type": "file", "disabled": "true"})]),
+            dom.p({}, [
+                dom.create("input", {"type": "button", "value": "resume session", "disabled": "true"}), " ",
+                dom.create("input", {"type": "button", "value": "fill in setup only", "disabled": "true"}),
             ]),
             */
-            createElement("p", {}, ["Start from a preset:"]),
-            createElement("p", {}, [presetSelect.node, " ", presetButton])
-        );
+            dom.p({}, ["Start from a preset:"]),
+            dom.p({}, [presetSelect.node, " ", presetButton])
+        ]);
     }
 
 }
@@ -226,7 +224,7 @@ export class ProblemSetup {
     constructor(callback: ProblemCallback) {
         this.callback = callback;
 
-        this.node = document.createElement("form");
+        this.node = dom.create("form");
         this.ssDim = new SelectInput({"1-dimensional": 1, "2-dimensional": 2}, "2-dimensional");
         this.csDim = new SelectInput({"1-dimensional": 1, "2-dimensional": 2}, "2-dimensional");
         this.equation = new EvolutionEquationInput(this.ssDim, this.csDim);
@@ -237,7 +235,7 @@ export class ProblemSetup {
         this.predicates = new PredicatesInput(this.ssDim);
         this.objective = new ObjectiveInput(this.predicates);
 
-        let submit = createElement("input", {"type": "submit", "value": "run inspector"});
+        let submit = dom.create("input", {"type": "submit", "value": "run inspector"});
         submit.addEventListener("click", (e: Event) => {
             if (this.node.checkValidity()) {
                 e.preventDefault();
@@ -245,30 +243,30 @@ export class ProblemSetup {
             }
         });
 
-        appendChild(this.node,
-            createElement("h3", {}, ["Dimensions"]),
-            createElement("p", {}, [this.ssDim.node, " state space"]),
-            createElement("p", {}, [this.csDim.node, " control space"]),
-            createElement("h3", {}, ["Evolution Equation"]), this.equation.node,
-            createElement("div", { "class": "inspector", "style": "margin:0;" }, [
-                createElement("div", { "class": "left" }, [
+        dom.appendChildren(this.node, [
+            dom.h3({}, ["Dimensions"]),
+            dom.p({}, [this.ssDim.node, " state space"]),
+            dom.p({}, [this.csDim.node, " control space"]),
+            dom.h3({}, ["Evolution Equation"]), this.equation.node,
+            dom.div({ "class": "inspector", "style": "margin:0;" }, [
+                dom.div({ "class": "left" }, [
                     this.preview.node,
-                    createElement("h3", {}, ["Objective"]), this.objective.node
+                    dom.h3({}, ["Objective"]), this.objective.node
                 ]),
-                createElement("div", { "class": "right" }, [
-                    createElement("h3", {}, ["Control Space Polytope"]),
+                dom.div({ "class": "right" }, [
+                    dom.h3({}, ["Control Space Polytope"]),
                     this.cs.node,
-                    createElement("h3", {}, ["Random Space Polytope"]),
+                    dom.h3({}, ["Random Space Polytope"]),
                     this.rs.node,
-                    createElement("h3", {}, ["State Space Polytope"]),
+                    dom.h3({}, ["State Space Polytope"]),
                     this.ss.node,
-                    createElement("h3", {}, ["Initial State Space Decomposition"]),
+                    dom.h3({}, ["Initial State Space Decomposition"]),
                     this.predicates.node
                 ])
             ]),
-            createElement("h3", {}, ["Continue"]),
-            createElement("p", {}, [submit])
-        );
+            dom.h3({}, ["Continue"]),
+            dom.p({}, [submit])
+        ]);
 
         this.equation.A.attach(() => this.draw());
         this.equation.B.attach(() => this.draw());
@@ -329,7 +327,7 @@ export class ProblemSetup {
 
 class ProblemSetupSystemPreview {
 
-    +node: HTMLElement;
+    +node: HTMLDivElement;
     +plot: Plot;
     +layer: FigureLayer;
 
@@ -337,7 +335,7 @@ class ProblemSetupSystemPreview {
         let fig = new Figure();
         this.plot = new AxesPlot([630, 420], fig, autoProjection(3/2));
         this.layer = fig.newLayer({ "stroke": "#000", "stroke-width": "1" });
-        this.node = createElement("div", {}, [this.plot.node]);
+        this.node = dom.div({}, [this.plot.node]);
     }
 
     drawLSS(lss: LSS): void {
@@ -377,7 +375,7 @@ class EvolutionEquationInput {
         this.csDim = csDim;
         this.A = new MatrixInput(EvolutionEquationInput.parseNumber, [2, 2], 5);
         this.B = new MatrixInput(EvolutionEquationInput.parseNumber, [2, 2], 5);
-        this.node = createElement("div", {}, [evolutionEquation(this.A.node, this.B.node)]);
+        this.node = dom.div({}, [evolutionEquation(this.A.node, this.B.node)]);
         ssDim.attach(() => {
             this.A.shape = [ssDim.value, ssDim.value];
             this.B.shape = [ssDim.value, csDim.value];
@@ -438,9 +436,7 @@ class PolytopeInput extends ObservableMixin<null> implements Input<ConvexPolytop
         let fig = new Figure();
         this.previewLayer = fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#EEE" });
         this.preview = new AxesPlot([90, 90], fig, autoProjection(4/3));
-        this.node = document.createElement("div");
-        this.node.className = "polytope_builder";
-        appendChild(this.node, this.predicates.node, this.preview.node);
+        this.node = dom.div({ "class": "polytope_builder" }, [this.predicates.node, this.preview.node]);
         this.changeHandler();
     }
 
@@ -549,18 +545,18 @@ class PredicatesInput extends ObservableMixin<null> implements Input<[Halfspace[
 // Objective specification
 class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
 
-    +node: HTMLElement;
+    +node: HTMLDivElement;
     +predicates: Input<[Halfspace[], string[]]>;
     +kind: Input<ObjectiveKind>;
-    +termContainer: HTMLElement;
+    +termContainer: HTMLDivElement;
     terms: Input<Proposition>[];
 
     constructor(predicates: Input<[Halfspace[], string[]]>): void {
         super();
         this.terms = [];
         this.kind = new SelectInput(presets.objectives, "Reachability");
-        const formula = createElement("code", {}, []);
-        this.termContainer = createElement("div", {}, []);
+        const formula = dom.create("code", {}, []);
+        this.termContainer = dom.div({}, []);
         this.kind.attach(() => {
             const objKind = this.kind.value;
             formula.innerHTML = objKind.formula;
@@ -578,8 +574,8 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
             for (let term of this.terms) term.changeHandler()
         });
 
-        this.node = createElement("div", {}, [
-            createElement("p", {}, [this.kind.node, ": ", formula, ", where"]),
+        this.node = dom.div({}, [
+            dom.p({}, [this.kind.node, ": ", formula, ", where"]),
             this.termContainer
         ]);
     }
@@ -617,16 +613,17 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
     // Update term input fields to match variable requirements of objective
     updateTerms(variables: string[]): void {
         const terms = [];
-        clearNode(this.termContainer);
+        const termNodes = [];
         for (let i = 0; i < variables.length; i++) {
             // Preserve contents of previous term input fields
             const oldText = i < this.terms.length ? this.terms[i].text : "";
             terms.push(new LineInput(s => this.parseTerm(s), 70, oldText));
-            this.termContainer.appendChild(createElement("label", {}, [
-                createElement("code", {}, [variables[i]]), " = ", terms[i].node
+            termNodes.push(dom.create("label", {}, [
+                dom.create("code", {}, [variables[i]]), " = ", terms[i].node
             ]));
             terms[i].attach(() => this.changeHandler());
         }
+        dom.replaceChildren(this.termContainer, termNodes);
         this.terms = terms;
     }
 
@@ -651,7 +648,7 @@ A summary of the problem setup.
 
 export class ProblemSummary {
 
-    +node: HTMLElement;
+    +node: HTMLDivElement;
 
     constructor(system: AbstractedLSS, objective: Objective): void {
         const csFig = new Figure();
@@ -675,25 +672,25 @@ export class ProblemSummary {
             formula = formula.replace(symbol, stringifyProposition(prop));
         }
 
-        this.node = createElement("div", { "class": "problem_summary" }, [
+        this.node = dom.div({ "class": "problem_summary" }, [
             evolutionEquation(tableify(system.lss.A), tableify(system.lss.B)),
-            createElement("div", { "class": "boxes" }, [
-                createElement("div", {}, [createElement("h3", {}, ["Control Space Polytope"]), cs.node]),
-                createElement("div", {}, [createElement("h3", {}, ["Random Space Polytope"]), rs.node]),
-                createElement("div", {}, [createElement("h3", {}, ["State Space Polytope"]), ss.node]),
-                createElement("div", {}, [
-                    createElement("h3", {}, ["Labeled Predicates"]),
+            dom.div({ "class": "boxes" }, [
+                dom.div({}, [dom.h3({}, ["Control Space Polytope"]), cs.node]),
+                dom.div({}, [dom.h3({}, ["Random Space Polytope"]), rs.node]),
+                dom.div({}, [dom.h3({}, ["State Space Polytope"]), ss.node]),
+                dom.div({}, [
+                    dom.h3({}, ["Labeled Predicates"]),
                     ...Array.from(system.predicates.entries()).map(([label, halfspace]) =>
-                        createElement("p", {}, [
+                        dom.p({}, [
                             label, ": ",
-                            createElement("span", {}, [asInequation(halfspace)]) // TODO: use KaTeX
+                            dom.span({}, [asInequation(halfspace)]) // TODO: use KaTeX
                         ])
                     )
                 ])
             ]),
-            createElement("div", {}, [
-                createElement("h3", {}, ["Objective"]),
-                createElement("p", {}, [objective.kind.name, ": ", createElement("code", {}, [formula])]) // TODO: use KaTeX
+            dom.div({}, [
+                dom.h3({}, ["Objective"]),
+                dom.p({}, [objective.kind.name, ": ", dom.create("code", {}, [formula])]) // TODO: use KaTeX
             ])
         ]);
     }
@@ -711,9 +708,9 @@ Sub-widgets: SISystemView, SISettings, SISummary, SIStateView,
 
 export class SystemInspector {
 
-    +node: HTMLElement;
+    +node: HTMLDivElement;
 
-    +keybindings: Keybindings;
+    +keybindings: dom.Keybindings;
     +systemSummary: SISummary;
     +stateView: SIStateView;
     +actionView: SIActionView;
@@ -725,7 +722,7 @@ export class SystemInspector {
     system: AbstractedLSS;
     objective: Objective;
 
-    constructor(system: AbstractedLSS, objective: Objective, keybindings: Keybindings) {
+    constructor(system: AbstractedLSS, objective: Objective, keybindings: dom.Keybindings) {
         this.system = system;
         this.objective = objective;
 
@@ -745,33 +742,33 @@ export class SystemInspector {
             this.actionSupportView
         );
 
-        this.node = createElement("div", { "class": "inspector" }, [
-            createElement("div", { "class": "left" }, [
+        this.node = dom.div({ "class": "inspector" }, [
+            dom.div({ "class": "left" }, [
                 this.systemView.plot.node,
-                createElement("h3", {}, ["System Analysis", infoBox("info_analysis")]),
+                dom.h3({}, ["System Analysis", infoBox("info_analysis")]),
                 "TODO",
-                createElement("h3", {}, ["Abstraction Refinement", infoBox("info_abstraction_refinement")]),
+                dom.h3({}, ["Abstraction Refinement", infoBox("info_abstraction_refinement")]),
                 "TODO"
             ]),
-            createElement("div", { "class": "right" }, [
-                createElement("div", {"class": "cols"}, [
-                    createElement("div", { "class": "left" }, [
-                        createElement("h3", {}, ["System Summary"]),
+            dom.div({ "class": "right" }, [
+                dom.div({"class": "cols"}, [
+                    dom.div({ "class": "left" }, [
+                        dom.h3({}, ["System Summary"]),
                         this.systemSummary.node,
-                        createElement("h3", {}, ["View Settings", infoBox("info_view_settings")]),
+                        dom.h3({}, ["View Settings", infoBox("info_view_settings")]),
                         this.settings.node,
                     ]),
-                    createElement("div", { "class": "right" }, [
-                        createElement("h3", {}, ["Control/Path", infoBox("info_pathcontrol")]),
+                    dom.div({ "class": "right" }, [
+                        dom.h3({}, ["Control/Path", infoBox("info_pathcontrol")]),
                         this.controlView.node,
-                        createElement("h3", {}, ["Selected State", infoBox("info_selected_state")]),
+                        dom.h3({}, ["Selected State", infoBox("info_selected_state")]),
                         this.stateView.node
                     ])
                 ]),
-                createElement("div", { "class": "rest" }, [
-                    createElement("h3", {}, ["Actions", infoBox("info_actions")]),
+                dom.div({ "class": "rest" }, [
+                    dom.h3({}, ["Actions", infoBox("info_actions")]),
                     this.actionView.node,
-                    createElement("h3", {}, ["Action Supports", infoBox("info_action_supports")]),
+                    dom.h3({}, ["Action Supports", infoBox("info_action_supports")]),
                     this.actionSupportView.node
                 ]),
             ])
@@ -787,15 +784,15 @@ type HoverOperatorWrapper = (origin: State, target: State) => ConvexPolytopeUnio
 // Settings panel for the main view.
 class SISettings extends ObservableMixin<null> {
 
-    +node: HTMLElement;
+    +node: HTMLDivElement;
     +toggleKind: Input<boolean>;
     +toggleLabel: Input<boolean>;
     +toggleVectorField: Input<boolean>;
     +highlight: Input<ClickOperatorWrapper>;
-    +highlightNode: HTMLElement;
+    +highlightNode: HTMLDivElement;
     +strategy: Input<string>;
     
-    constructor(system: AbstractedLSS, keybindings: Keybindings): void {
+    constructor(system: AbstractedLSS, keybindings: dom.Keybindings): void {
         super();
         this.toggleKind = new CheckboxInput(true);
         this.toggleLabel = new CheckboxInput(false);
@@ -811,12 +808,12 @@ class SISettings extends ObservableMixin<null> {
             "Robust Attractor": state => lss.attrR(lss.stateSpace, lss.controlSpace, [state.polytope])
         }, "None");
 
-        this.node = createElement("div", { "class": "settings" }, [
-            createElement("label", {}, [this.toggleKind.node, "analysis ", createElement("u", {}, ["c"]), "olors"]),
-            createElement("label", {}, [this.toggleLabel.node, "state ", createElement("u", {}, ["l"]), "abels"]),
-            createElement("label", {}, [this.toggleVectorField.node, createElement("u", {}, ["v"]), "ector field"]),
-            createElement("p", { "class": "highlight" }, [
-                "Highlight ", createElement("u", {}, ["o"]), "perator:", this.highlight.node
+        this.node = dom.div({ "class": "settings" }, [
+            dom.create("label", {}, [this.toggleKind.node, "analysis ", dom.create("u", {}, ["c"]), "olors"]),
+            dom.create("label", {}, [this.toggleLabel.node, "state ", dom.create("u", {}, ["l"]), "abels"]),
+            dom.create("label", {}, [this.toggleVectorField.node, dom.create("u", {}, ["v"]), "ector field"]),
+            dom.p({ "class": "highlight" }, [
+                "Highlight ", dom.create("u", {}, ["o"]), "perator:", this.highlight.node
             ])
         ]);
 
@@ -1029,12 +1026,12 @@ class SISystemView {
 // Textual summary of system information.
 class SISummary {
 
-    +node: HTMLElement;
+    +node: HTMLDivElement;
     +system: AbstractedLSS;
 
     constructor(system: AbstractedLSS): void {
         this.system = system;
-        this.node = createElement("div");
+        this.node = dom.div();
         this.changeHandler();
     }
 
@@ -1057,27 +1054,26 @@ class SISummary {
         const pctSat = volSat / volAll * 100;
         const pctUnd = volUnd / volAll * 100;
         const pctNon = volNon / volAll * 100;
-        clearNode(this.node);
-        appendChild(this.node,
-            createElement("p", {}, [count + " states"]),
-            createElement("div", { "class": "analysis_progress" }, [
-                createElement("div", {
+        dom.replaceChildren(this.node, [
+            dom.p({}, [count + " states"]),
+            dom.div({ "class": "analysis_progress" }, [
+                dom.div({
                     "class": "satisfying",
                     "style": "width:" + pctSat + "%;",
                     "title": pctSat.toFixed(1) + "% satisfying"
                 }),
-                createElement("div", {
+                dom.div({
                     "class": "undecided",
                     "style": "width:" + pctUnd + "%;",
                     "title": pctUnd.toFixed(1) + "% undecided"
                 }),
-                createElement("div", {
+                dom.div({
                     "class": "nonsatisfying",
                     "style": "width:" + pctNon + "%;",
                     "title": pctNon.toFixed(1) + "% non-satisfying"
                 }),
             ])
-        )
+        ]);
     }
 
 }
@@ -1089,15 +1085,15 @@ class SIStateView extends ObservableMixin<null> {
 
     +node: Element;
     +predicates: SelectableNodes<string>;
-    +summary: HTMLElement;
+    +summary: HTMLDivElement;
     _selection: ?State;
 
     constructor(system: AbstractedLSS): void {
         super();
-        this.summary = createElement("div", { "class": "summary" });
+        this.summary = dom.div({ "class": "summary" });
         this.predicates = new SelectableNodes(p => styledPredicateLabel(p, system), ", ", "-");
         this.predicates.node.className = "predicates";
-        this.node = createElement("div", { "class": "state_view" }, [
+        this.node = dom.div({ "class": "state_view" }, [
             this.summary, this.predicates.node
         ]);
         this.changeHandler();
@@ -1113,22 +1109,21 @@ class SIStateView extends ObservableMixin<null> {
     }
 
     changeHandler() {
-        clearNode(this.summary);
-        let state = this._selection;
+        const state = this._selection;
+        const nodes = [];
         if (state != null) {
             this.predicates.items = Array.from(state.predicates);
             const actionCount = state.actions.length;
             const actionText = actionCount === 1 ? " action" : " actions";
-            appendChild(this.summary,
-                createElement("p", {}, [
-                    styledStateLabel(state, state),
-                    " (", stateKindString(state), ", ", String(actionCount), actionText, ")"
-                ])
-            );
+            nodes.push(dom.p({}, [
+                styledStateLabel(state, state),
+                " (", stateKindString(state), ", ", String(actionCount), actionText, ")"
+            ]));
         } else {
             this.predicates.items = [];
-            appendChild(this.summary, createElement("p", {}, ["no selection"]));
+            nodes.push(dom.p({}, ["no selection"]));
         }
+        dom.replaceChildren(this.summary, nodes);
         this.notify();
     }
 
@@ -1154,7 +1149,7 @@ class SIActionView extends SelectableNodes<Action> {
     }
 
     static asNode(action: Action): Element {
-        return createElement("div", {}, [
+        return dom.div({}, [
             styledStateLabel(action.origin, action.origin), " → {",
             ...arr.intersperse(", ", action.targets.map(
                 target => styledStateLabel(target, action.origin)
@@ -1188,7 +1183,7 @@ class SIActionSupportView extends SelectableNodes<ActionSupport> {
     }
 
     static asNode(support: ActionSupport): Element {
-        return createElement("div", {}, [
+        return dom.div({}, [
             "{",
             ...arr.intersperse(", ", support.targets.map(
                 target => styledStateLabel(target, support.action.origin)
@@ -1206,7 +1201,7 @@ class SIActionSupportView extends SelectableNodes<ActionSupport> {
 // action.
 class SIControlView extends ObservableMixin<null> {
 
-    +node: HTMLElement;
+    +node: HTMLDivElement;
     +system: AbstractedLSS;
     +stateView: SIStateView;
     +actionView: SIActionView;
@@ -1218,7 +1213,7 @@ class SIControlView extends ObservableMixin<null> {
     _path: Path;
 
     constructor(system: AbstractedLSS, stateView: SIStateView,
-                actionView: SIActionView, keybindings: Keybindings): void {
+                actionView: SIActionView, keybindings: dom.Keybindings): void {
         super();
         this.system = system;
         this.actionView = actionView;
@@ -1246,9 +1241,9 @@ class SIControlView extends ObservableMixin<null> {
             // TODO: round-robin strategy
         }, "random");
         // Path creation and removal buttons
-        const newPath = createElement("button", {}, ["new ", createElement("u", {}, ["p"]), "ath"]);
+        const newPath = dom.create("button", {}, ["new ", dom.create("u", {}, ["p"]), "ath"]);
         newPath.addEventListener("click", () => this._newPath());
-        const clearPath = createElement("button", {}, ["clear"]);
+        const clearPath = dom.create("button", {}, ["clear"]);
         clearPath.addEventListener("click", () => this._clearPath());
         // Path length slider: adjusts how many steps of the path are displayed
         // in the system view
@@ -1258,14 +1253,14 @@ class SIControlView extends ObservableMixin<null> {
         keybindings.bind("s", inputTextRotation(this.strategyGen, ["Random"]));
         keybindings.bind("p", () => this._newPath());
 
-        this.node = createElement("div", { "class": "controlpath" }, [
+        this.node = dom.div({ "class": "controlpath" }, [
             view.node,
-            createElement("div", {}, [
-                createElement("p", {}, [
-                    "Control ", createElement("u", {}, ["s"]), "trategy:",
+            dom.div({}, [
+                dom.p({}, [
+                    "Control ", dom.create("u", {}, ["s"]), "trategy:",
                     this.strategyGen.node
                 ]),
-                createElement("p", { "class": "path" }, [
+                dom.p({ "class": "path" }, [
                     this.pathLength.node, newPath, " ", clearPath
                 ])
             ])

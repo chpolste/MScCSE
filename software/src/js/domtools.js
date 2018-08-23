@@ -2,81 +2,99 @@
 "use strict";
 
 
+/* DOM Element Creation */
+
+type ElementChild = Element | string;
+type ElementChildren = ElementChild[];
 export type ElementAttributes = { [string]: string };
 export type ElementEvents = { [string]: () => void };
-type ElementChild = Element | string;
-type ElementCreator<T> = (tag: string, attributes?: ElementAttributes, children?: ElementChild[]) => T;
 
-export function createElementFactory<T: Element>(create: (tag: string) => T): ElementCreator<T> {
-    return function (tag, attributes, children) {
-        let node = create(tag);
-        if (attributes != null) {
-            for (let attr in attributes) {
-                node.setAttribute(attr, attributes[attr]);
-            }
-        }
-        if (children != null) {
-            for (let child of children) {
-                node.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
-            }
-        }
-        return node;
-    }
+
+// HTML DOM nodes
+export function create<T: HTMLElement>(tag: *, attributes?: ElementAttributes, children?: ElementChildren): T {
+    const node = document.createElement(tag);
+    if (attributes != null) setAttributes(node, attributes);
+    if (children != null) appendChildren(node, children);
+    return node;
 }
+// Some common tags
+export const p = (attrs?: ElementAttributes, children?: ElementChildren) => create("p", attrs, children);
+export const h3 = (attrs?: ElementAttributes, children?: ElementChildren) => create("h3", attrs, children);
+export const div = (attrs?: ElementAttributes, children?: ElementChildren) => create("div", attrs, children);
+export const span = (attrs?: ElementAttributes, children?: ElementChildren) => create("span", attrs, children);
 
+
+// SVG DOM nodes
 export const SVGNS = "http://www.w3.org/2000/svg";
-
-export const createElement: ElementCreator<HTMLElement> = createElementFactory(
-    tag => document.createElement(tag)
-);
-export const createElementSVG: ElementCreator<Element> = createElementFactory(
-    tag => document.createElementNS(SVGNS, tag)
-);
-
-export function clearNode(node: Element) {
-    while(node.firstChild) {
-        node.removeChild(node.firstChild);
-    }
+export function createSVG(tag: *, attributes?: ElementAttributes, children?: ElementChildren): Element {
+    const node = document.createElementNS(SVGNS, tag);
+    if (attributes != null) setAttributes(node, attributes);
+    if (children != null) appendChildren(node, children);
     return node;
 }
 
-export function replaceNode(target: ?Element, substitute: ?Element): void {
-    if (target != null && substitute != null) {
-        let targetID = target.getAttribute("id");
-        let substituteID = substitute.getAttribute("id");
-        if (targetID != null && substituteID === null) {
-            substitute.setAttribute("id", targetID);
-        }
-        target.replaceWith(substitute);
+// Automatic text node creation for strings
+export function nodeify(item: ElementChild): Text|Element {
+    return typeof item === "string" ? document.createTextNode(item) : item;
+}
+
+
+/* Node Convenience Functions */
+
+export function setAttributes(node: Element, attributes: ElementAttributes): void {
+    for (let name in attributes) {
+        node.setAttribute(name, attributes[name]);
     }
 }
 
-export function appendChild(parentNode: ?Element, ...childNodes: (null|Element|string)[]) {
-    if (parentNode != null) {
-        for (let childNode of childNodes) {
-            if (childNode != null) {
-                parentNode.appendChild(typeof childNode === "string" ? document.createTextNode(childNode) : childNode);
-            }
-        }
+export function addEventListeners(node: Element, handlers: ElementEvents): void {
+    for (let event in handlers) {
+        node.addEventListener(event, handlers[event]);
     }
 }
 
-export function setAttributes(node: ?Element, attributes: ?ElementAttributes): void {
-    if (node != null && attributes != null) {
-        for (let name in attributes) {
-            node.setAttribute(name, attributes[name]);
-        }
+
+/* Children Convenience Functions */
+
+// Remove all children from a node
+export function removeChildren(node: Element): void {
+    while(node.firstChild) {
+        node.removeChild(node.firstChild);
     }
 }
 
-export function addEventListeners(node: ?Element, handlers: ?ElementEvents): void {
-    if (node != null && handlers != null) {
-        for (let event in handlers) {
-            node.addEventListener(event, handlers[event]);
-        }
+// Append children while converting string children to text nodes
+export function appendChildren(parentNode: Element, children: Iterable<ElementChild>) {
+    for (let child of children) {
+        parentNode.appendChild(nodeify(child));
     }
 }
 
+// Replace all children of a node with the given new ones
+// TODO: the code could be nicer...
+export function replaceChildren(parentNode: Element, childNodes: ElementChild[]): void {
+    // Get static list of current nodes
+    const oldNodes = Array.from(parentNode.childNodes);
+    const nOld = oldNodes.length;
+    const nNew = childNodes.length;
+    // Replace until old or new nodes run out
+    let i = 0;
+    while (i < nOld && i < nNew) {
+        parentNode.replaceChild(nodeify(childNodes[i]), oldNodes[i]);
+        i++;
+    }
+    // Remove superfluous old nodes (if exist)
+    for (let j = i; j < nOld; j++) {
+        parentNode.removeChild(oldNodes[j]);
+    }
+    // Add additional new nodes (if exist)
+    for (let j = i; j < nNew; j++) {
+        parentNode.appendChild(nodeify(childNodes[j]));
+    }
+}
+
+
+/* Global Document State Management */
 
 export function setCursor(cursor: string): void {
     let body = document.body;

@@ -5,7 +5,7 @@ import type { Observable } from "./tools.js";
 import type { Matrix } from "./linalg.js";
 import type { KeyCallback } from "./domtools.js";
 
-import { createElement, clearNode, appendChild, setAttributes } from "./domtools.js";
+import * as dom from "./domtools.js";
 import { arr, ObservableMixin } from "./tools.js";
 
 
@@ -48,8 +48,7 @@ export class LineInput<T> extends ObservableMixin<null> implements Input<T> {
     constructor(parse: (txt: string) => T, size?: number, initialText?: string) {
         super();
         this.parse = parse;
-        this.node = document.createElement("input");
-        this.node.type = "text";
+        this.node = dom.create("input", { "type": "text" });
         if (size != null) {
             this.size = size;
         }
@@ -102,7 +101,7 @@ export class MultiLineInput<T> extends ObservableMixin<null> implements Input<T[
 
     constructor(parseLine: (txt: string) => T, size?: [number, number], initialText?: string) {
         super();
-        this.node = document.createElement("textarea");
+        this.node = dom.create("textarea");
         this.node.addEventListener("change", () => this.changeHandler());
         this.parseLine = parseLine;
         if (size != null) {
@@ -165,12 +164,11 @@ export class SelectInput<T> extends ObservableMixin<null> implements Input<T> {
     constructor(options: { [string]: T }, initialText?: string): void {
         super();
         this.options = options;
-        this.node = document.createElement("select");
+        const optionNodes = [];
         for (let key in options) {
-            let optionNode = document.createElement("option");
-            optionNode.innerHTML = String(key);
-            this.node.appendChild(optionNode);
+            optionNodes.push(dom.create("option", {}, [key]));
         }
+        this.node = dom.create("select", {}, optionNodes);
         this.node.addEventListener("change", () => this.changeHandler());
         this.text = (initialText != null && options.hasOwnProperty(initialText)) ? initialText : Object.keys(options)[0];
         this.isValid = true;
@@ -207,8 +205,7 @@ export class CheckboxInput extends ObservableMixin<null> implements Input<boolea
 
     constructor(initialValue?: boolean): void {
         super();
-        this.node = document.createElement("input");
-        this.node.setAttribute("type", "checkbox");
+        this.node = dom.create("input", { "type": "checkbox" });
         this.node.addEventListener("change", () => this.changeHandler());
         this.node.checked = initialValue != null && initialValue;
         this.isValid = true;
@@ -242,17 +239,16 @@ export class RangeInput extends ObservableMixin<null> implements Input<number> {
 
     constructor(min: number, max: number, step: number, initialValue?: number): void {
         super();
-        this.node = document.createElement("input");
-        setAttributes(this.node, {
+        this.node = dom.create("input", {
             "type": "range",
             "min": String(min),
             "max": String(max),
-            "step": String(step)
+            "step": String(step),
+            "value": initialValue != null ? String(initialValue) : String(min)
         });
         // Ranges should be highly-responsive, therefore listen to input events
         // instead of change events
         this.node.addEventListener("input", () => this.changeHandler());
-        this.node.value = initialValue != null ? String(initialValue) : String(min);
         this.isValid = true;
     }
 
@@ -292,8 +288,7 @@ export class MatrixInput<T> extends ObservableMixin<null> implements Input<T[][]
         this.parse = parse;
         this._shape = shape;
         this._size = size;
-        this.node = document.createElement("table");
-        this.node.className = "matrix";
+        this.node = dom.create("table", { "class": "matrix" });
         this._createLineInputs();
         if (initialText != null) {
             this.text = initialText;
@@ -361,20 +356,21 @@ export class MatrixInput<T> extends ObservableMixin<null> implements Input<T[][]
     }
 
     _createLineInputs(): void {
-        clearNode(this.node);
-        let [nrows, ncols] = this._shape;
+        const [nrows, ncols] = this._shape;
         this.lineInputs = [];
-        let callback = () => this.changeHandler();
+        const callback = () => this.changeHandler();
+        const trs = [];
         for (let i = 0; i < nrows; i++) {
             let tds = [];
             for (let j = 0; j < ncols; j++) {
                 let input: LineInput<T> = new LineInput(this.parse, this._size, "");
                 input.attach(callback);
-                tds.push(createElement("td", {}, [input.node]));
+                tds.push(dom.create("td", {}, [input.node]));
                 this.lineInputs.push(input);
             }
-            this.node.appendChild(createElement("tr", {}, tds));
+            trs.push(dom.create("tr", {}, tds));
         }
+        dom.replaceChildren(this.node, trs);
     }
 
     changeHandler(): void {
@@ -404,17 +400,13 @@ export class SelectableNodes<T> extends ObservableMixin<boolean> {
         this.itemToNode = itemToNode;
         this.delimiter = delimiter;
         this.emptyMessage = emptyMessage;
-
         this._selection = null;
         this.hoverSelection = null;
         this.nodeMap = new Map();
-
-        this.node = document.createElement("div");
-        this.node.innerHTML = emptyMessage;
+        this.node = dom.div({}, [emptyMessage]);
     }
 
     set items(items: T[]): void {
-        clearNode(this.node);
         this.nodeMap.clear();
         this.selection = null;
         this.hoverSelection = null;
@@ -423,7 +415,7 @@ export class SelectableNodes<T> extends ObservableMixin<boolean> {
         } else {
             let itemNodes = [];
             for (let item of items) {
-                let node = this.itemToNode(item);
+                const node = this.itemToNode(item);
                 node.addEventListener("click", () => this.onClick(item));
                 node.addEventListener("mouseover", () => this.onMouseOver(item));
                 node.addEventListener("mouseout", () => this.onMouseOut(item));
@@ -433,7 +425,7 @@ export class SelectableNodes<T> extends ObservableMixin<boolean> {
             if (this.delimiter != null) {
                 itemNodes = arr.intersperse(this.delimiter, itemNodes);
             }
-            appendChild(this.node, ...itemNodes);
+            dom.replaceChildren(this.node, itemNodes);
         }
         this.notify();
     }

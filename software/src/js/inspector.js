@@ -6,15 +6,15 @@ import type { Objective } from "./logic.js";
 import type { Input } from "./widgets-input.js";
 
 import * as presets from "./presets.js";
+import * as dom from "./domtools.js";
 import { LSS, AbstractedLSS } from "./system.js";
-import { Keybindings, clearNode, appendChild, createElement } from "./domtools.js";
 import { SessionManager, ProblemSetup, ProblemSummary, SystemInspector } from "./inspector-widgets.js";
 
 
 const contentNode = document.getElementById("inspector");
 if (contentNode == null) throw new Error();
 
-const keybindings = new Keybindings();
+const keybindings = new dom.Keybindings();
 
 const problemSetup = new ProblemSetup(function (lss, predicates, predicateLabels, objective) {
 
@@ -27,21 +27,13 @@ const problemSetup = new ProblemSetup(function (lss, predicates, predicateLabels
     const inspector = new SystemInspector(system, objective, keybindings);
 
     if (contentNode == null) throw new Error();
-    clearNode(contentNode);
-    appendChild(contentNode,
-        problem.node,
-        inspector.node
-    );
+    dom.replaceChildren(contentNode, [problem.node, inspector.node]);
     contentNode.scrollIntoView();
 
 });
 const sessionManager = new SessionManager(problemSetup);
 
-clearNode(contentNode);
-appendChild(contentNode,
-    sessionManager.node,
-    problemSetup.node
-);
+dom.replaceChildren(contentNode, [sessionManager.node, problemSetup.node]);
 // Temporarily start inspector with preset 2 immediately
 problemSetup.load(presets.setups["Svorenova et al. (2017)'s Double Integrator"]);
 //problemSetup.submit();

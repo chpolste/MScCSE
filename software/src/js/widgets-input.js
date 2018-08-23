@@ -246,6 +246,7 @@ export class RangeInput extends ObservableMixin<null> implements Input<number> {
             "step": String(step),
             "value": initialValue != null ? String(initialValue) : String(min)
         });
+        this.node.title = this.text;
         // Ranges should be highly-responsive, therefore listen to input events
         // instead of change events
         this.node.addEventListener("input", () => this.changeHandler());
@@ -261,11 +262,14 @@ export class RangeInput extends ObservableMixin<null> implements Input<number> {
     }
 
     set text(text: string): void {
-        this.node.value = text;
+        if (parseFloat(text) !== NaN) {
+            this.node.value = text;
+        }
         this.changeHandler();
     }
 
     changeHandler(): void {
+        this.node.title = this.text;
         this.notify();
     }
 

@@ -27,6 +27,10 @@ body > div {
     width: 1000px;
     background-color: transparent;
     padding: 0;
+    color: #666;
+}
+.navigation a {
+    color: #333;
 }
 
 h1 {
@@ -48,7 +52,7 @@ h2 {
 
 h3 {
     margin: 14pt 0 6pt 0;
-    font-size: 12pt;
+    font-size: 13pt;
     font-weight: normal;
 }
 body > div > h3:first-child {
@@ -63,8 +67,23 @@ u {
     text-decoration: underline;
 }
 
-
 /* Wide insert: interactive content */
+
+hr {
+    margin: 7px auto;
+    border: 1px solid #CCC;
+}
+hr.wide1 {
+    width: 1050px;
+}
+hr.wide2 {
+    width: 1100px;
+    border-color: #BBB;
+}
+hr.wide3 {
+    width: 1150px;
+    border-color: #AAA;
+}
 
 h2.wide {
     border-bottom: 0;
@@ -72,7 +91,7 @@ h2.wide {
 
 div.wide {
     width: 100%;
-    margin: 0 auto 25px auto;
+    margin: 0 auto;
     padding: 25px 0;
     border-top: 2px solid #999;
     border-bottom: 2px solid #999;
@@ -83,8 +102,11 @@ div.wide {
     margin: 0 auto;
 }
 
-#inspector {
+#application {
     line-height: 1.2;
+}
+#application h3 {
+    font-size: 12pt;
 }
 
 
@@ -155,7 +177,7 @@ a:hover {
 }
 .inspector > .left {
     width: 640px;
-    margin-right: 20px;
+    margin-right: 30px;
     padding: 0 20px 0 0;
 }
 .inspector > .right {
@@ -213,7 +235,7 @@ a:hover {
     line-height: 1.5;
 }
 .info_content ul {
-    margin: 0.4em 0;
+    margin: -2pt 0 4pt 0;
     padding: 0 0 0 1.5em;
 }
 .info_content p:last-child {
@@ -231,8 +253,7 @@ a:hover {
 }
 
 p.math {
-    padding-left: 20px;
-    padding-right: 20px;
+    padding: 2pt 16pt;
 }
 
 .polytope_builder {
@@ -314,7 +335,7 @@ span.nonsatisfying {
 }
 
 .actions {
-    height: 10em;
+    height: 12em;
     overflow-y: scroll;
     padding-right: 4px;
 }
@@ -331,7 +352,7 @@ span.nonsatisfying {
 }
 
 .supports {
-    height: 8em;
+    height: 10em;
     overflow-y: scroll;
     padding-right: 4px;
 }

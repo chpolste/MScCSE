@@ -31,17 +31,16 @@ export class InteractivePlot implements Plot {
     panningState: number[] | null;
 
     constructor(size: Range, figure: LayeredFigure, projection: Projection): void {
-        let helpButton = dom.create("a", {"title": "shift + mouse to pan and zoom"}, ["?"]);
-        let resetButton = dom.create("a", {"href": ""}, ["reset view"]);
+        let resetButton = dom.create("a", {"href": ""}, ["reset"]);
         resetButton.addEventListener("click", (e: MouseEvent) => {
             this.projection = projection;
             e.preventDefault();
         });
-        let saveButton = dom.create("a", {"href": "", "download": "plot.svg"}, ["save"]);
+        let saveButton = dom.create("a", {"href": "", "download": "plot.svg"}, ["export"]);
         saveButton.addEventListener("click", () => {
             saveButton.setAttribute("href", "data:image/svg+xml;base64," + window.btoa(this.axesPlot.source));
         });
-        this.menu = dom.create("menu", {}, [resetButton, " · ", saveButton, " · ", helpButton]);
+        this.menu = dom.create("menu", {}, ["⇧+🖰 to pan and zoom :: ", resetButton, " :: ", saveButton]);
         this.axesPlot = new AxesPlot(size, figure, projection);
         this.node = dom.create("div", { "class": "plot" }, [this.menu, this.axesPlot.node]);
 

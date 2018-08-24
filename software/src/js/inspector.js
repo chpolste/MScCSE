@@ -11,7 +11,7 @@ import { LSS, AbstractedLSS } from "./system.js";
 import { SessionManager, ProblemSetup, ProblemSummary, SystemInspector } from "./inspector-widgets.js";
 
 
-const contentNode = document.getElementById("inspector");
+const contentNode = document.getElementById("application");
 if (contentNode == null) throw new Error();
 
 const keybindings = new dom.Keybindings();

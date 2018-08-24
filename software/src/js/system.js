@@ -184,8 +184,8 @@ export type PredicateID = string;
 export type StrategyGenerator = () => Strategy;
 type Strategy = (State) => Vector; // strategies must maintain their own memory
 
-// Paths
-export type Path = Vector[];
+// Traces
+export type Trace = Vector[];
 
 
 export class AbstractedLSS implements GameGraph {
@@ -263,13 +263,13 @@ export class AbstractedLSS implements GameGraph {
         return null;
     }
 
-    // Path sampling
-    samplePath(init: Vector, strategy: Strategy, steps: number): Path {
-        // Path starts from given location
-        const path = [init];
+    // Trace sampling
+    sampleTrace(init: Vector, strategy: Strategy, steps: number): Trace {
+        // Trace starts from given location
+        const trace = [init];
         // Take requested number of steps
-        while (path.length < steps + 1) {
-            const x = path[path.length - 1];
+        while (trace.length < steps + 1) {
+            const x = trace[trace.length - 1];
             // Find corresponding system state
             const state = this.stateOf(x);
             // End trajectory when it leaves the state space polytope
@@ -281,9 +281,9 @@ export class AbstractedLSS implements GameGraph {
             // Sample the random space polytope
             const w = this.lss.randomSpace.sample();
             // Evaluate the evolution equation to obtain the next point
-            path.push(this.lss.eval(x, u, w));
+            trace.push(this.lss.eval(x, u, w));
         }
-        return path;
+        return trace;
     }
 
     // Convenience wrappers for polytopic operators

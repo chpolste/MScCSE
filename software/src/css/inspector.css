@@ -304,23 +304,23 @@ span.nonsatisfying {
     color: #666;
 }
 
-.controlpath {
+.control {
     display: flex;
     flex-direction: columns;
 }
-.controlpath > svg {
+.control > svg {
     flex: 0 0 auto;
     margin-right: 10px; 
 }
-.controlpath > div {
+.control > div {
     flex: 1 1 auto;
 }
-.controlpath select, .controlpath input[type=range] {
+.control select, .control input[type=range] {
     display: block;
     width: 100%;
     margin: 3pt 0;
 }
-.controlpath .path {
+.control .trace {
     padding-right: 6pt;
     border-right: 6pt solid #603;
 }

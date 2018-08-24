@@ -6,7 +6,7 @@
 import type { Matrix } from "./linalg.js";
 import type { ConvexPolytope, ConvexPolytopeUnion, Halfspace } from "./geometry.js";
 import type { Proposition, ObjectiveKind, OnePairStreettAutomaton } from "./logic.js";
-import type { Action, ActionSupport, StrategyGenerator, Path } from "./system.js";
+import type { Action, ActionSupport, StrategyGenerator, Trace } from "./system.js";
 import type { LayeredFigure, FigureLayer, Shape } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
@@ -38,7 +38,7 @@ const COLORS = {
     predicate: "#000",
     split: "#C00",
     vectorField: "#000",
-    path: "#603"
+    trace: "#603"
 };
 
 const MAX_PATH_LENGTH = 50;
@@ -763,7 +763,7 @@ export class SystemInspector {
                         this.settings.node,
                     ]),
                     dom.div({ "class": "right" }, [
-                        dom.h3({}, ["Control/Path", infoBox("info-control")]),
+                        dom.h3({}, ["Control/Trace", infoBox("info-control")]),
                         this.controlView.node,
                         dom.h3({}, ["Selected State", infoBox("info-state")]),
                         this.stateView.node
@@ -863,7 +863,7 @@ class SISystemView {
         this.settings.highlight.attach(() => this.drawHighlight());
 
         this.controlView = controlView;
-        this.controlView.attach(() => this.drawPath());
+        this.controlView.attach(() => this.drawTrace());
 
         this.stateView = stateView;
         this.stateView.attach(() => {
@@ -886,7 +886,7 @@ class SISystemView {
             vectorField:    fig.newLayer({ "stroke": COLORS.vectorField, "stroke-width": "1", "fill": COLORS.vectorField }),
             action:         fig.newLayer({ "stroke": COLORS.action, "stroke-width": "2.5", "fill": COLORS.action }),
             predicate:      fig.newLayer({ "stroke": COLORS.predicate, "fill": COLORS.predicate, "fill-opacity": "0.2" }),
-            path:           fig.newLayer({ "stroke": COLORS.path, "stroke-width": "2", "fill": COLORS.path }),
+            trace:          fig.newLayer({ "stroke": COLORS.trace, "stroke-width": "2", "fill": COLORS.trace }),
             label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" }),
             interaction:    fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" })
         };
@@ -898,7 +898,7 @@ class SISystemView {
         this.drawVectorField();
         this.drawLabels();
         this.drawPredicate();
-        this.drawPath();
+        this.drawTrace();
     }
 
     drawInteraction(): void {
@@ -1015,13 +1015,13 @@ class SISystemView {
         }
     }
 
-    drawPath(): void {
-        const path = this.controlView.path;
-        const segments = arr.cyc2map((o, t) => ({ kind: "arrow", origin: o, target: t }), path);
+    drawTrace(): void {
+        const trace = this.controlView.trace;
+        const segments = arr.cyc2map((o, t) => ({ kind: "arrow", origin: o, target: t }), trace);
         if (segments.length > 1) {
             segments.pop();
         }
-        this.layers.path.shapes = segments;
+        this.layers.trace.shapes = segments;
     }
 
 }
@@ -1200,7 +1200,7 @@ class SIActionSupportView extends SelectableNodes<ActionSupport> {
 
 
 // Information on and preview of the control space polytope and sampling of
-// paths through the system based on specific strategies. Observes SIActionView
+// traces through the system based on specific strategies. Observes SIActionView
 // to display the control subset (action polytope) of the currently selected
 // action.
 class SIControlView extends ObservableMixin<null> {
@@ -1212,9 +1212,9 @@ class SIControlView extends ObservableMixin<null> {
     +actionLayer: FigureLayer;
 
     +strategyGen: Input<StrategyGenerator>;
-    +pathLength: Input<number>;
-    +path: Path;
-    _path: Path;
+    +traceLength: Input<number>;
+    +trace: Trace;
+    _trace: Trace;
 
     constructor(system: AbstractedLSS, stateView: SIStateView,
                 actionView: SIActionView, keybindings: dom.Keybindings): void {
@@ -1236,59 +1236,61 @@ class SIControlView extends ObservableMixin<null> {
         const view = new AxesPlot([90, 90], fig, autoProjection(1, ...union.extent(controlSpace)));
         this.actionView.attach(() => this.drawAction());
 
-        // Function 2: Path sampling
-        this._path = [];
+        // Function 2: Trace sampling
+        this._trace = [];
         // Strategy selection. Because strategies must bring their own memory
         // if needed, the values are strategy generators
         this.strategyGen =  new SelectInput({
             "Random": () => ((state) => controlSpace[0].sample())
             // TODO: round-robin strategy
         }, "random");
-        // Path creation and removal buttons
-        const newPath = dom.create("button", {}, ["new ", dom.create("u", {}, ["p"]), "ath"]);
-        newPath.addEventListener("click", () => this._newPath());
-        const clearPath = dom.create("button", {}, ["clear"]);
-        clearPath.addEventListener("click", () => this._clearPath());
-        // Path length slider: adjusts how many steps of the path are displayed
+        // Trace creation and removal buttons
+        const newTrace = dom.create("button", {
+            "title": "sample a new trace based on the selected strategy"
+        }, ["new tr", dom.create("u", {}, ["a"]), "ce"]);
+        newTrace.addEventListener("click", () => this._newTrace());
+        const clearTrace = dom.create("button", { "title": "clear the current trace" }, ["clear"]);
+        clearTrace.addEventListener("click", () => this._clearTrace());
+        // Trace length slider: adjusts how many steps of the trace are displayed
         // in the system view
-        this.pathLength = new RangeInput(1, MAX_PATH_LENGTH, 1, MAX_PATH_LENGTH);
-        this.pathLength.attach(() => this.notify());
-        // Keybindings for path control buttons
+        this.traceLength = new RangeInput(1, MAX_PATH_LENGTH, 1, MAX_PATH_LENGTH);
+        this.traceLength.attach(() => this.notify());
+        // Keybindings for trace control buttons
         keybindings.bind("s", inputTextRotation(this.strategyGen, ["Random"]));
-        keybindings.bind("p", () => this._newPath());
+        keybindings.bind("a", () => this._newTrace());
 
-        this.node = dom.div({ "class": "controlpath" }, [
+        this.node = dom.div({ "class": "control" }, [
             view.node,
             dom.div({}, [
                 dom.p({}, [
                     "Control ", dom.create("u", {}, ["s"]), "trategy:",
                     this.strategyGen.node
                 ]),
-                dom.p({ "class": "path" }, [
-                    this.pathLength.node, newPath, " ", clearPath
+                dom.p({ "class": "trace" }, [
+                    this.traceLength.node, newTrace, " ", clearTrace
                 ])
             ])
         ]);
     }
 
-    get path(): Path {
-        return this._path.slice(0, this.pathLength.value);
+    get trace(): Trace {
+        return this._trace.slice(0, this.traceLength.value);
     }
 
-    _newPath(): void {
+    _newTrace(): void {
         // If a system state is selected, sample from its polytope, otherwise
         // from the entire state space polytope
         const selection = this.stateView.selection;
         const initPoly = selection == null ? this.system.lss.stateSpace : selection.polytope;
         // Obtain strategy from selection
         const strategy = this.strategyGen.value();
-        // Sample a new path and update
-        this._path = this.system.samplePath(initPoly.sample(), strategy, MAX_PATH_LENGTH);
+        // Sample a new trace and update
+        this._trace = this.system.sampleTrace(initPoly.sample(), strategy, MAX_PATH_LENGTH);
         this.notify();
     }
 
-    _clearPath(): void {
-        this._path = [];
+    _clearTrace(): void {
+        this._trace = [];
         this.notify();
     }
 

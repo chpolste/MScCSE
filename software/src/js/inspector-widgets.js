@@ -126,9 +126,9 @@ next to it on hover.
 */
 
 function infoBox(contentID: string): HTMLDivElement {
-    let node = dom.div({ "class": "info_button" }, ["?"]);
+    const node = dom.div({ "class": "info-button" }, ["?"]);
     node.addEventListener("mouseover", (e: MouseEvent) => {
-        let content = document.getElementById(contentID);
+        const content = document.getElementById(contentID);
         if (content != null) {
             content.style.display = "block";
             content.style.top = String(node.offsetTop) + "px";
@@ -136,7 +136,7 @@ function infoBox(contentID: string): HTMLDivElement {
         }
     });
     node.addEventListener("mouseout", (e: MouseEvent) => {
-        let content = document.getElementById(contentID);
+        const content = document.getElementById(contentID);
         if (content != null) {
             content.style.display = "none";
         }
@@ -224,7 +224,6 @@ export class ProblemSetup {
     constructor(callback: ProblemCallback) {
         this.callback = callback;
 
-        this.node = dom.create("form");
         this.ssDim = new SelectInput({"1-dimensional": 1, "2-dimensional": 2}, "2-dimensional");
         this.csDim = new SelectInput({"1-dimensional": 1, "2-dimensional": 2}, "2-dimensional");
         this.equation = new EvolutionEquationInput(this.ssDim, this.csDim);
@@ -235,35 +234,40 @@ export class ProblemSetup {
         this.predicates = new PredicatesInput(this.ssDim);
         this.objective = new ObjectiveInput(this.predicates);
 
-        let submit = dom.create("input", {"type": "submit", "value": "run inspector"});
+        const columns = dom.div({ "class": "inspector" }, [
+            dom.div({ "class": "left" }, [
+                this.preview.node,
+                dom.h3({}, ["Objective", infoBox("info-input-objective")]), this.objective.node
+            ]),
+            dom.div({ "class": "right" }, [
+                dom.div({"class": "cols"}, [
+                    dom.div({ "class": "left" }, [
+                        dom.h3({}, ["Control Space Polytope", infoBox("info-input-control")]),
+                        this.cs.node,
+                        dom.h3({}, ["Random Space Polytope", infoBox("info-input-random")]),
+                        this.rs.node,
+                        dom.h3({}, ["State Space Polytope", infoBox("info-input-state")]),
+                        this.ss.node,
+                        dom.h3({}, ["Initial State Space Decomposition", infoBox("info-input-predicates")]),
+                        this.predicates.node
+                    ]),
+                    dom.div({ "class": "right" }) // dummy column to fill space in layout
+                ])
+            ])
+        ]);
+        const submit = dom.create("input", {"type": "submit", "value": "run inspector"});
         submit.addEventListener("click", (e: Event) => {
             if (this.node.checkValidity()) {
                 e.preventDefault();
                 this.submit();
             }
         });
-
-        dom.appendChildren(this.node, [
+        this.node = dom.create("form", {}, [
             dom.h3({}, ["Dimensions"]),
             dom.p({}, [this.ssDim.node, " state space"]),
             dom.p({}, [this.csDim.node, " control space"]),
             dom.h3({}, ["Evolution Equation"]), this.equation.node,
-            dom.div({ "class": "inspector", "style": "margin:0;" }, [
-                dom.div({ "class": "left" }, [
-                    this.preview.node,
-                    dom.h3({}, ["Objective"]), this.objective.node
-                ]),
-                dom.div({ "class": "right" }, [
-                    dom.h3({}, ["Control Space Polytope"]),
-                    this.cs.node,
-                    dom.h3({}, ["Random Space Polytope"]),
-                    this.rs.node,
-                    dom.h3({}, ["State Space Polytope"]),
-                    this.ss.node,
-                    dom.h3({}, ["Initial State Space Decomposition"]),
-                    this.predicates.node
-                ])
-            ]),
+            columns,
             dom.h3({}, ["Continue"]),
             dom.p({}, [submit])
         ]);
@@ -430,7 +434,7 @@ class PolytopeInput extends ObservableMixin<null> implements Input<ConvexPolytop
         this.variables = VAR_NAMES.substring(0, this.dim.value)
         this.predicates = new MultiLineInput(
             line => HalfspaceInequation.parse(line, this.variables),
-            [5, 15]
+            [5, 25]
         );
         this.predicates.attach(() => this.changeHandler());
         let fig = new Figure();
@@ -497,7 +501,7 @@ class PredicatesInput extends ObservableMixin<null> implements Input<[Halfspace[
             this.predicates.changeHandler();
         });
         this.variables = VAR_NAMES.substring(0, this.dim.value);
-        this.predicates = new MultiLineInput(line => this.parsePredicate(line), [10, 30]);
+        this.predicates = new MultiLineInput(line => this.parsePredicate(line), [10, 40]);
         this.predicates.attach(() => this.changeHandler());
         this.node = this.predicates.node;
     }
@@ -549,19 +553,19 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
     +predicates: Input<[Halfspace[], string[]]>;
     +kind: Input<ObjectiveKind>;
     +termContainer: HTMLDivElement;
+    +description: HTMLParagraphElement;
     terms: Input<Proposition>[];
 
     constructor(predicates: Input<[Halfspace[], string[]]>): void {
         super();
         this.terms = [];
         this.kind = new SelectInput(presets.objectives, "Reachability");
-        const formula = dom.create("code", {}, []);
-        this.termContainer = dom.div({}, []);
+        const formula = dom.create("code");
+        this.termContainer = dom.div();
         this.kind.attach(() => {
             const objKind = this.kind.value;
             formula.innerHTML = objKind.formula;
             this.updateTerms(objKind.variables);
-            // TODO: plot automaton with one-pair Streett objective/parity
             this.changeHandler();
         });
         // The quickest way to properly initialize the widget:
@@ -745,30 +749,30 @@ export class SystemInspector {
         this.node = dom.div({ "class": "inspector" }, [
             dom.div({ "class": "left" }, [
                 this.systemView.plot.node,
-                dom.h3({}, ["System Analysis", infoBox("info_analysis")]),
+                dom.h3({}, ["System Analysis", infoBox("info-analysis")]),
                 "TODO",
-                dom.h3({}, ["Abstraction Refinement", infoBox("info_abstraction_refinement")]),
+                dom.h3({}, ["Abstraction Refinement", infoBox("info-refinement")]),
                 "TODO"
             ]),
             dom.div({ "class": "right" }, [
                 dom.div({"class": "cols"}, [
                     dom.div({ "class": "left" }, [
-                        dom.h3({}, ["System Summary"]),
+                        dom.h3({}, ["System Summary", infoBox("info-summary")]),
                         this.systemSummary.node,
-                        dom.h3({}, ["View Settings", infoBox("info_view_settings")]),
+                        dom.h3({}, ["View Settings", infoBox("info-settings")]),
                         this.settings.node,
                     ]),
                     dom.div({ "class": "right" }, [
-                        dom.h3({}, ["Control/Path", infoBox("info_pathcontrol")]),
+                        dom.h3({}, ["Control/Path", infoBox("info-control")]),
                         this.controlView.node,
-                        dom.h3({}, ["Selected State", infoBox("info_selected_state")]),
+                        dom.h3({}, ["Selected State", infoBox("info-state")]),
                         this.stateView.node
                     ])
                 ]),
                 dom.div({ "class": "rest" }, [
-                    dom.h3({}, ["Actions", infoBox("info_actions")]),
+                    dom.h3({}, ["Actions", infoBox("info-actions")]),
                     this.actionView.node,
-                    dom.h3({}, ["Action Supports", infoBox("info_action_supports")]),
+                    dom.h3({}, ["Action Supports", infoBox("info-supports")]),
                     this.actionSupportView.node
                 ]),
             ])

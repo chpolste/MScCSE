@@ -302,48 +302,119 @@
       </p>
     </div>
 
-
-    <div class="info_content" id="info_view_settings">
-      The <span class="math">x_{t+1} = Ax_t</span> part of the LSS-equation <span class="math">x_{t+1} = Ax_t + Bu_t + w_t</span> is visualized by the <b>vector field</b>.
-      The <b>highlight operator</b> shows one of the following polytopic operators related to the selected state <span class="math">X'</span>:
-      <ul>
-        <li class="math">\mathrm{Post}(X', U) \subseteq (X \cup X_{out})</li>
-        <li class="math">\mathrm{Pre}(X, U, \{X'\}) \subseteq X</li>
-        <li class="math">\mathrm{PreR}(X, U, \{X'\}) \subseteq X</li>
-        <li class="math">\mathrm{Attr}(X, U, \{X'\}) \subseteq X</li>
-        <li class="math">\mathrm{AttrR}(X, U, \{X'\}) \subseteq X</li>
-      </ul>
-      where <span class="math">X</span> and <span class="math">U</span> are the (entire) state and control space, respectively.
-    </div>
-    <div class="info_content" id="info_pathcontrol">
+    <!-- Info boxes of problem setup-->
+    <div class="info-box" id="info-input-objective">
       <p>
-        <b>Figure</b>: view of the control space polytope <span class="math">U</span> with highlighted action polytopes <span class="math">U_i^J</span> when an action is selected.
+        Choose from a predefined set of temporal logic objectives and specify propositions for the placeholder variables.
+        Available atomic propositions are all labeled predicates from the predicate input field of the initial state space decomposition.
+        The predefined objectives are:
       </p>
       <p>
-        <b>Controls</b>: Sampling of paths through the system based on the selected strategy.
+        <u>Reachability</u>: After a finite time the trace has to reach the specified subset of the state space.
+      </p>
+    </div>
+    <div class="info-box" id="info-input-control">
+      <p>
+        Specify the control space polytope <span class="math">U</span> by listing its enclosing halfspaces in the form of linear inequations (one per line).
+        Dimensions are named <code>x</code> and <code>y</code> (if exists).
+      </p>
+    </div>
+    <div class="info-box" id="info-input-random">
+      <p>
+        Specify the random space polytope <span class="math">W</span> by listing its enclosing halfspaces in the form of linear inequations (one per line).
+        Dimensions are named <code>x</code> and <code>y</code> (if exists).
+      </p>
+    </div>
+    <div class="info-box" id="info-input-state">
+      <p>
+        Specify the state space polytope <span class="math">X</span> by listing its enclosing halfspaces in the form of linear inequations (one per line).
+        Dimensions are named <code>x</code> and <code>y</code> (if exists).
+      </p>
+    </div>
+    <div class="info-box" id="info-input-predicates">
+      <p>
+        Specify the linear predicates that are used to split the state space polytope into its initial decomposition as linear inequations (one per line).
+        Dimensions are named <code>x</code> and <code>y</code> (if exists).
+        Predicates can be labeled and then used as atomic propositions in the objective specification.
+      </p>
+      <p>
+        E.g. a labeled predicate (label <code>p0</code>): "<code>p0: x &lt; 2y</code>"</p>
+      </p>
+      <p>
+        E.g. an inequation without a label: "<code>y - 0.5x &gt; 4</code>"
+      </p>
+    </div>
+
+    <!-- Info boxes of inspector -->
+    <div class="info-box" id="info-summary">
+      <p>
+        The number of states of the system and the analysis progress in form of area-percentages of the state space polytope which have been found to be satisfying (green), non-satisfying (grey) or are still undecided (no color).
+      </p>
+    </div>
+    <div class="info-box" id="info-settings">
+      <p>
+        <u>Analysis colors</u>:
+        Color polytopes of non-satisfying states grey and polytopes of satisfying states green.
+        Undecided states of the analysis remain uncolored.
+      </p>
+      <p>
+        <u>State labels</u>: 
+        Show the state labels <span class="math">X_i</span> for all state polytopes.
+      </p>
+      <p>
+        <u>Vector field</u>:
+        Visualize the <span class="math">x_{t+1} = Ax_t</span> part of the evolution equation.
+      </p>
+      <p>
+        <u>Highlight operator</u>: 
+        Show a polytopic operator related to the selected state <span class="math">X_i</span> in yellow.
+        The operators are
+      </p>
+      <ul>
+        <li class="math">\mathrm{Post}(X_i, U)</li>
+        <li class="math">\mathrm{Pre}(X, U, \{X_i\})</li>
+        <li class="math">\mathrm{PreR}(X, U, \{X_i\})</li>
+        <li class="math">\mathrm{Attr}(X, U, \{X_i\})</li>
+        <li class="math">\mathrm{AttrR}(X, U, \{X_i\})</li>
+      </ul>
+      <p>
+        where <span class="math">X</span> and <span class="math">U</span> are the state and control space polytopes, respectively.
+      </p>
+    </div>
+    <div class="info-box" id="info-control">
+      <p>
+        <u>Figure</u>: View of the control space polytope <span class="math">U</span> with highlighted action polytopes <span class="math">U_i^J</span> when an action is selected.
+      </p>
+      <p>
+        <u>Controls</u>: Sampling of paths through the system based on the selected strategy.
         Paths are initiated from the currently selected polytope or the state space polytope if the selection is empty.
         Paths are terminated when they have left the state space polytope.
-        The slider can be used to restrict the path length with a maximum of 50 steps.
+        The slider can be used to set the path length to up to 50 steps.
       </p>
     </div>
-    <div class="info_content" id="info_selected_state">
+    <div class="info-box" id="info-state">
+      <p>
+        Information about the currently selected system state: label, analysis status, number of actions and linear predicates that are fulfilled by the associated polytope <span class="math">X_i</span>.
+        Hovering with the mouse over a predicate label highlights the corresponding halfspace in the system view.
+      </p>
+    </div>
+    <div class="info-box" id="info-actions">
+      <p>
+        The available actions of the currently selected state <span class="math">X_i</span>, labeled as <span class="math">X_i \rightarrow \{ X_j \}_{j \in J}</span>.
+        Selection of an actions shows the possible target states in the system view with arrows and reveals its associated action polytope <span class="math">U_i^J</span> in the control space view.
+      </p>
+    </div>
+    <div class="info-box" id="info-supports">
+      <p>
+        The available action supports of the currently selected action <span class="math">U_i^J</span>, labeled by the set of target states <span class="math">\{ X_j \}_{j \in J'}</span>.
+        Selection of an action support updates the arrows of the action to only point to the targets of the action support and highlights the corresponding subset <span class="math">\mathrm{PreP}(X_i, U_i^J, \{ X_j \}_{j \in J'})</span> of the origin state <span class="math">X_i</span>.
+      </p>
+    </div>
+    <div class="info-box" id="info-analysis">
       TODO
     </div>
-    <div class="info_content" id="info_actions">
+    <div class="info-box" id="info-refinement">
       TODO
-    </div>
-    <div class="info_content" id="info_action_supports">
-      TODO
-    </div>
-    <div class="info_content" id="info_analysis">
-      Create a game from the synchronized product of the transition system induced by the abstracted LSS and the objective automaton and analyze it.<br>
-      The analysis is offloaded to a web worker.
-    </div>
-    <div class="info_content" id="info_abstraction_refinement">
-      TODO
-    </div>
-    <div class="info_content" id="info_snapshots">
-      Save and restore the current state of the system.
     </div>
 
     <script src="js/inspector.js"></script>

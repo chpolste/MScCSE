@@ -23,11 +23,12 @@
     </div>
 
     <div class="navigation">
-      → <a href="#application">Algorithm Inspector</a><br>
-      → <a href="#theory">Theoretical Foundations</a><br>
-      → <a href="#solution">Problem Setup and Solution</a><br>
-      → <a href="#about">About</a><br>
-      → <a href="#references">References</a>
+      <h3>Contents</h3>
+      ::<a href="#application">Algorithm Inspector</a><br>
+      ::<a href="#theory">Theoretical Foundations</a><br>
+      ::<a href="#solution">Problem Setup and Solution</a><br>
+      ::<a href="#about">About</a><br>
+      ::<a href="#references">References</a>
     </div>
 
     <hr class="wide1">
@@ -44,34 +45,164 @@
 
     <h2 id="theory">Theoretical Foundations</h2>
     <div>
-      <h3>Linear Stochastic Systems</h3>
       <p>
-        ...
-      </p>
-
-      <h3>Abstraction Refinement</h3>
-      <p>
-        ...
+        Before diving into how the LSS analysis and abstraction refinement algorithm works, the fundamental concepts involved and their associated notation are introduced.
       </p>
 
       <h3>Deterministic ω-Automata</h3>
       <p>
-        ...
+        A deterministic ω-automaton is a tuple 
+      </p>
+      <p class="math">
+        \mathcal{A} = (Q, \Sigma, \delta, q_0, \mathcal{C}) \;\mathrm{,}
+      </p>
+      <p>
+        where
+        <span class="math">Q</span> is a non-empty, finite set of states,
+        <span class="math">\Sigma</span> is a finite alphabet,
+        <span class="math">\delta: Q \times \Sigma \rightarrow Q</span> is a deterministic transition function,
+        <span class="math">q_0 \in Q</span> the initial state of the automaton and 
+        <span class="math">\mathcal{C}</span> is an acceptance condition, often expressed using sets.
+        An infinite word <span class="math">w_0 w_1 ... = w \in \Sigma^\omega</span> induces a sequence of states <span class="math">q_0 q_1 ... \in Q^\omega</span>, called a run, such that <span class="math">q_{i+1} = \delta(q_i, w_i)</span> for all <span class="math">i \in \mathbb{N}_0</span>.
+        Formally, the acceptance condition divides the set of all runs <span class="math">Q^\omega</span> into a subset containing accepting runs and the other, non-accepting runs.
+        Since there are usually infinitely many accepting runs, the condition is expressed by other means than listing the accepting runs explicitly.
+      </p>
+      <p>
+        A Büchi-implication aka one-pair Streett acceptance condition is specified by a tuple of sets <span class="math">\mathcal{C} = (E, F) \subseteq Q \times Q</span> and accepts all runs <span class="math">r</span> where
+      </p>
+      <p class="math">
+        \big( \mathrm{Inf}(r) \cap E \ne \emptyset \big) \;\Longrightarrow\; \big( \mathrm{Inf}(r) \cap F \ne \emptyset \big) \;\mathrm{,}
+      </p>
+      <p>
+        where the set of states which occur infinitely often in the run <span class="math">r</span> is denoted by <span class="math">\mathrm{Inf}(r)</span>.
+        For every accepting run an infinite occurrence of at least one state from <span class="math">E</span> implies that at least one state from <span class="math">F</span> is also visited infinitely often.
+        The simpler Büchi condition is expressed by a single set and requires that at least one state from the set is visited infinitely often in an accepting run.
+        Additionally, any accepting run must start in the initial state <span class="math">q_0</span> and all transitions required to realize the run have to exist.
+        These requirements must hold irrespective of the concrete acceptance condition.
       </p>
 
-      <h3>Linear Temporal Logic and GR(1)</h3>
+      <h3>Linear Temporal Logic</h3>
       <p>
-        ...
+        Linear temporal logic (LTL) is a temporal extension of propositional logic applied to discrete-time infinite sequences.
+        LTL formulas are able to express the temporal order of events occurring in a sequence.
+        A minimal grammar of an LTL formula over a set of atomic propositions <span class="math">AP</span> is
+      </p>
+      <p class="math">
+        \varphi \;\Coloneqq\; a \;\mid\; \varphi_1 \wedge \varphi_2 \;\mid\; \neg \varphi \;\mid\; \mathsf{X} \varphi \;\mid\; \varphi_1 \mathsf{U} \varphi_2 \;\mathrm{,}
+      </p>
+      <p>
+        where <span class="math">a \in AP</span>. <span class="math">\wedge, \neg</span> are the known operators "and" and "not" from propositional logic, while <span class="math">\mathsf{X}, \mathsf{U}</span> are temporal operators "next" and "until", respectively.
+        Other common operators are derived from these, e.g.
+        "or" <span class="math">\varphi_1 \vee \varphi_2 \coloneqq \neg(\neg \varphi_1 \wedge \neg \varphi_2)</span>,
+        "finally" <span class="math">\mathsf{F} \varphi \coloneqq (\varphi \vee \neg \varphi) \mathsf{U} \varphi</span> and
+        "globally" <span class="math">\mathsf{G} \varphi \coloneqq \neg \mathsf{F} \neg \varphi</span>.
+      </p>
+      <p>
+        The semantics of the temporal operators is given by
+      </p>
+      <p class="math">
+        \begin{aligned}
+        w \vDash \mathsf{X} \varphi &amp; \iff w_1 w_2 ... \vDash \varphi \\
+        w \vDash \varphi_1 \mathsf{U} \varphi_2 &amp; \iff \exists j \ge 0 : w_j w_{j+1} ... \vDash \varphi_2 \;\mathrm{and}\; \forall 0 \le i \lt j : w_i w_{i+1} ... \vDash \varphi_1 \;\mathrm{,}
+        \end{aligned}
+      </p>
+      <p>
+        where <span class="math">w \vDash \varphi</span> means that the sequence <span class="math">w = w_0 w_1 ... \in (2^{AP})^\omega</span> satisfies/fulfills the formula <span class="math">\varphi</span>.
+        Propositional operators are evaluated for the first item in the sequence.
+      </p>
+      <p>
+        LTL is well suited for the expression of objectives and properties of transition systems.
+        The verification process usually involves the translation of the temporal logic formula to an ω-automaton that accepts sequences of the system which fulfill the given LTL formula.
+        The complexity of such automata for general LTL properties is high and the computational cost of verification are therefore too.
+        There are fragments of LTL that offer more favorable computational complexity without sacrificing too much expressiveness.
+        The Generalized Reactivity(1) fragment contains only those LTL formulas that can be written in the form
+      </p>
+      <p class="math">
+        \Big( \displaystyle\bigwedge_{i = 1 ... n} \mu_i \Big) \;\Longrightarrow\; \Big( \displaystyle\bigwedge_{i = 1 ... m} θ_i \Big) \;\mathrm{,}
+      </p>
+      <p>
+        where every <span class="math">μ_i</span> and <span class="math">θ_i</span> is representable by a deterministic ω-automaton with Büchi acceptance condition.
+        Every GR(1) formula is therefore realizable as a deterministic ω-automaton with Büchi-implication which is at most cubic in the size of the formula.
+        Another important fragment of is syntactically co-safe LTL, whose formulas can be interpreted over finite sequences, i.e. every co-safe objective can be fulfilled within a finite time horizon.
       </p>
 
       <h3>Probabilistic Games</h3>
       <p>
-        ...
+        A two-player probabilistic game aka 2½-player game is a turn-based probabilistic game played on a game graph
+      </p>
+      <p class="math">
+        \mathcal{G'} = (G_1, G_2, Act, \delta) \;\mathrm{,}
+      </p>
+      <p>
+        where <span class="math">G_1, G_2</span> are disjoint sets of player 1 and 2 states, respectively.
+        Let <span class="math">G = G_1 \cup G_2</span>.
+        A play of the game is a sequence of states <span class="math">g = g_0 g_1 ... \in G^\omega</span> such that <span class="math">g_i \in G_1</span> for all even and <span class="math">g_i \in G_2</span> for all odd indices <span class="math">i</span>, i.e. player's turns alternate.
+        In their turn, players choose an available action from the finite set of actions <span class="math">Act</span>.
+        The next state of the play is then chosen stochastically based on the probability distribution defined by the probability transition function <span class="math">\delta: G \times Act \rightarrow \mathcal{D}(G)</span>, where <span class="math">\mathcal{D}(G)</span> is the set of all probability distribution over set <span class="math">G</span>.
+        Therefore, for every <span class="math">g_i</span> there must be an action <span class="math">a \in Act</span> such that <span class="math">\delta(g_i, a)(g_{i+1}) \gt 0</span>.
+      </p>
+      <p>
+        A player strategy is a function <span class="math">S_\mathcal{G}: G^+ \rightarrow Act</span> that determines the action taken after a finite prefix of a play ending in a state of that player.
+        If the strategy uses only a finite memory, it is called finite-memory and if it only uses the one memory element (the current game state), it is called memoryless.
+      </p>
+      <p>
+        A notion of winning is introduced by extending the game graph with an acceptance condition <span class="math">\mathcal{C}</span> to form the game
+      </p>
+      <p class="math">
+        \mathcal{G} = (G_1, G_2, Act, \delta, \mathcal{C}) \;\mathrm{.}
+      </p>
+      <p>
+        Analogous to ω-automata, the acceptance condition defines the set of accepting plays.
+        Here, we are interested in almost-sure analysis of the game, that means we are looking for the set <span class="math">\mathrm{Almost}_\mathcal{G}(\mathcal{C})</span>, which is the set of states such that, when starting a play from a state in the set, there exists a player 1 strategy which ensures the objective (to play an accepting play) with probability 1, irrespective of the strategy of player 2.
+        Furthermore, we are interested in a cooperative variant <span class="math">\mathrm{Almost}^\mathrm{coop}_\mathcal{G}(\mathcal{C})</span>, which is the set of states such that, when starting a play from a state in the set, there exists a combination of player 1 and player 2 strategies which ensures that the play will be accepting with probability 1.
+        An important property of almost-sure analysis of probabilistic games is that changing the probability distributions yielded by <span class="math">\delta</span> does not change the analysis results as long as the supports of the probability distributions before and after the change are identical.
       </p>
 
-      <h3>Parity-3 Objectives</h3>
+      <h3>Linear Stochastic Systems</h3>
       <p>
-        ...
+        A linear stochastic system <span class="math">\mathcal{T}</span> is defined here as a discrete-time continuous-space stochastic process evolving in traces <span class="math">x_0 x_1 ...</span>, governed by the evolution equation
+      </p>
+      <p class="math">
+        x_{t+1} = A x_t + B u_t + w_t \;\mathrm{.}
+      </p>
+      <p>
+        <span class="math">x_t \in X \subset \mathbb{R}^n</span> is the state of the trace at time <span class="math">t \in \mathbb{N}_0</span>,
+        <span class="math">u_t \in U \subset \mathbb{R}^m</span> is a control input and
+        <span class="math">w_t \in W \subset \mathbb{R}^n</span> is a random perturbation.
+        For given dimensions <span class="math">n, m \in \mathbb{N}</span>, <span class="math">\mathbb{R}^n</span> is called the state space and <span class="math">\mathbb{R}^m</span> the control space.
+        <span class="math">X, U, W</span> are bounded sets.
+        For convenience, they are chosen to be convex and the probability distribution of the random vector has non-zero density everywhere in <span class="math">W</span>.
+        In the evolution of a trace, matrix <span class="math">A \in \mathbb{R}^{n \times n}</span> transforms the current state while additionally a random perturbation is applied and external control is exerted with a control input, translated into the state space by matrix <span class="math">B \in \mathbb{R}^{n \times m}</span>.
+        The control inputs are chosen in every time step by a strategy function <span class="math">S_\mathcal{T}: X^+ \rightarrow U</span> based on the evolution of the trace up to its latest state.
+      </p>
+      <p>
+        In order to specify objectives for a linear system, it is augmented with a set of linear predicates <span class="math">\Pi = \{ \pi_i \}_{i \in K}</span>, where <span class="math">K</span> is a finite index set.
+        Each of these predicates defines a half-space of the state space.
+        By associating each state <span class="math">x_i</span> with the linear predicates it fulfills, every trace generates a word over the alphabet <span class="math">2^\Pi</span>.
+        These words can then be used to validate properties specified in a temporal logic.
+      </p>
+
+      <h3>Abstraction and Refinement</h3>
+      <p>
+        Continuous space has to be discretized in order to handle it practically.
+        A discretization should not be arbitrary but set up in a way that essential properties of the continuous space still exist in its discrete counterpart.
+        Such discretizations are called abstractions.
+        The idea of an abstraction is to reduce a (finite or infinite) system to a set of equivalence classes, called abstract states, whose (possibly infinitely many) member states of the original system share properties and/or behavior important for a desired analysis.
+        An abstraction provides a look onto a system in only as much detail as necessary to carry out a given task.
+      </p>
+      <p>
+        Constructing a meaningful abstraction for a given problem is not an easy task.
+        Usually one starts with an abstraction based on a partitioning of the continuous space that is directly related to the problem.
+        However, this initial abstraction might be too coarse to answer a question of interest.
+        Therefore, it is necessary to refine the abstraction by breaking down abstract states further in order to obtain a more detailed representation of the abstracted system.
+        This refinement step is usually carried out heuristically, informed by the failure of a previous analysis, which e.g. can provide counterexamples that help discover problematic states of the abstraction.
+        Usually multiple iterations of analysis and refinement are required to obtain a satisfying solution.
+      </p>
+      <p>
+        In order to analyse a linear stochastic system its continuous state space has to be abstracted to a finite set of abstract states.
+        A sensible initial abstraction is e.g. given by partitioning the state space with the linear predicates that are the basis of objectives to whose respect the system is analyzed.
+        Each abstract state is then an equivalence classes of states for which the same set of predicates holds.
+        Abstract states for which no conclusive analysis results could be obtained are refined, e.g. based on information about the system dynamics.
       </p>
     </div>
 
@@ -84,14 +215,15 @@
 
       <h3>Problem</h3>
       <p>
-        Given a linear stochastic system with a discrete time evolution specified by the evolution equation <span class="math">x_{t+1} = A x_t + B u_t + w_t</span>, find a the set of initial states <span class="math">X_{init} \subseteq X \subset \mathbb{R}^n</span> for which a control strategy exists such that the probability of a trace starting in <span class="math">x</span> and satisfying an objective given as a GR(1) formula <span class="math">\phi</span> over a set of linear predicates is 1.
-        A trace is an infinite sequence of states <span class="math">x_t \in X, \; t = 0, 1, 2, ...</span> obtained from application of the evolution equation.
-        Control is exerted in the system by choosing a control input <span class="math">u_t \in U \subset \mathbb{R}^m</span> at every time step, while stochasticity is introduced by the term <span class="math">w_t</span> which is selected from a probability distribution over <span class="math">W \subset \mathbb{R}^n</span> at every time step.
-        The search for satisfying initial states is complemented by the task of synthesizing the corresponding strategies that ensure the objective with probability 1.
+        Given a linear stochastic system <span class="math">\mathcal{T}</span>, find the set of initial states <span class="math">X_{init} \subseteq X</span> for which a control strategy exists such that the probability of a trace starting in <span class="math">X_{init}</span> satisfies an objective given by a GR(1) formula <span class="math">\varphi</span> over a set of linear predicates <span class="math">\Pi</span> is 1 (almost-sure analysis).
+        Synthesize witness strategies ensuring the objective with probability 1 for all initial states <span class="math">x \in X_{init}</span>.
       </p>
 
       
       <h3>Approach</h3>
+      <p>
+        The problem is solved with a multi-step, iterative procedure:
+      </p>
       <ol>
         <li>Translate the objective from a temporal logic formula to a one-pair Streett automaton.</li>
         <li>Create the initial abstraction of the LSS based on the set of linear predicates used in the objective formula. Combined with the dynamics of the system, this abstraction induces a probabilistic 2 player game graph over the states of the abstraction.</li>
@@ -140,7 +272,7 @@
       <h3>Initial LSS Partition</h3>
       <p>
         The state space <span class="math">X</span> is initially partitioned by splitting it with the linear predicates used in the temporal logic formula of the objective specification.
-        For <span class="math">n</span> linear predicates, there can be at most disjunct <span class="math">2^n</span> parts <span class="math">X_i</span> of the state space, each a convex polytope since the intersection of halfspaces with a convex polytope is either empty or a convex polytope.
+        For <span class="math">n</span> linear predicates, there can be at most disjunct <span class="math">2^n</span> parts <span class="math">X_i</span> of the state space, each a convex polytope since the intersection of half-spaces with a convex polytope is either empty or a convex polytope.
         The partition creates equivalence classes of states for which the exact same (sub-)set of linear predicates holds.
         The collection of state space subsets from the partition is denoted by <span class="math">\{ X_i \}</span> and complemented by a set of outer states <span class="math">\{ X_{i_{out}} \}</span>, which are obtained by partitioning <span class="math">\mathrm{Post}(X, U) \setminus X</span>, the set of states outside <span class="math">X</span> which can be reached in one step, into convex polytopes.
       </p>
@@ -196,7 +328,7 @@
 
         Player 2 actions were defined in terms of a partition of <span class="math">X_i</span>, using the precise predecessor.
         However, this definition is not sufficient to properly capture the transition probability distributions quantitatively, as there is a possibly infinite number of distinct distributions for each such action.
-        It is undesirable to split the player 2 actions further in order to accomodate this.
+        It is undesirable to split the player 2 actions further in order to accommodate this.
         Therefore, the probability distributions associated with transitions from player 2 to player 1 states are simplified.
         This is possible because the problem only requires an almost sure analysis, for which the support of a probability distribution is sufficient information and all possible transition probability distributions of a player 2 action as defined above have the same support set of target states.
         The set of all these target state polytope sets, denoted by their indices, is
@@ -220,7 +352,7 @@
         The term <em>actions</em> is used to refer to player 1 actions if not further specified.
       </p>
       <p>
-        To summarize, a game is played by transitioning between elements of the state space partition <span class="math">X_i</span> with player 1 first chosing a subset of the control space <span class="math">U_i^J</span>, knowing which possible states <span class="math">\{ X_j \}_{j \in J}</span> this action can lead to after the turn of player 2.
+        To summarize, a game is played by transitioning between elements of the state space partition <span class="math">X_i</span> with player 1 first choosing a subset of the control space <span class="math">U_i^J</span>, knowing which possible states <span class="math">\{ X_j \}_{j \in J}</span> this action can lead to after the turn of player 2.
         Player 2 then chooses a set of target states <span class="math">\{ X_j \}_{j \in J'}, \; J' \in Supp(X_i, U_i^J)</span>.
         The next element of the state space abstraction is chosen randomly from this set.
       </p>
@@ -315,19 +447,19 @@
     </div>
     <div class="info-box" id="info-input-control">
       <p>
-        Specify the control space polytope <span class="math">U</span> by listing its enclosing halfspaces in the form of linear inequations (one per line).
+        Specify the control space polytope <span class="math">U</span> by listing its enclosing half-spaces in the form of linear inequations (one per line).
         Dimensions are named <code>x</code> and <code>y</code> (if exists).
       </p>
     </div>
     <div class="info-box" id="info-input-random">
       <p>
-        Specify the random space polytope <span class="math">W</span> by listing its enclosing halfspaces in the form of linear inequations (one per line).
+        Specify the random space polytope <span class="math">W</span> by listing its enclosing half-spaces in the form of linear inequations (one per line).
         Dimensions are named <code>x</code> and <code>y</code> (if exists).
       </p>
     </div>
     <div class="info-box" id="info-input-state">
       <p>
-        Specify the state space polytope <span class="math">X</span> by listing its enclosing halfspaces in the form of linear inequations (one per line).
+        Specify the state space polytope <span class="math">X</span> by listing its enclosing half-spaces in the form of linear inequations (one per line).
         Dimensions are named <code>x</code> and <code>y</code> (if exists).
       </p>
     </div>
@@ -395,7 +527,7 @@
     <div class="info-box" id="info-state">
       <p>
         Information about the currently selected system state: label, analysis status, number of actions and linear predicates that are fulfilled by the associated polytope <span class="math">X_i</span>.
-        Hovering with the mouse over a predicate label highlights the corresponding halfspace in the system view.
+        Hovering with the mouse over a predicate label highlights the corresponding half-space in the system view.
       </p>
     </div>
     <div class="info-box" id="info-actions">

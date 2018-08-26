@@ -312,10 +312,8 @@ span.nonsatisfying {
 .control > div {
     flex: 1 1 auto;
 }
-.control select, .control input[type=range] {
-    display: block;
+.control select {
     width: 100%;
-    margin: 3pt 0;
 }
 .control .trace {
     padding-right: 6pt;

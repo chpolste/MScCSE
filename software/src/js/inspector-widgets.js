@@ -21,7 +21,7 @@ import { Objective, AtomicProposition, parseProposition, traverseProposition,
 import { Figure, autoProjection } from "./figure.js";
 import { InteractivePlot, AxesPlot } from "./widgets-plot.js";
 import { ValidationError, CheckboxInput, SelectInput, MultiLineInput, MatrixInput,
-         SelectableNodes, LineInput, RangeInput, inputTextRotation } from "./widgets-input.js";
+         SelectableNodes, LineInput, inputTextRotation } from "./widgets-input.js";
 import { LSS, AbstractedLSS, State } from "./system.js";
 
 
@@ -1203,7 +1203,6 @@ class SIControlView extends ObservableMixin<null> {
     +actionLayer: FigureLayer;
 
     +strategyGen: Input<StrategyGenerator>;
-    +traceLength: Input<number>;
     +trace: Trace;
     _trace: Trace;
 
@@ -1240,32 +1239,27 @@ class SIControlView extends ObservableMixin<null> {
             "title": "sample a new trace based on the selected strategy"
         }, ["new tr", dom.create("u", {}, ["a"]), "ce"]);
         newTrace.addEventListener("click", () => this._newTrace());
-        const clearTrace = dom.create("button", { "title": "clear the current trace" }, ["clear"]);
+        const clearTrace = dom.create("button", { "title": "delete the current trace" }, [
+            dom.create("u", {}, ["d"]), "elete"
+        ]);
         clearTrace.addEventListener("click", () => this._clearTrace());
-        // Trace length slider: adjusts how many steps of the trace are displayed
-        // in the system view
-        this.traceLength = new RangeInput(1, MAX_PATH_LENGTH, 1, MAX_PATH_LENGTH);
-        this.traceLength.attach(() => this.notify());
         // Keybindings for trace control buttons
-        keybindings.bind("s", inputTextRotation(this.strategyGen, ["Random"]));
         keybindings.bind("a", () => this._newTrace());
+        keybindings.bind("s", inputTextRotation(this.strategyGen, ["Random"]));
+        keybindings.bind("d", () => this._clearTrace());
 
         this.node = dom.div({ "class": "control" }, [
             view.node,
             dom.div({}, [
-                dom.p({}, [
-                    "Control ", dom.create("u", {}, ["s"]), "trategy:",
-                    this.strategyGen.node
-                ]),
-                dom.p({ "class": "trace" }, [
-                    this.traceLength.node, newTrace, " ", clearTrace
-                ])
+                dom.p({}, ["Control ", dom.create("u", {}, ["s"]), "trategy:"]),
+                dom.p({}, [this.strategyGen.node]),
+                dom.p({ "class": "trace" }, [newTrace, " ", clearTrace])
             ])
         ]);
     }
 
     get trace(): Trace {
-        return this._trace.slice(0, this.traceLength.value);
+        return this._trace;
     }
 
     _newTrace(): void {

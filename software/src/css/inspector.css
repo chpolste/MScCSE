@@ -4,45 +4,43 @@ body {
     font-family: DejaVu Sans, sans-serif;
     font-size: 10pt;
     line-height: 1.5;
-    background-color: #EEE;
-}
-
-body > div {
-    width: 950px;
-    margin: 0 auto 25px auto;
-    padding: 25px;
+    color: #000;
     background-color: #FFF;
 }
 
+body > div {
+    max-width: 950px;
+    margin: 0 auto 25px auto;
+    padding: 15px 5px;
+}
+
 .header {
-    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
     margin: 0;
     padding: 0;
-    border-bottom: 3px solid #FC0;
+    border-bottom: 3px solid #369;
     background-color: #333;
     color: #FFF;
 }
 
 .navigation {
-    width: 1000px;
-    background-color: transparent;
-    padding: 0;
-    color: #666;
+    padding: 0 5px;
 }
 .navigation a {
-    color: #333;
+    margin-left: 4pt;
 }
 
 h1 {
-    max-width: 990px;
-    padding: 45px 0 15px 0;
+    max-width: 950px;
+    padding: 45px 0 5px 0;
     margin: 0 auto;
     font-size: 18pt;
     font-weight: normal;
 }
 
 h2 {
-    width: 990px;
+    max-width: 950px;
     margin: 25px auto 0 auto;
     padding: 5px;
     font-size: 16pt;
@@ -51,7 +49,7 @@ h2 {
 }
 
 h3 {
-    margin: 14pt 0 6pt 0;
+    margin: 18pt 0 6pt 0;
     font-size: 13pt;
     font-weight: normal;
 }
@@ -71,18 +69,18 @@ u {
 
 hr {
     margin: 7px auto;
-    border: 1px solid #CCC;
+    border: 1px solid #DDD;
 }
 hr.wide1 {
-    width: 1050px;
+    width: 1020px;
 }
 hr.wide2 {
-    width: 1100px;
-    border-color: #BBB;
+    width: 1080px;
+    border-color: #CCC;
 }
 hr.wide3 {
-    width: 1150px;
-    border-color: #AAA;
+    width: 1140px;
+    border-color: #BBB;
 }
 
 h2.wide {
@@ -90,7 +88,8 @@ h2.wide {
 }
 
 div.wide {
-    width: 100%;
+    max-width: 1200px;
+    min-width: 1200px;
     margin: 0 auto;
     padding: 25px 0;
     border-top: 2px solid #999;
@@ -98,7 +97,6 @@ div.wide {
 }
 
 .wide-inner {
-    width: 1200px;
     margin: 0 auto;
 }
 
@@ -106,6 +104,7 @@ div.wide {
     line-height: 1.2;
 }
 #application h3 {
+    margin-top: 14pt;
     font-size: 12pt;
 }
 
@@ -146,7 +145,7 @@ pre {
 }
 
 a {
-    color: #666;
+    color: #369;
 }
 a:hover {
     text-decoration: none;
@@ -237,6 +236,9 @@ a:hover {
 .info-box ul {
     margin: -2pt 0 4pt 0;
     padding: 0 0 0 1.5em;
+}
+.info-box p {
+    margin-bottom: 3pt;
 }
 .info-box p:last-child {
     margin-bottom: 0;

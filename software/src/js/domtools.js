@@ -2,6 +2,15 @@
 "use strict";
 
 
+/* KaTeX wrapper */
+
+export function renderTeX<T: HTMLElement>(tex: string, element: T): T {
+    // $FlowFixMe
+    katex.render(tex, element, { throwOnError: false });
+    return element;
+}
+
+
 /* DOM Element Creation */
 
 type ElementChild = Element | string;

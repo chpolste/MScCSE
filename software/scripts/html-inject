@@ -11,25 +11,15 @@ join = os.path.join
 
 KATEX_DIST = "./node_modules/katex/dist/"
 
-KATEX_INIT = '''
-    <script type="text/javascript">
-      document.addEventListener("DOMContentLoaded", function () {
-        for (let node of document.querySelectorAll(".math")) {
-          katex.render(node.innerHTML.replace(/&amp;/g, "&").replace(/&gt;/g, ">").replace(/&lt;/g, "<"), node);
-        }
-      });
-    </script>
-'''
-
 KATEX_CDN = '''
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" integrity="sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH" crossorigin="anonymous">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js" integrity="sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm" crossorigin="anonymous"></script>
-''' + KATEX_INIT
+'''
 
 KATEX_LOCAL = '''
     <link rel="stylesheet" href="css/katex.min.css">
     <script defer src="js/katex.min.js"></script>
-''' + KATEX_INIT
+'''
 
 
 
@@ -59,10 +49,13 @@ if __name__ == "__main__":
                     katex_css = join(outdir, "css", "katex.min.css")
                     katex_fonts = join(outdir, "css", "fonts")
                     if not os.path.exists(katex_js):
+                        print("copy katex.min.js");
                         shutil.copy(join(KATEX_DIST, "katex.min.js"), katex_js)
                     if not os.path.exists(katex_css):
+                        print("copy katex.min.css");
                         shutil.copy(join(KATEX_DIST, "katex.min.css"), katex_css)
                     if not os.path.exists(katex_fonts):
+                        print("copy math fonts");
                         shutil.copytree(join(KATEX_DIST, "fonts"), katex_fonts)
                     
             fout.write(line);

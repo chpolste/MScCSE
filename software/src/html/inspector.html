@@ -7,6 +7,7 @@
     <link rel="stylesheet" type="text/css" href="css/inspector.css">
     <link rel="stylesheet" type="text/css" href="css/widgets.css">
     <!-- INJECT KATEX -->
+    <script src="js/inspector.js" defer></script>
   </head>
 
   <body>
@@ -31,17 +32,17 @@
       ::<a href="#references">References</a>
     </div>
 
-    <hr class="wide1">
-    <hr class="wide2">
-    <hr class="wide3">
     <div class="wide">
+      <hr class="width1">
+      <hr class="width2">
+      <hr class="width3">
       <div class="wide-inner" id="application">
         <p>Please wait while the application is loading...</p>
       </div>
+      <hr class="width3">
+      <hr class="width2">
+      <hr class="width1">
     </div>
-    <hr class="wide3">
-    <hr class="wide2">
-    <hr class="wide1">
 
     <h2 id="theory">Theoretical Foundations</h2>
     <div>
@@ -444,6 +445,10 @@
       <p>
         <u>Reachability</u>: After a finite time the trace has to reach the specified subset of the state space.
       </p>
+      <p>
+        The operators not (<code>!</code>), and (<code>&amp;</code>), or (<code>|</code>) and implies (<code>-&gt;</code>) are available to form propositional formulas.
+        They are listed in order of decreasing precedence, parentheses can be used to group expressions otherwise.
+      </p>
     </div>
     <div class="info-box" id="info-input-control">
       <p>
@@ -470,10 +475,8 @@
         Predicates can be labeled and then used as atomic propositions in the objective specification.
       </p>
       <p>
-        E.g. a labeled predicate (label <code>p0</code>): "<code>p0: x &lt; 2y</code>"</p>
-      </p>
-      <p>
-        E.g. an inequation without a label: "<code>y - 0.5x &gt; 4</code>"
+        E.g.: labeled predicate (label <code>p0</code>): "<code>p0: x &lt; 2y</code>"<br>
+        E.g.: inequation without a label: "<code>y - 0.5x &gt; 4</code>"
       </p>
     </div>
 
@@ -549,6 +552,5 @@
       TODO
     </div>
 
-    <script src="js/inspector.js"></script>
   </body>
 </html>

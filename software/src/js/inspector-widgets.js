@@ -99,23 +99,8 @@ function styledPredicateLabel(label: string, system: AbstractedLSS): HTMLSpanEle
     return dom.span({ "title": asInequation(system.getPredicate(label)) }, [label]);
 }
 
-function evolutionEquation(nodeA: Element, nodeB: Element): HTMLParagraphElement {
-    return dom.p({}, [
-        "x", dom.create("sub", {}, ["t+1"]),
-        " = ", nodeA, " x", dom.create("sub", {}, ["t"]),
-        " + ", nodeB, " u", dom.create("sub", {}, ["t"]),
-        " + w", dom.create("sub", {}, ["t"])
-    ]);
-}
-
-function tableify(m: Matrix): HTMLTableElement {
-    return dom.create("table", { "class": "matrix" },
-        m.map(row => dom.create("tr", {},
-            row.map(x => dom.create("td", {}, [
-                dom.span({}, [String(x)])
-            ]))
-        ))
-    );
+function matrixToTeX(m: Matrix): string {
+    return "\\begin{pmatrix}" + m.map(row => row.join("&")).join("\\\\") + "\\end{pmatrix}";
 }
 
 
@@ -367,7 +352,7 @@ class ProblemSetupSystemPreview {
 // Recognize non-NaN numeric entries.
 class EvolutionEquationInput {
 
-    +node: Element;
+    +node: HTMLParagraphElement;
     +ssDim: Input<number>;
     +csDim: Input<number>;
     +A: MatrixInput<number>;
@@ -379,7 +364,13 @@ class EvolutionEquationInput {
         this.csDim = csDim;
         this.A = new MatrixInput(EvolutionEquationInput.parseNumber, [2, 2], 5);
         this.B = new MatrixInput(EvolutionEquationInput.parseNumber, [2, 2], 5);
-        this.node = dom.div({}, [evolutionEquation(this.A.node, this.B.node)]);
+        this.node = dom.p({}, [
+            dom.renderTeX("x_{t+1} =", dom.span()),
+            this.A.node,
+            dom.renderTeX("x_t +", dom.span()),
+            this.B.node,
+            dom.renderTeX("u_t + w_t", dom.span())
+        ]);
         ssDim.attach(() => {
             this.A.shape = [ssDim.value, ssDim.value];
             this.B.shape = [ssDim.value, csDim.value];
@@ -440,7 +431,7 @@ class PolytopeInput extends ObservableMixin<null> implements Input<ConvexPolytop
         let fig = new Figure();
         this.previewLayer = fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#EEE" });
         this.preview = new AxesPlot([90, 90], fig, autoProjection(4/3));
-        this.node = dom.div({ "class": "polytope_builder" }, [this.predicates.node, this.preview.node]);
+        this.node = dom.div({ "class": "polytope-builder" }, [this.predicates.node, this.preview.node]);
         this.changeHandler();
     }
 
@@ -676,8 +667,8 @@ export class ProblemSummary {
             formula = formula.replace(symbol, stringifyProposition(prop));
         }
 
-        this.node = dom.div({ "class": "problem_summary" }, [
-            evolutionEquation(tableify(system.lss.A), tableify(system.lss.B)),
+        this.node = dom.div({ "class": "problem-summary" }, [
+            dom.renderTeX("x_{t+1} = " + matrixToTeX(system.lss.A) + " x_t + " + matrixToTeX(system.lss.B) + " u_t + w_t", dom.p()),
             dom.div({ "class": "boxes" }, [
                 dom.div({}, [dom.h3({}, ["Control Space Polytope"]), cs.node]),
                 dom.div({}, [dom.h3({}, ["Random Space Polytope"]), rs.node]),
@@ -1060,7 +1051,7 @@ class SISummary {
         const pctNon = volNon / volAll * 100;
         dom.replaceChildren(this.node, [
             dom.p({}, [count + " states"]),
-            dom.div({ "class": "analysis_progress" }, [
+            dom.div({ "class": "analysis-progress" }, [
                 dom.div({
                     "class": "satisfying",
                     "style": "width:" + pctSat + "%;",
@@ -1097,7 +1088,7 @@ class SIStateView extends ObservableMixin<null> {
         this.summary = dom.div({ "class": "summary" });
         this.predicates = new SelectableNodes(p => styledPredicateLabel(p, system), ", ", "-");
         this.predicates.node.className = "predicates";
-        this.node = dom.div({ "class": "state_view" }, [
+        this.node = dom.div({ "class": "state-view" }, [
             this.summary, this.predicates.node
         ]);
         this.changeHandler();

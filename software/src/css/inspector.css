@@ -10,7 +10,7 @@ body {
 
 body > div {
     max-width: 950px;
-    margin: 0 auto 25px auto;
+    margin: 0 auto 15px auto;
     padding: 15px 5px;
 }
 
@@ -41,7 +41,7 @@ h1 {
 
 h2 {
     max-width: 950px;
-    margin: 25px auto 0 auto;
+    margin: 15px auto 0 auto;
     padding: 5px;
     font-size: 16pt;
     font-weight: normal;
@@ -67,37 +67,32 @@ u {
 
 /* Wide insert: interactive content */
 
-hr {
-    margin: 7px auto;
-    border: 1px solid #DDD;
-}
-hr.wide1 {
-    width: 1020px;
-}
-hr.wide2 {
-    width: 1080px;
-    border-color: #CCC;
-}
-hr.wide3 {
-    width: 1140px;
-    border-color: #BBB;
-}
-
-h2.wide {
-    border-bottom: 0;
-}
-
-div.wide {
+.wide {
     max-width: 1200px;
     min-width: 1200px;
-    margin: 0 auto;
-    padding: 25px 0;
+    margin: 15px auto;
+}
+.wide-inner {
+    width: 100%;
+    margin: 0;
+    padding: 25px 5px;
     border-top: 2px solid #999;
     border-bottom: 2px solid #999;
 }
-
-.wide-inner {
-    margin: 0 auto;
+.wide hr {
+    margin: 7px auto;
+}
+.wide hr.width1 {
+    border: 1px solid #DDD;
+    margin: 7px 90px;
+}
+.wide hr.width2 {
+    border: 1px solid #CCC;
+    margin: 7px 60px;
+}
+.wide hr.width3 {
+    border: 1px solid #BBB;
+    margin: 7px 30px;
 }
 
 #application {
@@ -158,12 +153,12 @@ a:hover {
 
 /* Problem Summary*/
 
-.problem_summary > .boxes {
+.problem-summary > .boxes {
     display: flex;
     flex-wrap: wrap;
     flex-direction: row;
 }
-.problem_summary > .boxes > div {
+.problem-summary > .boxes > div {
     width: 25%;
 }
 
@@ -258,30 +253,30 @@ p.math {
     padding: 2pt 16pt;
 }
 
-.polytope_builder {
+.polytope-builder {
     display: flex;
     vertical-align: top;
 }
-.polytope_builder textarea {
+.polytope-builder textarea {
     margin: 5px 5px 25px 0;
 }
 
-.analysis_progress {
+.analysis-progress {
     display: flex;
     flex-direction: row;
     border: 1px solid #000;
     cursor: help;
 }
-.analysis_progress div {
+.analysis-progress div {
     height: 8px;
 }
-.analysis_progress div.satisfying {
+.analysis-progress div.satisfying {
     background-color: #093;
 }
-.analysis_progress div.undecided {
+.analysis-progress div.undecided {
     background-color: #FFF;
 }
-.analysis_progress div.nonsatisfying {
+.analysis-progress div.nonsatisfying {
     background-color: #CCC;
 }
 
@@ -327,10 +322,10 @@ span.nonsatisfying {
     border-right: 6pt solid #603;
 }
 
-.state_view .predicates {
+.state-view .predicates {
     cursor: default;
 }
-.state_view .predicates > span:hover {
+.state-view .predicates > span:hover {
     padding: 2px;
     margin: -2px;
     background-color: rgba(0, 0, 0 , 0.2);

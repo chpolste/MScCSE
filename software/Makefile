@@ -85,8 +85,7 @@ check:
 
 # Apps
 
-inspector: $(DIST_HTML)/inspector.html $(DIST_CSS)/inspector.css $(DIST_CSS)/widgets.css \
-		$(DIST_JS)/inspector.js
+inspector: $(DIST_HTML)/inspector.html $(DIST_CSS)/inspector.css $(DIST_JS)/inspector.js
 
 
 # File rules

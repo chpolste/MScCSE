@@ -24,8 +24,8 @@ export interface Plot {
 
 export class InteractivePlot implements Plot {
 
-    +node: HTMLElement;
-    +menu: HTMLElement;
+    +node: HTMLDivElement;
+    +menu: HTMLDivElement;
     +figure: LayeredFigure;
     +axesPlot: AxesPlot;
     panningState: number[] | null;
@@ -40,9 +40,9 @@ export class InteractivePlot implements Plot {
         saveButton.addEventListener("click", () => {
             saveButton.setAttribute("href", "data:image/svg+xml;base64," + window.btoa(this.axesPlot.source));
         });
-        this.menu = dom.create("menu", {}, ["⇧+🖰 to pan and zoom :: ", resetButton, " :: ", saveButton]);
+        this.menu = dom.div({ "class": "menu" }, ["⇧+🖰 to pan and zoom :: ", resetButton, " :: ", saveButton]);
         this.axesPlot = new AxesPlot(size, figure, projection);
-        this.node = dom.create("div", { "class": "plot" }, [this.menu, this.axesPlot.node]);
+        this.node = dom.div({ "class": "plot" }, [this.menu, this.axesPlot.node]);
 
         let shapePlot = this.axesPlot.shapePlot
         // Mousewheel zoom

@@ -112,6 +112,9 @@ label {
     margin: 4px 0;
 }
 
+textarea {
+    overflow-wrap: normal;
+}
 textarea, input[type=text] {
     font-size: 9pt;
     font-family: monospace;
@@ -242,11 +245,47 @@ a:hover {
 
 /* Additional widget styling */
 
+.plot {
+    padding: 0;
+    margin: 0;
+    display: inline-flex;
+    flex-flow: column nowrap;
+    font-family: DejaVu Sans, sans-serif;
+}
+.plot .menu {
+    font-size: 8pt;
+    padding: 0 40px 0 5px;
+    margin: 0 0 -3px 0;
+    flex: 0 0 auto;
+    overflow: hidden;
+    text-align: right;
+    color: #666;
+}
+.plot .menu a {
+    color: #666;
+    cursor: pointer;
+    text-decoration: none;
+}
+.plot .menu a:hover {
+    color: #000;
+}
+
+.matrix {
+    border: 0;
+    border-right: 2px solid #000;
+    border-left: 2px solid #000;
+    border-radius: 12px;
+    padding: 1px 3px;
+    margin: 0 5px;
+    display: inline-block;
+    vertical-align: middle;
+}
+.matrix td {
+    text-align: center;
+    padding: 1px;
+}
 .matrix input {
     text-align: center;
-}
-.matrix span {
-    padding: 0 5px;
 }
 
 p.math {

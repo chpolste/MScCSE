@@ -58,8 +58,12 @@ function actionSupportsArePreP(sys) {
     return function () {
         for (let state of sys.states.values()) {
             for (let action of state.actions) {
-                let preR = sys.preR(action.origin, action.controls, action.targets);
+                const preR = sys.preR(action.origin, action.controls, action.targets);
+                // PreR has to cover the entire origin polytope
+                assert(geometry.union.isSameAs([state.polytope], preR));
+                const supportPolys = [];
                 for (let support of action.supports) {
+                    supportPolys.push(...support.origins);
                     // Origin is subset of PreR
                     assert(geometry.union.doIntersect(support.origins, preR));
                     assert(!geometry.union.doIntersect(support.origins, state.polytope.remove(...preR)));
@@ -69,6 +73,8 @@ function actionSupportsArePreP(sys) {
                         assert(geometry.union.doIntersect(support.origins, pre));
                     }
                 }
+                // Supports have to cover entire origin polytope
+                assert(geometry.union.isSameAs([state.polytope], supportPolys));
             }
         }
     }

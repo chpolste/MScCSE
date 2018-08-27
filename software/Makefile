@@ -9,7 +9,7 @@ BABELIFY_FLAGS =
 BROWSERIFY_FLAGS = --debug
 BROWSERIFY = $(NODE_BIN)/browserify $(BROWSERIFY_FLAGS) -t [ babelify $(BABELIFY_FLAGS) ]
 
-MOCHA_FLAGS = --require babel-core/register
+MOCHA_FLAGS = --require babel-core/register --timeout 5000
 MOCHA = $(NODE_BIN)/mocha $(MOCHA_FLAGS)
 
 UGLIFYCSS_FLAGS = 

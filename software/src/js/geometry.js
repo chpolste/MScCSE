@@ -43,11 +43,6 @@ function cartesian<T>(...tuples: [T, T][]): T[][] {
 // /!\ This is carefully tuned so that canonical sets of halfspaces can be
 //     combined into a canonical set with a single merge operation.
 
-// Vertex comparator for use with sort()
-function vertexOrdering2D(p: Vector, q: Vector): number {
-    return p[0] == q[0] ? q[1] - p[1] : p[0] - q[0];
-}
-
 // Halfspace comparator for use with sort()
 function halfspaceOrdering2D(g: Halfspace, h: Halfspace): number {
     return angleOrder(g.normal) - angleOrder(h.normal);
@@ -74,13 +69,18 @@ function angleCCW(g, h) {
     return angle === 2 * Math.PI ? 0 : angle;
 }
 
+// Vertex comparator for use with sort()
+function vertexOrdering2D(p: Vector, q: Vector): number {
+    return p[0] == q[0] ? q[1] - p[1] : p[0] - q[0];
+}
+
 // Is the turn described by the points p, q, r counterclockwise?
 function isCCWTurn(p: Vector, q: Vector, r: Vector): boolean {
-    return (p[0] - r[0]) * (q[1] - r[1]) - (p[1] - r[1]) * (q[0] - r[0]) >= TOL;
+    return (p[0] - r[0]) * (q[1] - r[1]) - (p[1] - r[1]) * (q[0] - r[0]) > 0;
 }
 
 // Intersection point of the edges of two halfspaces. Returns null if edges are
-// parallel and therefore do not intersect.
+// parallel and therefore do not intersect. Float-tolerant.
 function halfplaneIntersection(g: Halfspace, h: Halfspace): ?Vector {
     const [g0, g1] = g.normal;
     const [h0, h1] = h.normal;
@@ -967,16 +967,13 @@ export const union = {
     },
 
     disjunctify(xs: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        // Sort by volume in descending order (this should favour the removal
-        // of small polytopes).
-        const xxs = xs.slice().sort((x, y) => y.volume - x.volume);
+        // Sort by volume in ascending order and then take from the large end
+        // first. This should favour the removal of small polytopes.
+        const xxs = xs.slice().sort((x, y) => x.volume - y.volume);
         const out = [];
-        for (let xx of xxs) {
-            if (out.length === 0) {
-                out.push(xx);
-            } else {
-                out.push(...xx.remove(...out));
-            }
+        while (xxs.length > 0) {
+            const xx = xxs.pop();
+            out.push(...xx.remove(...out));
         }
         return out.filter(p => !p.isEmpty);
     },

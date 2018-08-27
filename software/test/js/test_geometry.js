@@ -610,6 +610,8 @@ describe("geometry.Polygon with square", function () {
 
 describe("geometry problem cases", function () {
 
+    const union = geometry.union;
+
     it("Polygon remove inner with angle < 0 edge case", function () {
         let inner = geometry.Polygon.hull([[-1, -1], [1, -1], [5, 1], [-1, 4]]);
         let poly1 = geometry.Polygon.hull([[-1, -1], [1, -1], [1, 1], [-1, 0.3], [0, 1.6]]);
@@ -621,10 +623,82 @@ describe("geometry problem cases", function () {
         assert(diff.length > 0);
     });
 
+    // Due to the perturbations, the [-0.5, 0.7] points are close but not
+    // next to each other when ordered by x-coordinate. This caused hull to
+    // yield wrong results when isCCWTurn was still using TOL instead of 0
+    // which was not appropriate anymore after commit 1d8c394.
+    it("Polygon.hull with close points", function () {
+        const vs = [
+            [ -0.7000000000000004, 0.8000000000000005 ],
+            [ -0.5999999999999999, 0.7 ],
+            [ -0.5000000000000001, 0.7 ],
+            [ -0.6000000000000004, 0.8000000000000004 ],
+            [ -0.6000000000000001, 0.8000000000000005 ],
+            [ -0.5, 0.7000000000000003 ],
+            [ -0.5, 0.8000000000000003 ]
+        ];
+        const hull = geometry.Polygon.hull(vs);
+        const ref = geometry.Polygon.hull([[-0.7, 0.8], [-0.6, 0.7], [-0.5, 0.7], [-0.5, 0.8]]);
+        assert(hull.isSameAs(ref));
+        assert(ref.isSameAs(hull));
+    });
+
+    // This is related to the previous test case, but the assertions are
+    // more high-level instead of directly targeting the problem. Since
+    // a few different operations of polytopes and union are used here,
+    // keep this test.
+    it("Action support computation-like operations", function () {
+        const state = geometry.Polygon.hull([[-1, 1], [-1, 0.5], [-0.5, 0.5], [-0.5, 1]]);
+        const supports = [
+            [[-1, 0.6000000000000001], [-1, 0.5], [-0.8999999999999999, 0.5]] ,
+            [[-1, 0.8000000000000002], [-1, 0.7000000000000001], [-0.8, 0.7000000000000001], [-0.9000000000000001, 0.8000000000000003]] ,
+            [[-1, 0.9], [-1, 0.8000000000000002], [-0.9000000000000001, 0.8000000000000003]] ,
+            [[-1, 1], [-1, 0.9], [-0.9000000000000001, 0.8000000000000003], [-0.7000000000000002, 0.8000000000000003], [-0.9, 1]] ,
+            [[-1.0000000000000002, 0.7000000000000001], [-0.9000000000000002, 0.5], [-0.6, 0.5], [-0.8, 0.7000000000000001]] ,
+            [[-0.8, 0.7000000000000001], [-0.6, 0.5], [-0.5, 0.5], [-0.5, 0.6000000000000001], [-0.6000000000000001, 0.7000000000000001]] ,
+            [[-1, 0.6999999999999996], [-1, 0.6000000000000001], [-0.9000000000000005, 0.5000000000000006]] ,
+            [[-0.9000000000000001, 0.8000000000000003], [-0.8, 0.7000000000000001], [-0.6000000000000001, 0.7000000000000001], [-0.7000000000000002, 0.8000000000000003]] ,
+            [[-0.9, 1], [-0.7000000000000002, 0.8000000000000003], [-0.5000000000000002, 0.8000000000000002], [-0.6000000000000001, 1]] ,
+            [[-0.6000000000000002, 1.0000000000000004], [-0.5, 0.7999999999999998], [-0.5, 0.9]] ,
+            [[-0.6, 1], [-0.5, 0.9], [-0.5, 1]] ,
+            [[-0.6000000000000001, 0.7000000000000001], [-0.5, 0.6000000000000001], [-0.5, 0.7000000000000001]] ,
+            [[-0.7000000000000002, 0.8000000000000003], [-0.6000000000000001, 0.7000000000000001], [-0.5, 0.7000000000000001], [-0.5, 0.8000000000000002]]
+        ].map(vs => geometry.Polygon.hull(vs));
+        // Union of supports is state
+        const diff = state.remove(...supports);
+        assert(union.isEmpty(diff));
+        assert(union.isSameAs(union.simplify(supports), [state]));
+        // This was the precise predecessor
+        const prer = [
+            [[-1, 1], [-1, 0.5], [-0.5, 0.5], [-0.5, 0.7000000000000001], [-0.8, 1]] ,
+            [[-0.8, 1], [-0.6000000000000002, 0.8000000000000003], [-0.5, 0.8000000000000002], [-0.5, 1]] ,
+            [[-0.6000000000000002, 0.8000000000000003], [-0.5, 0.7000000000000001], [-0.5, 0.8000000000000002]]
+        ].map(vs => geometry.Polygon.hull(vs));
+        // ... which also should be the same as the state
+        assert(union.isEmpty(state.remove(...prer)));
+        assert(union.isSameAs([state], prer));
+        // Now reproduce the calculation of supports: intersect each support
+        // polytope with the PreR. Since PreR = state = support union, this
+        // should be a geometric identity operation. This failed for the last
+        // polytope due to a bug in Polygon.hull which is used by simplify.
+        for (let poly of supports) {
+            const inter1 = union.intersect(prer, [poly]);
+            const inter2 = union.intersect([poly], prer);
+            assert(union.isSameAs([poly], inter1));
+            assert(union.isSameAs([poly], inter2));
+            assert(union.isSameAs(inter1, union.simplify(inter1)));
+            assert(union.isSameAs(inter2, union.simplify(inter2)));
+            assert(union.isSameAs([poly], union.simplify(inter1)));
+            assert(union.isSameAs([poly], union.simplify(inter2)));
+        }
+    });
+
 });
 
 
 describe("geometry.union", function () {
+
+    const union = geometry.union;
 
     let poly1 = geometry.Polygon.hull([[0, 0], [1, 0], [0, 1]]);
     let poly2 = geometry.Polygon.hull([[2, 0], [2, 1], [1, 0], [0, 1]]);
@@ -632,36 +706,36 @@ describe("geometry.union", function () {
 
     it("isEmpty", function () {
         let empty = geometry.Polygon.empty();
-        assert(geometry.union.isEmpty([]));
-        assert(geometry.union.isEmpty([empty]));
-        assert(geometry.union.isEmpty([empty, empty, empty]));
-        assert(!geometry.union.isEmpty([poly1]));
-        assert(!geometry.union.isEmpty([empty, empty, poly1, empty]));
+        assert(union.isEmpty([]));
+        assert(union.isEmpty([empty]));
+        assert(union.isEmpty([empty, empty, empty]));
+        assert(!union.isEmpty([poly1]));
+        assert(!union.isEmpty([empty, empty, poly1, empty]));
     });
 
     it("extent", function () {
-        assert.deepEqual(geometry.union.extent([poly1]), [[0, 1], [0, 1]]);
-        assert.deepEqual(geometry.union.extent([poly2]), [[0, 2], [0, 1]]);
-        assert.deepEqual(geometry.union.extent([poly1, poly2]), [[0, 2], [0, 1]]);
-        assert.deepEqual(geometry.union.extent([poly2, poly1]), [[0, 2], [0, 1]]);
+        assert.deepEqual(union.extent([poly1]), [[0, 1], [0, 1]]);
+        assert.deepEqual(union.extent([poly2]), [[0, 2], [0, 1]]);
+        assert.deepEqual(union.extent([poly1, poly2]), [[0, 2], [0, 1]]);
+        assert.deepEqual(union.extent([poly2, poly1]), [[0, 2], [0, 1]]);
     });
 
     it("boundingBox", function () {
         let bbox = geometry.Polygon.hull([[0, 0], [2, 0], [0, 1], [2, 1]]);
-        assert(geometry.union.boundingBox([poly1, poly2]).isSameAs(bbox));
-        assert(geometry.union.boundingBox([poly2, poly1]).isSameAs(bbox));
-        assert.throws(() => geometry.union.boundingBox([poly1, interval]));
+        assert(union.boundingBox([poly1, poly2]).isSameAs(bbox));
+        assert(union.boundingBox([poly2, poly1]).isSameAs(bbox));
+        assert.throws(() => union.boundingBox([poly1, interval]));
     });
 
     it("minkowski with one element yields same as polytope method", function () {
-        let mink = geometry.union.minkowski([poly1], poly1);
+        let mink = union.minkowski([poly1], poly1);
         assert.equal(mink.length, 1);
         assert(mink[0].isSameAs(poly1.minkowski(poly1)));
     });
 
     it("pontryagin with one element yields same as polytope method", function () {
         let poly3 = geometry.Polygon.hull([[0, 0], [0.1, 0.1], [0, 0.1], [0.1, 0]]);
-        let pont = geometry.union.pontryagin([poly1], poly3);
+        let pont = union.pontryagin([poly1], poly3);
         assert.equal(pont.length, 1);
         assert(pont[0].isSameAs(poly1.pontryagin(poly3)));
     });
@@ -669,9 +743,9 @@ describe("geometry.union", function () {
     it("simplify merges a union of intervals", function () {
         let i = geometry.Interval.hull([[0], [1]]);
         let ref = geometry.Interval.hull([[-1], [2]]);
-        let s1 = geometry.union.simplify([i, i.translate([1]), i.translate([-1])]);
-        let s2 = geometry.union.simplify([i.translate([1]), i, i.translate([-1])]);
-        let s3 = geometry.union.simplify([i.translate([1]), i.translate([-1]), i]);
+        let s1 = union.simplify([i, i.translate([1]), i.translate([-1])]);
+        let s2 = union.simplify([i.translate([1]), i, i.translate([-1])]);
+        let s3 = union.simplify([i.translate([1]), i.translate([-1]), i]);
         assert.equal(s1.length, 1);
         assert.equal(s2.length, 1);
         assert.equal(s3.length, 1);

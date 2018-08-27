@@ -487,7 +487,7 @@ export class Action {
             return this._supports;
         } else {
             let op = target => this.origin.pre(this.controls, [target]);
-            let prer = this.origin.preR(this.controls, this.targets);
+            let prer = union.simplify(this.origin.preR(this.controls, this.targets));
             this._supports = preciseOperatorPartition(this.targets, op).map(
                 part => new ActionSupport(this, part.items, union.simplify(union.intersect(part.polys, prer)))
             );

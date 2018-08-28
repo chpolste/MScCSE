@@ -773,8 +773,7 @@ export class SystemInspector {
 }
 
 
-type ClickOperatorWrapper = (state: State) => ConvexPolytopeUnion;
-type HoverOperatorWrapper = (origin: State, target: State) => ConvexPolytopeUnion;
+type ClickOperatorWrapper = (state: State, control: ConvexPolytopeUnion) => ConvexPolytopeUnion;
 
 // Settings panel for the main view.
 class SISettings extends ObservableMixin<null> {
@@ -795,12 +794,12 @@ class SISettings extends ObservableMixin<null> {
 
         const lss = system.lss;
         this.highlight = new SelectInput({
-            "None": state => [],
-            "Posterior": state => state.post(lss.controlSpace),
-            "Predecessor": state => lss.pre(lss.stateSpace, lss.controlSpace, [state.polytope]),
-            "Robust Predecessor": state => lss.preR(lss.stateSpace, lss.controlSpace, [state.polytope]),
-            "Attractor": state => lss.attr(lss.stateSpace, lss.controlSpace, [state.polytope]),
-            "Robust Attractor": state => lss.attrR(lss.stateSpace, lss.controlSpace, [state.polytope])
+            "None": (state, u) => [],
+            "Posterior": (state, u) => state.isOutside ? [] : state.post(u),
+            "Predecessor": (state, u) => lss.pre(lss.stateSpace, u, [state.polytope]),
+            "Robust Predecessor": (state, u) => lss.preR(lss.stateSpace, u, [state.polytope]),
+            "Attractor": (state, u) => lss.attr(lss.stateSpace, u, [state.polytope]),
+            "Robust Attractor": (state, u) => lss.attrR(lss.stateSpace, u, [state.polytope])
         }, "None");
 
         this.node = dom.div({ "class": "settings" }, [
@@ -863,7 +862,10 @@ class SISystemView {
         });
         this.stateView.predicates.attach(() => this.drawPredicate());
         this.actionView = actionView;
-        this.actionView.attach(() => this.drawAction());
+        this.actionView.attach(() => {
+            this.drawHighlight();
+            this.drawAction();
+        });
         this.actionSupportView = actionSupportView;
         this.actionSupportView.attach(() => this.drawActionSupport());
 
@@ -904,10 +906,14 @@ class SISystemView {
     }
 
     drawHighlight(): void {
-        let operator = this.settings.highlight;
-        let selection = this.stateView.selection;
-        if (selection != null && !(selection.isOutside && operator.text == "Posterior")) {
-            let shapes = operator.value(selection).map(
+        const operator = this.settings.highlight;
+        const state = this.stateView.selection;
+        const action = this.actionView.hoverSelection == null
+                     ? this.actionView.selection
+                     : this.actionView.hoverSelection;
+        const control = action == null ? this.system.lss.controlSpace : action.controls;
+        if (state != null) {
+            const shapes = operator.value(state, control).map(
                 poly => ({ kind: "polytope", vertices: poly.vertices })
             );
             this.layers.highlight1.shapes = shapes;

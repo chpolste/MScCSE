@@ -512,7 +512,7 @@
         <li class="math">\mathrm{AttrR}(X, U', \{X_i\})</li>
       </ul>
       <p>
-        where <span class="math">X</span> is the state space polytope and <span class="math">U'</span> is either the control space polytope if no action is selected or the action polytope <span class="math">U_i^J</span> if an action is selected.
+        where <span class="math">X</span> is the state space polytope and <span class="math">U'</span> is either the entire control space polytope <span class="math">U</span> if no action is selected or the action polytope <span class="math">U_i^J</span> if an action is selected.
       </p>
     </div>
     <div class="info-box" id="info-control">
@@ -530,6 +530,9 @@
         Information about the currently selected system state: label, analysis status, number of actions and linear predicates that are fulfilled by the associated polytope <span class="math">X_i</span>.
         Hovering with the mouse over a predicate label highlights the corresponding half-space in the system view.
       </p>
+      <p>
+        The refine button refines the currently selected state according to the global refinement procedure settings.
+      </p>
     </div>
     <div class="info-box" id="info-actions">
       <p>
@@ -543,11 +546,15 @@
         Selection of an action support updates the arrows of the action to only point to the targets of the action support and highlights the corresponding subset <span class="math">\mathrm{PreP}(X_i, U_i^J, \{ X_j \}_{j \in J'})</span> of the origin state <span class="math">X_i</span>.
       </p>
     </div>
-    <div class="info-box" id="info-analysis">
-      TODO
-    </div>
-    <div class="info-box" id="info-refinement">
-      TODO
+    <div class="info-box" id="info-analysis-refinement">
+      <p>
+        <u>Analyse</u> the system with respect to the chosen objective and update the analysis status of all states.
+        The interface will remain responsive during the analysis (although some functionality might be temporarily disabled) but it can freeze for a while immediately after the button was pressed.
+      </p>
+      <p>
+        <u>Refine all</u> undecided states. The checkboxes toggle which refinement procedures are applied.
+        Individual states can be refined using the button in the Selected State widget.
+      </p>
     </div>
 
   </body>

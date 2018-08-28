@@ -359,6 +359,9 @@ span.nonsatisfying {
     border-right: 6pt solid #603;
 }
 
+.state-view input.refine {
+    float: right;
+}
 .state-view .predicates {
     cursor: default;
 }
@@ -405,3 +408,10 @@ span.nonsatisfying {
     background-color: #EEE;
 }
 
+.analysis-info {
+    margin-left: 2pt;
+}
+.refinement-toggles label {
+    display: inline-block;
+    margin: 0 10pt 0 0;
+}

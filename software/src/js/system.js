@@ -5,7 +5,7 @@ import type { Matrix, Vector } from "./linalg.js";
 import type { ConvexPolytope, ConvexPolytopeUnion, Halfspace } from "./geometry.js";
 import type { GameGraph } from "./game.js";
 
-import { iter, arr, ValueError } from "./tools.js";
+import { iter, arr, sets, ValueError } from "./tools.js";
 import * as linalg from "./linalg.js";
 import { polytopeType, union } from "./geometry.js";
 
@@ -79,7 +79,6 @@ export class LSS {
         this.randomSpace = randomSpace;
         this.controlSpace = controlSpace;
         this.dim = stateSpace.dim;
-
         this.oneStepReachable = this.post(stateSpace, controlSpace);
         this.extendedStateSpace = union.disjunctify([this.stateSpace, ...this.oneStepReachable]);
     }
@@ -89,8 +88,8 @@ export class LSS {
     }
 
     get extent(): [number, number][] {
-        let ext1 = union.extent(this.post(this.stateSpace, this.controlSpace));
-        let ext2 = this.stateSpace.extent;
+        const ext1 = union.extent(this.post(this.stateSpace, this.controlSpace));
+        const ext2 = this.stateSpace.extent;
         return arr.zip2map((a, b) => [Math.min(a[0], b[0]), Math.max(a[1], b[1])], ext1, ext2);
     }
 
@@ -100,11 +99,11 @@ export class LSS {
 
     // Posterior: Post(x, {u0, ...})
     post(x: ConvexPolytope, us: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        let xvs = x.vertices;
-        let wvs = this.randomSpace.vertices;
-        let posts = [];
+        const xvs = x.vertices;
+        const wvs = this.randomSpace.vertices;
+        const posts = [];
         for (let u of us) {
-            let uvs = u.vertices;
+            const uvs = u.vertices;
             posts.push(
                 polytopeType(this.dim).hull(
                     linalg.minkowski.axpy(this.A, xvs, linalg.minkowski.axpy(this.B, uvs, wvs))
@@ -116,12 +115,12 @@ export class LSS {
 
     // Predecessor: Pre(x, {u0, ...}, {y0, ...})
     pre(x: ConvexPolytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        let pres = [];
+        const pres = [];
         for (let u of us) {
             // Minkowski sum: hull of translated vertices (union of translated polygons)
-            let Bupws = linalg.minkowski.axpy(this.B, u.vertices, this.randomSpace.vertices);
+            const Bupws = linalg.minkowski.axpy(this.B, u.vertices, this.randomSpace.vertices);
             for (let y of ys) {
-                let pre = polytopeType(this.dim).hull(linalg.minkowski.xmy(y.vertices, Bupws));
+                const pre = polytopeType(this.dim).hull(linalg.minkowski.xmy(y.vertices, Bupws));
                 pres.push(x.intersect(pre.applyRight(this.A)));
             }
         }
@@ -130,12 +129,12 @@ export class LSS {
 
     // Robust Predecessor: PreR(x, {u0, ...}, {y0, ...})
     preR(x: ConvexPolytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        let pontrys = union.pontryagin(ys, this.randomSpace);
-        let prers = [];
+        const pontrys = union.pontryagin(ys, this.randomSpace);
+        const prers = [];
         for (let u of us) {
-            let Bus = u.vertices.map(uv => linalg.apply(this.B, uv));
+            const Bus = u.vertices.map(uv => linalg.apply(this.B, uv));
             for (let pontry of pontrys) {
-                let poly = polytopeType(this.dim).hull(linalg.minkowski.xmy(pontry.vertices, Bus));
+                const poly = polytopeType(this.dim).hull(linalg.minkowski.xmy(pontry.vertices, Bus));
                 prers.push(x.intersect(poly.applyRight(this.A)));
             }
         }
@@ -155,8 +154,8 @@ export class LSS {
     // Action Polytope
     // TODO: accept a u that isn't the entire control space
     actionPolytope(x: ConvexPolytope, y: ConvexPolytope): ConvexPolytopeUnion {
-        let Axpws = linalg.minkowski.axpy(this.A, x.vertices, this.randomSpace.vertices);
-        let poly = polytopeType(this.dim).hull(linalg.minkowski.xmy(y.vertices, Axpws));
+        const Axpws = linalg.minkowski.axpy(this.A, x.vertices, this.randomSpace.vertices);
+        const poly = polytopeType(this.dim).hull(linalg.minkowski.xmy(y.vertices, Axpws));
         return union.intersect([poly.applyRight(this.B)], this.controlSpace);
     }
 
@@ -187,6 +186,17 @@ type Strategy = (State) => Vector; // strategies must maintain their own memory
 // Traces
 export type Trace = Vector[];
 
+// Snapshots
+export type Snapshot = {
+    predicates: { [string]: {} },
+    states: {
+        [string]: {
+            vertices: Vector[],
+            predicates: string[],
+            actions: (string[])[]
+        }
+    }
+};
 
 export class AbstractedLSS implements GameGraph {
 
@@ -254,6 +264,68 @@ export class AbstractedLSS implements GameGraph {
         return pred;
     }
 
+    // Analysis and refinement
+
+    // Update the states according to the result of a game analysis. Returns
+    // those states whose kind was changed.
+    updateKinds(satisfying: Set<StateID>, nonSatisfying: Set<StateID>): Set<State> {
+        const updated = new Set();
+        for (let [label, state] of this.states.entries()) {
+            let wasUpdated = false;
+            if (satisfying.has(label)) {
+                if (state.isNonSatisfying) throw new Error(
+                    "nonsat state now sat, which should not happen..." // TODO
+                );
+                wasUpdated = !state.isSatisfying;
+                state.kind = SATISFYING;
+            } else if (nonSatisfying.has(label)) {
+                if (state.isSatisfying) throw new Error(
+                    "sat state now nonsat, which should not happen..." // TODO
+                );
+                wasUpdated = state.isUndecided;
+                state.kind = state.isOuter ? OUTER : NONSATISFYING;
+            } else {
+                if (!state.isUndecided) throw new Error(
+                    "sat/nonsat state has become undecided, which should not happen..." // TODO
+                );
+            }
+            if (wasUpdated) {
+                updated.add(state);
+            }
+        }
+        return updated;
+    }
+
+    refine(partitions: Map<State, ConvexPolytopeUnion>): Set<State> {
+        const refined = new Set();
+        for (let [state, partition] of partitions.entries()) {
+            // Validate that partition covers state polytope
+            if (!union.isSameAs([state.polytope], partition)) throw new Error(
+                "Faulty partition" // TODO
+            );
+            // If partition does not change state, keep it and continue
+            if (partition.length === 1) continue;
+            // Create new states for partition elements with same properties as
+            // original state
+            for (let poly of partition) {
+                this.newState(poly, state.kind, state.predicates);
+            }
+            // Remove the original state
+            this.states.delete(state.label);
+            refined.add(state);
+        }
+        this.resetActions(refined);
+        return refined;
+    }
+
+    resetActions(targets?: Set<State>): void {
+        for (let state of this.states.values()) {
+            state.resetActions(targets);
+        }
+    }
+
+    // Trace sampling
+
     stateOf(x: Vector): ?State {
         for (let state of this.states.values()) {
             if (state.polytope.contains(x)) {
@@ -263,7 +335,6 @@ export class AbstractedLSS implements GameGraph {
         return null;
     }
 
-    // Trace sampling
     sampleTrace(init: Vector, strategy: Strategy, steps: number): Trace {
         // Trace starts from given location
         const trace = [init];
@@ -385,6 +456,7 @@ export class State {
     +actions: Action[];
     _actions: ?Action[];
     kind: StateKind;
+    _reachable: Set<State>;
 
     constructor(system: AbstractedLSS, label: StateID, polytope: ConvexPolytope, kind: StateKind,
                 predicates?: Iterable<PredicateID>): void {
@@ -393,7 +465,8 @@ export class State {
         this.label = label;
         this.kind = kind;
         this.predicates = new Set(predicates == null ? [] : predicates);
-        this._actions = this.isOuter ? [] : null; // Outer states have no actions
+        this.resetActions(); // initializes _actions and _reachable
+        this._reachable = new Set();
     }
 
     // Lazy evaluation and memoization of actions
@@ -401,9 +474,9 @@ export class State {
         if (this._actions != null) {
             return this._actions;
         } else {
-            let reachableStates = this.oneStepReachable(this.system.lss.controlSpace);
-            let op = target => this.actionPolytope(target);
-            this._actions = preciseOperatorPartition(reachableStates, op).map(
+            const op = target => this.actionPolytope(target);
+            this._reachable = this.oneStepReachable(this.system.lss.controlSpace);
+            this._actions = preciseOperatorPartition(this._reachable, op).map(
                 part => new Action(this, part.items, union.simplify(part.polys))
             );
             return this.actions;
@@ -450,6 +523,8 @@ export class State {
         return this.system.attrR(this, us, ys);
     }
 
+    // Always use this function, never use _reachable. It exists only for
+    // resetActions and is generally NOT the current one-step reachable set.
     oneStepReachable(us: ConvexPolytopeUnion): Set<State> {
         const post = this.post(us);
         const out = new Set();
@@ -461,6 +536,18 @@ export class State {
 
     actionPolytope(y: State): ConvexPolytopeUnion {
         return this.system.actionPolytope(this, y);
+    }
+
+    resetActions(targets?: Set<State>): void {
+        // _reachable contains the last known set of action targets, if any
+        // invalidated target is in there, the actions have to be reset.
+        // The set _reachable will then be recomputed on demand in the actions
+        // getter. It is ok for _reachable to be empty is no actions have been
+        // computed yet as there is nothing to reset in that case anyway.
+        if (this._actions == null || targets == null || sets.doIntersect(this._reachable, targets)) {
+            this._actions = this.isOuter ? [] : null; // Outer states have no actions
+            this._reachable = new Set();
+        }
     }
 
 }
@@ -486,8 +573,8 @@ export class Action {
         if (this._supports != null) {
             return this._supports;
         } else {
-            let op = target => this.origin.pre(this.controls, [target]);
-            let prer = union.simplify(this.origin.preR(this.controls, this.targets));
+            const op = target => this.origin.pre(this.controls, [target]);
+            const prer = union.simplify(this.origin.preR(this.controls, this.targets));
             this._supports = preciseOperatorPartition(this.targets, op).map(
                 part => new ActionSupport(this, part.items, union.simplify(union.intersect(part.polys, prer)))
             );
@@ -511,20 +598,4 @@ export class ActionSupport {
     }
 
 }
-
-
-
-/* Snapshot */
-
-// TODO
-export type Snapshot = {
-    predicates: { [string]: {} },
-    states: {
-        [string]: {
-            vertices: Vector[],
-            predicates: string[],
-            actions: (string[])[]
-        }
-    }
-};
 

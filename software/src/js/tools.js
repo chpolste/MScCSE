@@ -211,9 +211,29 @@ export function hashString(s: string): number {
 
 /* Formatting */
 
+// Number to string
 export function n2s(x: number): string {
     // TODO: Change to scientific notation when numbers are small
     return x.toFixed(5).replace(/\.?0*$/, "");
+}
+
+// Timespan in milliseconds to formatted string
+const MSINS = 1000;
+const MSINM = 60 * MSINS;
+const MSINH = 60 * MSINM;
+export function t2s(x: number): string {
+    const hor = Math.floor(x / MSINH);
+    const min = Math.floor((x - hor * MSINH) / MSINM);
+    const sec = Math.floor((x - hor * MSINH - min * MSINM) / MSINS);
+    if (sec === 0 && min === 0 && hor === 0) {
+        return (x / 1000).toFixed(3) + " s";
+    } else {
+        const parts = [];
+        if (hor > 0) parts.push(hor + " h");
+        if (min > 0) parts.push(min + " min");
+        if (sec > 0) parts.push(sec + " s");
+        return parts.join(" ");
+    }
 }
 
 
@@ -353,3 +373,121 @@ export class UniqueCollection<T> {
 
 }
 
+
+/* Message management for Workers */
+
+export class WorkerMessage {
+
+    +communicator: WorkerCommunicator;
+    +messageId: number;
+    +kind: string;
+    +data: mixed;
+    +re: number;
+
+    constructor(communicator: WorkerCommunicator, msg: Object): void {
+        this.communicator = communicator;
+        this.messageId = -1;
+        if (msg.hasOwnProperty("messageId") && typeof msg.messageId === "number") {
+            this.messageId = msg.messageId;
+        }
+        this.kind = "";
+        if (msg.hasOwnProperty("kind") && typeof msg.kind === "string") {
+            this.kind = msg.kind;
+        }
+        this.data = null;
+        if (msg.hasOwnProperty("data")) {
+            this.data = msg.data;
+        }
+        this.re = -1;
+        if (msg.hasOwnProperty("re") && typeof msg.re === "number") {
+            this.re = msg.re;
+        }
+    }
+
+    get isAnswerable(): boolean {
+        // No answers to answers
+        return this.messageId >= 0 && this.re == -1;
+    }
+
+    answer(data: mixed): void {
+        if (!this.isAnswerable) throw new Error(
+            "Message is not answerable"
+        );
+        this.communicator.postMessage(this.kind, data, null, this.messageId);
+    }
+
+}
+
+interface WorkerMessageHost {
+    onmessage: null | (ev: MessageEvent) => any;
+    postMessage(message: any, transfer?: Iterable<Object>): void;
+}
+
+type WorkerMessageCallback = (WorkerMessage) => void;
+
+export class WorkerCommunicator {
+
+    +host: WorkerMessageHost;
+    +callbacks: Map<string | number | null, WorkerMessageCallback>;
+    _id: number;
+
+    constructor(host: WorkerMessageHost): void {
+        this.host = host;
+        this.host.onmessage = (e) => this._receive(e.data);
+        this._id = 0;
+        this.callbacks = new Map();
+    }
+
+    genId(): number {
+        return this._id++;
+    }
+
+    postMessage(kind: string, data: mixed, callback?: ?WorkerMessageCallback, re?: number): void {
+        const msg = { messageId: this.genId(), kind: kind, data: data, re: re != null ? re : -1 };
+        if (callback != null) {
+            this.callbacks.set(msg.messageId, callback);
+        }
+        this.host.postMessage(msg);
+    }
+
+    onMessage(kind: ?string, callback: WorkerMessageCallback): void {
+        this.callbacks.set(kind == null ? null : kind, callback);
+    }
+
+    _receive(raw: mixed): void {
+        if (typeof raw === "object" && raw != null) {
+            const msg = new WorkerMessage(this, raw);
+            let callback = null;
+            // There may be a specialized callback for this response
+            if (msg.re >= 0 && this.callbacks.has(msg.re)) {
+                callback = this.callbacks.get(msg.re);
+                // Each message is only answered once
+                this.callbacks.delete(msg.re);
+            }
+            // There may be a specialized callback for this message kind
+            if (msg.kind != null && this.callbacks.has(msg.kind)) {
+                callback = this.callbacks.get(msg.kind);
+            }
+            // Fallback: default callback
+            if (callback == null) {
+                callback = this.callbacks.get(null);
+            }
+            // Invoke callback or ignore message if none applies
+            if (callback != null) {
+                try {
+                    callback(msg);
+                } catch (err) {
+                    // Send error response if callback fails
+                    if (msg.isAnswerable) {
+                        this.postMessage("error", err.message, null, msg.messageId);
+                    }
+                    // Rethrow, so the error can be handled locally too
+                    throw err;
+                }
+            }
+        } else {
+            throw new Error("recv err: " + JSON.stringify(raw));
+        }
+    }
+
+}

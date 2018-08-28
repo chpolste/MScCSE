@@ -2,16 +2,20 @@
 "use strict";
 
 import type { Matrix } from "./linalg.js";
+import type { WorkerMessage } from "./tools.js";
 import type { ConvexPolytopeUnion, Halfspace } from "./geometry.js";
-import type { AbstractedLSS, State, Action, ActionSupport, StrategyGenerator, Trace } from "./system.js";
+import type { AbstractedLSS, State, StateID, Action, ActionSupport,
+              StrategyGenerator, Trace } from "./system.js";
 import type { FigureLayer, Shape } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
 
 import * as linalg from "./linalg.js";
 import * as dom from "./domtools.js";
-import { iter, arr, n2s, ObservableMixin } from "./tools.js";
+import * as refinement from "./refinement.js";
+import { iter, arr, n2s, t2s, ObservableMixin, WorkerCommunicator } from "./tools.js";
 import { union } from "./geometry.js";
+import { Refinery } from "./refinement.js";
 import { Objective, stringifyProposition } from "./logic.js";
 import { Figure, autoProjection } from "./figure.js";
 import { InteractivePlot, AxesPlot } from "./widgets-plot.js";
@@ -160,7 +164,8 @@ export class ProblemSummary {
 Interactive system visualization.
 
 Sub-widgets: SISystemView, SISettings, SISummary, SIStateView,
-             SIActionView, SIActionSupportView, SIControlView
+             SIActionView, SIActionSupportView, SIControlView,
+             SIAnalysisRefinement
 */
 
 export class SystemInspector {
@@ -168,12 +173,13 @@ export class SystemInspector {
     +node: HTMLDivElement;
 
     +keybindings: dom.Keybindings;
+    +settings: SISettings;
+    +analysis: SIAnalysisRefinement;
     +systemSummary: SISummary;
     +stateView: SIStateView;
     +actionView: SIActionView;
     +controlView: SIControlView;
     +actionSupportView: SIActionSupportView;
-    +settings: SISettings;
     +systemView: SISystemView;
 
     system: AbstractedLSS;
@@ -185,27 +191,22 @@ export class SystemInspector {
 
         this.keybindings = keybindings;
         this.settings = new SISettings(this.system, this.keybindings);
-        this.systemSummary = new SISummary(this.system);
-        this.stateView = new SIStateView(this.system);
+        this.analysis = new SIAnalysisRefinement(this.system, this.objective, this.keybindings);
+        this.systemSummary = new SISummary(this.system, this.analysis);
+        this.stateView = new SIStateView(this.system, this.analysis);
         this.actionView = new SIActionView(this.stateView);
-        this.controlView = new SIControlView(system, this.stateView, this.actionView, this.keybindings);
         this.actionSupportView = new SIActionSupportView(this.actionView);
+        this.controlView = new SIControlView(this.system, this.stateView, this.actionView, this.keybindings);
         this.systemView = new SISystemView(
-            this.system,
-            this.settings,
-            this.controlView,
-            this.stateView,
-            this.actionView,
-            this.actionSupportView
+            this.system, this.settings, this.analysis, this.controlView,
+            this.stateView, this.actionView, this.actionSupportView
         );
 
         this.node = dom.div({ "class": "inspector" }, [
             dom.div({ "class": "left" }, [
                 this.systemView.plot.node,
-                dom.h3({}, ["System Analysis", dom.infoBox("info-analysis")]),
-                "TODO",
-                dom.h3({}, ["Abstraction Refinement", dom.infoBox("info-refinement")]),
-                "TODO"
+                dom.h3({}, ["Analysis and Abstraction Refinement", dom.infoBox("info-analysis-refinement")]),
+                this.analysis.node
             ]),
             dom.div({ "class": "right" }, [
                 dom.div({"class": "cols"}, [
@@ -216,7 +217,7 @@ export class SystemInspector {
                         this.settings.node,
                     ]),
                     dom.div({ "class": "right" }, [
-                        dom.h3({}, ["Control/Trace", dom.infoBox("info-control")]),
+                        dom.h3({}, ["Control and Trace", dom.infoBox("info-control")]),
                         this.controlView.node,
                         dom.h3({}, ["Selected State", dom.infoBox("info-state")]),
                         this.stateView.node
@@ -285,7 +286,7 @@ class SISettings extends ObservableMixin<null> {
 
 // Main view of the inspector: shows the abstracted LSS and lets user select
 // states. Has layers for displaying subsets (polytopic operators, action
-// supports) and state information (selection, labels, kinds). Observes:
+// supports) and state information (selection, labels, kinds). Observes: TODO
 //      SISettings  -> general display settings
 //      SIStateView           -> currently selected state
 //      SIActionView          -> currently selected action
@@ -303,10 +304,16 @@ class SISystemView {
     +plot: Plot;
     +layers: { [string]: FigureLayer };
 
-    constructor(system: AbstractedLSS, settings: SISettings, controlView: SIControlView,
-                stateView: SIStateView, actionView: SIActionView,
+    constructor(system: AbstractedLSS, settings: SISettings, analysis: SIAnalysisRefinement,
+                controlView: SIControlView, stateView: SIStateView, actionView: SIActionView,
                 actionSupportView: SIActionSupportView): void {
         this.system = system;
+
+        analysis.attach(() => {
+            this.drawInteraction();
+            this.drawKind();
+            this.drawLabels();
+        });
 
         this.settings = settings;
         this.settings.toggleKind.attach(() => this.drawKind());
@@ -492,8 +499,9 @@ class SISummary {
     +node: HTMLDivElement;
     +system: AbstractedLSS;
 
-    constructor(system: AbstractedLSS): void {
+    constructor(system: AbstractedLSS, analysis: SIAnalysisRefinement): void {
         this.system = system;
+        analysis.attach(() => this.changeHandler());
         this.node = dom.div();
         this.changeHandler();
     }
@@ -546,18 +554,35 @@ class SISummary {
 // state.
 class SIStateView extends ObservableMixin<null> {
 
-    +node: Element;
-    +predicates: SelectableNodes<string>;
+    +system: AbstractedLSS;
+    +node: HTMLDivElement;
     +summary: HTMLDivElement;
+    +predicates: SelectableNodes<string>;
+    +refineButton: HTMLInputElement;
     _selection: ?State;
 
-    constructor(system: AbstractedLSS): void {
+    constructor(system: AbstractedLSS, analysis: SIAnalysisRefinement): void {
         super();
-        this.summary = dom.div({ "class": "summary" });
-        this.predicates = new SelectableNodes(p => styledPredicateLabel(p, system), ", ", "-");
+        this.system = system;
+        analysis.attach(() => {
+            const keep = this.selection != null && this.system.states.has(this.selection.label);
+            this.selection = keep ? this.selection : null; // invokes changeHandler
+        });
+        // Summary is filled basic state information
+        this.summary = dom.p();
+        // Predicates that state fulfils
+        this.predicates = new SelectableNodes(p => styledPredicateLabel(p, this.system), ", ", "-");
         this.predicates.node.className = "predicates";
+        // Refine-button for undecided states
+        this.refineButton = dom.create("input", { "type": "button", "value": "refine", "class": "refine" });
+        this.refineButton.addEventListener("click", () => {
+            const selection = this.selection;
+            if (selection != null && selection.isUndecided) {
+                analysis.refine([selection]);
+            }
+        });
         this.node = dom.div({ "class": "state-view" }, [
-            this.summary, this.predicates.node
+            this.refineButton, this.summary, this.predicates.node
         ]);
         this.changeHandler();
     }
@@ -573,20 +598,19 @@ class SIStateView extends ObservableMixin<null> {
 
     changeHandler() {
         const state = this._selection;
-        const nodes = [];
+        this.refineButton.disabled = state == null || !state.isUndecided;
         if (state != null) {
-            this.predicates.items = Array.from(state.predicates);
             const actionCount = state.actions.length;
             const actionText = actionCount === 1 ? " action" : " actions";
-            nodes.push(dom.p({}, [
+            dom.replaceChildren(this.summary, [
                 styledStateLabel(state, state),
                 " (", stateKindString(state), ", ", String(actionCount), actionText, ")"
-            ]));
+            ]);
+            this.predicates.items = Array.from(state.predicates);
         } else {
+            dom.replaceChildren(this.summary, ["no selection"]);
             this.predicates.items = [];
-            nodes.push(dom.p({}, ["no selection"]));
         }
-        dom.replaceChildren(this.summary, nodes);
         this.notify();
     }
 
@@ -758,6 +782,160 @@ class SIControlView extends ObservableMixin<null> {
                 poly => ({ kind: "polytope", vertices: poly.vertices })
             );
         }
+    }
+
+}
+
+class SIAnalysisRefinement extends ObservableMixin<null> {
+
+    +node: HTMLDivElement;
+    +analyseButton: HTMLInputElement;
+    +info: HTMLSpanElement;
+    +refineButton: HTMLInputElement;
+    +toggles: { [string]: Input<boolean> };
+    worker: Worker;
+    communicator: WorkerCommunicator;
+    +system: AbstractedLSS;
+    +objective: Objective;
+
+    _ready: boolean;
+    
+    constructor(system: AbstractedLSS, objective: Objective, keybindings: dom.Keybindings): void {
+        super();
+        this.system = system;
+        this.objective = objective;
+        // Analysis
+        this.analyseButton = dom.create("button", {}, ["analys", dom.create("u", {}, ["e"])]);
+        this.analyseButton.addEventListener("click", () => this.analyse());
+        this.info = dom.span({ "class": "analysis-info" });
+        keybindings.bind("e", () => this.analyse());
+        // Refinement
+        this.refineButton = dom.create("button", {}, [dom.create("u", {}, ["r"]), "efine all"]);
+        this.refineButton.addEventListener("click", () => this.refineAll());
+        this.toggles = {
+            outerAttr: new CheckboxInput(true)
+        };
+        keybindings.bind("r", () => this.refineAll());
+        this.node = dom.div({}, [
+            dom.p({}, [this.analyseButton, " ", this.refineButton, " ", this.info]),
+            dom.p({}, ["Apply refinement procedures:"]),
+            dom.p({ "class": "refinement-toggles" }, [
+                dom.create("label", {}, [this.toggles.outerAttr.node, "Outer Attractor"])
+            ])
+        ]);
+        this.initialize();
+    }
+
+    get ready(): boolean {
+        return this._ready;
+    }
+
+    set ready(ready: boolean): void {
+        this._ready = ready;
+        this.analyseButton.disabled = !ready;
+        this.refineButton.disabled = !ready;
+    }
+
+    write(text: string): void {
+        dom.replaceChildren(this.info, [text]);
+    }
+
+    // Create and setup the worker
+    initialize(): void {
+        this.ready = false;
+        this.write("initializing");
+        // Create a new worker, terminate the old one if exists
+        if (this.worker instanceof Worker) {
+            this.worker.terminate();
+        }
+        this.worker = new Worker("js/inspector-worker-analysis.js");
+        this.communicator = new WorkerCommunicator(this.worker);
+        // Create the message data for the objective automaton and alphabetMap
+        // which connects the automaton transition labels with the linear
+        // predicates of the system
+        const automaton = this.objective.automaton.stringify();
+        const alphabetMap = {};
+        for (let [label, prop] of this.objective.propositions.entries()) {
+            alphabetMap[label] = stringifyProposition(prop);
+        }
+        // Send automaton, wait for acknowledgement, then send mapping of
+        // automaton transition labels to propositions and wait for
+        // acknowledgement. The worker is then ready to recieve transition
+        // systems for analysis.
+        this.communicator.postMessage("automaton", automaton, (msg) => {
+            if (msg.kind === "error") {
+                this.write(typeof msg.data === "string" ? msg.data : "error"); // TODO
+                return;
+            }
+            this.communicator.postMessage("alphabetMap", alphabetMap, (msg) => {
+                if (msg.kind === "error") {
+                    this.write(typeof msg.data === "string" ? msg.data : "error"); // TODO
+                    return;
+                }
+                this.ready = true;
+                this.write("Ready.");
+            });
+        });
+    }
+
+
+    // Send the transition system induced by the abstracted LSS to the worker
+    // and analyse it with respect to the previously sent objective and
+    // proposition mapping.
+    analyse(): void {
+        if (this.ready) {
+            this.ready = false;
+            this.write("constructing game abstraction...");
+            // TODO: this is not flushed properly by the browser before the snapshot locks the page :(
+            const startTime = performance.now();
+            const snapshot = this.system.snapshot(false);
+            this.write("analysing...");
+            this.communicator.postMessage("analysis", JSON.stringify(snapshot), (msg) => {
+                const elapsed = performance.now() - startTime;
+                const data = msg.data;
+                if (msg.kind !== "error" && data != null && typeof data === "object"
+                        && data.satisfying instanceof Set && data.nonSatisfying instanceof Set) {
+                    this.processAnalysisResults(data.satisfying, data.nonSatisfying, elapsed);
+                } else {
+                    this.write("analysis error"); // TODO
+                }
+            });
+        }
+    }
+
+    // Apply analysis results to system and show information message
+    processAnalysisResults(satisfying: Set<StateID>, nonSatisfying: Set<StateID>, elapsed: number): void {
+        const updated = this.system.updateKinds(satisfying, nonSatisfying);
+        const nStates = this.system.states.size;
+        const nActions = iter.sum(iter.map(s => s.actions.length, this.system.states.values()));
+        this.write(
+            nStates + " states and " + nActions + " actions analysed in " + t2s(elapsed) +
+            ". Updated " + updated.size + (updated.size === 1 ? " state" : " states.")
+        );
+        this.ready = true;
+        this.notify();
+    }
+
+    get refinementSteps(): Refinery[] {
+        const steps = [];
+        if (this.toggles.outerAttr.value) {
+            steps.push(new refinement.OuterAttr(this.system));
+        }
+        return steps;
+    }
+
+    refine(states: Iterable<State>): void {
+        if (this.ready) {
+            const refined = this.system.refine(refinement.partitionAll(this.refinementSteps, states));
+            this.write("Refined " + refined.size + (refined.size === 1 ? " state." : " states."));
+            this.notify();
+        } else {
+            this.write("Cannot refine while analysing...");
+        }
+    }
+
+    refineAll(): void {
+        this.refine(iter.filter(s => s.isUndecided, this.system.states.values()));
     }
 
 }

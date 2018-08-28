@@ -246,9 +246,6 @@ export class TwoPlayerProbabilisticGame {
         // Connect state to itself
         deadEndP1.actions.push(new Set([deadEndP2]));
         deadEndP2.actions.push(new Set([deadEndP1]));
-        // Priority 2 means that only player 2 can win in these states.
-        game.setPriority(deadEndP1, 1);
-        game.setPriority(deadEndP2, 1);
         // Explore reachable states from initial states and create their
         // associated actions.
         while (queue.length > 0) {
@@ -309,8 +306,10 @@ export class TwoPlayerProbabilisticGame {
         for (let state of game.states) {
             // Default state priority is 2
             game.setPriority(state, 2);
-            // States from difference of automaton acceptance sets E \ F have priority 0
-            if (priority1.has(state.automatonState)) {
+            // States from difference of automaton acceptance sets E \ F have
+            // priority 0. Dead end states also have priority 1 so only player
+            // 2 can win in there
+            if (priority1.has(state.automatonState) || state === deadEndP1 || state === deadEndP2) {
                 game.setPriority(state, 1);
             }
             // States from automaton acceptance set F have priority 0

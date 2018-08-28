@@ -13,7 +13,7 @@ const icount = tools.iter.count;
 
 function actionPolytopesCoverControlSpace(sys) {
     return function () {
-        for (let state of ifilter(s => !s.isOutside, sys.states.values())) {
+        for (let state of ifilter(s => !s.isOuter, sys.states.values())) {
             let actionPolytopes = [];
             for (let action of state.actions) {
                 actionPolytopes.push(...action.controls);
@@ -113,7 +113,7 @@ describe("Svoreňová et al. (2017): illustrative example system", function () {
     });
 
     it("outside states have no actions", function () {
-        imap(s => assert.equal(s.actions.length, 0), ifilter(s => s.isOutside, sys.states.values()));
+        imap(s => assert.equal(s.actions.length, 0), ifilter(s => s.isOuter, sys.states.values()));
     });
 
     it("union of action polytopes of each state is entire control space", actionPolytopesCoverControlSpace(sys));
@@ -162,7 +162,7 @@ describe("Svoreňová et al. (2017): double integrator system", function () {
     });
 
     it("outside states have no actions", function () {
-        imap(s => assert.equal(s.actions.length, 0), ifilter(s => s.isOutside, sys.states.values()));
+        imap(s => assert.equal(s.actions.length, 0), ifilter(s => s.isOuter, sys.states.values()));
     });
 
     it("union of action polytopes of each state is entire control space", actionPolytopesCoverControlSpace(sys));

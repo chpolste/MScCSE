@@ -170,7 +170,7 @@ export type StateKind = -10 | -1 | 0 | 1;
 // < 0: non-satisfying
 // = 0: undecided
 // > 0: satisfying
-const OUTSIDE = -10;
+const OUTER = -10;
 const NONSATISFYING = -1;
 const UNDECIDED = 0;
 const SATISFYING = 1;
@@ -201,10 +201,10 @@ export class AbstractedLSS implements GameGraph {
         this.states = new Map();
 
         // Initial abstraction into states is given by decomposition and
-        // partition of outside region into convex polytopes
-        let outer = union.remove(this.lss.oneStepReachable, [this.lss.stateSpace]);
+        // partition of outer region into convex polytopes
+        const outer = union.remove(this.lss.oneStepReachable, [this.lss.stateSpace]);
         for (let polytope of outer) {
-            this.newState(polytope, OUTSIDE);
+            this.newState(polytope, OUTER);
         }
 
         // Collect named predicates
@@ -273,7 +273,7 @@ export class AbstractedLSS implements GameGraph {
             // Find corresponding system state
             const state = this.stateOf(x);
             // End trajectory when it leaves the state space polytope
-            if (state == null || state.isOutside) {
+            if (state == null || state.isOuter) {
                 break;
             }
             // Obtain the control input from the strategy
@@ -393,7 +393,7 @@ export class State {
         this.label = label;
         this.kind = kind;
         this.predicates = new Set(predicates == null ? [] : predicates);
-        this._actions = this.isOutside ? [] : null; // Outside states have no actions
+        this._actions = this.isOuter ? [] : null; // Outer states have no actions
     }
 
     // Lazy evaluation and memoization of actions
@@ -424,7 +424,7 @@ export class State {
         return this.kind < 0;
     }
 
-    get isOutside(): boolean {
+    get isOuter(): boolean {
         return this.kind <= -10;
     }
 

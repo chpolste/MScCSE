@@ -56,7 +56,7 @@ function toShape(state: State): Shape {
 function stateKindString(state: State): string {
     if (state.isSatisfying) {
         return "satisfying";
-    } else if (state.isOutside) {
+    } else if (state.isOuter) {
         return "outer";
     } else if (state.isNonSatisfying) {
         return "non-satisfying";
@@ -795,7 +795,7 @@ class SISettings extends ObservableMixin<null> {
         const lss = system.lss;
         this.highlight = new SelectInput({
             "None": (state, u) => [],
-            "Posterior": (state, u) => state.isOutside ? [] : state.post(u),
+            "Posterior": (state, u) => state.isOuter ? [] : state.post(u),
             "Predecessor": (state, u) => lss.pre(lss.stateSpace, u, [state.polytope]),
             "Robust Predecessor": (state, u) => lss.preR(lss.stateSpace, u, [state.polytope]),
             "Attractor": (state, u) => lss.attr(lss.stateSpace, u, [state.polytope]),
@@ -1046,7 +1046,7 @@ class SISummary {
                 volSat += state.polytope.volume;
             } else if (state.isUndecided) {
                 volUnd += state.polytope.volume;
-            } else if (!state.isOutside) {
+            } else if (!state.isOuter) {
                 volNon += state.polytope.volume;
             }
             count++;

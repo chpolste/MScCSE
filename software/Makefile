@@ -124,8 +124,19 @@ $(SRC_JS)/geometry.js: $(SRC_JS)/linalg.js $(SRC_JS)/tools.js $(SRC_JS)/parser.j
 	@touch $(SRC_JS)/geometry.js
 
 $(SRC_JS)/inspector.js: $(SRC_JS)/presets.js $(SRC_JS)/system.js $(SRC_JS)/domtools.js \
-		$(SRC_JS)/inspector-widgets.js
+		$(SRC_JS)/inspector-widgets-setup.js $(SRC_JS)/inspector-widgets-inspector.js
 	@touch $(SRC_JS)/inspector.js
+
+$(SRC_JS)/inspector-widgets-setup.js: $(SRC_JS)/presets.js $(SRC_JS)/domtools.js \
+		$(SRC_JS)/tools.js $(SRC_JS)/geometry.js $(SRC_JS)/logic.js $(SRC_JS)/figure.js \
+		$(SRC_JS)/widgets-plot.js $(SRC_JS)/widgets-input.js $(SRC_JS)/system.js \
+		$(SRC_JS)/inspector-widgets-inspector.js 
+	@touch $(SRC_JS)/inspector-widgets-setup.js
+
+$(SRC_JS)/inspector-widgets-inspector.js: $(SRC_JS)/linalg.js $(SRC_JS)/domtools.js \
+		$(SRC_JS)/tools.js $(SRC_JS)/geometry.js $(SRC_JS)/logic.js $(SRC_JS)/figure.js \
+		$(SRC_JS)/widgets-plot.js $(SRC_JS)/widgets-input.js
+	@touch $(SRC_JS)/inspector-widgets-inspector.js
 
 $(SRC_JS)/inspector-worker.js: $(SRC_JS)/tools.js $(SRC_JS)/game.js
 	@touch $(SRC_JS)/inspector-worker.js
@@ -141,11 +152,6 @@ $(SRC_JS)/system.js: $(SRC_JS)/tools.js $(SRC_JS)/linalg.js $(SRC_JS)/geometry.j
 
 $(SRC_JS)/widgets-input.js: $(SRC_JS)/domtools.js $(SRC_JS)/tools.js
 	@touch $(SRC_JS)/widgets-input.js
-
-$(SRC_JS)/inspector-widgets.js: $(SRC_JS)/presets.js $(SRC_JS)/linalg.js $(SRC_JS)/tools.js \
-		$(SRC_JS)/domtools.js $(SRC_JS)/geometry.js $(SRC_JS)/logic.js $(SRC_JS)/figure.js \
-		$(SRC_JS)/widgets-plot.js $(SRC_JS)/widgets-input.js $(SRC_JS)/system.js
-	@touch $(SRC_JS)/inspector-widgets.js
 
 $(SRC_JS)/widgets-plot.js: $(SRC_JS)/linalg.js $(SRC_JS)/domtools.js
 	@touch $(SRC_JS)/widgets-plot.js

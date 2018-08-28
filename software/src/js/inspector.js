@@ -1,14 +1,10 @@
 // @flow
 "use strict";
 
-import type { Halfspace, ConvexPolytope } from "./geometry.js";
-import type { Objective } from "./logic.js";
-import type { Input } from "./widgets-input.js";
-
 import * as presets from "./presets.js";
 import * as dom from "./domtools.js";
-import { LSS, AbstractedLSS } from "./system.js";
-import { SessionManager, ProblemSetup, ProblemSummary, SystemInspector } from "./inspector-widgets.js";
+import { SessionManager, ProblemSetup } from "./inspector-widgets-setup.js"
+import { ProblemSummary, SystemInspector } from "./inspector-widgets-inspector.js";
 
 
 document.addEventListener("DOMContentLoaded", function () {

@@ -136,3 +136,31 @@ export class Keybindings {
     }
 
 }
+
+
+/* Inline Information display
+
+A (?)-button that reveals an infobox specified elsewhere (identified by id)
+next to it on hover.
+*/
+
+export function infoBox(contentID: string): HTMLDivElement {
+    const node = div({ "class": "info-button" }, ["?"]);
+    node.addEventListener("mouseover", (e: MouseEvent) => {
+        const content = document.getElementById(contentID);
+        if (content != null) {
+            content.style.display = "block";
+            content.style.top = String(node.offsetTop) + "px";
+            content.style.left = String(node.offsetLeft - content.offsetWidth - 5) + "px";
+        }
+    });
+    node.addEventListener("mouseout", (e: MouseEvent) => {
+        const content = document.getElementById(contentID);
+        if (content != null) {
+            content.style.display = "none";
+        }
+    });
+    return node;
+}
+
+

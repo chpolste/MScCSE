@@ -2,7 +2,7 @@
 
 ## Applications
 
-- Inspector: visualization of the LSS abstraction-refinement and analysis. Access a current build from the dist branch [here](https://htmlpreview.github.io/?https://github.com/chpolste/MScCSE/blob/dist/software/dist/inspector.html).
+- Inspector: visualization of the LSS abstraction-refinement and analysis. Access a current build from the dist branch [here](https://chpolste.github.io/MScCSE/software/dist/inspector.html).
 
 
 ## Development Environment

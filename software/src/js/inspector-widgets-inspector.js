@@ -13,10 +13,11 @@ import type { Input } from "./widgets-input.js";
 import * as linalg from "./linalg.js";
 import * as dom from "./domtools.js";
 import * as refinement from "./refinement.js";
-import { iter, arr, n2s, t2s, ObservableMixin, WorkerCommunicator } from "./tools.js";
+import { iter, arr, sets, n2s, t2s, ObservableMixin, WorkerCommunicator } from "./tools.js";
 import { union } from "./geometry.js";
 import { Refinery } from "./refinement.js";
 import { Objective, stringifyProposition } from "./logic.js";
+import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Figure, autoProjection } from "./figure.js";
 import { InteractivePlot, AxesPlot } from "./widgets-plot.js";
 import { CheckboxInput, SelectInput, SelectableNodes, inputTextRotation } from "./widgets-input.js";
@@ -788,13 +789,16 @@ class SIControlView extends ObservableMixin<null> {
 
 class SIAnalysisRefinement extends ObservableMixin<null> {
 
+    // Widget
     +node: HTMLDivElement;
     +analyseButton: HTMLInputElement;
     +info: HTMLSpanElement;
     +refineButton: HTMLInputElement;
     +toggles: { [string]: Input<boolean> };
-    worker: Worker;
-    communicator: WorkerCommunicator;
+    // Web Worker for multithreaded analysis
+    worker: ?Worker;
+    communicator: ?WorkerCommunicator;
+    // Data for analysis and refinement
     +system: AbstractedLSS;
     +objective: Objective;
 
@@ -823,7 +827,7 @@ class SIAnalysisRefinement extends ObservableMixin<null> {
                 dom.create("label", {}, [this.toggles.outerAttr.node, "Outer Attractor"])
             ])
         ]);
-        this.initialize();
+        this.initializeAnalysisWorker();
     }
 
     get ready(): boolean {
@@ -841,55 +845,73 @@ class SIAnalysisRefinement extends ObservableMixin<null> {
     }
 
     // Create and setup the worker
-    initialize(): void {
+    initializeAnalysisWorker(): void {
         this.ready = false;
-        this.write("initializing");
-        // Create a new worker, terminate the old one if exists
-        if (this.worker instanceof Worker) {
-            this.worker.terminate();
-        }
-        this.worker = new Worker("js/inspector-worker-analysis.js");
-        this.communicator = new WorkerCommunicator(this.worker);
-        // Create the message data for the objective automaton and alphabetMap
-        // which connects the automaton transition labels with the linear
-        // predicates of the system
-        const automaton = this.objective.automaton.stringify();
-        const alphabetMap = {};
-        for (let [label, prop] of this.objective.propositions.entries()) {
-            alphabetMap[label] = stringifyProposition(prop);
-        }
-        // Send automaton, wait for acknowledgement, then send mapping of
-        // automaton transition labels to propositions and wait for
-        // acknowledgement. The worker is then ready to recieve transition
-        // systems for analysis.
-        this.communicator.postMessage("automaton", automaton, (msg) => {
-            if (msg.kind === "error") {
-                this.write(typeof msg.data === "string" ? msg.data : "error"); // TODO
+        this.write("initializing...");
+        // Terminate an old worker if exists, then create new
+        if (this.worker != null) this.worker.terminate();
+        try {
+            const worker = new Worker("./js/inspector-worker-analysis.js");
+            // Associcate a communicator for message exchange
+            const communicator = new WorkerCommunicator(worker);
+            // Worker will request objective automaton
+            communicator.onMessage("automaton", (msg) => {
+                const automaton = this.objective.automaton.stringify();
+                msg.answer(automaton);
+            });
+            // Worker will request alphabetMap (connects the automaton transition
+            // labels with the linear predicates of the system)
+            communicator.onMessage("alphabetMap", (msg) => {
+                const alphabetMap = {};
+                for (let [label, prop] of this.objective.propositions.entries()) {
+                    alphabetMap[label] = stringifyProposition(prop);
+                }
+                msg.answer(alphabetMap);
+            });
+            // Worker will tell when ready
+            communicator.onMessage("ready", (msg) => {
+                this.worker = worker;
+                this.communicator = communicator;
+                this.write("Web Worker ready.");
+                this.ready = true;
+            });
+            // If worker creation fails, switch to local game analysis.
+            worker.onerror = () => this.initializeAnalysisFallback();
+        } catch (e) {
+            // Chrome does not allow Web Workers for local resources
+            if (e.name === "SecurityError") {
+                this.initializeAnalysisFallback();
                 return;
             }
-            this.communicator.postMessage("alphabetMap", alphabetMap, (msg) => {
-                if (msg.kind === "error") {
-                    this.write(typeof msg.data === "string" ? msg.data : "error"); // TODO
-                    return;
-                }
-                this.ready = true;
-                this.write("Ready.");
-            });
-        });
+            throw e;
+        }
     }
 
+    // If a Web Worker cannot be created for some reason, analysis can still be
+    // performed locally, although this means the UI is locked the entire time.
+    initializeAnalysisFallback(): void {
+        this.ready = false;
+        this.worker = null;
+        this.communicator = null;
+        this.write("Unable to create Web Worker. Will analyse locally instead.");
+        this.ready = true;
+    }
 
-    // Send the transition system induced by the abstracted LSS to the worker
-    // and analyse it with respect to the previously sent objective and
-    // proposition mapping.
     analyse(): void {
-        if (this.ready) {
-            this.ready = false;
-            this.write("constructing game abstraction...");
-            // TODO: this is not flushed properly by the browser before the snapshot locks the page :(
-            const startTime = performance.now();
-            const snapshot = this.system.snapshot(false);
-            this.write("analysing...");
+        if (!this.ready) {
+            return;
+        }
+        this.ready = false;
+        // TODO: the message is not flushed properly by the browser before the
+        // snapshot locks the page :(
+        this.write("constructing game abstraction...");
+        const startTime = performance.now();
+        const snapshot = this.system.snapshot(false);
+        this.write("analysing...");
+        // Web Worker available. Send the transition system induced by the
+        // abstracted LSS to the worker and analyse it with respect to the
+        // previously sent objective and proposition mapping.
+        if (this.worker != null && this.communicator != null) {
             this.communicator.postMessage("analysis", JSON.stringify(snapshot), (msg) => {
                 const elapsed = performance.now() - startTime;
                 const data = msg.data;
@@ -899,7 +921,28 @@ class SIAnalysisRefinement extends ObservableMixin<null> {
                 } else {
                     this.write("analysis error"); // TODO
                 }
+                this.ready = true;
             });
+        // Local analysis when Web Worker creation fails.
+        } else {
+            const predicateTest = (label, predicates) => {
+                const formula = this.objective.propositions.get(label);
+                if (formula == null) throw new Error(); // TODO
+                return formula.evalWith(p => predicates.has(p.symbol));
+            };
+            const [game, init] = TwoPlayerProbabilisticGame.fromProduct(
+                this.system, this.objective.automaton, predicateTest
+            );
+            const win = game.solve();
+            const winCoop = game.solveCoop();
+            const satisfying = sets.intersection(win, init);
+            const nonsatisfying = sets.difference(init, winCoop);
+            this.processAnalysisResults(
+                new Set(iter.map(s => s.systemState, satisfying)),
+                new Set(iter.map(s => s.systemState, nonsatisfying)),
+                performance.now() - startTime
+            );
+            this.ready = true;
         }
     }
 
@@ -912,7 +955,6 @@ class SIAnalysisRefinement extends ObservableMixin<null> {
             nStates + " states and " + nActions + " actions analysed in " + t2s(elapsed) +
             ". Updated " + updated.size + (updated.size === 1 ? " state" : " states.")
         );
-        this.ready = true;
         this.notify();
     }
 
@@ -928,7 +970,9 @@ class SIAnalysisRefinement extends ObservableMixin<null> {
         if (this.ready) {
             const refined = this.system.refine(refinement.partitionAll(this.refinementSteps, states));
             this.write("Refined " + refined.size + (refined.size === 1 ? " state." : " states."));
-            this.notify();
+            if (refined.size > 0) {
+                this.notify();
+            }
         } else {
             this.write("Cannot refine while analysing...");
         }

@@ -22,47 +22,33 @@ let automaton: ?OnePairStreettAutomaton = null;
 // between subsequent analyses.
 let alphabetMap: ?Map<TransitionLabel, Proposition> = null;
 
-// Check if the propositional formula associated with the transition label is
-// fulfiled when the predicates (= atomic propositions) from the given set are
-// TRUE.
-function predicateTest(transitionLabel: TransitionLabel, predicates: Set<PredicateID>): boolean {
-    if (alphabetMap == null) throw new Error(
-        "..." // TODO
-    );
-    const formula = alphabetMap.get(transitionLabel);
-    if (formula == null) throw new Error(
-        "..." // TODO
-    );
-    return formula.evalWith(p => predicates.has(p.symbol));
-}
-
 
 // Because https://github.com/facebook/flow/pull/6100 is not merged yet:
 // $FlowFixMe
 const communicator = new WorkerCommunicator(self);
-
-communicator.onMessage("close", function (msg) {
-    self.close();
-});
 
 communicator.onMessage(null, function (msg) {
     throw new Error("received unexpected message");
 });
 
 
-// Receive and store the objective automaton.
-communicator.onMessage("automaton", function (msg) {
+function checkIfReady() {
+    if (automaton != null && alphabetMap != null) {
+        communicator.postMessage("ready", null);
+    }
+}
+
+// Request automaton
+communicator.postMessage("automaton", null, function (msg) {
     if (typeof msg.data !== "string") throw new Error(
         "automaton: expected type 'string', got '" + typeof msg.data + "'"
     );
     automaton = OnePairStreettAutomaton.parse(msg.data);
-    msg.answer("done");
+    checkIfReady();
 });
 
-
-// Receive and store the mapping of objective automaton transition labels and
-// propositional formulas.
-communicator.onMessage("alphabetMap", function (msg) {
+// Request alphabetMap
+communicator.postMessage("alphabetMap", null, function (msg) {
     if (typeof msg.data !== "object") throw new Error(
         "alphabetMap: expected type 'object', got '" + typeof msg.data + "'"
     );
@@ -75,9 +61,26 @@ communicator.onMessage("alphabetMap", function (msg) {
         newAlphabetMap.set(label, parseProposition(prop));
     }
     alphabetMap = newAlphabetMap;
-    msg.answer("done");
+    checkIfReady();
 });
 
+
+
+/* Game Analysis */
+
+// Check if the propositional formula associated with the transition label is
+// fulfilled assuming that the predicates (= atomic propositions) from the
+// given set are TRUE.
+function predicateTest(transitionLabel: TransitionLabel, predicates: Set<PredicateID>): boolean {
+    if (alphabetMap == null) throw new Error(
+        "..." // TODO
+    );
+    const formula = alphabetMap.get(transitionLabel);
+    if (formula == null) throw new Error(
+        "..." // TODO
+    );
+    return formula.evalWith(p => predicates.has(p.symbol));
+}
 
 // Receive the transition system induced by the abstracted LSS and create and
 // solve the product-game of the transition system with the objective

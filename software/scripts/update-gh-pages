@@ -2,12 +2,14 @@
 
 current_branch="$(git rev-parse --abbrev-ref HEAD)"
 git checkout master
-git checkout -B gh-pages
+git branch -D gh-pages
+git checkout --orphan gh-pages
+git reset
 make HTML_INJECT_FLAGS="-CDN" release
 git add -f dist
 git commit --author "update-gh-pages <auto@build.local>" -m "Add current master build"
 git push -f origin gh-pages
-git checkout "${current_branch}"
+git checkout -f "${current_branch}"
 mkdir -p "dist/js"
 mkdir -p "dist/css"
 make clean

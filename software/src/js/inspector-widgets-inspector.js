@@ -983,17 +983,17 @@ class Summary {
             dom.div({ "class": "analysis-progress" }, [
                 dom.div({
                     "class": "satisfying",
-                    "style": "width:" + pctSat + "%;",
+                    "style": "flex-grow:" + pctSat + ";",
                     "title": pctSat.toFixed(1) + "% satisfying"
                 }),
                 dom.div({
                     "class": "undecided",
-                    "style": "width:" + pctUnd + "%;",
+                    "style": "flex-grow:" + pctUnd + ";",
                     "title": pctUnd.toFixed(1) + "% undecided"
                 }),
                 dom.div({
                     "class": "nonsatisfying",
-                    "style": "width:" + pctNon + "%;",
+                    "style": "flex-grow:" + pctNon + ";",
                     "title": pctNon.toFixed(1) + "% non-satisfying"
                 }),
             ])

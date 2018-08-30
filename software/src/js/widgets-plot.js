@@ -14,12 +14,12 @@ function toStr(x: number): string {
 }
 
 type Range = [number, number];
+
 export interface Plot {
     +node: Element;
     +figure: LayeredFigure;
     size: Range;
     projection: Projection;
-    constructor(size: Range, figure: LayeredFigure, projection: Projection): void;
 }
 
 export class InteractivePlot implements Plot {
@@ -40,7 +40,7 @@ export class InteractivePlot implements Plot {
         saveButton.addEventListener("click", () => {
             saveButton.setAttribute("href", "data:image/svg+xml;base64," + window.btoa(this.axesPlot.source));
         });
-        this.menu = dom.div({ "class": "menu" }, ["⇧+🖰 to pan and zoom :: ", resetButton, " :: ", saveButton]);
+        this.menu = dom.div({ "class": "menu" }, ["hold shift to pan and zoom :: ", resetButton, " :: ", saveButton]);
         this.axesPlot = new AxesPlot(size, figure, projection);
         this.node = dom.div({ "class": "plot" }, [this.menu, this.axesPlot.node]);
 
@@ -205,13 +205,14 @@ export class ShapePlot implements Plot {
     +groups: ShapeGroup[];
     +_background: Element;
     +_border: Element;
+    +_drawBorder: boolean;
     _sizeX: number;
     _sizeY: number;
     size: Range;
     _projection: Projection;
     projection: Projection;
 
-    constructor(size: Range, figure: LayeredFigure, projection: Projection): void {
+    constructor(size: Range, figure: LayeredFigure, projection: Projection, drawBorder?: boolean): void {
         this._projection = projection;
         this.figure = figure;
         // Observe figure and transfer existing layers
@@ -233,6 +234,8 @@ export class ShapePlot implements Plot {
             width: "0", height: "0",
             stroke: "none", fill: "#FFFFFF"
         });
+        // Border is drawn by default
+        this._drawBorder = drawBorder == null || drawBorder;
         this._border = dom.createSVG("rect", {
             x: "0.5", y: "0.5",
             width: "0", height: "0",
@@ -297,7 +300,9 @@ export class ShapePlot implements Plot {
             children.push(group.node);
             group.draw();
         }
-        children.push(this._border);
+        if (this._drawBorder) {
+            children.push(this._border);
+        }
         dom.replaceChildren(this.node, children);
     }
 

@@ -371,39 +371,39 @@ span.nonsatisfying {
     background-color: rgba(0, 0, 0 , 0.2);
 }
 
-.actions {
+.action-view {
     height: 12em;
     overflow-y: scroll;
     padding-right: 4px;
 }
-.actions > div {
+.action-view > div {
     display: block;
 }
-.actions > div:hover {
+.action-view > div:hover {
     cursor: pointer;
     background-color: #EEE;
 }
-.actions > div.selection {
+.action-view > div.selection {
     background-color: #EEE;
     border-right: 6pt solid #000;
 }
 
-.supports {
+.support-view {
     height: 10em;
     overflow-y: scroll;
     padding-right: 4px;
 }
-.supports > div {
+.support-view > div {
     display: inline-block;
     border-right: 6pt solid transparent;
     padding-right: 2px;
     margin-right: 2px;
 }
-.supports > div.selection {
+.support-view > div.selection {
     background-color: #EEE;
     border-color: #09C;
 }
-.supports > div:hover {
+.support-view > div:hover {
     cursor: pointer;
     background-color: #EEE;
 }

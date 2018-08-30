@@ -517,12 +517,7 @@
     </div>
     <div class="info-box" id="info-control">
       <p>
-        <u>Figure</u>: View of the control space polytope <span class="math">U</span> with highlighted action polytopes <span class="math">U_i^J</span> when an action is selected.
-      </p>
-      <p>
-        <u>Controls</u>: Sampling of traces through the system based on the selected strategy.
-        Traces are initiated from the currently selected polytope or the state space polytope if the selection is empty.
-        Traces are terminated when they have left the state space polytope.
+        View of the control space polytope <span class="math">U</span> with highlighted action polytopes <span class="math">U_i^J</span> when an action is selected.
       </p>
     </div>
     <div class="info-box" id="info-state">
@@ -544,6 +539,13 @@
       <p>
         The available action supports of the currently selected action <span class="math">U_i^J</span>, labeled by the set of target states <span class="math">\{ X_j \}_{j \in J'}</span>.
         Selection of an action support updates the arrows of the action to only point to the targets of the action support and highlights the corresponding subset <span class="math">\mathrm{PreP}(X_i, U_i^J, \{ X_j \}_{j \in J'})</span> of the origin state <span class="math">X_i</span>.
+      </p>
+    </div>
+    <div class="info-box" id="info-trace">
+      <p>
+        Sampling of traces through the system based on the selected strategy.
+        Traces are randomly initiated from inside the currently selected polytope or inside the state space polytope if the selection is empty.
+        Traces are terminated when they have left the state space polytope or after 50 steps.
       </p>
     </div>
     <div class="info-box" id="info-analysis-refinement">

@@ -18,8 +18,8 @@ import { union } from "./geometry.js";
 import { Refinery } from "./refinement.js";
 import { Objective, stringifyProposition } from "./logic.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
-import { Figure, autoProjection } from "./figure.js";
-import { InteractivePlot, AxesPlot } from "./widgets-plot.js";
+import { Figure, autoProjection, Horizontal1D } from "./figure.js";
+import { InteractivePlot, AxesPlot, ShapePlot } from "./widgets-plot.js";
 import { CheckboxInput, SelectInput, SelectableNodes, inputTextRotation } from "./widgets-input.js";
 
 
@@ -170,6 +170,7 @@ export class SystemInspector {
     +settings: Settings;
     +analysis: AnalysisRefinement;
     +stateView: StateView;
+    +traceView: TraceView;
     +actionView: ActionView;
     +actionSupportView: ActionSupportView;
     +systemView: SystemView;
@@ -185,18 +186,21 @@ export class SystemInspector {
         this.settings = new Settings(this.system, this.keybindings);
         this.analysis = new AnalysisRefinement(this.system, this.objective, this.keybindings);
         this.stateView = new StateView(this.system, this.analysis);
+        this.traceView = new TraceView(this.system, this.stateView, this.keybindings);
         this.actionView = new ActionView(this.stateView);
-        this.controlView = new ControlView(this.system, this.stateView, this.actionView, this.keybindings);
         this.actionSupportView = new ActionSupportView(this.actionView);
         this.systemView = new SystemView(
-            this.system, this.settings, this.analysis, this.stateView, this.controlView,
+            this.system, this.settings, this.analysis, this.stateView, this.traceView,
             this.actionView, this.actionSupportView
         );
+        this.controlView = new ControlView(this.system, this.actionView);
         this.systemSummary = new Summary(this.system, this.analysis);
 
         this.node = dom.div({ "class": "inspector" }, [
             dom.div({ "class": "left" }, [
                 this.systemView.node,
+                dom.h3({}, ["Trace", dom.infoBox("info-trace")]),
+                this.traceView.node,
                 dom.h3({}, ["Analysis and Abstraction Refinement", dom.infoBox("info-analysis-refinement")]),
                 this.analysis.node
             ]),
@@ -209,7 +213,7 @@ export class SystemInspector {
                         this.settings.node,
                     ]),
                     dom.div({ "class": "right" }, [
-                        dom.h3({}, ["Control and Trace", dom.infoBox("info-control")]),
+                        dom.h3({}, ["Control Space", dom.infoBox("info-control")]),
                         this.controlView.node,
                         dom.h3({}, ["Selected State", dom.infoBox("info-state")]),
                         this.stateView.node
@@ -544,6 +548,80 @@ class StateView extends ObservableMixin<null> {
 }
 
 
+// Traces through the system
+class TraceView extends ObservableMixin<null> {
+
+    +node: HTMLDivElement;
+    +system: AbstractedLSS;
+    +stateView: StateView;
+    +strategy: Input<StrategyGenerator>;
+    +layer: FigureLayer;
+    _trace: Trace;
+
+    constructor(system: AbstractedLSS, stateView: StateView, keybindings: dom.Keybindings): void {
+        super();
+        this.stateView = stateView;
+        this.system = system;
+        this._trace = [];
+
+        const fig = new Figure();
+        this.layer = fig.newLayer({ "stroke": COLORS.trace, "stroke-width": "2", "fill": COLORS.trace })
+        // TODO provide interactive trace exploration (show evaluated equation,
+        // state information on hover)
+        const proj = new Horizontal1D([-0.01, 1.01]);
+        const plot = new ShapePlot([640, 17], fig, proj, false);
+
+        this.strategy = new SelectInput({
+            "random": () => ((state) => this.system.lss.controlSpace[0].sample())
+        }, "random");
+        const sampleButton = dom.create("button", {
+            "title": "sample a new trace based on the selected strategy"
+        }, ["sample tr", dom.create("u", {}, ["a"]), "ce"]);
+        sampleButton.addEventListener("click", () => this.sample());
+        const clearButton = dom.create("button", { "title": "delete the current trace" }, [
+            dom.create("u", {}, ["d"]), "elete"
+        ]);
+        clearButton.addEventListener("click", () => this.clear());
+
+        this.node = dom.div({ "class": "trace-view" }, [
+            //plot.node, // TODO
+            dom.p({}, [
+                sampleButton, " ", clearButton,
+                dom.div({ "class": "right" }, [
+                    dom.create("u", {}, ["S"]), "trategy ",
+                    this.strategy.node
+                ])
+            ]),
+        ]);
+
+        // Keybindings for trace control buttons
+        keybindings.bind("a", () => this.sample());
+        keybindings.bind("s", inputTextRotation(this.strategy, ["random"]));
+        keybindings.bind("d", () => this.clear());
+    }
+
+    get trace(): Trace {
+        return this._trace;
+    }
+
+    sample(): void {
+        // If a system state is selected, sample from its polytope, otherwise
+        // from the entire state space polytope
+        const selection = this.stateView.selection;
+        const initPoly = selection == null ? this.system.lss.stateSpace : selection.polytope;
+        const strategy = this.strategy.value();
+        this._trace = this.system.sampleTrace(initPoly.sample(), strategy, TRACE_LENGTH);
+        this.notify();
+    }
+
+    clear(): void {
+        this._trace = [];
+        this.notify();
+    }
+
+}
+
+
 // Lists actions available for the selected state and contains the currently
 // selected action. Observes StateView for the currently selected state.
 class ActionView extends SelectableNodes<Action> {
@@ -620,20 +698,12 @@ class ControlView extends ObservableMixin<null> {
     +stateView: StateView;
     +actionView: ActionView;
     +actionLayer: FigureLayer;
-    +strategyGen: Input<StrategyGenerator>;
-    +trace: Trace;
-    _trace: Trace;
 
-    constructor(system: AbstractedLSS, stateView: StateView,
-                actionView: ActionView, keybindings: dom.Keybindings): void {
+    constructor(system: AbstractedLSS, actionView: ActionView): void {
         super();
         this.system = system;
         this.actionView = actionView;
-        this.stateView = stateView;
         const controlSpace = system.lss.controlSpace;
-
-        // Function 1: control space polytope visualisation with highlighting
-        // of action polytopes
         const fig = new Figure();
         this.actionLayer = fig.newLayer({ "stroke": COLORS.action, "fill": COLORS.action });
         const layer = fig.newLayer({
@@ -643,58 +713,7 @@ class ControlView extends ObservableMixin<null> {
         layer.shapes = controlSpace.map(u => ({ kind: "polytope", vertices: u.vertices }));
         const view = new AxesPlot([90, 90], fig, autoProjection(1, ...union.extent(controlSpace)));
         this.actionView.attach(() => this.drawAction());
-
-        // Function 2: Trace sampling
-        this._trace = [];
-        // Strategy selection. Because strategies must bring their own memory
-        // if needed, the values are strategy generators
-        this.strategyGen =  new SelectInput({
-            "Random": () => ((state) => controlSpace[0].sample())
-            // TODO: round-robin strategy
-        }, "random");
-        // Trace creation and removal buttons
-        const newTrace = dom.create("button", {
-            "title": "sample a new trace based on the selected strategy"
-        }, ["new tr", dom.create("u", {}, ["a"]), "ce"]);
-        newTrace.addEventListener("click", () => this._newTrace());
-        const clearTrace = dom.create("button", { "title": "delete the current trace" }, [
-            dom.create("u", {}, ["d"]), "elete"
-        ]);
-        clearTrace.addEventListener("click", () => this._clearTrace());
-        // Keybindings for trace control buttons
-        keybindings.bind("a", () => this._newTrace());
-        keybindings.bind("s", inputTextRotation(this.strategyGen, ["Random"]));
-        keybindings.bind("d", () => this._clearTrace());
-
-        this.node = dom.div({ "class": "control" }, [
-            view.node,
-            dom.div({}, [
-                dom.p({}, ["Control ", dom.create("u", {}, ["s"]), "trategy:"]),
-                dom.p({}, [this.strategyGen.node]),
-                dom.p({ "class": "trace" }, [newTrace, " ", clearTrace])
-            ])
-        ]);
-    }
-
-    get trace(): Trace {
-        return this._trace;
-    }
-
-    _newTrace(): void {
-        // If a system state is selected, sample from its polytope, otherwise
-        // from the entire state space polytope
-        const selection = this.stateView.selection;
-        const initPoly = selection == null ? this.system.lss.stateSpace : selection.polytope;
-        // Obtain strategy from selection
-        const strategy = this.strategyGen.value();
-        // Sample a new trace and update
-        this._trace = this.system.sampleTrace(initPoly.sample(), strategy, TRACE_LENGTH);
-        this.notify();
-    }
-
-    _clearTrace(): void {
-        this._trace = [];
-        this.notify();
+        this.node = dom.div({ "class": "control" }, [view.node]);
     }
 
     drawAction(): void {
@@ -722,20 +741,20 @@ class ControlView extends ObservableMixin<null> {
 // StateView            → Selected state.
 // ActionView           → Selected action.
 // ActionSupportView    → Selected action support.
-// ControlView            → Trace sample.
+// TraceView            → Trace sample.
 class SystemView {
 
     +system: AbstractedLSS;
     +settings: Settings;
     +stateView: StateView;
-    +controlView: ControlView;
+    +traceView: TraceView;
     +actionView: ActionView;
     +actionSupportView: ActionSupportView;
     +plot: Plot;
     +layers: { [string]: FigureLayer };
 
     constructor(system: AbstractedLSS, settings: Settings, analysis: AnalysisRefinement,
-                stateView: StateView, controlView: ControlView, actionView: ActionView,
+                stateView: StateView, traceView: TraceView, actionView: ActionView,
                 actionSupportView: ActionSupportView): void {
         this.system = system;
 
@@ -751,8 +770,8 @@ class SystemView {
         this.settings.toggleVectorField.attach(() => this.drawVectorField());
         this.settings.highlight.attach(() => this.drawHighlight());
 
-        this.controlView = controlView;
-        this.controlView.attach(() => this.drawTrace());
+        this.traceView = traceView;
+        this.traceView.attach(() => this.drawTrace());
 
         this.stateView = stateView;
         this.stateView.attach(() => {
@@ -916,7 +935,7 @@ class SystemView {
     }
 
     drawTrace(): void {
-        const trace = this.controlView.trace;
+        const trace = this.traceView.trace;
         const segments = arr.cyc2map((o, t) => ({ kind: "arrow", origin: o, target: t }), trace);
         if (segments.length > 1) {
             segments.pop();

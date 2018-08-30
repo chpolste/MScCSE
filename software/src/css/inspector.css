@@ -340,25 +340,6 @@ span.nonsatisfying {
     color: #666;
 }
 
-.control {
-    display: flex;
-    flex-direction: columns;
-}
-.control > svg {
-    flex: 0 0 auto;
-    margin-right: 10px; 
-}
-.control > div {
-    flex: 1 1 auto;
-}
-.control select {
-    width: 100%;
-}
-.control .trace {
-    padding-right: 6pt;
-    border-right: 6pt solid #603;
-}
-
 .state-view input.refine {
     float: right;
 }
@@ -406,6 +387,13 @@ span.nonsatisfying {
 .support-view > div:hover {
     cursor: pointer;
     background-color: #EEE;
+}
+
+.trace-view svg {
+    margin-bottom: 3pt;
+}
+.trace-view .right {
+    float: right;
 }
 
 .analysis-info {

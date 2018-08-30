@@ -181,10 +181,16 @@ export type PredicateID = string;
 
 // Strategies
 export type StrategyGenerator = () => Strategy;
-type Strategy = (State) => Vector; // strategies must maintain their own memory
+type Strategy = (AbstractedLSS, Vector) => Vector; // strategies must maintain their own memory
 
 // Traces
-export type Trace = Vector[];
+export type Trace = TraceStep[];
+type TraceStep = {
+    origin: Vector;
+    target: Vector;
+    control: Vector;
+    random: Vector;
+};
 
 // Snapshots
 export type Snapshot = {
@@ -337,22 +343,19 @@ export class AbstractedLSS implements GameGraph {
 
     sampleTrace(init: Vector, strategy: Strategy, steps: number): Trace {
         // Trace starts from given location
-        const trace = [init];
-        // Take requested number of steps
-        while (trace.length < steps + 1) {
-            const x = trace[trace.length - 1];
-            // Find corresponding system state
-            const state = this.stateOf(x);
-            // End trajectory when it leaves the state space polytope
-            if (state == null || state.isOuter) {
-                break;
-            }
+        let x = init;
+        // Take requested number of steps or end trace when it has left the
+        // state space polytope
+        const trace = [];
+        while (trace.length < steps && this.lss.stateSpace.contains(x)) {
             // Obtain the control input from the strategy
-            const u = strategy(state);
+            const u = strategy(this, x);
             // Sample the random space polytope
             const w = this.lss.randomSpace.sample();
             // Evaluate the evolution equation to obtain the next point
-            trace.push(this.lss.eval(x, u, w));
+            const xx = this.lss.eval(x, u, w);
+            trace.push({ origin: x, target: xx, control: u, random: w });
+            x = xx;
         }
         return trace;
     }

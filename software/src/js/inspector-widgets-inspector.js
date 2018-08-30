@@ -33,15 +33,15 @@ export const COLORS = {
     highlight: "#FC0",
     support: "#09C",
     action: "#000",
-    //action: "#F60",
     predicate: "#000",
     split: "#C00",
-    vectorField: "#000",
-    trace: "#600"
-    //trace: "#603"
+    vectorField: "#333",
+    trace: "#000"
 };
 
-export const TRACE_LENGTH = 50;
+const MARKED_STEP_STYLE = { "stroke": "#C00", "fill": "#C00" };
+
+export const TRACE_LENGTH = 35;
 
 
 function toShape(state: State): Shape {
@@ -193,7 +193,7 @@ export class SystemInspector {
             this.system, this.settings, this.analysis, this.stateView, this.traceView,
             this.actionView, this.actionSupportView
         );
-        this.controlView = new ControlView(this.system, this.actionView);
+        this.controlView = new ControlView(this.system, this.traceView, this.actionView);
         this.systemSummary = new Summary(this.system, this.analysis);
 
         this.node = dom.div({ "class": "inspector" }, [
@@ -213,7 +213,7 @@ export class SystemInspector {
                         this.settings.node,
                     ]),
                     dom.div({ "class": "right" }, [
-                        dom.h3({}, ["Control Space", dom.infoBox("info-control")]),
+                        dom.h3({}, ["Control and Random Space", dom.infoBox("info-control")]),
                         this.controlView.node,
                         dom.h3({}, ["Selected State", dom.infoBox("info-state")]),
                         this.stateView.node
@@ -555,24 +555,34 @@ class TraceView extends ObservableMixin<null> {
     +system: AbstractedLSS;
     +stateView: StateView;
     +strategy: Input<StrategyGenerator>;
-    +layer: FigureLayer;
+    +arrowLayer: FigureLayer;
+    +interactionLayer: FigureLayer;
     _trace: Trace;
+    _marked: number;
 
     constructor(system: AbstractedLSS, stateView: StateView, keybindings: dom.Keybindings): void {
         super();
         this.stateView = stateView;
         this.system = system;
         this._trace = [];
+        this._marked = -1;
 
         const fig = new Figure();
-        this.layer = fig.newLayer({ "stroke": COLORS.trace, "stroke-width": "2", "fill": COLORS.trace })
-        // TODO provide interactive trace exploration (show evaluated equation,
-        // state information on hover)
-        const proj = new Horizontal1D([-0.01, 1.01]);
-        const plot = new ShapePlot([640, 17], fig, proj, false);
+        this.arrowLayer = fig.newLayer({
+            "stroke": COLORS.trace,
+            "stroke-width": "1.5",
+            "fill": COLORS.trace
+        });
+        this.interactionLayer = fig.newLayer({
+            "stroke": "none",
+            "fill": "#FFF",
+            "fill-opacity": "0"
+        });
+        const proj = new Horizontal1D([-1.01, 0.01], [0, 1]);
+        const plot = new ShapePlot([640, 18], fig, proj, false);
 
         this.strategy = new SelectInput({
-            "random": () => ((state) => this.system.lss.controlSpace[0].sample())
+            "random": () => ((system, _) => system.lss.controlSpace[0].sample())
         }, "random");
         const sampleButton = dom.create("button", {
             "title": "sample a new trace based on the selected strategy"
@@ -584,7 +594,7 @@ class TraceView extends ObservableMixin<null> {
         clearButton.addEventListener("click", () => this.clear());
 
         this.node = dom.div({ "class": "trace-view" }, [
-            //plot.node, // TODO
+            plot.node,
             dom.p({}, [
                 sampleButton, " ", clearButton,
                 dom.div({ "class": "right" }, [
@@ -598,10 +608,16 @@ class TraceView extends ObservableMixin<null> {
         keybindings.bind("a", () => this.sample());
         keybindings.bind("s", inputTextRotation(this.strategy, ["random"]));
         keybindings.bind("d", () => this.clear());
+
+        this.drawTraceArrows();
     }
 
     get trace(): Trace {
         return this._trace;
+    }
+
+    get marked(): number {
+        return this._marked;
     }
 
     sample(): void {
@@ -611,12 +627,48 @@ class TraceView extends ObservableMixin<null> {
         const initPoly = selection == null ? this.system.lss.stateSpace : selection.polytope;
         const strategy = this.strategy.value();
         this._trace = this.system.sampleTrace(initPoly.sample(), strategy, TRACE_LENGTH);
+        // Reversing results in nicer plots (tips aren't covered by next line)
+        this._trace.reverse();
+        this.drawTraceSelectors();
+        this.drawTraceArrows();
         this.notify();
     }
 
     clear(): void {
         this._trace = [];
+        this.drawTraceSelectors();
+        this.drawTraceArrows();
         this.notify();
+    }
+
+    mark(stepNo: number): void {
+        this._marked = stepNo;
+        this.drawTraceArrows();
+        this.notify();
+    }
+
+    drawTraceSelectors(): void {
+        const n = this._trace.length;
+        this.interactionLayer.shapes = this._trace.map((step, i) => ({
+            kind: "polytope", vertices: [[-(i+1)/n], [-i/n]],
+            events: {
+                "mouseover": () => this.mark(i),
+                "mouseout": () => this.mark(-1)
+            }
+        }));
+    }
+
+    drawTraceArrows(): void {
+        const n = this._trace.length;
+        const marked = this._marked;
+        if (n === 0) {
+            this.arrowLayer.shapes = [{ kind: "arrow", origin: [-1], target: [-1] }];
+        } else {
+            this.arrowLayer.shapes = this._trace.map((step, i) => ({
+                kind: "arrow", origin: [-(i+1)/n], target: [-i/n],
+                style: (i === marked ? MARKED_STEP_STYLE : {})
+            }));
+        }
     }
 
 }
@@ -691,29 +743,39 @@ class ActionSupportView extends SelectableNodes<ActionSupport> {
 // traces through the system based on specific strategies. Observes ActionView
 // to display the control subset (action polytope) of the currently selected
 // action.
-class ControlView extends ObservableMixin<null> {
+class ControlView {
 
     +node: HTMLDivElement;
     +system: AbstractedLSS;
-    +stateView: StateView;
+    +traceView: TraceView;
     +actionView: ActionView;
     +actionLayer: FigureLayer;
+    +traceLayerCS: FigureLayer;
+    +traceLayerRS: FigureLayer;
 
-    constructor(system: AbstractedLSS, actionView: ActionView): void {
-        super();
+    constructor(system: AbstractedLSS, traceView: TraceView, actionView: ActionView): void {
         this.system = system;
         this.actionView = actionView;
-        const controlSpace = system.lss.controlSpace;
-        const fig = new Figure();
-        this.actionLayer = fig.newLayer({ "stroke": COLORS.action, "fill": COLORS.action });
-        const layer = fig.newLayer({
-            "stroke": "#000", "stroke-width": "1",
-            "fill": "#FFF", "fill-opacity": "0"
-        });
-        layer.shapes = controlSpace.map(u => ({ kind: "polytope", vertices: u.vertices }));
-        const view = new AxesPlot([90, 90], fig, autoProjection(1, ...union.extent(controlSpace)));
         this.actionView.attach(() => this.drawAction());
-        this.node = dom.div({ "class": "control" }, [view.node]);
+        this.traceView = traceView;
+        this.traceView.attach(() => this.drawTrace());
+        // Control space figure
+        const controlSpace = system.lss.controlSpace;
+        const figCS = new Figure();
+        const layerCS = figCS.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF" });
+        layerCS.shapes = controlSpace.map(u => ({ kind: "polytope", vertices: u.vertices }));
+        this.actionLayer = figCS.newLayer({ "stroke": COLORS.action, "fill": COLORS.action });
+        this.traceLayerCS = figCS.newLayer(MARKED_STEP_STYLE);
+        // Random space figure
+        const randomSpace = system.lss.randomSpace;
+        const figRS = new Figure();
+        const layerRS = figRS.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF" });
+        layerRS.shapes = [{ kind: "polytope", vertices: randomSpace.vertices }];
+        this.traceLayerRS = figRS.newLayer(MARKED_STEP_STYLE);
+        // Side-by-side plots
+        const plotCS = new AxesPlot([90, 90], figCS, autoProjection(1, ...union.extent(controlSpace)));
+        const plotRS = new AxesPlot([90, 90], figRS, autoProjection(1, ...randomSpace.extent));
+        this.node = dom.div({}, [plotCS.node, plotRS.node]);
     }
 
     drawAction(): void {
@@ -726,6 +788,18 @@ class ControlView extends ObservableMixin<null> {
             this.actionLayer.shapes = action.controls.map(
                 poly => ({ kind: "polytope", vertices: poly.vertices })
             );
+        }
+    }
+
+    drawTrace(): void {
+        const marked = this.traceView.marked;
+        const trace = this.traceView.trace;
+        if (marked >= 0 && marked < trace.length) {
+            this.traceLayerCS.shapes = [{ kind: "marker", size: 3, coords: trace[marked].control }];
+            this.traceLayerRS.shapes = [{ kind: "marker", size: 3, coords: trace[marked].random }];
+        } else {
+            this.traceLayerCS.shapes = [];
+            this.traceLayerRS.shapes = [];
         }
     }
 
@@ -795,9 +869,9 @@ class SystemView {
             highlight2:     fig.newLayer({ "stroke": "none", "fill": COLORS.highlight, "fill-opacity": "0.2" }),
             support:        fig.newLayer({ "stroke": COLORS.support, "fill": COLORS.support }),
             vectorField:    fig.newLayer({ "stroke": COLORS.vectorField, "stroke-width": "1", "fill": COLORS.vectorField }),
-            action:         fig.newLayer({ "stroke": COLORS.action, "stroke-width": "2", "fill": COLORS.action }),
+            action:         fig.newLayer({ "stroke": COLORS.action, "stroke-width": "2.5", "fill": COLORS.action }),
             predicate:      fig.newLayer({ "stroke": COLORS.predicate, "fill": COLORS.predicate, "fill-opacity": "0.2" }),
-            trace:          fig.newLayer({ "stroke": COLORS.trace, "stroke-width": "2", "fill": COLORS.trace }),
+            trace:          fig.newLayer({ "stroke": COLORS.trace, "stroke-width": "1.5", "fill": COLORS.trace }),
             label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" }),
             interaction:    fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" })
         };
@@ -935,12 +1009,11 @@ class SystemView {
     }
 
     drawTrace(): void {
-        const trace = this.traceView.trace;
-        const segments = arr.cyc2map((o, t) => ({ kind: "arrow", origin: o, target: t }), trace);
-        if (segments.length > 1) {
-            segments.pop();
-        }
-        this.layers.trace.shapes = segments;
+        const marked = this.traceView.marked;
+        this.layers.trace.shapes = this.traceView.trace.map((step, i) => ({
+            kind: "arrow", origin: step.origin, target: step.target,
+            style: (i === marked ? MARKED_STEP_STYLE : {})
+        }));
     }
 
 }

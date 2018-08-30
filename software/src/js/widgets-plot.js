@@ -350,6 +350,15 @@ class ShapeGroup {
                     dom.addEventListeners(node, events);
                     children.push(node);
 
+                } else if (primitive.kind === "marker") {
+                    const [x, y] = this.shapePlot.scaleFwd(primitive.coords);
+                    const node = dom.createSVG("circle", {
+                        cx: toStr(x), cy: toStr(y), r: toStr(primitive.size)
+                    });
+                    dom.setAttributes(node, style);
+                    dom.addEventListeners(node, events);
+                    children.push(node);
+
                 } else if (primitive.kind === "arrow") {
                     let [x1, y1] = this.shapePlot.scaleFwd(primitive.origin);
                     let [x2, y2] = this.shapePlot.scaleFwd(primitive.target);

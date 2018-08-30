@@ -11,12 +11,14 @@ import { n2s, ObservableMixin, xor } from "./tools.js";
 type ShapeExt = { style?: ElementAttributes, events?: ElementEvents };
 export type Shape = ({ kind: "polytope", vertices: Point[] } & ShapeExt)
                   | ({ kind: "arrow", origin: Point, target: Point } & ShapeExt)
+                  | ({ kind: "marker", coords: Point, size: number } & ShapeExt)
                   | ({ kind: "text", coords: Point, text: string } & ShapeExt)
                   | ({ kind: "halfspace", normal: Point, offset: number } & ShapeExt)
                   | ({ kind: "vectorField", fun: Point => Point, n?: number[] } & ShapeExt);
 
 export type Primitive = { kind: "polygon", points: Point[] }
                       | { kind: "arrow", origin: Point, target: Point }
+                      | { kind: "marker", coords: Point, size: number }
                       | { kind: "text", coords: Point, text: string };
 
 
@@ -165,16 +167,17 @@ export class Cartesian2D implements Projection {
                 kind: "polygon",
                 points: shape.vertices.map(vertex => this.fwd(vertex))
             });
-        // Arrows are a primitive shape, project origin and target coordinates
+        // arrow, text and marker are primitives
         } else if (shape.kind === "arrow") {
             primitives.push({
                 kind: "arrow",
                 origin: this.fwd(shape.origin),
                 target: this.fwd(shape.target)
             });
-        // Text containers are a primitive
         } else if (shape.kind === "text") {
             primitives.push({ kind: "text", coords: this.fwd(shape.coords), text: shape.text });
+        } else if (shape.kind === "marker") {
+            primitives.push({ kind: "marker", coords: this.fwd(shape.coords), size: shape.size });
         // Halfspaces are transformed into a polygon that covers the visible
         // part of the projection up to the halfspace edge
         } else if (shape.kind === "halfspace") {
@@ -248,25 +251,28 @@ export class Cartesian2D implements Projection {
 
 export class Horizontal1D implements Projection {
 
-    +min: number;
-    +max: number;
-    +center: Point;
+    +minX: number;
+    +maxX: number;
+    +minY: number;
+    +maxY: number;
 
-    constructor(lim: Range): void {
-        this.min = lim[0];
-        this.max = lim[1];
+    constructor(lim: Range, ylim?: Range): void {
+        this.minX = lim[0];
+        this.maxX = lim[1];
+        this.minY = ylim == null ? 0.4 : ylim[0];
+        this.maxY = ylim == null ? 0.6 : ylim[1];
     }
 
     get center(): Point {
-        return [(this.min + this.max) / 2];
+        return [(this.minX + this.maxX) / 2];
     }
 
     fwd(coords: Point): Point {
-        return [(coords[0] - this.min) / (this.max - this.min), 0.5];
+        return [(coords[0] - this.minX) / (this.maxX - this.minX), 0.5];
     }
 
     bwd(coords: Point): Point {
-        return [coords[0] * (this.max - this.min) + this.min];
+        return [coords[0] * (this.maxX - this.minX) + this.minX];
     }
 
     project(shape: Shape): Primitive[] {
@@ -280,14 +286,15 @@ export class Horizontal1D implements Projection {
             let [l, r] = shape.vertices.map(vertex => this.fwd(vertex));
             primitives.push({
                 kind: "polygon",
-                points: [[l[0], 0.6], [l[0], 0.4], [r[0], 0.4], [r[0], 0.6]]
+                points: [[l[0], this.maxY], [l[0], this.minY], [r[0], this.minY], [r[0], this.maxY]]
             });
-        // Arrows are a primitive
+        // arrow, text and marker are primitives
         } else if (shape.kind === "arrow") {
             primitives.push({ kind: "arrow", origin: this.fwd(shape.origin), target: this.fwd(shape.target) });
-        // Text is a primitive
         } else if (shape.kind === "text") {
             primitives.push({ kind: "text", coords: this.fwd(shape.coords), text: shape.text });
+        } else if (shape.kind === "marker") {
+            primitives.push({ kind: "marker", coords: this.fwd(shape.coords), size: shape.size });
         } else if (shape.kind === "halfspace") {
             const normal = shape.normal;
             const offset = shape.offset;
@@ -306,7 +313,7 @@ export class Horizontal1D implements Projection {
             }
         // Vector fields are displayed with arrows
         } else if (shape.kind === "vectorField") {
-            for (let x of linearTicks(this.min, this.max, shape.n == null ? 10 : shape.n[0])) {
+            for (let x of linearTicks(this.minX, this.maxX, shape.n == null ? 10 : shape.n[0])) {
                 primitives.push({
                     kind: "arrow",
                     origin: this.fwd([x]),
@@ -321,17 +328,19 @@ export class Horizontal1D implements Projection {
 
     zoom(factor: number): Horizontal1D {
         let center = this.center[0];
-        return new Horizontal1D([center - (center - this.min) * factor,
-                                 center + (this.max - center) * factor]);
+        return new Horizontal1D(
+            [center - (center - this.minX) * factor, center + (this.maxX - center) * factor],
+            [this.minY, this.maxY]
+        );
     }
 
     translate(start: Point, end: Point): Horizontal1D {
         let diff = end[0] - start[0];
-        return new Horizontal1D([this.min - diff, this.max - diff]);
+        return new Horizontal1D([this.minX - diff, this.maxX - diff], [this.minY, this.maxY]);
     }
 
     getXTicks(n: number): Tick[] {
-        return linearTicks(this.min, this.max, n).map(t => [this.fwd([t])[0], n2s(t)]);
+        return linearTicks(this.minX, this.maxX, n).map(t => [this.fwd([t])[0], n2s(t)]);
     }
 
     getYTicks(n: number): Tick[] {

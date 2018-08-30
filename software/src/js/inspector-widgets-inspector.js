@@ -32,11 +32,13 @@ export const COLORS = {
     selection: "#069",
     highlight: "#FC0",
     support: "#09C",
-    action: "#F60",
+    action: "#000",
+    //action: "#F60",
     predicate: "#000",
     split: "#C00",
     vectorField: "#000",
-    trace: "#603"
+    trace: "#600"
+    //trace: "#603"
 };
 
 export const TRACE_LENGTH = 50;
@@ -347,7 +349,7 @@ class SISystemView {
             highlight2:     fig.newLayer({ "stroke": "none", "fill": COLORS.highlight, "fill-opacity": "0.2" }),
             support:        fig.newLayer({ "stroke": COLORS.support, "fill": COLORS.support }),
             vectorField:    fig.newLayer({ "stroke": COLORS.vectorField, "stroke-width": "1", "fill": COLORS.vectorField }),
-            action:         fig.newLayer({ "stroke": COLORS.action, "stroke-width": "2.5", "fill": COLORS.action }),
+            action:         fig.newLayer({ "stroke": COLORS.action, "stroke-width": "2", "fill": COLORS.action }),
             predicate:      fig.newLayer({ "stroke": COLORS.predicate, "fill": COLORS.predicate, "fill-opacity": "0.2" }),
             trace:          fig.newLayer({ "stroke": COLORS.trace, "stroke-width": "2", "fill": COLORS.trace }),
             label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" }),

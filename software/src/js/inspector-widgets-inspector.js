@@ -2,9 +2,9 @@
 "use strict";
 
 import type { Matrix } from "./linalg.js";
-import type { WorkerMessage } from "./tools.js";
+import type { Observable, WorkerMessage } from "./tools.js";
 import type { ConvexPolytopeUnion, Halfspace } from "./geometry.js";
-import type { AbstractedLSS, State, StateID, Action, ActionSupport,
+import type { LSS, AbstractedLSS, State, StateID, Action, ActionSupport,
               StrategyGenerator, Trace } from "./system.js";
 import type { FigureLayer, Shape } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
@@ -162,11 +162,22 @@ export class ProblemSummary {
 
 /* System Inspector: interactive system visualization */
 
-export class SystemInspector {
-
-    +node: HTMLDivElement;
+interface SystemWrapper extends Observable<null> {
     +system: AbstractedLSS;
     +objective: Objective;
+    updateKinds(Set<StateID>, Set<StateID>): Set<State>;
+    refine(Map<State, ConvexPolytopeUnion>): Set<State>;
+}
+
+export class SystemInspector extends ObservableMixin<null> implements SystemWrapper {
+
+    +node: HTMLDivElement;
+
+    // ...
+    _system: AbstractedLSS;
+    _objective: Objective;
+
+    // Widgets
     +settings: Settings;
     +analysis: AnalysisRefinement;
     +stateView: StateView;
@@ -179,22 +190,26 @@ export class SystemInspector {
     +keybindings: dom.Keybindings;
 
     constructor(system: AbstractedLSS, objective: Objective, keybindings: dom.Keybindings) {
-        this.system = system;
-        this.objective = objective;
+        super();
+        this._system = system;
+        this._objective = objective;
 
-        this.keybindings = keybindings;
-        this.settings = new Settings(this.system, this.keybindings);
-        this.analysis = new AnalysisRefinement(this.system, this.objective, this.keybindings);
-        this.stateView = new StateView(this.system, this.analysis);
-        this.traceView = new TraceView(this.system, this.stateView, this.keybindings);
+        this.settings = new Settings(this, keybindings);
+        this.analysis = new AnalysisRefinement(this, keybindings);
+        this.stateView = new StateView(this);
+        this.traceView = new TraceView(this, this.stateView, keybindings);
         this.actionView = new ActionView(this.stateView);
         this.actionSupportView = new ActionSupportView(this.actionView);
         this.systemView = new SystemView(
-            this.system, this.settings, this.analysis, this.stateView, this.traceView,
-            this.actionView, this.actionSupportView
+            this,
+            this.settings,
+            this.stateView,
+            this.traceView,
+            this.actionView,
+            this.actionSupportView
         );
-        this.controlView = new ControlView(this.system, this.traceView, this.actionView);
-        this.systemSummary = new Summary(this.system, this.analysis);
+        this.controlView = new ControlView(this, this.traceView, this.actionView);
+        this.systemSummary = new Summary(this);
 
         this.node = dom.div({ "class": "inspector" }, [
             dom.div({ "class": "left" }, [
@@ -229,6 +244,31 @@ export class SystemInspector {
         ]);
     }
 
+    // WrappedSystem interface
+
+    get system() {
+        return this._system;
+    }
+
+    get objective() {
+        return this._objective;
+    }
+
+    // Wrap mutating method calls of system, so that changes are properly
+    // propagated to the widgets
+
+    updateKinds(satisfying: Set<StateID>, nonSatisfying: Set<StateID>): Set<State> {
+        const out = this.system.updateKinds(satisfying, nonSatisfying);
+        if (out.size > 0) this.notify();
+        return out;
+    }
+
+    refine(partitions: Map<State, ConvexPolytopeUnion>): Set<State> {
+        const out = this.system.refine(partitions);
+        if (out.size > 0) this.notify();
+        return out;
+    }
+
 }
 
 
@@ -236,6 +276,7 @@ export class SystemInspector {
 class Settings extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
+    +wrapper: SystemWrapper;
     +toggleKind: Input<boolean>;
     +toggleLabel: Input<boolean>;
     +toggleVectorField: Input<boolean>;
@@ -243,20 +284,20 @@ class Settings extends ObservableMixin<null> {
     +highlightNode: HTMLDivElement;
     +strategy: Input<string>;
     
-    constructor(system: AbstractedLSS, keybindings: dom.Keybindings): void {
+    constructor(wrapper: SystemWrapper, keybindings: dom.Keybindings): void {
         super();
+        this.wrapper = wrapper;
+
         this.toggleKind = new CheckboxInput(true);
         this.toggleLabel = new CheckboxInput(false);
         this.toggleVectorField = new CheckboxInput(false);
-
-        const lss = system.lss;
         this.highlight = new SelectInput({
             "None": (state, u) => [],
             "Posterior": (state, u) => state.isOuter ? [] : state.post(u),
-            "Predecessor": (state, u) => lss.pre(lss.stateSpace, u, [state.polytope]),
-            "Robust Predecessor": (state, u) => lss.preR(lss.stateSpace, u, [state.polytope]),
-            "Attractor": (state, u) => lss.attr(lss.stateSpace, u, [state.polytope]),
-            "Robust Attractor": (state, u) => lss.attrR(lss.stateSpace, u, [state.polytope])
+            "Predecessor": (state, u) => this.lss.pre(this.lss.stateSpace, u, [state.polytope]),
+            "Robust Predecessor": (state, u) => this.lss.preR(this.lss.stateSpace, u, [state.polytope]),
+            "Attractor": (state, u) => this.lss.attr(this.lss.stateSpace, u, [state.polytope]),
+            "Robust Attractor": (state, u) => this.lss.attrR(this.lss.stateSpace, u, [state.polytope])
         }, "None");
 
         this.node = dom.div({ "class": "settings" }, [
@@ -276,45 +317,40 @@ class Settings extends ObservableMixin<null> {
         ]));
     }
 
+    get lss(): LSS {
+        return this.wrapper.system.lss;
+    }
+
 }
 
 type ClickOperatorWrapper = (state: State, control: ConvexPolytopeUnion) => ConvexPolytopeUnion;
 
 
 // Analysis and refinement controls
-class AnalysisRefinement extends ObservableMixin<null> {
+class AnalysisRefinement {
 
-    // Widget
     +node: HTMLDivElement;
+    +wrapper: SystemWrapper;
     +analyseButton: HTMLInputElement;
     +info: HTMLSpanElement;
     +refineButton: HTMLInputElement;
     +toggles: { [string]: Input<boolean> };
-    // Web Worker for multithreaded analysis
     worker: ?Worker;
     communicator: ?WorkerCommunicator;
-    // Data for analysis and refinement
-    +system: AbstractedLSS;
-    +objective: Objective;
-
     _ready: boolean;
     
-    constructor(system: AbstractedLSS, objective: Objective, keybindings: dom.Keybindings): void {
-        super();
-        this.system = system;
-        this.objective = objective;
+    constructor(wrapper: SystemWrapper, keybindings: dom.Keybindings): void {
+        this.wrapper = wrapper;
         // Analysis
         this.analyseButton = dom.create("button", {}, ["analys", dom.create("u", {}, ["e"])]);
         this.analyseButton.addEventListener("click", () => this.analyse());
         this.info = dom.span({ "class": "analysis-info" });
-        keybindings.bind("e", () => this.analyse());
         // Refinement
         this.refineButton = dom.create("button", {}, [dom.create("u", {}, ["r"]), "efine all"]);
         this.refineButton.addEventListener("click", () => this.refineAll());
         this.toggles = {
             outerAttr: new CheckboxInput(true)
         };
-        keybindings.bind("r", () => this.refineAll());
         this.node = dom.div({}, [
             dom.p({}, [this.analyseButton, " ", this.refineButton, " ", this.info]),
             dom.p({}, ["Apply refinement procedures:"]),
@@ -322,7 +358,19 @@ class AnalysisRefinement extends ObservableMixin<null> {
                 dom.create("label", {}, [this.toggles.outerAttr.node, "Outer Attractor"])
             ])
         ]);
+
+        keybindings.bind("e", () => this.analyse());
+        keybindings.bind("r", () => this.refineAll());
+
         this.initializeAnalysisWorker();
+    }
+
+    get system(): AbstractedLSS {
+        return this.wrapper.system;
+    }
+
+    get objective(): Objective {
+        return this.wrapper.objective;
     }
 
     get ready(): boolean {
@@ -443,14 +491,13 @@ class AnalysisRefinement extends ObservableMixin<null> {
 
     // Apply analysis results to system and show information message
     processAnalysisResults(satisfying: Set<StateID>, nonSatisfying: Set<StateID>, elapsed: number): void {
-        const updated = this.system.updateKinds(satisfying, nonSatisfying);
+        const updated = this.wrapper.updateKinds(satisfying, nonSatisfying);
         const nStates = this.system.states.size;
         const nActions = iter.sum(iter.map(s => s.actions.length, this.system.states.values()));
         this.write(
             nStates + " states and " + nActions + " actions analysed in " + t2s(elapsed) +
             ". Updated " + updated.size + (updated.size === 1 ? " state" : " states.")
         );
-        this.notify();
     }
 
     get refinementSteps(): Refinery[] {
@@ -463,11 +510,8 @@ class AnalysisRefinement extends ObservableMixin<null> {
 
     refine(states: Iterable<State>): void {
         if (this.ready) {
-            const refined = this.system.refine(refinement.partitionAll(this.refinementSteps, states));
+            const refined = this.wrapper.refine(refinement.partitionAll(this.refinementSteps, states));
             this.write("Refined " + refined.size + (refined.size === 1 ? " state." : " states."));
-            if (refined.size > 0) {
-                this.notify();
-            }
         } else {
             this.write("Cannot refine while analysing...");
         }
@@ -486,36 +530,31 @@ class AnalysisRefinement extends ObservableMixin<null> {
 class StateView extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
-    +system: AbstractedLSS;
+    +wrapper: SystemWrapper;
     +summary: HTMLDivElement;
     +predicates: SelectableNodes<string>;
-    +refineButton: HTMLInputElement;
     _selection: ?State;
 
-    constructor(system: AbstractedLSS, analysis: AnalysisRefinement): void {
+    constructor(wrapper: SystemWrapper): void {
         super();
-        this.system = system;
-        analysis.attach(() => {
-            const keep = this.selection != null && this.system.states.has(this.selection.label);
-            this.selection = keep ? this.selection : null; // invokes changeHandler
-        });
-        // Summary is filled basic state information
+        this._selection = null;
+        this.wrapper = wrapper;
+
+        // Summary is filled with basic state information
         this.summary = dom.p();
         // Predicates that state fulfils
-        this.predicates = new SelectableNodes(p => styledPredicateLabel(p, this.system), ", ", "-");
+        this.predicates = new SelectableNodes(p => styledPredicateLabel(p, this.wrapper.system), ", ", "-");
         this.predicates.node.className = "predicates";
-        // Refine-button for undecided states
-        this.refineButton = dom.create("input", { "type": "button", "value": "refine", "class": "refine" });
-        this.refineButton.addEventListener("click", () => {
-            const selection = this.selection;
-            if (selection != null && selection.isUndecided) {
-                analysis.refine([selection]);
-            }
-        });
         this.node = dom.div({ "class": "state-view" }, [
-            this.refineButton, this.summary, this.predicates.node
+            this.summary, this.predicates.node
         ]);
+
+        this.wrapper.attach(() => this.changeHandler());
         this.changeHandler();
+    }
+
+    get system(): AbstractedLSS {
+        return this.wrapper.system;
     }
 
     get selection(): ?State {
@@ -528,8 +567,11 @@ class StateView extends ObservableMixin<null> {
     }
 
     changeHandler() {
-        const state = this._selection;
-        this.refineButton.disabled = state == null || !state.isUndecided;
+        let state = this._selection;
+        // System might have changed, try to keep state selected (if it still exists)
+        if (state != null && !this.system.states.has(state.label)) {
+            state = this._selection = null;
+        }
         if (state != null) {
             const actionCount = state.actions.length;
             const actionText = actionCount === 1 ? " action" : " actions";
@@ -552,7 +594,7 @@ class StateView extends ObservableMixin<null> {
 class TraceView extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
-    +system: AbstractedLSS;
+    +wrapper: SystemWrapper;
     +stateView: StateView;
     +strategy: Input<StrategyGenerator>;
     +arrowLayer: FigureLayer;
@@ -560,10 +602,10 @@ class TraceView extends ObservableMixin<null> {
     _trace: Trace;
     _marked: number;
 
-    constructor(system: AbstractedLSS, stateView: StateView, keybindings: dom.Keybindings): void {
+    constructor(wrapper: SystemWrapper, stateView: StateView, keybindings: dom.Keybindings): void {
         super();
         this.stateView = stateView;
-        this.system = system;
+        this.wrapper = wrapper;
         this._trace = [];
         this._marked = -1;
 
@@ -582,7 +624,7 @@ class TraceView extends ObservableMixin<null> {
         const plot = new ShapePlot([640, 18], fig, proj, false);
 
         this.strategy = new SelectInput({
-            "random": () => ((system, _) => system.lss.controlSpace[0].sample())
+            "random": () => ((system, _) => this.system.lss.controlSpace[0].sample())
         }, "random");
         const sampleButton = dom.create("button", {
             "title": "sample a new trace based on the selected strategy"
@@ -601,15 +643,18 @@ class TraceView extends ObservableMixin<null> {
                     dom.create("u", {}, ["S"]), "trategy ",
                     this.strategy.node
                 ])
-            ]),
+            ])
         ]);
 
-        // Keybindings for trace control buttons
         keybindings.bind("a", () => this.sample());
         keybindings.bind("s", inputTextRotation(this.strategy, ["random"]));
         keybindings.bind("d", () => this.clear());
 
         this.drawTraceArrows();
+    }
+
+    get system(): AbstractedLSS {
+        return this.wrapper.system;
     }
 
     get trace(): Trace {
@@ -746,36 +791,53 @@ class ActionSupportView extends SelectableNodes<ActionSupport> {
 class ControlView {
 
     +node: HTMLDivElement;
-    +system: AbstractedLSS;
+    +wrapper: SystemWrapper;
     +traceView: TraceView;
     +actionView: ActionView;
-    +actionLayer: FigureLayer;
-    +traceLayerCS: FigureLayer;
-    +traceLayerRS: FigureLayer;
+    +ctrlPlot: Plot;
+    +ctrlLayers: { [string]: FigureLayer };
+    +randPlot: Plot;
+    +randLayers: { [string]: FigureLayer };
 
-    constructor(system: AbstractedLSS, traceView: TraceView, actionView: ActionView): void {
-        this.system = system;
+    constructor(wrapper: SystemWrapper, traceView: TraceView, actionView: ActionView): void {
+        this.wrapper = wrapper;
+        this.wrapper.attach(() => this.drawSpaces());
         this.actionView = actionView;
         this.actionView.attach(() => this.drawAction());
         this.traceView = traceView;
         this.traceView.attach(() => this.drawTrace());
         // Control space figure
-        const controlSpace = system.lss.controlSpace;
-        const figCS = new Figure();
-        const layerCS = figCS.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF" });
-        layerCS.shapes = controlSpace.map(u => ({ kind: "polytope", vertices: u.vertices }));
-        this.actionLayer = figCS.newLayer({ "stroke": COLORS.action, "fill": COLORS.action });
-        this.traceLayerCS = figCS.newLayer(MARKED_STEP_STYLE);
+        const ctrlFig = new Figure();
+        this.ctrlLayers = {
+            poly:   ctrlFig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF" }),
+            action: ctrlFig.newLayer({ "stroke": COLORS.action, "fill": COLORS.action }),
+            trace:  ctrlFig.newLayer(MARKED_STEP_STYLE)
+        };
         // Random space figure
-        const randomSpace = system.lss.randomSpace;
-        const figRS = new Figure();
-        const layerRS = figRS.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF" });
-        layerRS.shapes = [{ kind: "polytope", vertices: randomSpace.vertices }];
-        this.traceLayerRS = figRS.newLayer(MARKED_STEP_STYLE);
+        const randFig = new Figure();
+        this.randLayers = {
+            poly:   randFig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF" }),
+            trace:  randFig.newLayer(MARKED_STEP_STYLE)
+        };
         // Side-by-side plots
-        const plotCS = new AxesPlot([90, 90], figCS, autoProjection(1, ...union.extent(controlSpace)));
-        const plotRS = new AxesPlot([90, 90], figRS, autoProjection(1, ...randomSpace.extent));
-        this.node = dom.div({}, [plotCS.node, plotRS.node]);
+        this.ctrlPlot = new AxesPlot([90, 90], ctrlFig, autoProjection(1));
+        this.randPlot = new AxesPlot([90, 90], randFig, autoProjection(1));
+        this.node = dom.div({}, [this.ctrlPlot.node, this.randPlot.node]);
+
+        this.drawSpaces();
+    }
+
+    get lss(): LSS {
+        return this.wrapper.system.lss;
+    }
+
+    drawSpaces(): void {
+        const controlSpace = this.lss.controlSpace;
+        const randomSpace = this.lss.randomSpace;
+        this.ctrlPlot.projection = autoProjection(1, ...union.extent(controlSpace));
+        this.ctrlLayers.poly.shapes = controlSpace.map(u => ({ kind: "polytope", vertices: u.vertices }));
+        this.randPlot.projection = autoProjection(1, ...randomSpace.extent);
+        this.randLayers.poly.shapes = [{ kind: "polytope", vertices: randomSpace.vertices }];
     }
 
     drawAction(): void {
@@ -783,9 +845,9 @@ class ControlView {
                      ? this.actionView.selection
                      : this.actionView.hoverSelection;
         if (action == null) {
-            this.actionLayer.shapes = [];
+            this.ctrlLayers.action.shapes = [];
         } else {
-            this.actionLayer.shapes = action.controls.map(
+            this.ctrlLayers.action.shapes = action.controls.map(
                 poly => ({ kind: "polytope", vertices: poly.vertices })
             );
         }
@@ -795,11 +857,11 @@ class ControlView {
         const marked = this.traceView.marked;
         const trace = this.traceView.trace;
         if (marked >= 0 && marked < trace.length) {
-            this.traceLayerCS.shapes = [{ kind: "marker", size: 3, coords: trace[marked].control }];
-            this.traceLayerRS.shapes = [{ kind: "marker", size: 3, coords: trace[marked].random }];
+            this.ctrlLayers.trace.shapes = [{ kind: "marker", size: 3, coords: trace[marked].control }];
+            this.randLayers.trace.shapes = [{ kind: "marker", size: 3, coords: trace[marked].random }];
         } else {
-            this.traceLayerCS.shapes = [];
-            this.traceLayerRS.shapes = [];
+            this.ctrlLayers.trace.shapes = [];
+            this.randLayers.trace.shapes = [];
         }
     }
 
@@ -818,7 +880,7 @@ class ControlView {
 // TraceView            → Trace sample.
 class SystemView {
 
-    +system: AbstractedLSS;
+    +wrapper: SystemWrapper;
     +settings: Settings;
     +stateView: StateView;
     +traceView: TraceView;
@@ -827,15 +889,16 @@ class SystemView {
     +plot: Plot;
     +layers: { [string]: FigureLayer };
 
-    constructor(system: AbstractedLSS, settings: Settings, analysis: AnalysisRefinement,
-                stateView: StateView, traceView: TraceView, actionView: ActionView,
+    constructor(wrapper: SystemWrapper, settings: Settings, stateView: StateView,
+                traceView: TraceView, actionView: ActionView,
                 actionSupportView: ActionSupportView): void {
-        this.system = system;
+        this.wrapper = wrapper;
 
-        analysis.attach(() => {
-            this.drawInteraction();
+        wrapper.attach(() => {
+            this.drawSystem();
             this.drawKind();
             this.drawLabels();
+            this.drawVectorField();
         });
 
         this.settings = settings;
@@ -869,15 +932,15 @@ class SystemView {
             highlight2:     fig.newLayer({ "stroke": "none", "fill": COLORS.highlight, "fill-opacity": "0.2" }),
             support:        fig.newLayer({ "stroke": COLORS.support, "fill": COLORS.support }),
             vectorField:    fig.newLayer({ "stroke": COLORS.vectorField, "stroke-width": "1", "fill": COLORS.vectorField }),
-            action:         fig.newLayer({ "stroke": COLORS.action, "stroke-width": "2.5", "fill": COLORS.action }),
+            action:         fig.newLayer({ "stroke": COLORS.action, "stroke-width": "2", "fill": COLORS.action }),
             predicate:      fig.newLayer({ "stroke": COLORS.predicate, "fill": COLORS.predicate, "fill-opacity": "0.2" }),
             trace:          fig.newLayer({ "stroke": COLORS.trace, "stroke-width": "1.5", "fill": COLORS.trace }),
             label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" }),
             interaction:    fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" })
         };
-        this.plot = new InteractivePlot([630, 420], fig, autoProjection(6/4, ...system.extent));
+        this.plot = new InteractivePlot([630, 420], fig, autoProjection(6/4));
 
-        this.drawInteraction();
+        this.drawSystem();
         this.drawHighlight();
         this.drawKind();
         this.drawVectorField();
@@ -886,11 +949,16 @@ class SystemView {
         this.drawTrace();
     }
 
+    get system(): AbstractedLSS {
+        return this.wrapper.system;
+    }
+
     get node(): Element {
         return this.plot.node;
     }
 
-    drawInteraction(): void {
+    drawSystem(): void {
+        this.plot.projection = autoProjection(6/4, ...this.system.extent);
         this.layers.interaction.shapes = iter.map(state => ({
             kind: "polytope", vertices: state.polytope.vertices,
             events: {
@@ -1023,11 +1091,11 @@ class SystemView {
 class Summary {
 
     +node: HTMLDivElement;
-    +system: AbstractedLSS;
+    +wrapper: SystemWrapper;
 
-    constructor(system: AbstractedLSS, analysis: AnalysisRefinement): void {
-        this.system = system;
-        analysis.attach(() => this.changeHandler());
+    constructor(wrapper: SystemWrapper): void {
+        this.wrapper = wrapper;
+        this.wrapper.attach(() => this.changeHandler());
         this.node = dom.div();
         this.changeHandler();
     }
@@ -1037,7 +1105,7 @@ class Summary {
         let volSat = 0;
         let volUnd = 0;
         let volNon = 0;
-        for (let state of this.system.states.values()) {
+        for (let state of this.wrapper.system.states.values()) {
             if (state.isSatisfying) {
                 volSat += state.polytope.volume;
             } else if (state.isUndecided) {

@@ -179,14 +179,14 @@ export class SystemInspector extends ObservableMixin<null> implements SystemWrap
 
     // Widgets
     +settings: Settings;
-    +analysis: AnalysisRefinement;
+    +analysis: Analysis;
+    +refinement: Refinement;
     +stateView: StateView;
     +traceView: TraceView;
     +actionView: ActionView;
     +actionSupportView: ActionSupportView;
     +systemView: SystemView;
     +controlView: ControlView;
-    +systemSummary: Summary;
     +keybindings: dom.Keybindings;
 
     constructor(system: AbstractedLSS, objective: Objective, keybindings: dom.Keybindings) {
@@ -195,7 +195,8 @@ export class SystemInspector extends ObservableMixin<null> implements SystemWrap
         this._objective = objective;
 
         this.settings = new Settings(this, keybindings);
-        this.analysis = new AnalysisRefinement(this, keybindings);
+        this.analysis = new Analysis(this, keybindings);
+        this.refinement = new Refinement(this, this.analysis, keybindings);
         this.stateView = new StateView(this);
         this.traceView = new TraceView(this, this.stateView, keybindings);
         this.actionView = new ActionView(this.stateView);
@@ -209,36 +210,35 @@ export class SystemInspector extends ObservableMixin<null> implements SystemWrap
             this.actionSupportView
         );
         this.controlView = new ControlView(this, this.traceView, this.actionView);
-        this.systemSummary = new Summary(this);
 
         this.node = dom.div({ "class": "inspector" }, [
             dom.div({ "class": "left" }, [
                 this.systemView.node,
-                dom.h3({}, ["Trace", dom.infoBox("info-trace")]),
-                this.traceView.node,
-                dom.h3({}, ["Analysis and Abstraction Refinement", dom.infoBox("info-analysis-refinement")]),
-                this.analysis.node
+                dom.h3({}, ["Analysis", dom.infoBox("info-analysis")]),
+                this.analysis.node,
+                dom.h3({}, ["Abstraction Refinement", dom.infoBox("info-refinement")]),
+                this.refinement.node
             ]),
             dom.div({ "class": "right" }, [
                 dom.div({"class": "cols"}, [
                     dom.div({ "class": "left" }, [
-                        dom.h3({}, ["System Summary", dom.infoBox("info-summary")]),
-                        this.systemSummary.node,
                         dom.h3({}, ["View Settings", dom.infoBox("info-settings")]),
-                        this.settings.node,
+                        this.settings.node
                     ]),
                     dom.div({ "class": "right" }, [
                         dom.h3({}, ["Control and Random Space", dom.infoBox("info-control")]),
                         this.controlView.node,
-                        dom.h3({}, ["Selected State", dom.infoBox("info-state")]),
-                        this.stateView.node
                     ])
                 ]),
                 dom.div({ "class": "rest" }, [
+                    dom.h3({}, ["Selected State", dom.infoBox("info-state")]),
+                    this.stateView.node,
                     dom.h3({}, ["Actions", dom.infoBox("info-actions")]),
                     this.actionView.node,
                     dom.h3({}, ["Action Supports", dom.infoBox("info-supports")]),
-                    this.actionSupportView.node
+                    this.actionSupportView.node,
+                    dom.h3({}, ["Trace", dom.infoBox("info-trace")]),
+                    this.traceView.node,
                 ]),
             ])
         ]);
@@ -326,43 +326,36 @@ class Settings extends ObservableMixin<null> {
 type ClickOperatorWrapper = (state: State, control: ConvexPolytopeUnion) => ConvexPolytopeUnion;
 
 
-// Analysis and refinement controls
-class AnalysisRefinement {
+// Analysis
+class Analysis extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
     +wrapper: SystemWrapper;
-    +analyseButton: HTMLInputElement;
+    +progressBar: HTMLDivElement;
+    +button: HTMLButtonElement;
     +info: HTMLSpanElement;
-    +refineButton: HTMLInputElement;
-    +toggles: { [string]: Input<boolean> };
     worker: ?Worker;
     communicator: ?WorkerCommunicator;
     _ready: boolean;
-    
+
     constructor(wrapper: SystemWrapper, keybindings: dom.Keybindings): void {
+        super();
         this.wrapper = wrapper;
-        // Analysis
-        this.analyseButton = dom.create("button", {}, ["analys", dom.create("u", {}, ["e"])]);
-        this.analyseButton.addEventListener("click", () => this.analyse());
+        this.wrapper.attach(() => this.changeHandler());
+
+        this.progressBar = dom.div({ "class": "analysis-progress" });
+        this.button = dom.create("button", {}, ["analys", dom.create("u", {}, ["e"])]);
+        this.button.addEventListener("click", () => this.analyse());
         this.info = dom.span({ "class": "analysis-info" });
-        // Refinement
-        this.refineButton = dom.create("button", {}, [dom.create("u", {}, ["r"]), "efine all"]);
-        this.refineButton.addEventListener("click", () => this.refineAll());
-        this.toggles = {
-            outerAttr: new CheckboxInput(true)
-        };
         this.node = dom.div({}, [
-            dom.p({}, [this.analyseButton, " ", this.refineButton, " ", this.info]),
-            dom.p({}, ["Apply refinement procedures:"]),
-            dom.p({ "class": "refinement-toggles" }, [
-                dom.create("label", {}, [this.toggles.outerAttr.node, "Outer Attractor"])
-            ])
+            dom.p({}, [this.button, " ", this.info]),
+            this.progressBar
         ]);
 
         keybindings.bind("e", () => this.analyse());
-        keybindings.bind("r", () => this.refineAll());
 
         this.initializeAnalysisWorker();
+        this.changeHandler();
     }
 
     get system(): AbstractedLSS {
@@ -379,18 +372,18 @@ class AnalysisRefinement {
 
     set ready(ready: boolean): void {
         this._ready = ready;
-        this.analyseButton.disabled = !ready;
-        this.refineButton.disabled = !ready;
+        this.button.disabled = !ready;
+        this.notify();
     }
 
-    write(text: string): void {
+    set infoText(text: string): void {
         dom.replaceChildren(this.info, [text]);
     }
 
     // Create and setup the worker
     initializeAnalysisWorker(): void {
         this.ready = false;
-        this.write("initializing...");
+        this.infoText = "initializing...";
         // Terminate an old worker if exists, then create new
         if (this.worker != null) this.worker.terminate();
         try {
@@ -415,7 +408,7 @@ class AnalysisRefinement {
             communicator.onMessage("ready", (msg) => {
                 this.worker = worker;
                 this.communicator = communicator;
-                this.write("Web Worker ready.");
+                this.infoText = "Web Worker ready.";
                 this.ready = true;
             });
             // If worker creation fails, switch to local game analysis.
@@ -436,7 +429,7 @@ class AnalysisRefinement {
         this.ready = false;
         this.worker = null;
         this.communicator = null;
-        this.write("Unable to create Web Worker. Will analyse locally instead.");
+        this.infoText = "Unable to create Web Worker. Will analyse locally instead.";
         this.ready = true;
     }
 
@@ -447,10 +440,10 @@ class AnalysisRefinement {
         this.ready = false;
         // TODO: the message is not flushed properly by the browser before the
         // snapshot locks the page :(
-        this.write("constructing game abstraction...");
+        this.infoText = "constructing game abstraction...";
         const startTime = performance.now();
         const snapshot = this.system.snapshot(false);
-        this.write("analysing...");
+        this.infoText = "analysing...";
         // Web Worker available. Send the transition system induced by the
         // abstracted LSS to the worker and analyse it with respect to the
         // previously sent objective and proposition mapping.
@@ -462,7 +455,7 @@ class AnalysisRefinement {
                         && data.satisfying instanceof Set && data.nonSatisfying instanceof Set) {
                     this.processAnalysisResults(data.satisfying, data.nonSatisfying, elapsed);
                 } else {
-                    this.write("analysis error"); // TODO
+                    this.infoText = "analysis error"; // TODO
                 }
                 this.ready = true;
             });
@@ -494,10 +487,91 @@ class AnalysisRefinement {
         const updated = this.wrapper.updateKinds(satisfying, nonSatisfying);
         const nStates = this.system.states.size;
         const nActions = iter.sum(iter.map(s => s.actions.length, this.system.states.values()));
-        this.write(
+        this.infoText = (
             nStates + " states and " + nActions + " actions analysed in " + t2s(elapsed) +
             ". Updated " + updated.size + (updated.size === 1 ? " state" : " states.")
         );
+    }
+
+    changeHandler() {
+        let count = 0;
+        let volSat = 0;
+        let volUnd = 0;
+        let volNon = 0;
+        for (let state of this.wrapper.system.states.values()) {
+            if (state.isSatisfying) {
+                volSat += state.polytope.volume;
+            } else if (state.isUndecided) {
+                volUnd += state.polytope.volume;
+            } else if (!state.isOuter) {
+                volNon += state.polytope.volume;
+            }
+            count++;
+        }
+        const volAll = volSat + volUnd + volNon;
+        const pctSat = volSat / volAll * 100;
+        const pctUnd = volUnd / volAll * 100;
+        const pctNon = volNon / volAll * 100;
+        dom.replaceChildren(this.progressBar, [
+            dom.div({
+                "class": "satisfying",
+                "style": "flex-grow:" + pctSat + ";",
+                "title": pctSat.toFixed(1) + "% satisfying"
+            }),
+            dom.div({
+                "class": "undecided",
+                "style": "flex-grow:" + pctUnd + ";",
+                "title": pctUnd.toFixed(1) + "% undecided"
+            }),
+            dom.div({
+                "class": "nonsatisfying",
+                "style": "flex-grow:" + pctNon + ";",
+                "title": pctNon.toFixed(1) + "% non-satisfying"
+            }),
+        ]);
+    }
+
+}
+
+// Refinement controls. Observes analysis widget to block operations while
+// analysis is carried out. Also depends on analysis for refinement hints.
+class Refinement {
+
+    +node: HTMLDivElement;
+    +wrapper: SystemWrapper;
+    +analysis: Analysis;
+    +buttons: { [string]: HTMLButtonElement };
+    +toggles: { [string]: Input<boolean> };
+    
+    constructor(wrapper: SystemWrapper, analysis: Analysis, keybindings: dom.Keybindings): void {
+        this.wrapper = wrapper;
+        this.analysis = analysis;
+        this.analysis.attach(() => this.changeHandler());
+
+        this.buttons = {
+            refineAll:      dom.create("button", {}, [dom.create("u", {}, ["r"]), "efine undecided"]),
+            refineState:    dom.create("button", {}, ["refine state"]),
+            refineSupport:  dom.create("button", {}, ["refine wrt support"])
+        };
+        this.toggles = {
+            outerAttr: new CheckboxInput(true)
+        };
+        this.node = dom.div({}, [
+            dom.p({}, [this.buttons.refineAll, " ", this.buttons.refineState, " ", this.buttons.refineSupport]),
+            dom.p({ "class": "refinement-toggles" }, [
+                dom.create("label", {}, [this.toggles.outerAttr.node, "Outer Attractor"])
+            ])
+        ]);
+
+        this.buttons.refineAll.addEventListener("click", () => this.refineAll());
+
+        keybindings.bind("r", () => this.refineAll());
+
+        this.changeHandler();
+    }
+
+    get system(): AbstractedLSS {
+        return this.wrapper.system;
     }
 
     get refinementSteps(): Refinery[] {
@@ -509,16 +583,19 @@ class AnalysisRefinement {
     }
 
     refine(states: Iterable<State>): void {
-        if (this.ready) {
-            const refined = this.wrapper.refine(refinement.partitionAll(this.refinementSteps, states));
-            this.write("Refined " + refined.size + (refined.size === 1 ? " state." : " states."));
-        } else {
-            this.write("Cannot refine while analysing...");
-        }
+        const refined = this.wrapper.refine(refinement.partitionAll(this.refinementSteps, states));
+        //this.write("Refined " + refined.size + (refined.size === 1 ? " state." : " states."));
     }
 
     refineAll(): void {
         this.refine(iter.filter(s => s.isUndecided, this.system.states.values()));
+    }
+
+    changeHandler(): void {
+        const ready = this.analysis.ready;
+        for (let name in this.buttons) {
+            this.buttons[name].disabled = !ready;
+        }
     }
 
 }
@@ -539,6 +616,7 @@ class StateView extends ObservableMixin<null> {
         super();
         this._selection = null;
         this.wrapper = wrapper;
+        this.wrapper.attach(() => this.changeHandler());
 
         // Summary is filled with basic state information
         this.summary = dom.p();
@@ -549,7 +627,6 @@ class StateView extends ObservableMixin<null> {
             this.summary, this.predicates.node
         ]);
 
-        this.wrapper.attach(() => this.changeHandler());
         this.changeHandler();
     }
 
@@ -620,8 +697,8 @@ class TraceView extends ObservableMixin<null> {
             "fill": "#FFF",
             "fill-opacity": "0"
         });
-        const proj = new Horizontal1D([-1.01, 0.01], [0, 1]);
-        const plot = new ShapePlot([640, 18], fig, proj, false);
+        const proj = new Horizontal1D([-1, 0.01], [0, 1]);
+        const plot = new ShapePlot([510, 20], fig, proj, false);
 
         this.strategy = new SelectInput({
             "random": () => ((system, _) => this.system.lss.controlSpace[0].sample())
@@ -707,7 +784,7 @@ class TraceView extends ObservableMixin<null> {
         const n = this._trace.length;
         const marked = this._marked;
         if (n === 0) {
-            this.arrowLayer.shapes = [{ kind: "arrow", origin: [-1], target: [-1] }];
+            this.arrowLayer.shapes = [];
         } else {
             this.arrowLayer.shapes = this._trace.map((step, i) => ({
                 kind: "arrow", origin: [-(i+1)/n], target: [-i/n],
@@ -1086,60 +1163,4 @@ class SystemView {
 
 }
 
-
-// Textual system information and analysis progress bar.
-class Summary {
-
-    +node: HTMLDivElement;
-    +wrapper: SystemWrapper;
-
-    constructor(wrapper: SystemWrapper): void {
-        this.wrapper = wrapper;
-        this.wrapper.attach(() => this.changeHandler());
-        this.node = dom.div();
-        this.changeHandler();
-    }
-
-    changeHandler() {
-        let count = 0;
-        let volSat = 0;
-        let volUnd = 0;
-        let volNon = 0;
-        for (let state of this.wrapper.system.states.values()) {
-            if (state.isSatisfying) {
-                volSat += state.polytope.volume;
-            } else if (state.isUndecided) {
-                volUnd += state.polytope.volume;
-            } else if (!state.isOuter) {
-                volNon += state.polytope.volume;
-            }
-            count++;
-        }
-        const volAll = volSat + volUnd + volNon;
-        const pctSat = volSat / volAll * 100;
-        const pctUnd = volUnd / volAll * 100;
-        const pctNon = volNon / volAll * 100;
-        dom.replaceChildren(this.node, [
-            dom.p({}, [count + " states"]),
-            dom.div({ "class": "analysis-progress" }, [
-                dom.div({
-                    "class": "satisfying",
-                    "style": "flex-grow:" + pctSat + ";",
-                    "title": pctSat.toFixed(1) + "% satisfying"
-                }),
-                dom.div({
-                    "class": "undecided",
-                    "style": "flex-grow:" + pctUnd + ";",
-                    "title": pctUnd.toFixed(1) + "% undecided"
-                }),
-                dom.div({
-                    "class": "nonsatisfying",
-                    "style": "flex-grow:" + pctNon + ";",
-                    "title": pctNon.toFixed(1) + "% non-satisfying"
-                }),
-            ])
-        ]);
-    }
-
-}
 

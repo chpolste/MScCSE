@@ -480,11 +480,6 @@
     </div>
 
     <!-- Info boxes of inspector -->
-    <div class="info-box" id="info-summary">
-      <p>
-        The number of states of the system and the analysis progress in form of volume-percentages of the state space polytope which have been found to be satisfying (green), non-satisfying (grey) or are still undecided (no color).
-      </p>
-    </div>
     <div class="info-box" id="info-settings">
       <p>
         <u>Analysis colors</u>:
@@ -556,11 +551,16 @@
         Moving the cursor over an arrow highlights the corresponding arrow in the system view and show the corresponding control and random inputs in the control and random space view in the top right.
       </p>
     </div>
-    <div class="info-box" id="info-analysis-refinement">
+    <div class="info-box" id="info-analysis">
       <p>
-        <u>Analyse</u> the system with respect to the chosen objective and update the analysis status of all states.
-        The interface will remain responsive during the analysis (although some functionality might be temporarily disabled) but it can freeze for a while immediately after the button was pressed.
+        Analyse the system with respect to the chosen objective and update the analysis status of all states.
+        The interface will remain responsive during the analysis (although some functionality might be temporarily disabled) but it can freeze for a while immediately after the button was pressed and the game abstraction is constructed.
       </p>
+      <p>
+        The analysis progress is shown in form of bars sized proportionally to the (volume-)fractions of the state space polytope which have been found to be satisfying (green), non-satisfying (grey) or are still undecided (no color).
+      </p>
+    </div>
+    <div class="info-box" id="info-refinement">
       <p>
         <u>Refine all</u> undecided states. The checkboxes toggle which refinement procedures are applied.
         Individual states can be refined using the button in the Selected State widget.

@@ -19,7 +19,7 @@ body > div {
     max-width: 100%;
     margin: 0;
     padding: 0;
-    border-bottom: 3px solid #369;
+    border-bottom: 3px solid #069;
     background-color: #333;
     color: #FFF;
 }
@@ -303,11 +303,13 @@ p.math {
 .analysis-progress {
     display: flex;
     flex-direction: row;
-    border: 1px solid #000;
+    border-right: 1px solid #000;
+    border-left: 1px solid #000;
     cursor: help;
+    margin-bottom: 6pt;
 }
 .analysis-progress div {
-    height: 8px;
+    height: 10px
 }
 .analysis-progress div.satisfying {
     background-color: #093;
@@ -370,7 +372,7 @@ span.nonsatisfying {
 }
 
 .support-view {
-    height: 10em;
+    height: 8em;
     overflow-y: scroll;
     padding-right: 4px;
 }
@@ -396,10 +398,8 @@ span.nonsatisfying {
     float: right;
 }
 
-.analysis-info {
-    margin-left: 2pt;
-}
 .refinement-toggles label {
     display: inline-block;
     margin: 0 10pt 0 0;
 }
+

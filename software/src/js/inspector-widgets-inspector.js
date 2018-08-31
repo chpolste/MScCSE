@@ -180,12 +180,12 @@ export class SystemInspector extends ObservableMixin<null> implements SystemWrap
     // Widgets
     +settings: Settings;
     +analysis: Analysis;
-    +refinement: Refinement;
     +stateView: StateView;
     +traceView: TraceView;
     +actionView: ActionView;
-    +actionSupportView: ActionSupportView;
+    +supportView: ActionSupportView;
     +systemView: SystemView;
+    +refinement: Refinement;
     +controlView: ControlView;
     +keybindings: dom.Keybindings;
 
@@ -196,19 +196,19 @@ export class SystemInspector extends ObservableMixin<null> implements SystemWrap
 
         this.settings = new Settings(this, keybindings);
         this.analysis = new Analysis(this, keybindings);
-        this.refinement = new Refinement(this, this.analysis, keybindings);
         this.stateView = new StateView(this);
         this.traceView = new TraceView(this, this.stateView, keybindings);
         this.actionView = new ActionView(this.stateView);
-        this.actionSupportView = new ActionSupportView(this.actionView);
+        this.supportView = new ActionSupportView(this.actionView);
         this.systemView = new SystemView(
             this,
             this.settings,
             this.stateView,
             this.traceView,
             this.actionView,
-            this.actionSupportView
+            this.supportView
         );
+        this.refinement = new Refinement(this, this.analysis, this.stateView, keybindings);
         this.controlView = new ControlView(this, this.traceView, this.actionView);
 
         this.node = dom.div({ "class": "inspector" }, [
@@ -236,7 +236,7 @@ export class SystemInspector extends ObservableMixin<null> implements SystemWrap
                     dom.h3({}, ["Actions", dom.infoBox("info-actions")]),
                     this.actionView.node,
                     dom.h3({}, ["Action Supports", dom.infoBox("info-supports")]),
-                    this.actionSupportView.node,
+                    this.supportView.node,
                     dom.h3({}, ["Trace", dom.infoBox("info-trace")]),
                     this.traceView.node,
                 ]),
@@ -346,7 +346,7 @@ class Analysis extends ObservableMixin<null> {
         this.progressBar = dom.div({ "class": "analysis-progress" });
         this.button = dom.create("button", {}, ["analys", dom.create("u", {}, ["e"])]);
         this.button.addEventListener("click", () => this.analyse());
-        this.info = dom.span({ "class": "analysis-info" });
+        this.info = dom.span();
         this.node = dom.div({}, [
             dom.p({}, [this.button, " ", this.info]),
             this.progressBar
@@ -539,31 +539,37 @@ class Refinement {
 
     +node: HTMLDivElement;
     +wrapper: SystemWrapper;
+    +stateView: StateView;
     +analysis: Analysis;
+    +info: HTMLSpanElement;
     +buttons: { [string]: HTMLButtonElement };
     +toggles: { [string]: Input<boolean> };
     
-    constructor(wrapper: SystemWrapper, analysis: Analysis, keybindings: dom.Keybindings): void {
+    constructor(wrapper: SystemWrapper, analysis: Analysis, stateView: StateView,
+            keybindings: dom.Keybindings): void {
         this.wrapper = wrapper;
         this.analysis = analysis;
         this.analysis.attach(() => this.changeHandler());
+        this.stateView = stateView;
+        this.stateView.attach(() => this.changeHandler());
 
+        this.info = dom.span();
         this.buttons = {
-            refineAll:      dom.create("button", {}, [dom.create("u", {}, ["r"]), "efine undecided"]),
-            refineState:    dom.create("button", {}, ["refine state"]),
-            refineSupport:  dom.create("button", {}, ["refine wrt support"])
+            refineAll: dom.create("button", {}, [dom.create("u", {}, ["r"]), "efine all"]),
+            refineOne: dom.create("button", {}, ["refine selection"])
         };
         this.toggles = {
             outerAttr: new CheckboxInput(true)
         };
         this.node = dom.div({}, [
-            dom.p({}, [this.buttons.refineAll, " ", this.buttons.refineState, " ", this.buttons.refineSupport]),
+            dom.p({}, [this.buttons.refineAll, " ", this.buttons.refineOne, " ", this.info]),
             dom.p({ "class": "refinement-toggles" }, [
                 dom.create("label", {}, [this.toggles.outerAttr.node, "Outer Attractor"])
             ])
         ]);
 
         this.buttons.refineAll.addEventListener("click", () => this.refineAll());
+        this.buttons.refineOne.addEventListener("click", () => this.refineOne());
 
         keybindings.bind("r", () => this.refineAll());
 
@@ -582,20 +588,35 @@ class Refinement {
         return steps;
     }
 
+    set infoText(text: string): void {
+        dom.replaceChildren(this.info, [text]);
+    }
+
     refine(states: Iterable<State>): void {
-        const refined = this.wrapper.refine(refinement.partitionAll(this.refinementSteps, states));
-        //this.write("Refined " + refined.size + (refined.size === 1 ? " state." : " states."));
+        if (this.analysis.ready) {
+            const refined = this.wrapper.refine(refinement.partitionAll(this.refinementSteps, states));
+            this.infoText = "Refined " + refined.size + (refined.size === 1 ? " state." : " states.");
+        } else {
+            this.infoText = "Cannot refine while analysis is running.";
+        }
     }
 
     refineAll(): void {
         this.refine(iter.filter(s => s.isUndecided, this.system.states.values()));
     }
 
+    refineOne(): void {
+        const state = this.stateView.selection;
+        if (state != null && state.isUndecided) {
+            this.refine([state]);
+        }
+    }
+
     changeHandler(): void {
         const ready = this.analysis.ready;
-        for (let name in this.buttons) {
-            this.buttons[name].disabled = !ready;
-        }
+        const state = this.stateView.selection;
+        this.buttons["refineAll"].disabled = !ready;
+        this.buttons["refineOne"].disabled = !(ready && state != null && state.isUndecided);
     }
 
 }
@@ -838,8 +859,8 @@ class ActionSupportView extends SelectableNodes<ActionSupport> {
         super(support => ActionSupportView.asNode(support), null, "none");
         this.node.className = "support-view";
         this.actionView = actionView;
-        this.actionView.attach(wasClick => {
-            if (wasClick) this.changeHandler();
+        this.actionView.attach(isClick => {
+            if (isClick) this.changeHandler();
         });
     }
 
@@ -962,13 +983,13 @@ class SystemView {
     +stateView: StateView;
     +traceView: TraceView;
     +actionView: ActionView;
-    +actionSupportView: ActionSupportView;
+    +supportView: ActionSupportView;
     +plot: Plot;
     +layers: { [string]: FigureLayer };
 
     constructor(wrapper: SystemWrapper, settings: Settings, stateView: StateView,
                 traceView: TraceView, actionView: ActionView,
-                actionSupportView: ActionSupportView): void {
+                supportView: ActionSupportView): void {
         this.wrapper = wrapper;
 
         wrapper.attach(() => {
@@ -998,8 +1019,8 @@ class SystemView {
             this.drawHighlight();
             this.drawAction();
         });
-        this.actionSupportView = actionSupportView;
-        this.actionSupportView.attach(() => this.drawActionSupport());
+        this.supportView = supportView;
+        this.supportView.attach(() => this.drawActionSupport());
 
         const fig = new Figure();
         this.layers = {
@@ -1108,9 +1129,9 @@ class SystemView {
         const action = this.actionView.hoverSelection == null
                      ? this.actionView.selection
                      : this.actionView.hoverSelection;
-        const support = this.actionSupportView.hoverSelection == null
-                      ? this.actionSupportView.selection
-                      : this.actionSupportView.hoverSelection;
+        const support = this.supportView.hoverSelection == null
+                      ? this.supportView.selection
+                      : this.supportView.hoverSelection;
         if (action == null) {
             this.layers.action.shapes = [];
         } else {
@@ -1126,9 +1147,9 @@ class SystemView {
     }
 
     drawActionSupport(): void {
-        const support = this.actionSupportView.hoverSelection == null
-                      ? this.actionSupportView.selection
-                      : this.actionSupportView.hoverSelection;
+        const support = this.supportView.hoverSelection == null
+                      ? this.supportView.selection
+                      : this.supportView.hoverSelection;
         this.drawAction();
         if (support == null) {
             this.layers.support.shapes = [];

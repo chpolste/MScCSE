@@ -984,7 +984,7 @@ class SystemView {
     +traceView: TraceView;
     +actionView: ActionView;
     +supportView: ActionSupportView;
-    +plot: Plot;
+    +plot: InteractivePlot;
     +layers: { [string]: FigureLayer };
 
     constructor(wrapper: SystemWrapper, settings: Settings, stateView: StateView,
@@ -1056,7 +1056,9 @@ class SystemView {
     }
 
     drawSystem(): void {
-        this.plot.projection = autoProjection(6/4, ...this.system.extent);
+        const proj = autoProjection(6/4, ...this.system.extent)
+        this.plot.projection = proj;
+        this.plot.referenceProjection = proj;
         this.layers.interaction.shapes = iter.map(state => ({
             kind: "polytope", vertices: state.polytope.vertices,
             events: {

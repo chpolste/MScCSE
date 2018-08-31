@@ -28,12 +28,14 @@ export class InteractivePlot implements Plot {
     +menu: HTMLDivElement;
     +figure: LayeredFigure;
     +axesPlot: AxesPlot;
+    _referenceProjection: Projection;
     panningState: number[] | null;
 
     constructor(size: Range, figure: LayeredFigure, projection: Projection): void {
+        this._referenceProjection = projection;
         let resetButton = dom.create("a", {"href": ""}, ["reset"]);
         resetButton.addEventListener("click", (e: MouseEvent) => {
-            this.projection = projection;
+            this.projection = this._referenceProjection;
             e.preventDefault();
         });
         let saveButton = dom.create("a", {"href": "", "download": "plot.svg"}, ["export"]);
@@ -100,6 +102,10 @@ export class InteractivePlot implements Plot {
 
     set projection(projection: Projection): void {
         this.axesPlot.projection = projection;
+    }
+
+    set referenceProjection(projection: Projection): void {
+        this._referenceProjection = projection;
     }
 
     get figure(): LayeredFigure {

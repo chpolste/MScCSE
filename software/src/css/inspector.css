@@ -60,6 +60,14 @@ body > div > h3:first-child {
 p {
     margin: 0 0 6pt 0;
 }
+p.quote {
+    padding: 4pt 16pt;
+    font-style: italic;
+}
+p.math {
+    padding: 2pt 16pt;
+}
+
 
 u {
     text-decoration: underline;
@@ -286,10 +294,6 @@ a:hover {
 }
 .matrix input {
     text-align: center;
-}
-
-p.math {
-    padding: 2pt 16pt;
 }
 
 .polytope-builder {

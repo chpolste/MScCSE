@@ -15,16 +15,33 @@
       <h1>Linear Stochastic System Analysis and Abstraction Refinement</h1>
     </div>
 
+    <div>
+      <p>
+        <u>Note</u>: This site is still in construction. Things may be broken.
+      </p>
+    </div>
+
     <h2>Introduction</h2>
     <div>
       <p>
-        Welcome! Additional text will arrive soon.
+        The problem considered here, as posed by <a href="#Svorenova2017">Svoreňová et al. (2017)</a>, is:
+      </p>
+      <p class="quote">
+        Compute the set of initial states of a dynamical system such that there exists a control strategy to ensure that the trajectories satisfy a temporal logic specification with probability 1 (almost-sure).
+      </p>
+      <p>
+        Specifically, they focus on discrete-time linear stochastic systems (LSS) with objectives specified in the GR(1) fragment of linear temporal logic (LTL) over linear predicates in the system's state space and present an algorithm to solve the problem using iterative abstraction refinement based on 2-player probabilistic games.
+      </p>
+      <p>
+        Here, their algorithm is implemented and visualized for 1- and 2-dimensional problems, allowing interactive exploration and experimentation.
+        A more precise statement of the problem is given below, as well as a description of the solution procedure.
+        A short revision of the fundamental concepts behind the algorithm is included as well.
       </p>
     </div>
 
     <div class="navigation">
       <h3>Contents</h3>
-      ::<a href="#application">Algorithm Inspector</a><br>
+      ::<a href="#application">Application (Algorithm Inspector)</a><br>
       ::<a href="#theory">Theoretical Foundations</a><br>
       ::<a href="#solution">Problem Setup and Solution</a><br>
       ::<a href="#about">About</a><br>
@@ -62,8 +79,8 @@
         <span class="math">\Sigma</span> is a finite alphabet,
         <span class="math">\delta: Q \times \Sigma \rightarrow Q</span> is a deterministic transition function,
         <span class="math">q_0 \in Q</span> the initial state of the automaton and 
-        <span class="math">\mathcal{C}</span> is an acceptance condition, often expressed using sets.
-        An infinite word <span class="math">w_0 w_1 ... = w \in \Sigma^\omega</span> induces a sequence of states <span class="math">q_0 q_1 ... \in Q^\omega</span>, called a run, such that <span class="math">q_{i+1} = \delta(q_i, w_i)</span> for all <span class="math">i \in \mathbb{N}_0</span>.
+        <span class="math">\mathcal{C}</span> is an acceptance condition, often expressed using sets of states.
+        An infinite word <span class="math">w = w_0 w_1 ... \in \Sigma^\omega</span> induces a sequence of states <span class="math">q_0 q_1 ... \in Q^\omega</span>, called a run, such that <span class="math">q_{i+1} = \delta(q_i, w_i)</span> for all <span class="math">i \in \mathbb{N}_0</span>.
         Formally, the acceptance condition divides the set of all runs <span class="math">Q^\omega</span> into a subset containing accepting runs and the other, non-accepting runs.
         Since there are usually infinitely many accepting runs, the condition is expressed by other means than listing the accepting runs explicitly.
       </p>
@@ -109,6 +126,7 @@
       <p>
         where <span class="math">w \vDash \varphi</span> means that the sequence <span class="math">w = w_0 w_1 ... \in (2^{AP})^\omega</span> satisfies/fulfills the formula <span class="math">\varphi</span>.
         Propositional operators are evaluated for the first item in the sequence.
+        A comprehensive introduction to LTL is given e.g. by <a href="#Baier2008">Baier and Katoen (2008)</a>.
       </p>
       <p>
         LTL is well suited for the expression of objectives and properties of transition systems.
@@ -405,6 +423,9 @@
       <p>
         ...
       </p>
+      <p>
+        one-pair Streett and parity-3 objectives for games: <a href="#Chatterjee2015">Chatterjee et al. (2015)</a>.
+      </p>
 
       <h3>Controller Synthesis</h3>
       <p>
@@ -415,8 +436,8 @@
     <h2 id="about">About</h2>
     <div>
       <p>
-        This application is an implementation of an algorithm developed by <a href="#Svorenova2017">Svoreňová et al. (2017)</a>.
-        Their original implementation, written in Matlab and Java, served as a guideline for this port to JavaScript.
+        This application is an implementation and visualization of an algorithm developed by <a href="#Svorenova2017">Svoreňová et al. (2017)</a>.
+        Their implementation, written in Matlab and Java, influenced this JavaScript version.
         It is part of the Master's thesis of Christopher Polster, supervised by <a href="https://www7.in.tum.de/~kretinsk/">Jan Křetínský</a> from the <a href="https://www7.in.tum.de/home/index.php">Chair for Foundations of Software Reliability and Theoretical Computer Science</a> at Technische Universität München.
       </p>
       <p>
@@ -426,11 +447,27 @@
 
     <h2 id="references">References</h2>
     <div>
+      <h3>Literature</h3>
+      <p id="Baier2008">
+        Baier, C. and Katoen, J.-P. (2008).
+        Principles Of Model Checking.
+        MIT Press.
+      </p>
+      <p id="Chatterjee2015">
+        Chatterjee, K., Henzinger, M. and Loitzenbauer, V. (2015).
+        Improved Algorithms for One-Pair and k-Pair Streett Objectives.
+        2015 30th Annual ACM/IEEE Symposium on Logic in Computer Science, Kyoto, pp. 269-280.
+        DOI: <a href="https://doi.org/10.1109/LICS.2015.34">10.1109/LICS.2015.34</a>
+      </p>
       <p id="Svorenova2017">
-        Svoreňová, M., Křetínský, J., Chmelík, M., Chatterjee, K., Černá, I., & Belta, C. (2017).
+        Svoreňová, M., Křetínský, J., Chmelík, M., Chatterjee, K., Černá, I. and Belta, C. (2017).
         Temporal logic control for stochastic linear systems using abstraction refinement of probabilistic games.
-        <em>Nonlinear Analysis: Hybrid Systems, 23(15)</em>, 230–253.
+        Nonlinear Analysis: Hybrid Systems, 23(15), 230–253.
         DOI: <a href="https://doi.org/10.1016/j.nahs.2016.04.006">10.1016/j.nahs.2016.04.006</a>
+      </p>
+      <h3>Related Software</h3>
+      <p>
+        <a href="http://sites.bu.edu/hyness/conpas2/">conPAS/conPAS2: Temporal logic control of Piecewise Affine Systems</a>
       </p>
     </div>
 

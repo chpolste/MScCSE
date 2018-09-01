@@ -519,15 +519,15 @@ class Analysis extends ObservableMixin<null> {
                 "title": pctSat.toFixed(1) + "% satisfying"
             }),
             dom.div({
-                "class": "undecided",
-                "style": "flex-grow:" + pctUnd + ";",
-                "title": pctUnd.toFixed(1) + "% undecided"
-            }),
-            dom.div({
                 "class": "nonsatisfying",
                 "style": "flex-grow:" + pctNon + ";",
                 "title": pctNon.toFixed(1) + "% non-satisfying"
             }),
+            dom.div({
+                "class": "undecided",
+                "style": "flex-grow:" + pctUnd + ";",
+                "title": pctUnd.toFixed(1) + "% undecided"
+            })
         ]);
     }
 

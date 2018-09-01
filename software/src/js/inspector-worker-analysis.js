@@ -97,15 +97,11 @@ communicator.onMessage("analysis", function (msg) {
     );
     const snapshot: Snapshot = JSON.parse(msg.data);
     const gameGraph = new MappedSnapshot(snapshot);
-    const [game, init] = TwoPlayerProbabilisticGame.fromProduct(gameGraph, automaton, predicateTest);
-    const win = game.solve();
-    const winCoop = game.solveCoop();
-
-    const satisfying = sets.intersection(win, init);
-    const nonsatisfying = sets.difference(init, winCoop);
-    msg.answer({
-        satisfying: new Set(iter.map(s => s.systemState, satisfying)),
-        nonSatisfying: new Set(iter.map(s => s.systemState, nonsatisfying))
-    });
+    const game = TwoPlayerProbabilisticGame.fromProduct(gameGraph, automaton, predicateTest);
+    const analysis = game.analyse(new Map([
+        ["satisfying",      TwoPlayerProbabilisticGame.analyseSatisfying],
+        ["non-satisfying",  TwoPlayerProbabilisticGame.analyseNonSatisfying]
+    ]));
+    msg.answer(analysis);
 });
 

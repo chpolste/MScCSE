@@ -88,8 +88,8 @@ Player 1  wins (= play is accepting) iff lowest priority occurring infinitely
 often is even.
 */
 
-type Priority = 0 | 1 | 2;
-type PState = P1State | P2State;
+export type Priority = 0 | 1 | 2;
+export type PState = P1State | P2State;
 export type PredicateTest = (logic.TransitionLabel, Set<PredicateID>) => boolean;
 
 // Priority value for all newly created states. Can be changed later using the
@@ -102,23 +102,57 @@ const DEFAULT_PRIORITY = 2;
 // Thrown if game validation fails
 export class ValidationError extends Error {}
 
+// Game analysis after solution
+export type Analyser = (game: TwoPlayerProbabilisticGame) => Set<StateID>;
+export type AnalysisResults = Map<string, Set<StateID>>;
 
+// 2½-player game
 export class TwoPlayerProbabilisticGame {
 
     +p1States: UniqueCollection<P1State>;
     +p2States: UniqueCollection<P2State>;
+    +initialStates: Set<PState>;
     +priorityStates: [Set<PState>, Set<PState>, Set<PState>];
+    // Cache for game solutions
+    _winningStates: ?Set<PState>;
+    _winningStatesCoop: ?Set<PState>;
 
     // Empty game
     constructor(): void {
         this.p1States = new UniqueCollection(P1State.hash, P1State.areEqual);
         this.p2States = new UniqueCollection(P2State.hash, P2State.areEqual);
+        this.initialStates = new Set();
         this.priorityStates = [new Set(), new Set(), new Set()];
+        this._winningStates = null;
+        this._winningStatesCoop = null;
     }
 
     // Convenient access to collection of player 1 and 2 states of the game
     get states(): Iterable<PState> {
         return iter.chain(this.p1States, this.p2States);
+    }
+
+    // Solve the game for adversarial player 2
+    get winningStates(): Set<PState> {
+        if (this._winningStates == null) {
+            this._winningStates = this._solve(pre1, pre2, pre3);
+        }
+        return this._winningStates;
+    }
+
+    // Solve the game for cooperative player 2
+    get winningStatesCoop(): Set<PState> {
+        if (this._winningStatesCoop == null) {
+            this._winningStatesCoop = this._solve(pre1Coop, pre2Coop, pre3Coop);
+        }
+        return this._winningStatesCoop;
+    }
+
+    analyse(analysers: Map<string, Analyser>): AnalysisResults {
+        return new Map(iter.map(
+            ([name, analyser]) => [name, analyser(this)],
+            analysers
+        ));
     }
 
     takeP1State(systemState: string, automatonState: string): P1State {
@@ -168,6 +202,15 @@ export class TwoPlayerProbabilisticGame {
                 "Player 2 state ((" + state.systemState + ", " + state.systemAction + "), " + state.automatonState + ") has no actions"
             );
         }
+        // Initial states must be player 1 states of the game
+        for (let state of this.initialStates) {
+            if (state instanceof P2State) throw new ValidationError(
+                "Player 2 intitial state ((" + state.systemState + ", " + state.systemAction + "), " + state.automatonState + ") is not not allowed"
+            );
+            if (!this.p1States.has(state)) throw new ValidationError(
+                "State (" + state.systemState + ", " + state.automatonState + ") is an initial state but not part of the game"
+            );
+        }
     }
 
     // Generic game solver (works for adversarial and cooperative player 2,
@@ -202,16 +245,6 @@ export class TwoPlayerProbabilisticGame {
         return oldX;
     }
 
-    // Solve the game for adversarial player 2
-    solve(): Set<PState> {
-        return this._solve(pre1, pre2, pre3);
-    }
-
-    // Solve the game for cooperative player 2
-    solveCoop(): Set<PState> {
-        return this._solve(pre1Coop, pre2Coop, pre3Coop);
-    }
-
     // Construct synchronous product game from system abstraction-induced game
     // graph and one-pair Streett automaton. The fulfils test is used match the
     // propositional formulas behind automaton transition labels with
@@ -220,14 +253,12 @@ export class TwoPlayerProbabilisticGame {
     // matching automaton transitions are connected to a dedicated, dead-end
     // state in which only player 2 can win.
     static fromProduct(sys: GameGraph, automaton: logic.OnePairStreettAutomaton,
-            fulfils: PredicateTest): [TwoPlayerProbabilisticGame, Set<PState>] {
+            fulfils: PredicateTest): TwoPlayerProbabilisticGame {
         const game = new TwoPlayerProbabilisticGame();
         // Game graph exploration queue
         const queue = [];
         // Keep track of player 1 states that have been enqueued already
         const enqueued = new Set();
-        // Initial states are secondary output
-        const initialStates = new Set();
         // For every state g of the abstracted system, create a player 1 game
         // state (g, q0), where q0 is the initial state of the automaton. These
         // states initialize the exploration queue and are also the initial
@@ -237,7 +268,7 @@ export class TwoPlayerProbabilisticGame {
             const state = game.takeP1State(label, q0.label);
             queue.push(state);
             enqueued.add(state);
-            initialStates.add(state);
+            game.initialStates.add(state);
         }
         // Dead-end state for non-existing automata transitions and system
         // states without actions.
@@ -319,7 +350,23 @@ export class TwoPlayerProbabilisticGame {
         }
         // Verify game integrity
         game.validate();
-        return [game, initialStates];
+        return game;
+    }
+
+    // Satisfying = initial states from which game can be won
+    static analyseSatisfying(game: TwoPlayerProbabilisticGame): Set<StateID> {
+        return new Set(iter.map(
+            s => s.systemState,
+            sets.intersection(game.winningStates, game.initialStates)
+        ));
+    }
+
+    // Non-satisfying = initial states for which game cannot be won cooperatively
+    static analyseNonSatisfying(game: TwoPlayerProbabilisticGame): Set<StateID> {
+        return new Set(iter.map(
+            s => s.systemState,
+            sets.difference(game.initialStates, game.winningStatesCoop)
+        ));
     }
 
 }

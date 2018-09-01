@@ -334,12 +334,14 @@ class Analysis extends ObservableMixin<null> {
     +progressBar: HTMLDivElement;
     +button: HTMLButtonElement;
     +info: HTMLSpanElement;
+    _results: Map<string, Set<StateID>>;
     worker: ?Worker;
     communicator: ?WorkerCommunicator;
     _ready: boolean;
 
     constructor(wrapper: SystemWrapper, keybindings: dom.Keybindings): void {
         super();
+        this._results = new Map();
         this.wrapper = wrapper;
         this.wrapper.attach(() => this.changeHandler());
 
@@ -450,10 +452,9 @@ class Analysis extends ObservableMixin<null> {
         if (this.worker != null && this.communicator != null) {
             this.communicator.postMessage("analysis", JSON.stringify(snapshot), (msg) => {
                 const elapsed = performance.now() - startTime;
-                const data = msg.data;
-                if (msg.kind !== "error" && data != null && typeof data === "object"
-                        && data.satisfying instanceof Set && data.nonSatisfying instanceof Set) {
-                    this.processAnalysisResults(data.satisfying, data.nonSatisfying, elapsed);
+                const results = msg.data;
+                if (msg.kind !== "error" && results instanceof Map) {
+                    this.processAnalysisResults(results, elapsed);
                 } else {
                     this.infoText = "analysis error"; // TODO
                 }
@@ -466,25 +467,27 @@ class Analysis extends ObservableMixin<null> {
                 if (formula == null) throw new Error(); // TODO
                 return formula.evalWith(p => predicates.has(p.symbol));
             };
-            const [game, init] = TwoPlayerProbabilisticGame.fromProduct(
+            const game = TwoPlayerProbabilisticGame.fromProduct(
                 this.system, this.objective.automaton, predicateTest
             );
-            const win = game.solve();
-            const winCoop = game.solveCoop();
-            const satisfying = sets.intersection(win, init);
-            const nonsatisfying = sets.difference(init, winCoop);
-            this.processAnalysisResults(
-                new Set(iter.map(s => s.systemState, satisfying)),
-                new Set(iter.map(s => s.systemState, nonsatisfying)),
-                performance.now() - startTime
-            );
+            const analysis = game.analyse(new Map([
+                ["satisfying",      TwoPlayerProbabilisticGame.analyseSatisfying],
+                ["non-satisfying",  TwoPlayerProbabilisticGame.analyseNonSatisfying]
+            ]));
+            this.processAnalysisResults(analysis, performance.now() - startTime);
             this.ready = true;
         }
     }
 
     // Apply analysis results to system and show information message
-    processAnalysisResults(satisfying: Set<StateID>, nonSatisfying: Set<StateID>, elapsed: number): void {
-        const updated = this.wrapper.updateKinds(satisfying, nonSatisfying);
+    processAnalysisResults(results: Map<string, Set<StateID>>, elapsed: number): void {
+        this._results = results;
+        const satisfying = results.get("satisfying");
+        const nonSatisfying = results.get("non-satisfying");
+        let updated = new Set();
+        if (satisfying != null && nonSatisfying != null) {
+            updated = this.wrapper.updateKinds(satisfying, nonSatisfying);
+        }
         const nStates = this.system.states.size;
         const nActions = iter.sum(iter.map(s => s.actions.length, this.system.states.values()));
         this.infoText = (

@@ -43,19 +43,19 @@ export type RefinementPartition = { done: ConvexPolytopeUnion, rest: ConvexPolyt
 
 /* Refinement procedures */
 
-// Remove attractor of outer states (guaranteed to be non-satisfying)
-export class OuterAttr implements Refinery {
+// Remove attractor of non-satisfying states
+export class NegativeAttr implements Refinery {
 
-    +outerStates: State[];
+    +nonSatisfyingStates: State[];
     +controlSpace: ConvexPolytopeUnion;
 
     constructor(system: AbstractedLSS): void {
-        this.outerStates = Array.from(system.states.values()).filter(s => s.isOuter);
+        this.nonSatisfyingStates = Array.from(system.states.values()).filter(s => s.isNonSatisfying);
         this.controlSpace = system.lss.controlSpace;
     }
 
     execute(state: State, rest: ConvexPolytopeUnion): RefinementPartition {
-        const attr = state.attr(this.controlSpace, this.outerStates);
+        const attr = state.attr(this.controlSpace, this.nonSatisfyingStates);
         const done = union.simplify(union.intersect(attr, rest));
         const newRest = union.simplify(union.remove(rest, done));
         return { done: done, rest: newRest };

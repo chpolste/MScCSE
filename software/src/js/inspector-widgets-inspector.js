@@ -6,6 +6,7 @@ import type { Observable, WorkerMessage } from "./tools.js";
 import type { ConvexPolytopeUnion, Halfspace } from "./geometry.js";
 import type { LSS, AbstractedLSS, State, StateID, Action, ActionSupport,
               StrategyGenerator, Trace } from "./system.js";
+import type { Refinery } from "./refinement.js";
 import type { FigureLayer, Shape } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
@@ -15,7 +16,6 @@ import * as dom from "./domtools.js";
 import * as refinement from "./refinement.js";
 import { iter, arr, sets, n2s, t2s, ObservableMixin, WorkerCommunicator } from "./tools.js";
 import { union } from "./geometry.js";
-import { Refinery } from "./refinement.js";
 import { Objective, stringifyProposition } from "./logic.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Figure, autoProjection, Horizontal1D } from "./figure.js";
@@ -562,12 +562,12 @@ class Refinement {
             refineOne: dom.create("button", {}, ["refine selection"])
         };
         this.toggles = {
-            outerAttr: new CheckboxInput(true)
+            negativeAttr: new CheckboxInput(true)
         };
         this.node = dom.div({}, [
             dom.p({}, [this.buttons.refineAll, " ", this.buttons.refineOne, " ", this.info]),
             dom.p({ "class": "refinement-toggles" }, [
-                dom.create("label", {}, [this.toggles.outerAttr.node, "Outer Attractor"])
+                dom.create("label", {}, [this.toggles.negativeAttr.node, "Negative Attractor"])
             ])
         ]);
 
@@ -585,8 +585,8 @@ class Refinement {
 
     get refinementSteps(): Refinery[] {
         const steps = [];
-        if (this.toggles.outerAttr.value) {
-            steps.push(new refinement.OuterAttr(this.system));
+        if (this.toggles.negativeAttr.value) {
+            steps.push(new refinement.NegativeAttr(this.system));
         }
         return steps;
     }

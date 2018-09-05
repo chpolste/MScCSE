@@ -81,7 +81,7 @@ export function appendChildren(parentNode: Element, children: Iterable<ElementCh
 
 // Replace all children of a node with the given new ones
 // TODO: the code could be nicer...
-export function replaceChildren(parentNode: Element, childNodes: ElementChild[]): void {
+export function replaceChildren<T: ElementChild>(parentNode: Element, childNodes: T[]): void {
     // Get static list of current nodes
     const oldNodes = Array.from(parentNode.childNodes);
     const nOld = oldNodes.length;
@@ -130,7 +130,7 @@ export class Keybindings {
 
     keyPress(event: KeyboardEvent): void {
         const callback = this.bindings.get(event.key);
-        if (!event.ctrlKey && !event.altKey && callback != null) {
+        if (event.target === document.body && !event.ctrlKey && !event.altKey && callback != null) {
             callback(event);
         }
     }

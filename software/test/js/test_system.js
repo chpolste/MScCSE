@@ -82,7 +82,7 @@ function actionSupportsArePreP(sys) {
 
 describe("Svoreňová et al. (2017): illustrative example system", function () {
 
-    let lss = new system.LSS(
+    const lss = new system.LSS(
         [[1, 0], [0, 1]], // A
         [[1, 0], [0, 1]], // B
         geometry.Polygon.hull([[0, 0], [4, 0], [4, 2], [0, 2]]), // state space
@@ -90,7 +90,7 @@ describe("Svoreňová et al. (2017): illustrative example system", function () {
         [geometry.Polygon.hull([[-1, -1], [-1, 1], [1, -1], [1, 1]])] // control space
     );
 
-    let sys = new system.AbstractedLSS(lss, [geometry.HalfspaceInequation.parse("x > 2", "xy")]);
+    const sys = lss.decompose([geometry.HalfspaceInequation.parse("x > 2", "xy")]);
 
     it("has 6 states", function () {
         assert.equal(sys.states.size, 6);
@@ -126,7 +126,7 @@ describe("Svoreňová et al. (2017): illustrative example system", function () {
 
 describe("Svoreňová et al. (2017): double integrator system", function () {
 
-    let lss = new system.LSS(
+    const lss = new system.LSS(
         [[1, 1], [0, 1]], // A
         [[0.5], [1]], // B
         geometry.Polygon.hull([[-5, 3], [-5, -3], [5, 3], [5, -3]]), // state space
@@ -134,7 +134,7 @@ describe("Svoreňová et al. (2017): double integrator system", function () {
         [geometry.Interval.hull([[-1], [1]])] // control space
     );
 
-    let sys = new system.AbstractedLSS(lss, [
+    const sys = lss.decompose([
         geometry.HalfspaceInequation.parse("-1 < x", "xy"),
         geometry.HalfspaceInequation.parse("x < 1", "xy"),
         geometry.HalfspaceInequation.parse("-1 < y", "xy"),

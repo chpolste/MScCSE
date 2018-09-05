@@ -160,8 +160,10 @@ export interface Halfspace extends HalfspaceContainer {
     isSameAs(other: Halfspace): boolean;
     translate(v: Vector): Halfspace;
     applyRight(m: Matrix): Halfspace;
+    serialize(): JSONHalfspace;
 }
 
+export type JSONHalfspace = { normal: number[], offset: number };
 
 // A halfspace represented by the inequation: normal · x <= offset. Due to the
 // limitations of floating point arithmetic and using TOL for comparisons, no
@@ -254,6 +256,15 @@ export class HalfspaceInequation implements Halfspace {
         return HalfspaceInequation.normalized(linalg.applyRight(m, this.normal), this.offset);
     }
 
+    // JSON-compatible serialization and deserialization
+    serialize(): JSONHalfspace {
+        return { normal: this.normal, offset: this.offset };
+    }
+
+}
+
+export function deserializeHalfspace(json: JSONHalfspace): Halfspace {
+    return new HalfspaceInequation(json.normal, json.offset);
 }
 
 
@@ -321,6 +332,9 @@ export interface ConvexPolytope extends HalfspaceContainer{
     // Difference
     remove(...HalfspaceContainer[]): ConvexPolytopeUnion;
 
+    /* JSON-compatible serialization */
+    serialize(): JSONConvexPolytope;
+
     /* Internals */
 
     // No processing of args in the constructor, therefore canonical form of
@@ -335,6 +349,9 @@ export interface ConvexPolytope extends HalfspaceContainer{
 
 }
 
+export type JSONVertices = number[][];
+export type JSONConvexPolytope = { dim: number, vertices: JSONVertices };
+
 // Interface declaring the static methods of a convex polytope type
 interface ConvexPolytopeType {
     // Return an empty polytope
@@ -345,6 +362,8 @@ interface ConvexPolytopeType {
     // halfspaces to be in proper order and without infeasible/trivial ones
     intersection(Halfspace[]): ConvexPolytope;
     noredund(Halfspace[]): ConvexPolytope;
+    // JSON deserialization
+    deserialize(JSONVertices): ConvexPolytope;
 }
 
 
@@ -573,6 +592,10 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return region;
     }
 
+    serialize(): JSONConvexPolytope {
+        return { dim: this.dim, vertices: this.vertices };
+    }
+
 }
 
 
@@ -643,6 +666,10 @@ export class Interval extends AbstractConvexPolytope implements ConvexPolytope {
 
     static empty(): Interval {
         return new Interval([], []);
+    }
+
+    static deserialize(json: JSONVertices): Interval {
+        return new Interval(json, null);
     }
 
     get volume(): number {
@@ -841,6 +868,10 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
         return new Polygon(null, out);
     }
 
+    static deserialize(json: JSONVertices): Polygon {
+        return new Polygon(json, null);
+    }
+
     // https://en.wikipedia.org/wiki/Centroid#Of_a_polygon
     get volume(): number {
         return 0.5 * iter.sum(arr.cyc2map((a, b) => a[0]*b[1] - b[0]*a[1], this.vertices));
@@ -920,12 +951,17 @@ export function polytopeType(dim: number): ConvexPolytopeType {
     }
 }
 
+export function deserializePolytope(json: JSONConvexPolytope): ConvexPolytope {
+    return polytopeType(json.dim).deserialize(json.vertices);
+}
+
 
 
 /* Union operations */
 
 // Unions of convex polytopes are represented by a list of polytopes instead of
 // a dedicated type.
+export type JSONConvexPolytopeUnion = JSONConvexPolytope[];
 export type ConvexPolytopeUnion = ConvexPolytope[];
 
 export const union = {
@@ -1041,6 +1077,14 @@ export const union = {
         // are shared with bbox are not properly handled (necessary due to bbox
         // use for complement)
         return bbox.pontryagin(y).remove(...union.minkowski(complement, y.invert()));
+    },
+
+    serialize(xs: ConvexPolytopeUnion): JSONConvexPolytope[] {
+        return xs.map(x => x.serialize());
+    },
+
+    deserialize(json: JSONConvexPolytope[]): ConvexPolytopeUnion {
+        return json.map(deserializePolytope);
     }
 
 };

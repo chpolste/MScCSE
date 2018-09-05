@@ -384,22 +384,27 @@ export class MatrixInput<T> extends ObservableMixin<null> implements Input<T[][]
 }
 
 
-// A collection of items (values), represented by generic DOM nodes and with
-// associated select (true) and hover (false) events. Nodes are generated from
-// the items using the itemToNode function. A delimiter can be be inserted
-// between nodes and a message set which appears when no item is currently in
-// the collection. Mutable.
+// A mutable collection of items (values), represented by user-defined DOM
+// nodes and with associated select and hover events. An observer can
+// distinguish between the two events using the boolean flag sent with the
+// notification (true: select, false: hover). Nodes are generated from the
+// items using the itemToNode function. A delimiter can be be inserted between
+// nodes with the optional third argument. When the collection of items is
+// empty the second emptyMessage argument of the constructor is shown.
+
+type NodeCreator<T> = (T) => HTMLElement;
+
 export class SelectableNodes<T> extends ObservableMixin<boolean> {
     
     +node: HTMLDivElement;
-    +itemToNode: (item: T) => Element;
+    +itemToNode: NodeCreator<T>;
     +delimiter: ?string;
     +emptyMessage: string;
-    +nodeMap: Map<T, Element>;
+    +nodeMap: Map<T, HTMLElement>; // TODO: conflict if same item is shown twice
     hoverSelection: ?T;
     _selection: ?T;
 
-    constructor(itemToNode: (item: T) => Element, delimiter: ?string, emptyMessage: string): void {
+    constructor(itemToNode: NodeCreator<T>, emptyMessage: string, delimiter?: ?string): void {
         super();
         this.itemToNode = itemToNode;
         this.delimiter = delimiter;
@@ -417,15 +422,7 @@ export class SelectableNodes<T> extends ObservableMixin<boolean> {
         if (items.length == 0) {
             this.node.innerHTML = this.emptyMessage;
         } else {
-            let itemNodes = [];
-            for (let item of items) {
-                const node = this.itemToNode(item);
-                node.addEventListener("click", () => this.onClick(item));
-                node.addEventListener("mouseover", () => this.onMouseOver(item));
-                node.addEventListener("mouseout", () => this.onMouseOut(item));
-                this.nodeMap.set(item, node);
-                itemNodes.push(node);
-            }
+            let itemNodes = items.map(item => this.createNode(item));
             if (this.delimiter != null) {
                 itemNodes = arr.intersperse(this.delimiter, itemNodes);
             }
@@ -442,19 +439,30 @@ export class SelectableNodes<T> extends ObservableMixin<boolean> {
         if (this.selection != null) {
             let curNode = this.nodeMap.get(this.selection);
             if (curNode != null) {
-                curNode.removeAttribute("class");
+                curNode.className = "item";
             }
         }
         if (item != null) {
             let selNode = this.nodeMap.get(item);
             if (selNode != null) {
-                selNode.setAttribute("class", "selection");
+                selNode.className = "item selection";
             } else {
                 throw new ValidationError();
             }
         }
         this._selection = item;
         this.notify(true);
+    }
+
+    // Create a single node and attach all necessary event handlers
+    createNode(item: T): Element {
+        const node = this.itemToNode(item);
+        node.className = "item";
+        node.addEventListener("click", () => this.onClick(item));
+        node.addEventListener("mouseover", () => this.onMouseOver(item));
+        node.addEventListener("mouseout", () => this.onMouseOut(item));
+        this.nodeMap.set(item, node);
+        return node;
     }
 
     onClick(item: T): void {

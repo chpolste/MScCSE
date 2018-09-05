@@ -4,8 +4,8 @@
 import type { Matrix } from "./linalg.js";
 import type { Observable, WorkerMessage } from "./tools.js";
 import type { ConvexPolytopeUnion, Halfspace } from "./geometry.js";
-import type { LSS, AbstractedLSS, State, StateID, Action, ActionSupport,
-              StrategyGenerator, Trace } from "./system.js";
+import type { LSS, State, StateID, Action, ActionSupport, StrategyGenerator,
+              Trace, JSONAbstractedLSS } from "./system.js";
 import type { Refinery } from "./refinement.js";
 import type { FigureLayer, Shape } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
@@ -17,6 +17,7 @@ import * as refinement from "./refinement.js";
 import { iter, arr, sets, n2s, t2s, ObservableMixin, WorkerCommunicator } from "./tools.js";
 import { union } from "./geometry.js";
 import { Objective, stringifyProposition } from "./logic.js";
+import { AbstractedLSS } from "./system.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Figure, autoProjection, Horizontal1D } from "./figure.js";
 import { InteractivePlot, AxesPlot, ShapePlot } from "./widgets-plot.js";
@@ -104,6 +105,26 @@ function matrixToTeX(m: Matrix): string {
     return "\\begin{pmatrix}" + m.map(row => row.join("&")).join("\\\\") + "\\end{pmatrix}";
 }
 
+function volumePercentages(system: AbstractedLSS): [number, number, number] {
+    let volSat = 0;
+    let volUnd = 0;
+    let volNon = 0;
+    for (let state of system.states.values()) {
+        if (state.isSatisfying) {
+            volSat += state.polytope.volume;
+        } else if (state.isUndecided) {
+            volUnd += state.polytope.volume;
+        } else if (!state.isOuter) {
+            volNon += state.polytope.volume;
+        }
+    }
+    const volAll = volSat + volUnd + volNon;
+    const pctSat = volSat / volAll * 100;
+    const pctUnd = volUnd / volAll * 100;
+    const pctNon = volNon / volAll * 100;
+    return [pctSat, pctUnd, pctNon];
+}
+
 
 /* Problem Summary: summary of the problem setup */
 
@@ -163,7 +184,7 @@ export class ProblemSummary {
 /* System Inspector: interactive system visualization */
 
 interface SystemWrapper extends Observable<null> {
-    +system: AbstractedLSS;
+    system: AbstractedLSS;
     +objective: Objective;
     updateKinds(Set<StateID>, Set<StateID>): Set<State>;
     refine(Map<State, ConvexPolytopeUnion>): Set<State>;
@@ -187,6 +208,7 @@ export class SystemInspector extends ObservableMixin<null> implements SystemWrap
     +systemView: SystemView;
     +refinement: Refinement;
     +controlView: ControlView;
+    +snapshots: SnapshotManager;
     +keybindings: dom.Keybindings;
 
     constructor(system: AbstractedLSS, objective: Objective, keybindings: dom.Keybindings) {
@@ -210,6 +232,7 @@ export class SystemInspector extends ObservableMixin<null> implements SystemWrap
         );
         this.refinement = new Refinement(this, this.analysis, this.stateView, keybindings);
         this.controlView = new ControlView(this, this.traceView, this.actionView);
+        this.snapshots = new SnapshotManager(this, this.analysis);
 
         this.node = dom.div({ "class": "inspector" }, [
             dom.div({ "class": "left" }, [
@@ -217,7 +240,9 @@ export class SystemInspector extends ObservableMixin<null> implements SystemWrap
                 dom.h3({}, ["Analysis", dom.infoBox("info-analysis")]),
                 this.analysis.node,
                 dom.h3({}, ["Abstraction Refinement", dom.infoBox("info-refinement")]),
-                this.refinement.node
+                this.refinement.node,
+                dom.h3({}, ["System Snapshots", dom.infoBox("info-snapshots")]),
+                this.snapshots.node
             ]),
             dom.div({ "class": "right" }, [
                 dom.div({"class": "cols"}, [
@@ -246,11 +271,16 @@ export class SystemInspector extends ObservableMixin<null> implements SystemWrap
 
     // WrappedSystem interface
 
-    get system() {
+    get system(): AbstractedLSS {
         return this._system;
     }
 
-    get objective() {
+    set system(system: AbstractedLSS): void {
+        this._system = system;
+        this.notify();
+    }
+
+    get objective(): Objective {
         return this._objective;
     }
 
@@ -271,6 +301,8 @@ export class SystemInspector extends ObservableMixin<null> implements SystemWrap
 
 }
 
+
+type ClickOperatorWrapper = (state: State, control: ConvexPolytopeUnion) => ConvexPolytopeUnion;
 
 // Settings panel for the main view.
 class Settings extends ObservableMixin<null> {
@@ -323,7 +355,8 @@ class Settings extends ObservableMixin<null> {
 
 }
 
-type ClickOperatorWrapper = (state: State, control: ConvexPolytopeUnion) => ConvexPolytopeUnion;
+
+type JSONAnalysisResults = { [string]: string[] };
 
 
 // Analysis
@@ -334,7 +367,7 @@ class Analysis extends ObservableMixin<null> {
     +progressBar: HTMLDivElement;
     +button: HTMLButtonElement;
     +info: HTMLSpanElement;
-    _results: Map<string, Set<StateID>>;
+    _results: Map<string, Set<StateID>>; // TODO: provide interface for refinement
     worker: ?Worker;
     communicator: ?WorkerCommunicator;
     _ready: boolean;
@@ -444,7 +477,7 @@ class Analysis extends ObservableMixin<null> {
         // snapshot locks the page :(
         this.infoText = "constructing game abstraction...";
         const startTime = performance.now();
-        const snapshot = this.system.snapshot(false);
+        const snapshot = this.system.serializeGameGraph();
         this.infoText = "analysing...";
         // Web Worker available. Send the transition system induced by the
         // abstracted LSS to the worker and analyse it with respect to the
@@ -497,24 +530,7 @@ class Analysis extends ObservableMixin<null> {
     }
 
     changeHandler() {
-        let count = 0;
-        let volSat = 0;
-        let volUnd = 0;
-        let volNon = 0;
-        for (let state of this.wrapper.system.states.values()) {
-            if (state.isSatisfying) {
-                volSat += state.polytope.volume;
-            } else if (state.isUndecided) {
-                volUnd += state.polytope.volume;
-            } else if (!state.isOuter) {
-                volNon += state.polytope.volume;
-            }
-            count++;
-        }
-        const volAll = volSat + volUnd + volNon;
-        const pctSat = volSat / volAll * 100;
-        const pctUnd = volUnd / volAll * 100;
-        const pctNon = volNon / volAll * 100;
+        const [pctSat, pctUnd, pctNon] = volumePercentages(this.system);
         dom.replaceChildren(this.progressBar, [
             dom.div({
                 "class": "satisfying",
@@ -534,7 +550,23 @@ class Analysis extends ObservableMixin<null> {
         ]);
     }
 
+    serializeResults(): JSONAnalysisResults {
+        const results = {};
+        for (let [name, stateLabels] of this._results.entries()) {
+            results[name] = Array.from(stateLabels);
+        }
+        return results;
+    }
+
+    deserializeResults(json: JSONAnalysisResults): void {
+        this._results = new Map();
+        for (let name in json) {
+            this._results.set(name, new Set(json[name]));
+        }
+    }
+
 }
+
 
 // Refinement controls. Observes analysis widget to block operations while
 // analysis is carried out. Also depends on analysis for refinement hints.
@@ -583,7 +615,7 @@ class Refinement {
         return this.wrapper.system;
     }
 
-    get refinementSteps(): Refinery[] {
+    getRefinementSequence(): Refinery[] {
         const steps = [];
         if (this.toggles.negativeAttr.value) {
             steps.push(new refinement.NegativeAttr(this.system));
@@ -597,7 +629,7 @@ class Refinement {
 
     refine(states: Iterable<State>): void {
         if (this.analysis.ready) {
-            const refined = this.wrapper.refine(refinement.partitionAll(this.refinementSteps, states));
+            const refined = this.wrapper.refine(refinement.partitionAll(this.getRefinementSequence(), states));
             this.infoText = "Refined " + refined.size + (refined.size === 1 ? " state." : " states.");
         } else {
             this.infoText = "Cannot refine while analysis is running.";
@@ -645,7 +677,7 @@ class StateView extends ObservableMixin<null> {
         // Summary is filled with basic state information
         this.summary = dom.p();
         // Predicates that state fulfils
-        this.predicates = new SelectableNodes(p => styledPredicateLabel(p, this.wrapper.system), ", ", "-");
+        this.predicates = new SelectableNodes(p => styledPredicateLabel(p, this.wrapper.system), "-", ", ");
         this.predicates.node.className = "predicates";
         this.node = dom.div({ "class": "state-view" }, [
             this.summary, this.predicates.node
@@ -827,7 +859,7 @@ class ActionView extends SelectableNodes<Action> {
     +stateView: StateView;
 
     constructor(stateView: StateView): void {
-        super(action => ActionView.asNode(action), null, "none");
+        super(action => ActionView.asNode(action), "none");
         this.node.className = "action-view";
         this.stateView = stateView;
         this.stateView.attach(() => this.changeHandler());
@@ -838,7 +870,7 @@ class ActionView extends SelectableNodes<Action> {
         this.items = state == null ? [] : state.actions;
     }
 
-    static asNode(action: Action): Element {
+    static asNode(action: Action): HTMLDivElement {
         return dom.div({}, [
             styledStateLabel(action.origin, action.origin), " → {",
             ...arr.intersperse(", ", action.targets.map(
@@ -859,7 +891,7 @@ class ActionSupportView extends SelectableNodes<ActionSupport> {
     +actionView: ActionView;
 
     constructor(actionView: ActionView): void {
-        super(support => ActionSupportView.asNode(support), null, "none");
+        super(support => ActionSupportView.asNode(support), "none");
         this.node.className = "support-view";
         this.actionView = actionView;
         this.actionView.attach(isClick => {
@@ -872,7 +904,7 @@ class ActionSupportView extends SelectableNodes<ActionSupport> {
         this.items = action == null ? [] : action.supports;
     }
 
-    static asNode(support: ActionSupport): Element {
+    static asNode(support: ActionSupport): HTMLDivElement {
         return dom.div({}, [
             "{",
             ...arr.intersperse(", ", support.targets.map(
@@ -974,7 +1006,8 @@ class ControlView {
 // action supports), state information (selection, labels, kinds), linear
 // predicates, traces, A-induced vector field. Observes:
 // Settings             → Toggle labels, kinds, vector field. Select polytopic operator.
-// AnalysisRefinement   → System refresh after refinement. Kind changes after analysis.
+// Analysis             → Kind changes after analysis.
+// Refinement           → System refresh after refinement.
 // StateView            → Selected state.
 // ActionView           → Selected action.
 // ActionSupportView    → Selected action support.
@@ -1189,4 +1222,128 @@ class SystemView {
 
 }
 
+
+type InspectorSnapshot = {
+    name: string,
+    states: number,
+    decided: number,
+    system: JSONAbstractedLSS,
+    analysis: JSONAnalysisResults
+}
+
+type Tree<T> = { element: T, children: Tree<T>[] };
+
+class SnapshotManager {
+
+    +node: HTMLDivElement;
+    +wrapper: SystemWrapper;
+    +analysis: Analysis;
+    +forms: { [string]: HTMLButtonElement };
+    +treeView: HTMLDivElement;
+
+    _tree: Tree<InspectorSnapshot>;
+    _current: Tree<InspectorSnapshot>;
+    _selection: ?Tree<InspectorSnapshot>;
+
+    constructor(wrapper: SystemWrapper, analysis: Analysis): void {
+        this.wrapper = wrapper;
+        this.analysis = analysis;
+
+        this.forms = {
+            load: dom.create("button", {}, ["load"]),
+            take: dom.create("button", {}, ["new"]),
+            name: dom.create("input", { "type": "text", "placeholder": "Snapshot", "size": "25" })
+        };
+        this.forms.take.addEventListener("click", () => this.newSnapshot());
+        this.forms.load.addEventListener("click", () => this.loadSnapshot());
+        this.treeView = dom.div({ "class": "tree" });
+        this.node = dom.div({ "class": "snapshot-view"}, [
+            dom.p({}, [
+                this.forms.take, " ", this.forms.name,
+                dom.div({ "class": "right" }, [this.forms.load])
+            ]),
+            this.treeView
+        ]);
+
+        const tree = {
+            element: this._takeSnapshot("Initial Problem"),
+            children: []
+        }
+        this._current = tree;
+        this._tree = this._current;
+        this._selection = null;
+
+        this.changeHandler();
+    }
+
+    get system(): AbstractedLSS {
+        return this.wrapper.system;
+    }
+
+    newSnapshot(): void {
+        const name = this.forms.name.value.trim();
+        this.forms.name.value = "";
+        const tree = {
+            element: this._takeSnapshot(name.length === 0 ? "Snapshot" : name),
+            children: []
+        };
+        this._current.children.push(tree);
+        this._current = tree;
+        this.changeHandler();
+    }
+
+    loadSnapshot(): void {
+        const tree = this._selection;
+        if (tree != null) {
+            const snapshot = tree.element;
+            this.wrapper.system = AbstractedLSS.deserialize(snapshot.system);
+            this.analysis.deserializeResults(snapshot.analysis);
+            this._current = tree;
+        }
+        this.changeHandler();
+    }
+
+    _takeSnapshot(name: string): InspectorSnapshot {
+        const [pctSat, pctUnd, pctNon] = volumePercentages(this.system);
+        return {
+            name: name,
+            states: this.system.states.size,
+            decided: pctSat + pctNon,
+            system: this.system.serialize(true),
+            analysis: this.analysis.serializeResults()
+        };
+    }
+
+    _select(tree: Tree<InspectorSnapshot>): void {
+        this._selection = this._selection === tree ? null : tree;
+        this.changeHandler();
+    }
+
+    _renderTree(tree: Tree<InspectorSnapshot>): HTMLDivElement[] {
+        const snap = tree.element;
+        const nodes = [];
+        const cls = "snap" + (tree === this._current ? " current" : "")
+                           + (tree === this._selection ? " selection" : "");
+        const node = dom.div({ "class": cls }, [
+            snap.name,
+            dom.span({}, [snap.states + " states, " + snap.decided.toFixed(0) + "%"])
+        ]);
+        node.addEventListener("click", () => this._select(tree));
+        nodes.push(node);
+        if (tree.children.length > 0) {
+            const indented = dom.div({ "class": "indented" });
+            for (let child of tree.children) {
+                dom.appendChildren(indented, this._renderTree(child));
+            }
+            nodes.push(indented);
+        }
+        return nodes;
+    }
+
+    changeHandler(): void {
+        this.forms.load.disabled = this._selection == null;
+        dom.replaceChildren(this.treeView, this._renderTree(this._tree));
+    }
+
+}
 

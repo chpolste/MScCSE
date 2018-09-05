@@ -1,7 +1,7 @@
 // @flow
 "use strict";
 
-import type { StateID, ActionID, SupportID, PredicateID, Snapshot } from "./system.js";
+import type { StateID, ActionID, SupportID, PredicateID, JSONGameGraph } from "./system.js";
 
 import * as logic from "./logic.js";
 import { iter, sets, hashString, UniqueCollection } from "./tools.js";
@@ -40,33 +40,33 @@ export interface GameGraph {
 // A wrapper around a snapshot of an abstracted LSS that supports the
 // TransitionsSystemMap interface and can therefore be used to generate the
 // product game of the system with an automaton.
-export class MappedSnapshot implements GameGraph {
+export class MappedJSONGameGraph implements GameGraph {
 
-    +snapshot: Snapshot;
+    +_states: JSONGameGraph;
     +stateLabels: Set<StateID>;
 
-    constructor(snapshot: Snapshot): void {
-        this.snapshot = snapshot;
+    constructor(json: JSONGameGraph): void {
+        this._states = json;
         this.stateLabels = new Set();
-        for (let label in this.snapshot.states) {
+        for (let label in this._states) {
             this.stateLabels.add(label);
         }
     }
 
     predicateLabelsOf(label: StateID): Set<PredicateID> {
-        return new Set(this.snapshot.states[label].predicates);
+        return new Set(this._states[label].predicates);
     }
 
     actionCountOf(label: StateID): number {
-        return this.snapshot.states[label].actions.length;
+        return this._states[label].actions.length;
     }
 
     supportCountOf(label: StateID, actionId: ActionID): number {
-        return this.snapshot.states[label].actions[actionId].length;
+        return this._states[label].actions[actionId].length;
     }
 
     targetLabelsOf(label: StateID, actionId: ActionID, supportId: SupportID): Set<StateID> {
-        return new Set(this.snapshot.states[label].actions[actionId][supportId]);
+        return new Set(this._states[label].actions[actionId][supportId]);
     }
 
 }

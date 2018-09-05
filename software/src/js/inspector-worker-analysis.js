@@ -1,12 +1,12 @@
 // @flow
 "use strict";
 
-import type { Snapshot, PredicateID } from "./system.js";
+import type { JSONGameGraph, PredicateID } from "./system.js";
 import type { Proposition, TransitionLabel } from "./logic.js";
 
 import { sets, iter, WorkerCommunicator } from "./tools.js";
 import { parseProposition, OnePairStreettAutomaton } from "./logic.js";
-import { MappedSnapshot, TwoPlayerProbabilisticGame } from "./game.js";
+import { MappedJSONGameGraph, TwoPlayerProbabilisticGame } from "./game.js";
 
 
 // https://github.com/facebook/flow/issues/3128
@@ -95,8 +95,8 @@ communicator.onMessage("analysis", function (msg) {
     if (typeof msg.data !== "string") throw new Error(
         "analysis: expected type 'string', got '" + typeof msg.data + "'"
     );
-    const snapshot: Snapshot = JSON.parse(msg.data);
-    const gameGraph = new MappedSnapshot(snapshot);
+    const snapshot: JSONGameGraph = JSON.parse(msg.data);
+    const gameGraph = new MappedJSONGameGraph(snapshot);
     const game = TwoPlayerProbabilisticGame.fromProduct(gameGraph, automaton, predicateTest);
     const analysis = game.analyse(new Map([
         ["satisfying",      TwoPlayerProbabilisticGame.analyseSatisfying],

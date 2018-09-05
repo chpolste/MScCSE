@@ -2,12 +2,13 @@
 "use strict";
 
 import type { Matrix, Vector } from "./linalg.js";
-import type { ConvexPolytope, ConvexPolytopeUnion, Halfspace } from "./geometry.js";
+import type { ConvexPolytope, ConvexPolytopeUnion, Halfspace,
+              JSONConvexPolytope, JSONConvexPolytopeUnion, JSONHalfspace } from "./geometry.js";
 import type { GameGraph } from "./game.js";
 
 import { iter, arr, sets, ValueError } from "./tools.js";
 import * as linalg from "./linalg.js";
-import { polytopeType, union } from "./geometry.js";
+import { polytopeType, deserializePolytope, deserializeHalfspace, union } from "./geometry.js";
 
 
 type PrecisePart<T> = { polys: ConvexPolytopeUnion, items: T[] };
@@ -60,6 +61,14 @@ function preciseOperatorPartition<T>(items: Iterable<T>, operator: (T) => Convex
 
 /* Linear Stochastic System */
 
+type JSONLSS = {
+    A: number[][], // matrix
+    B: number[][], // matrix
+    stateSpace: JSONConvexPolytope,
+    randomSpace: JSONConvexPolytope,
+    controlSpace: JSONConvexPolytopeUnion
+};
+
 export class LSS {
 
     +dim: number;
@@ -83,8 +92,14 @@ export class LSS {
         this.extendedStateSpace = union.disjunctify([this.stateSpace, ...this.oneStepReachable]);
     }
 
-    decompose(predicates: Halfspace[], predicateLabels?: string[]): AbstractedLSS {
-        return new AbstractedLSS(this, predicates, predicateLabels);
+    static deserialize(json: JSONLSS): LSS {
+        return new LSS(
+            json.A,
+            json.B,
+            deserializePolytope(json.stateSpace),
+            deserializePolytope(json.randomSpace),
+            union.deserialize(json.controlSpace)
+        );
     }
 
     get extent(): [number, number][] {
@@ -159,6 +174,50 @@ export class LSS {
         return union.intersect([poly.applyRight(this.B)], this.controlSpace);
     }
 
+    // Split state space with linear predicates to create an AbstractedLSS
+    decompose(predicates: Halfspace[], predicateLabels?: PredicateID[]): AbstractedLSS {
+        const system = new AbstractedLSS(this);
+        // Initial abstraction into states is given by decomposition and
+        // partition of outer region into convex polytopes
+        const outer = union.remove(this.oneStepReachable, [this.stateSpace]);
+        for (let polytope of outer) {
+            system.newState(polytope, OUTER);
+        }
+        // Collect named predicates
+        predicateLabels = predicateLabels == null ? predicates.map(_ => "") : predicateLabels;
+        for (let [label, predicate] of arr.zip2(predicateLabels, predicates)) {
+            if (label.length > 0) system.predicates.set(label, predicate);
+        }
+        // Split state space according to given predicates
+        const partition = preciseOperatorPartition(
+            arr.zip2(predicateLabels, predicates),
+            ([label, predicate]) => [this.stateSpace.intersect(predicate)]
+        )
+        for (let part of partition) {
+            if (part.polys.length > 1) throw new Error(
+                "State space was not split properly by linear predicates"
+            );
+            system.newState(part.polys[0], UNDECIDED, part.items.map(_ => _[0]).filter(_ => _.length > 0));
+        }
+        // Add the part of the state space not covered by any predicate
+        const leftOverPoly = this.stateSpace.intersect(...predicates.map(_ => _.flip()));
+        if (!leftOverPoly.isEmpty) {
+            system.newState(leftOverPoly, UNDECIDED, []);
+        }
+        return system;
+    }
+
+    // JSON-compatible serialization
+    serialize(): JSONLSS {
+        return {
+            A: this.A,
+            B: this.B,
+            stateSpace: this.stateSpace.serialize(),
+            randomSpace: this.randomSpace.serialize(),
+            controlSpace: union.serialize(this.controlSpace)
+        };
+    }
+
 }
 
 
@@ -174,6 +233,7 @@ const NONSATISFYING = -1;
 const UNDECIDED = 0;
 const SATISFYING = 1;
 
+// Type aliases for identifier types
 export type StateID = string;
 export type ActionID = number;
 export type SupportID = number;
@@ -192,64 +252,81 @@ type TraceStep = {
     random: Vector;
 };
 
-// Snapshots
-export type Snapshot = {
-    predicates: { [string]: {} },
-    states: {
-        [string]: {
-            vertices: Vector[],
-            predicates: string[],
-            actions: (string[])[]
-        }
+// Game graph serialization for analysis
+export type JSONGameGraph = {
+    [string]: {
+        predicates: string[],
+        actions: (string[])[]
     }
 };
 
+// Serialization of entire system (optionally with actions)
+export type JSONAbstractedLSS = {
+    lss: JSONLSS,
+    predicates: { [string]: JSONHalfspace },
+    states: JSONState[],
+    actions: { [string]: JSONAction[] } | null,
+    labelNum: number
+};
+
+// Implements GameGraph interface for product with objective automaton
 export class AbstractedLSS implements GameGraph {
+
+    // TODO: implement a verification function that can be called after
+    //       construction to make sure system and LSS are not in conflict
+    //       (test outer states, state space coverage, etc.)
 
     +lss: LSS;
     +states: Map<StateID, State>;
-    +predicates: Map<PredicateID, Halfspace>; // TODO
+    +predicates: Map<PredicateID, Halfspace>;
     labelNum: number;
 
-    constructor(lss: LSS, predicates: Halfspace[], predicateLabels?: PredicateID[]): void {
+    // Empty system (only for custom system construction)
+    constructor(lss: LSS): void {
         this.lss = lss;
         this.labelNum = 0;
         this.states = new Map();
-
-        // Initial abstraction into states is given by decomposition and
-        // partition of outer region into convex polytopes
-        const outer = union.remove(this.lss.oneStepReachable, [this.lss.stateSpace]);
-        for (let polytope of outer) {
-            this.newState(polytope, OUTER);
-        }
-
-        // Collect named predicates
-        const labeledPredicates = arr.zip2map(
-            (pred, label) => [label, pred],
-            predicates,
-            predicateLabels == null ? predicates.map(pred => "") : predicateLabels
-        );
-        this.predicates = new Map(labeledPredicates.filter(lp => lp[0].length > 0));
-        // Split state space according to given predicates
-        preciseOperatorPartition(labeledPredicates, lp => {
-            return [this.lss.stateSpace.intersect(lp[1])];
-        }).forEach(part => {
-            if (part.polys.length > 1) throw new Error(
-                "State space was not split properly by linear predicates"
-            );
-            this.newState(part.polys[0], UNDECIDED, part.items.map(lp => lp[0]).filter(l => l.length > 0));
-        });
-        // Add the part of the state space not covered by any predicate
-        const leftOverPoly = this.lss.stateSpace.intersect(...predicates.map(p => p.flip()));
-        if (!leftOverPoly.isEmpty) {
-            this.newState(leftOverPoly, UNDECIDED, []);
-        }
+        this.predicates = new Map();
     }
 
+    // Recover an AbstractedLSS instance from its JSON serialization
+    static deserialize(json: JSONAbstractedLSS): AbstractedLSS {
+        const system = new AbstractedLSS(LSS.deserialize(json.lss));
+        // labelNum
+        system.labelNum = json.labelNum;
+        // Add predicates
+        for (let label in json.predicates) {
+            system.predicates.set(label, deserializeHalfspace(json.predicates[label]));
+        }
+        // Add states
+        for (let jsonState of json.states) {
+            const polytope = deserializePolytope(jsonState.polytope);
+            const state = new State(system, jsonState.label, polytope, jsonState.kind, jsonState.predicates);
+            system.states.set(state.label, state);
+        }
+        // Actions are optional
+        const jsonActions = json.actions;
+        if (jsonActions != null) {
+            for (let label in jsonActions) {
+                const state = system.getState(label);
+                state._actions = jsonActions[label].map(_ => Action.deserialize(_, state));
+                // Restore the internal _reachable set
+                const reachable = new Set();
+                for (let action of state._actions) {
+                    action.targets.forEach(_ => reachable.add(_));
+                }
+                state._reachable = reachable;
+            }
+        }
+        return system;
+    }
+
+    // Axis-aligned extent
     get extent(): [number, number][] {
         return this.lss.extent;
     }
 
+    // Create a new state, with an automatically generated label
     newState(polytope: ConvexPolytope, kind: StateKind, predicates?: Iterable<PredicateID>): State {
         const label = this.genLabel();
         const state = new State(this, label, polytope, kind, predicates);
@@ -257,11 +334,24 @@ export class AbstractedLSS implements GameGraph {
         return state;
     }
 
+    // Generate a label for a new state
     genLabel(): StateID {
         this.labelNum++;
-        return "X" + this.labelNum.toString();
+        const label = "X" + this.labelNum.toString();
+        // If the label already exists for some reason, pick another one
+        return this.states.has(label) ? this.genLabel() : label;
     }
 
+    // Obtain state by label, throws an error if it does not exist
+    getState(label: StateID): State {
+        const state = this.states.get(label);
+        if (state == null) throw new Error(
+            "..." // TODO
+        );
+        return state;
+    }
+
+    // Obtain predicate by label, throws an error if it does not exist
     getPredicate(label: PredicateID): Halfspace {
         const pred = this.predicates.get(label);
         if (pred == null) throw new Error(
@@ -270,7 +360,15 @@ export class AbstractedLSS implements GameGraph {
         return pred;
     }
 
-    // Analysis and refinement
+    // Get state which contains the point in state space
+    stateOf(x: Vector): ?State {
+        for (let state of this.states.values()) {
+            if (state.polytope.contains(x)) {
+                return state;
+            }
+        }
+        return null;
+    }
 
     // Update the states according to the result of a game analysis. Returns
     // those states whose kind was changed.
@@ -302,6 +400,8 @@ export class AbstractedLSS implements GameGraph {
         return updated;
     }
 
+    // Refine states according to the given partitionings. Returns those states
+    // which were refined.
     refine(partitions: Map<State, ConvexPolytopeUnion>): Set<State> {
         const refined = new Set();
         for (let [state, partition] of partitions.entries()) {
@@ -324,6 +424,7 @@ export class AbstractedLSS implements GameGraph {
         return refined;
     }
 
+    // Call the resetActions on all states of the system
     resetActions(targets?: Set<State>): void {
         for (let state of this.states.values()) {
             state.resetActions(targets);
@@ -331,16 +432,6 @@ export class AbstractedLSS implements GameGraph {
     }
 
     // Trace sampling
-
-    stateOf(x: Vector): ?State {
-        for (let state of this.states.values()) {
-            if (state.polytope.contains(x)) {
-                return state;
-            }
-        }
-        return null;
-    }
-
     sampleTrace(init: Vector, strategy: Strategy, steps: number): Trace {
         // Trace starts from given location
         let x = init;
@@ -360,7 +451,7 @@ export class AbstractedLSS implements GameGraph {
         return trace;
     }
 
-    // Convenience wrappers for polytopic operators
+    /* Convenience wrappers for polytopic operators */
 
     post(x: State, us: ConvexPolytopeUnion): ConvexPolytopeUnion {
         return this.lss.post(x.polytope, us);
@@ -386,7 +477,7 @@ export class AbstractedLSS implements GameGraph {
         return this.lss.actionPolytope(x.polytope, y.polytope);
     }
 
-    // AbstractLSSGraph Interface
+    /* GameGraph Interface */
 
     get stateLabels(): Set<StateID> {
         return new Set(this.states.keys());
@@ -424,13 +515,13 @@ export class AbstractedLSS implements GameGraph {
         return new Set(iter.map(s => s.label, state.actions[actionId].supports[supportId].targets));
     }
 
-    // JSON compatible representation
-    snapshot(includeGeometry: boolean): Snapshot {
-        // Add states
+    /* Serialization */
+
+    // JSON-compatible serialization for game analysis
+    serializeGameGraph(): JSONGameGraph {
         const states = {};
         for (let state of this.states.values()) {
             states[state.label] = {
-                vertices: includeGeometry ? Array.from(state.polytope.vertices) : [],
                 predicates: Array.from(state.predicates),
                 actions: state.actions.map(
                     action => action.supports.map(
@@ -441,14 +532,48 @@ export class AbstractedLSS implements GameGraph {
                 )
             };
         }
+        return states;
+    }
+
+    // JSON-compatible serialization for saving/loading
+    serialize(includeActions?: boolean): JSONAbstractedLSS {
+        // Predicates
+        const predicates = {};
+        for (let [label, predicate] of this.predicates.entries()) {
+            predicates[label] = predicate.serialize();
+        }
+        // Actions are only included if requested
+        let actions = null;
+        if (includeActions != null && includeActions) {
+            actions = {};
+            for (let [label, state] of this.states.entries()) {
+                // Don't evaluate actions if not cached
+                if (state._actions != null) {
+                    actions[label] = state.actions.map(_ => _.serialize());
+                }
+            }
+        }
         return {
-            predicates: {}, // TODO
-            states: states
-        };
+            lss: this.lss.serialize(),
+            predicates: predicates,
+            states: Array.from(iter.map(_ => _.serialize(), this.states.values())),
+            actions: actions,
+            labelNum: this.labelNum
+        }
     }
 
 }
 
+
+/* State of an AbstractedLSS */
+
+// JSON-compatible serialization
+type JSONState = {
+    label: string,
+    polytope: JSONConvexPolytope,
+    predicates: string[],
+    kind: StateKind
+};
 
 export class State {
 
@@ -462,14 +587,19 @@ export class State {
     _reachable: Set<State>;
 
     constructor(system: AbstractedLSS, label: StateID, polytope: ConvexPolytope, kind: StateKind,
-                predicates?: Iterable<PredicateID>): void {
+            predicates?: Iterable<PredicateID>): void {
         this.system = system;
         this.polytope = polytope;
         this.label = label;
         this.kind = kind;
         this.predicates = new Set(predicates == null ? [] : predicates);
+        this._actions = null;
         this.resetActions(); // initializes _actions and _reachable
-        this._reachable = new Set();
+    }
+
+    static deserialize(json: JSONState, system: AbstractedLSS): State {
+        const polytope = deserializePolytope(json.polytope);
+        return new State(system, json.label, polytope, json.kind, json.predicates);
     }
 
     // Lazy evaluation and memoization of actions
@@ -486,7 +616,7 @@ export class State {
         }
     }
 
-    // State kind properties
+    /* State kind properties */
 
     get isUndecided(): boolean {
         return this.kind == 0;
@@ -504,7 +634,7 @@ export class State {
         return this.kind <= -10;
     }
 
-    // Convenience wrappers for polytopic operators
+    /* Convenience wrappers for polytopic operators */
 
     post(us: ConvexPolytopeUnion): ConvexPolytopeUnion {
         return this.system.post(this, us);
@@ -541,6 +671,8 @@ export class State {
         return this.system.actionPolytope(this, y);
     }
 
+    // Clear action cache if a state in the given set is reachable from this
+    // state.
     resetActions(targets?: Set<State>): void {
         // _reachable contains the last known set of action targets, if any
         // invalidated target is in there, the actions have to be reset.
@@ -553,13 +685,32 @@ export class State {
         }
     }
 
+    // JSON-compatible serialization
+    serialize(): JSONState {
+        return {
+            label: this.label,
+            polytope: this.polytope.serialize(),
+            predicates: Array.from(this.predicates),
+            kind: this.kind
+        };
+    }
+
 }
 
+
+/* Action of a state of an AbstractedLSS */
+
+// JSON-compatible serialization
+type JSONAction = {
+    targets: string[],
+    controls: JSONConvexPolytopeUnion,
+    supports: JSONActionSupport[] | null
+};
 
 export class Action {
 
     +origin: State;
-    +targets: State[]; // TODO: Set<State> (?)
+    +targets: State[]; // use Set<State> instead?
     +controls: ConvexPolytopeUnion;
     +supports: ActionSupport[];
     _supports: ?ActionSupport[];
@@ -569,6 +720,15 @@ export class Action {
         this.targets = targets;
         this.controls = controls;
         this._supports = null;
+    }
+
+    static deserialize(json: JSONAction, origin: State): Action {
+        const targets = json.targets.map(_ => origin.system.getState(_));
+        const action = new Action(origin, targets, union.deserialize(json.controls));
+        if (json.supports != null) {
+            action._supports = json.supports.map(_ => ActionSupport.deserialize(_, action));
+        }
+        return action;
     }
 
     // Lazy evaluation and memoization of action supports
@@ -585,19 +745,49 @@ export class Action {
         }
     }
 
+    // JSON-compatible serialization
+    serialize(): JSONAction {
+        return {
+            targets: this.targets.map(_ => _.label),
+            controls: union.serialize(this.controls),
+            supports: this.supports.map(_ => _.serialize())
+        };
+    }
+
 }
 
+
+/* ActionSupport of an action of a state of an AbstractedLSS */
+
+// JSON-compatible serialization
+type JSONActionSupport = {
+    targets: string[],
+    origins: JSONConvexPolytopeUnion
+};
 
 export class ActionSupport {
 
     +action: Action;
-    +targets: State[]; // TODO: Set<State> (?)
+    +targets: State[]; // use Set<State> instead?
     +origins: ConvexPolytopeUnion;
 
     constructor(action: Action, targets: State[], origins: ConvexPolytopeUnion): void {
         this.action = action;
         this.targets = targets;
         this.origins = origins;
+    }
+
+    static deserialize(json: JSONActionSupport, action: Action): ActionSupport {
+        const targets = json.targets.map(x => action.origin.system.getState(x));
+        return new ActionSupport(action, targets, union.deserialize(json.origins));
+    }
+
+    // JSON-compatible serialization
+    serialize(): JSONActionSupport {
+        return {
+            targets: this.targets.map(x => x.label),
+            origins: this.origins.map(x => x.serialize())
+        };
     }
 
 }

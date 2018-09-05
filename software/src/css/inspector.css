@@ -159,7 +159,6 @@ a:hover {
 
 .cols {
     display: flex;
-    flex-direction: columns;
 }
 
 /* Problem Summary*/
@@ -167,7 +166,6 @@ a:hover {
 .problem-summary > .boxes {
     display: flex;
     flex-wrap: wrap;
-    flex-direction: row;
 }
 .problem-summary > .boxes > div {
     width: 25%;
@@ -177,7 +175,6 @@ a:hover {
 
 .inspector {
     display: flex;
-    flex-direction: columns;
     margin-top: 20px;
 }
 .inspector > .left {
@@ -385,13 +382,13 @@ span.nonsatisfying {
     border-right: 6pt solid transparent;
     padding-right: 2px;
     margin-right: 2px;
+    cursor: pointer;
 }
 .support-view > div.selection {
     background-color: #EEE;
     border-color: #09C;
 }
 .support-view > div:hover {
-    cursor: pointer;
     background-color: #EEE;
 }
 
@@ -405,5 +402,36 @@ span.nonsatisfying {
 .refinement-toggles label {
     display: inline-block;
     margin: 0 10pt 0 0;
+}
+
+.snapshot-view .right {
+    float: right;
+}
+.snapshot-view .tree {
+    min-height: 10em;
+    overflow-y: scroll;
+    padding-right: 4px;
+}
+.snapshot-view .tree .indented {
+    margin-left: 6px;
+    padding-left: 6px;
+    border-left: 2px solid #999;
+}
+.snapshot-view .tree .snap {
+    cursor: pointer;
+    padding-top: 1px;
+}
+.snapshot-view .tree .snap span {
+    float: right;
+    color: #666;
+}
+.snapshot-view .tree .current {
+    color: #069;
+}
+.snapshot-view .tree .current span {
+    color: #069;
+}
+.snapshot-view .tree .selection {
+    background-color: #EEE;
 }
 

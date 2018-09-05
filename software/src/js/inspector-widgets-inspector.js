@@ -237,10 +237,10 @@ export class SystemInspector extends ObservableMixin<null> implements SystemWrap
         this.node = dom.div({ "class": "inspector" }, [
             dom.div({ "class": "left" }, [
                 this.systemView.node,
-                dom.h3({}, ["Analysis", dom.infoBox("info-analysis")]),
-                this.analysis.node,
                 dom.h3({}, ["Abstraction Refinement", dom.infoBox("info-refinement")]),
                 this.refinement.node,
+                dom.h3({}, ["Analysis", dom.infoBox("info-analysis")]),
+                this.analysis.node,
                 dom.h3({}, ["System Snapshots", dom.infoBox("info-snapshots")]),
                 this.snapshots.node
             ]),
@@ -769,14 +769,14 @@ class TraceView extends ObservableMixin<null> {
         clearButton.addEventListener("click", () => this.clear());
 
         this.node = dom.div({ "class": "trace-view" }, [
-            plot.node,
             dom.p({}, [
                 sampleButton, " ", clearButton,
                 dom.div({ "class": "right" }, [
                     dom.create("u", {}, ["S"]), "trategy ",
                     this.strategy.node
                 ])
-            ])
+            ]),
+            plot.node
         ]);
 
         keybindings.bind("a", () => this.sample());

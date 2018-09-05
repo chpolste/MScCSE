@@ -304,8 +304,7 @@ a:hover {
 .analysis-progress {
     display: flex;
     flex-direction: row;
-    border-right: 1px solid #000;
-    border-left: 1px solid #000;
+    border: 1px solid #333;
     cursor: help;
     margin-bottom: 6pt;
 }
@@ -392,9 +391,6 @@ span.nonsatisfying {
     background-color: #EEE;
 }
 
-.trace-view svg {
-    margin-bottom: 3pt;
-}
 .trace-view .right {
     float: right;
 }

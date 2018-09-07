@@ -688,9 +688,11 @@ class StateView extends ObservableMixin<null> {
 
     changeHandler() {
         let state = this._selection;
-        // System might have changed, try to keep state selected (if it still exists)
-        if (state != null && !this.system.states.has(state.label)) {
-            state = this._selection = null;
+        // If system has changed, State instance has to be refreshed
+        if (state != null) {
+            const newState = this.system.states.get(state.label);
+            // newState is undefined if state does not exist anymore
+            this._selection = state = (newState == null) ? null : newState;
         }
         if (state != null) {
             const actionCount = state.actions.length;

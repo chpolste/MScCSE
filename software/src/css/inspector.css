@@ -301,25 +301,22 @@ a:hover {
     margin: 5px 5px 25px 0;
 }
 
-.analysis-progress {
+.percentage-bar {
     display: flex;
     flex-direction: row;
     border: 1px solid #333;
-    cursor: help;
-    margin-bottom: 6pt;
 }
-.analysis-progress div {
-    height: 10px
-}
-.analysis-progress div.satisfying {
-    background-color: #093;
-}
-.analysis-progress div.undecided {
+.percentage-bar div {
+    height: 7px;
     background-color: #FFF;
 }
-.analysis-progress div.nonsatisfying {
+.percentage-bar .satisfying {
+    background-color: #093;
+}
+.percentage-bar .non-satisfying {
     background-color: #CCC;
 }
+
 
 .settings select {
     display: block;
@@ -395,9 +392,13 @@ span.nonsatisfying {
     float: right;
 }
 
+.refinement-toggles {
+    display: flex;
+    flex-flow: row wrap;
+}
 .refinement-toggles label {
-    display: inline-block;
-    margin: 0 10pt 0 0;
+    margin-top: 0;
+    width: 33.3%;
 }
 
 .snapshot-view .right {
@@ -413,21 +414,26 @@ span.nonsatisfying {
     padding-left: 6px;
     border-left: 2px solid #999;
 }
-.snapshot-view .tree .snap {
+.snapshot-view .snap {
     cursor: pointer;
     padding-top: 1px;
 }
-.snapshot-view .tree .snap span {
+.snapshot-view .snap span {
     float: right;
     color: #666;
 }
-.snapshot-view .tree .current {
+.snapshot-view .snap .percentage-bar {
+    display: inline-flex;
+    width: 100px;
+    margin-left: 5px;
+}
+.snapshot-view .snap.current {
     color: #069;
 }
-.snapshot-view .tree .current span {
+.snapshot-view .snap.current span {
     color: #069;
 }
-.snapshot-view .tree .selection {
+.snapshot-view .snap.selection {
     background-color: #EEE;
 }
 

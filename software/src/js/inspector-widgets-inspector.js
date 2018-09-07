@@ -105,7 +105,7 @@ function matrixToTeX(m: Matrix): string {
     return "\\begin{pmatrix}" + m.map(row => row.join("&")).join("\\\\") + "\\end{pmatrix}";
 }
 
-function volumePercentages(system: AbstractedLSS): [number, number, number] {
+function volumeRatios(system: AbstractedLSS): { [string]: number } {
     let volSat = 0;
     let volUnd = 0;
     let volNon = 0;
@@ -119,10 +119,23 @@ function volumePercentages(system: AbstractedLSS): [number, number, number] {
         }
     }
     const volAll = volSat + volUnd + volNon;
-    const pctSat = volSat / volAll * 100;
-    const pctUnd = volUnd / volAll * 100;
-    const pctNon = volNon / volAll * 100;
-    return [pctSat, pctUnd, pctNon];
+    return {
+        "satisfying": volSat / volAll,
+        "undecided": volUnd / volAll,
+        "non-satisfying": volNon / volAll
+    };
+}
+
+function percentageBar(ratios: { [string]: number }): HTMLDivElement {
+    const bar = dom.div({ "class": "percentage-bar" });
+    for (let name in ratios) {
+        bar.appendChild(dom.div({
+            "class": name,
+            "title": (ratios[name] * 100).toFixed(1) + "% " + name,
+            "style": "flex-grow:" + ratios[name]
+        }));
+    }
+    return bar;
 }
 
 
@@ -237,11 +250,11 @@ export class SystemInspector extends ObservableMixin<null> implements SystemWrap
         this.node = dom.div({ "class": "inspector" }, [
             dom.div({ "class": "left" }, [
                 this.systemView.node,
+                dom.h3({}, ["System Analysis", dom.infoBox("info-analysis")]),
+                this.analysis.node,
                 dom.h3({}, ["Abstraction Refinement", dom.infoBox("info-refinement")]),
                 this.refinement.node,
-                dom.h3({}, ["Analysis", dom.infoBox("info-analysis")]),
-                this.analysis.node,
-                dom.h3({}, ["System Snapshots", dom.infoBox("info-snapshots")]),
+                dom.h3({}, ["Snapshots", dom.infoBox("info-snapshots")]),
                 this.snapshots.node
             ]),
             dom.div({ "class": "right" }, [
@@ -364,7 +377,6 @@ class Analysis extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
     +wrapper: SystemWrapper;
-    +progressBar: HTMLDivElement;
     +button: HTMLButtonElement;
     +info: HTMLSpanElement;
     _results: Map<string, Set<StateID>>; // TODO: provide interface for refinement
@@ -376,21 +388,17 @@ class Analysis extends ObservableMixin<null> {
         super();
         this._results = new Map();
         this.wrapper = wrapper;
-        this.wrapper.attach(() => this.changeHandler());
 
-        this.progressBar = dom.div({ "class": "analysis-progress" });
         this.button = dom.create("button", {}, ["analys", dom.create("u", {}, ["e"])]);
         this.button.addEventListener("click", () => this.analyse());
         this.info = dom.span();
-        this.node = dom.div({}, [
-            dom.p({}, [this.button, " ", this.info]),
-            this.progressBar
+        this.node = dom.div({ "class": "analysis-control"}, [
+            dom.p({}, [this.button, " ", this.info])
         ]);
 
         keybindings.bind("e", () => this.analyse());
 
         this.initializeAnalysisWorker();
-        this.changeHandler();
     }
 
     get system(): AbstractedLSS {
@@ -529,27 +537,6 @@ class Analysis extends ObservableMixin<null> {
         );
     }
 
-    changeHandler() {
-        const [pctSat, pctUnd, pctNon] = volumePercentages(this.system);
-        dom.replaceChildren(this.progressBar, [
-            dom.div({
-                "class": "satisfying",
-                "style": "flex-grow:" + pctSat + ";",
-                "title": pctSat.toFixed(1) + "% satisfying"
-            }),
-            dom.div({
-                "class": "nonsatisfying",
-                "style": "flex-grow:" + pctNon + ";",
-                "title": pctNon.toFixed(1) + "% non-satisfying"
-            }),
-            dom.div({
-                "class": "undecided",
-                "style": "flex-grow:" + pctUnd + ";",
-                "title": pctUnd.toFixed(1) + "% undecided"
-            })
-        ]);
-    }
-
     serializeResults(): JSONAnalysisResults {
         const results = {};
         for (let [name, stateLabels] of this._results.entries()) {
@@ -598,7 +585,7 @@ class Refinement {
         };
         this.node = dom.div({}, [
             dom.p({}, [this.buttons.refineAll, " ", this.buttons.refineOne, " ", this.info]),
-            dom.p({ "class": "refinement-toggles" }, [
+            dom.div({ "class": "refinement-toggles" }, [
                 dom.create("label", {}, [this.toggles.negativeAttr.node, "Negative Attractor"])
             ])
         ]);
@@ -1226,7 +1213,7 @@ class SystemView {
 type InspectorSnapshot = {
     name: string,
     states: number,
-    decided: number,
+    ratios: { [string]: number },
     system: JSONAbstractedLSS,
     analysis: JSONAnalysisResults
 }
@@ -1304,11 +1291,10 @@ class SnapshotManager {
     }
 
     _takeSnapshot(name: string): InspectorSnapshot {
-        const [pctSat, pctUnd, pctNon] = volumePercentages(this.system);
         return {
             name: name,
             states: this.system.states.size,
-            decided: pctSat + pctNon,
+            ratios: volumeRatios(this.system),
             system: this.system.serialize(true),
             analysis: this.analysis.serializeResults()
         };
@@ -1326,7 +1312,7 @@ class SnapshotManager {
                            + (tree === this._selection ? " selection" : "");
         const node = dom.div({ "class": cls }, [
             snap.name,
-            dom.span({}, [snap.states + " states, " + snap.decided.toFixed(0) + "%"])
+            dom.span({}, [snap.states + " states", percentageBar(snap.ratios)])
         ]);
         node.addEventListener("click", () => this._select(tree));
         nodes.push(node);

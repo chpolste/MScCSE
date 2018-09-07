@@ -15,7 +15,7 @@ export class ValidationError extends Error {};
 // Common observable interface for input forms
 export interface Input<T> extends Observable<null> {
     +node: HTMLElement;
-    +changeHandler: () => void;
+    +handleChange: () => void;
     // Getter for the proper value (after type conversion, ...)
     +value: T;
     // Validity flag (value may not be usable if this is false)
@@ -55,7 +55,7 @@ export class LineInput<T> extends ObservableMixin<null> implements Input<T> {
         if (initialText != null) {
             this.text = initialText;
         }
-        this.node.addEventListener("change", () => this.changeHandler());
+        this.node.addEventListener("change", () => this.handleChange());
     }
 
     get value(): T {
@@ -68,7 +68,7 @@ export class LineInput<T> extends ObservableMixin<null> implements Input<T> {
 
     set text(text: string): void {
         this.node.value = text;
-        this.changeHandler();
+        this.handleChange();
     }
 
     get isValid(): boolean {
@@ -79,7 +79,7 @@ export class LineInput<T> extends ObservableMixin<null> implements Input<T> {
         this.node.size = size;
     }
 
-    changeHandler(): void {
+    handleChange(): void {
         try {
             this.value;
             this.node.setCustomValidity("");
@@ -102,7 +102,7 @@ export class MultiLineInput<T> extends ObservableMixin<null> implements Input<T[
     constructor(parseLine: (txt: string) => T, size?: [number, number], initialText?: string) {
         super();
         this.node = dom.create("textarea");
-        this.node.addEventListener("change", () => this.changeHandler());
+        this.node.addEventListener("change", () => this.handleChange());
         this.parseLine = parseLine;
         if (size != null) {
             this.size = size;
@@ -129,7 +129,7 @@ export class MultiLineInput<T> extends ObservableMixin<null> implements Input<T[
 
     set text(text: string) {
         this.node.value = text;
-        this.changeHandler();
+        this.handleChange();
     }
 
     get isValid(): boolean {
@@ -141,7 +141,7 @@ export class MultiLineInput<T> extends ObservableMixin<null> implements Input<T[
         this.node.cols = size[1];
     }
 
-    changeHandler(): void {
+    handleChange(): void {
         try {
             this.value;
             this.node.setCustomValidity("");
@@ -169,7 +169,7 @@ export class SelectInput<T> extends ObservableMixin<null> implements Input<T> {
             optionNodes.push(dom.create("option", {}, [key]));
         }
         this.node = dom.create("select", {}, optionNodes);
-        this.node.addEventListener("change", () => this.changeHandler());
+        this.node.addEventListener("change", () => this.handleChange());
         this.text = (initialText != null && options.hasOwnProperty(initialText)) ? initialText : Object.keys(options)[0];
         this.isValid = true;
     }
@@ -187,10 +187,10 @@ export class SelectInput<T> extends ObservableMixin<null> implements Input<T> {
             throw new Error("text not in options");
         }
         this.node.value = text;
-        this.changeHandler();
+        this.handleChange();
     }
 
-    changeHandler(): void {
+    handleChange(): void {
         this.notify();
     }
 
@@ -206,7 +206,7 @@ export class CheckboxInput extends ObservableMixin<null> implements Input<boolea
     constructor(initialValue?: boolean): void {
         super();
         this.node = dom.create("input", { "type": "checkbox" });
-        this.node.addEventListener("change", () => this.changeHandler());
+        this.node.addEventListener("change", () => this.handleChange());
         this.node.checked = initialValue != null && initialValue;
         this.isValid = true;
     }
@@ -221,10 +221,10 @@ export class CheckboxInput extends ObservableMixin<null> implements Input<boolea
 
     set text(text: string): void {
         this.node.checked = text === "t";
-        this.changeHandler();
+        this.handleChange();
     }
 
-    changeHandler(): void {
+    handleChange(): void {
         this.notify();
     }
 
@@ -249,7 +249,7 @@ export class RangeInput extends ObservableMixin<null> implements Input<number> {
         this.node.title = this.text;
         // Ranges should be highly-responsive, therefore listen to input events
         // instead of change events
-        this.node.addEventListener("input", () => this.changeHandler());
+        this.node.addEventListener("input", () => this.handleChange());
         this.isValid = true;
     }
 
@@ -265,10 +265,10 @@ export class RangeInput extends ObservableMixin<null> implements Input<number> {
         if (parseFloat(text) !== NaN) {
             this.node.value = text;
         }
-        this.changeHandler();
+        this.handleChange();
     }
 
-    changeHandler(): void {
+    handleChange(): void {
         this.node.title = this.text;
         this.notify();
     }
@@ -320,7 +320,7 @@ export class MatrixInput<T> extends ObservableMixin<null> implements Input<T[][]
         this.isSendingNotifications = false;
         arr.zip2map((lineInput, text) => { lineInput.text = text; }, this.lineInputs, text.split("\n"));
         this.isSendingNotifications = true;
-        this.changeHandler();
+        this.handleChange();
     }
 
     get isValid(): boolean {
@@ -356,13 +356,13 @@ export class MatrixInput<T> extends ObservableMixin<null> implements Input<T[][]
             }
         }
         this.isSendingNotifications = true;
-        this.changeHandler();
+        this.handleChange();
     }
 
     _createLineInputs(): void {
         const [nrows, ncols] = this._shape;
         this.lineInputs = [];
-        const callback = () => this.changeHandler();
+        const callback = () => this.handleChange();
         const trs = [];
         for (let i = 0; i < nrows; i++) {
             let tds = [];
@@ -377,7 +377,7 @@ export class MatrixInput<T> extends ObservableMixin<null> implements Input<T[][]
         dom.replaceChildren(this.node, trs);
     }
 
-    changeHandler(): void {
+    handleChange(): void {
         this.notify();
     }
 

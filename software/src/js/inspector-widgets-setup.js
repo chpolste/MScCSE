@@ -314,19 +314,19 @@ class PolytopeInput extends ObservableMixin<null> implements Input<ConvexPolytop
         this.dim = dim;
         this.dim.attach(() => {
             this.variables = VAR_NAMES.substring(0, this.dim.value);
-            this.predicates.changeHandler(); // Triggers this.changeHandler
+            this.predicates.handleChange(); // Triggers this.handleChange
         });
         this.variables = VAR_NAMES.substring(0, this.dim.value)
         this.predicates = new MultiLineInput(
             line => HalfspaceInequation.parse(line, this.variables),
             [5, 25]
         );
-        this.predicates.attach(() => this.changeHandler());
+        this.predicates.attach(() => this.handleChange());
         let fig = new Figure();
         this.previewLayer = fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#EEE" });
         this.preview = new AxesPlot([90, 90], fig, autoProjection(4/3));
         this.node = dom.div({ "class": "polytope-builder" }, [this.predicates.node, this.preview.node]);
-        this.changeHandler();
+        this.handleChange();
     }
 
     get value(): ConvexPolytope {
@@ -345,7 +345,7 @@ class PolytopeInput extends ObservableMixin<null> implements Input<ConvexPolytop
         return this.predicates.isValid && this.variables.length === this.dim.value && (this.allowEmpty || !this.value.isEmpty);
     }
 
-    changeHandler(): void {
+    handleChange(): void {
         let proj = autoProjection(1);
         let shapes = [];
         if (this.isValid) {
@@ -383,11 +383,11 @@ class PredicatesInput extends ObservableMixin<null> implements Input<[Halfspace[
         this.dim = dim;
         this.dim.attach(() => { 
             this.variables = VAR_NAMES.substring(0, this.dim.value);
-            this.predicates.changeHandler();
+            this.predicates.handleChange();
         });
         this.variables = VAR_NAMES.substring(0, this.dim.value);
         this.predicates = new MultiLineInput(line => this.parsePredicate(line), [10, 40]);
-        this.predicates.attach(() => this.changeHandler());
+        this.predicates.attach(() => this.handleChange());
         this.node = this.predicates.node;
     }
 
@@ -414,7 +414,7 @@ class PredicatesInput extends ObservableMixin<null> implements Input<[Halfspace[
             && this.variables.length === this.dim.value;
     }
 
-    changeHandler(): void {
+    handleChange(): void {
         this.notify();
     }
 
@@ -451,7 +451,7 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
             const objKind = this.kind.value;
             formula.innerHTML = objKind.formula;
             this.updateTerms(objKind.variables);
-            this.changeHandler();
+            this.handleChange();
         });
         // The quickest way to properly initialize the widget:
         this.kind.notify();
@@ -460,7 +460,7 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
         // which reference named predicates
         this.predicates = predicates;
         this.predicates.attach(() => {
-            for (let term of this.terms) term.changeHandler()
+            for (let term of this.terms) term.handleChange()
         });
 
         this.node = dom.div({}, [
@@ -495,7 +495,7 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
         return true;
     }
 
-    changeHandler(): void {
+    handleChange(): void {
         this.notify();
     }
 
@@ -510,7 +510,7 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
             termNodes.push(dom.create("label", {}, [
                 dom.create("code", {}, [variables[i]]), " = ", terms[i].node
             ]));
-            terms[i].attach(() => this.changeHandler());
+            terms[i].attach(() => this.handleChange());
         }
         dom.replaceChildren(this.termContainer, termNodes);
         this.terms = terms;

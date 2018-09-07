@@ -571,9 +571,9 @@ class Refinement {
             keybindings: dom.Keybindings): void {
         this.wrapper = wrapper;
         this.analysis = analysis;
-        this.analysis.attach(() => this.changeHandler());
+        this.analysis.attach(() => this.handleChange());
         this.stateView = stateView;
-        this.stateView.attach(() => this.changeHandler());
+        this.stateView.attach(() => this.handleChange());
 
         this.info = dom.span();
         this.buttons = {
@@ -595,7 +595,7 @@ class Refinement {
 
         keybindings.bind("r", () => this.refineAll());
 
-        this.changeHandler();
+        this.handleChange();
     }
 
     get system(): AbstractedLSS {
@@ -634,7 +634,7 @@ class Refinement {
         }
     }
 
-    changeHandler(): void {
+    handleChange(): void {
         const ready = this.analysis.ready;
         const state = this.stateView.selection;
         this.buttons["refineAll"].disabled = !ready;
@@ -659,7 +659,7 @@ class StateView extends ObservableMixin<null> {
         super();
         this._selection = null;
         this.wrapper = wrapper;
-        this.wrapper.attach(() => this.changeHandler());
+        this.wrapper.attach(() => this.handleChange());
 
         // Summary is filled with basic state information
         this.summary = dom.p();
@@ -670,7 +670,7 @@ class StateView extends ObservableMixin<null> {
             this.summary, this.predicates.node
         ]);
 
-        this.changeHandler();
+        this.handleChange();
     }
 
     get system(): AbstractedLSS {
@@ -683,10 +683,10 @@ class StateView extends ObservableMixin<null> {
 
     set selection(state: ?State): void {
         this._selection = state;
-        this.changeHandler();
+        this.handleChange();
     }
 
-    changeHandler() {
+    handleChange() {
         let state = this._selection;
         // If system has changed, State instance has to be refreshed
         if (state != null) {
@@ -851,10 +851,10 @@ class ActionView extends SelectableNodes<Action> {
         super(action => ActionView.asNode(action), "none");
         this.node.className = "action-view";
         this.stateView = stateView;
-        this.stateView.attach(() => this.changeHandler());
+        this.stateView.attach(() => this.handleChange());
     }
 
-    changeHandler(): void {
+    handleChange(): void {
         const state = this.stateView.selection;
         this.items = state == null ? [] : state.actions;
     }
@@ -884,11 +884,11 @@ class ActionSupportView extends SelectableNodes<ActionSupport> {
         this.node.className = "support-view";
         this.actionView = actionView;
         this.actionView.attach(isClick => {
-            if (isClick) this.changeHandler();
+            if (isClick) this.handleChange();
         });
     }
 
-    changeHandler(): void {
+    handleChange(): void {
         const action = this.actionView.selection;
         this.items = action == null ? [] : action.supports;
     }
@@ -1262,7 +1262,7 @@ class SnapshotManager {
         this._tree = this._current;
         this._selection = null;
 
-        this.changeHandler();
+        this.handleChange();
     }
 
     get system(): AbstractedLSS {
@@ -1278,7 +1278,7 @@ class SnapshotManager {
         };
         this._current.children.push(tree);
         this._current = tree;
-        this.changeHandler();
+        this.handleChange();
     }
 
     loadSnapshot(): void {
@@ -1289,7 +1289,7 @@ class SnapshotManager {
             this.analysis.deserializeResults(snapshot.analysis);
             this._current = tree;
         }
-        this.changeHandler();
+        this.handleChange();
     }
 
     _takeSnapshot(name: string): InspectorSnapshot {
@@ -1304,7 +1304,7 @@ class SnapshotManager {
 
     _select(tree: Tree<InspectorSnapshot>): void {
         this._selection = this._selection === tree ? null : tree;
-        this.changeHandler();
+        this.handleChange();
     }
 
     _renderTree(tree: Tree<InspectorSnapshot>): HTMLDivElement[] {
@@ -1328,7 +1328,7 @@ class SnapshotManager {
         return nodes;
     }
 
-    changeHandler(): void {
+    handleChange(): void {
         this.forms.load.disabled = this._selection == null;
         dom.replaceChildren(this.treeView, this._renderTree(this._tree));
     }

@@ -358,6 +358,8 @@ span.nonsatisfying {
 }
 .action-view > div {
     display: block;
+    text-indent: -12pt;
+    margin-left: 12pt;
 }
 .action-view > div:hover {
     cursor: pointer;

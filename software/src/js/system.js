@@ -144,7 +144,10 @@ export class LSS {
 
     // Robust Predecessor: PreR(x, {u0, ...}, {y0, ...})
     preR(x: ConvexPolytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        const pontrys = union.pontryagin(ys, this.randomSpace);
+        const pontrys = union.pontryagin(ys, this.randomSpace).filter(_ => !_.isEmpty);
+        if (union.isEmpty(pontrys)) {
+            return [];
+        }
         const prers = [];
         for (let u of us) {
             const Bus = u.vertices.map(uv => linalg.apply(this.B, uv));

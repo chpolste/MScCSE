@@ -82,13 +82,13 @@ objective with a live preview and consistency checks.
 
 type ProblemCallback = (LSS, Halfspace[], string[], Objective) => void;
 
-export class ProblemSetup {
+export class ProblemSetup extends ObservableMixin<null> {
     
     +node: HTMLFormElement;
     +ssDim: Input<number>;
     +csDim: Input<number>;
     +equation: EvolutionEquationInput;
-    +preview: ProblemSetupSystemPreview;
+    +preview: SystemPreview;
     +ss: Input<ConvexPolytope>;
     +rs: Input<ConvexPolytope>;
     +cs: Input<ConvexPolytope>;
@@ -98,17 +98,18 @@ export class ProblemSetup {
     +system: AbstractedLSS;
 
     constructor(callback: ProblemCallback) {
+        super();
         this.callback = callback;
 
         this.ssDim = new SelectInput({"1-dimensional": 1, "2-dimensional": 2}, "2-dimensional");
         this.csDim = new SelectInput({"1-dimensional": 1, "2-dimensional": 2}, "2-dimensional");
         this.equation = new EvolutionEquationInput(this.ssDim, this.csDim);
-        this.preview = new ProblemSetupSystemPreview();
         this.ss = new PolytopeInput(this.ssDim, false);
         this.rs = new PolytopeInput(this.ssDim, false);
         this.cs = new PolytopeInput(this.csDim, false);
         this.predicates = new PredicatesInput(this.ssDim);
         this.objective = new ObjectiveInput(this.predicates);
+        this.preview = new SystemPreview(this, this.objective.terms);
 
         const columns = dom.div({ "class": "inspector" }, [
             dom.div({ "class": "left" }, [
@@ -148,12 +149,12 @@ export class ProblemSetup {
             dom.p({}, [submit])
         ]);
 
-        this.equation.A.attach(() => this.draw());
-        this.equation.B.attach(() => this.draw());
-        this.ss.attach(() => this.draw());
-        this.rs.attach(() => this.draw());
-        this.cs.attach(() => this.draw());
-        this.predicates.attach(() => this.draw());
+        this.equation.A.attach(() => this.notify());
+        this.equation.B.attach(() => this.notify());
+        this.ss.attach(() => this.notify());
+        this.rs.attach(() => this.notify());
+        this.cs.attach(() => this.notify());
+        this.predicates.attach(() => this.notify());
     }
 
     get lssIsValid(): boolean {
@@ -192,52 +193,84 @@ export class ProblemSetup {
         this.callback(this.lss, ...this.predicates.value, this.objective.value);
     }
 
-    draw(): void {
-        if (this.systemIsValid) {
-            this.preview.drawAbsLSS(this.system);
-        } else if (this.lssIsValid) {
-            this.preview.drawLSS(this.lss);
-        } else {
-            this.preview.clear();
-        }
-    }
-
 }
 
 
-class ProblemSetupSystemPreview {
+class SystemPreview {
 
-    +node: HTMLDivElement;
+    +setup: ProblemSetup;
+    +terms: ObjectiveTermsInput;
     +plot: Plot;
-    +layer: FigureLayer;
+    +layers: { [string]: FigureLayer };
+    // Cache the last drawn system for easier proposition preview
+    _system: ?AbstractedLSS;
 
-    constructor(): void {
+    constructor(setup: ProblemSetup, terms: ObjectiveTermsInput): void {
+        this.setup = setup;
+        this.setup.attach(() => this.drawSystem());
+        this.terms = terms;
+        this.terms.attach(() => this.drawObjectiveTerm());
+        this._system = null;
         let fig = new Figure();
         this.plot = new AxesPlot([630, 420], fig, autoProjection(3/2));
-        this.layer = fig.newLayer({ "stroke": "#000", "stroke-width": "1" });
-        this.node = dom.div({}, [this.plot.node]);
+        this.layers = {
+            objective: fig.newLayer({ "stroke": COLORS.selection, "fill": COLORS.selection }),
+            state:     fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill-opacity": "0" }),
+            outer:     fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": COLORS.nonSatisfying })
+        };
+        this.drawSystem();
     }
 
-    drawLSS(lss: LSS): void {
-        this.plot.projection = autoProjection(3/2, ...lss.extent);
-        this.layer.shapes = [
-            { kind: "polytope", vertices: lss.stateSpace.vertices, style: { fill: COLORS.undecided } },
-            ...union.remove(lss.oneStepReachable, [lss.stateSpace]).map(
-                poly => ({ kind: "polytope", vertices: poly.vertices, style: { fill: COLORS.nonSatisfying } })
-            )
-        ];
+    get node(): Element {
+        return this.plot.node;
     }
 
-    drawAbsLSS(abslss: AbstractedLSS): void {
-        this.plot.projection = autoProjection(3/2, ...abslss.extent);
-        this.layer.shapes = iter.map(state => {
-            const fill = state.isNonSatisfying ? COLORS.nonSatisfying : COLORS.undecided;
-            return { kind: "polytope", vertices: state.polytope.vertices, style: { fill: fill } };
-        }, abslss.states.values());
+    drawSystem(): void {
+        this._system = null;
+        const stateShapes = [];
+        const outerShapes = [];
+        // Form results in a complete AbstractedLSS, show state space with
+        // initial decomposition and mark outer states
+        if (this.setup.systemIsValid) {
+            const system = this.setup.system;
+            this.plot.projection = autoProjection(3/2, ...system.extent);
+            for (let state of system.states.values()) {
+                (state.isOuter ? outerShapes : stateShapes).push({
+                    kind: "polytope", vertices: state.polytope.vertices
+                });
+            }
+            this._system = system;
+        // Form resuls in a complete LSS without decomposition, show state
+        // space polytope and mark outer states
+        } else if (this.setup.lssIsValid) {
+            const lss = this.setup.lss;
+            this.plot.projection = autoProjection(3/2, ...lss.extent);
+            stateShapes.push({ kind: "polytope", vertices: lss.stateSpace.vertices });
+            outerShapes.push(...union.remove(lss.oneStepReachable, [lss.stateSpace]).map(
+                poly => ({ kind: "polytope", vertices: poly.vertices })
+            ));
+        // Form is not filled out sufficiently to preview a system
+        } else {
+            this.plot.projection = autoProjection(3/2);
+        }
+        this.layers.state.shapes = stateShapes;
+        this.layers.outer.shapes = outerShapes;
     }
 
-    clear(): void {
-        this.plot.projection = autoProjection(3/2);
+    drawObjectiveTerm(): void {
+        const system = this._system;
+        const term = this.terms.previewTerm;
+        if (system == null || term == null) {
+            this.layers.objective.shapes = [];
+        } else {
+            const shapes = [];
+            for (let state of system.states.values()) {
+                if (!state.isOuter && term.evalWith(_ => state.predicates.has(_.symbol))) {
+                    shapes.push({ kind: "polytope", vertices: state.polytope.vertices });
+                }
+            }
+            this.layers.objective.shapes = shapes;
+        }
     }
 
 }
@@ -435,46 +468,28 @@ class PredicatesInput extends ObservableMixin<null> implements Input<[Halfspace[
 class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
 
     +node: HTMLDivElement;
-    +predicates: Input<[Halfspace[], string[]]>;
     +kind: Input<ObjectiveKind>;
-    +termContainer: HTMLDivElement;
-    +description: HTMLParagraphElement;
-    terms: Input<Proposition>[];
+    +terms: ObjectiveTermsInput;
+    +formula: HTMLSpanElement;
 
     constructor(predicates: Input<[Halfspace[], string[]]>): void {
         super();
-        this.terms = [];
         this.kind = new SelectInput(presets.objectives, "Reachability");
-        const formula = dom.create("code");
-        this.termContainer = dom.div();
-        this.kind.attach(() => {
-            const objKind = this.kind.value;
-            formula.innerHTML = objKind.formula;
-            this.updateTerms(objKind.variables);
-            this.handleChange();
-        });
-        // The quickest way to properly initialize the widget:
-        this.kind.notify();
-
-        // React to changes in predicates by re-evaluating the term inputs,
-        // which reference named predicates
-        this.predicates = predicates;
-        this.predicates.attach(() => {
-            for (let term of this.terms) term.handleChange()
-        });
-
+        this.kind.attach(() => this.handleChange());
+        this.terms = new ObjectiveTermsInput(this.kind, predicates);
+        this.formula = dom.create("span");
         this.node = dom.div({}, [
-            dom.p({}, [this.kind.node, ": ", formula, ", where"]),
-            this.termContainer
+            dom.p({}, [this.kind.node, ": ", this.formula, ", where"]), this.terms.node
         ]);
+        this.handleChange();
     }
 
     get value(): Objective {
-        return new Objective(this.kind.value, this.terms.map(term => term.value));
+        return new Objective(this.kind.value, this.terms.value);
     }
 
     get text(): string {
-        return this.kind.text + "\n" + this.terms.map(t => t.text).join("\n");
+        return this.kind.text + "\n" + this.terms.text;
     }
     
     set text(text: string): void {
@@ -483,42 +498,104 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
             "Invalid ..." // TODO
         );
         this.kind.text = lines[0];
-        for (let i = 0; i < this.terms.length; i++) {
-            this.terms[i].text = i + 1 < lines.length ? lines[i + 1] : "";
+        this.terms.text = lines.slice(1).join("\n");
+    }
+
+    get isValid(): boolean {
+        return this.terms.isValid;
+    }
+
+    handleChange(): void {
+        dom.renderTeX(this.kind.value.formula, this.formula);
+        this.notify();
+    }
+
+}
+
+
+class ObjectiveTermsInput extends ObservableMixin<null> implements Input<Proposition[]> {
+
+    +node: HTMLDivElement;
+    +kind: Input<ObjectiveKind>;
+    +predicates: Input<[Halfspace[], string[]]>;
+    inputs: Input<Proposition>[];
+    previewTerm: ?Proposition;
+
+    constructor(kind: Input<ObjectiveKind>, predicates: Input<[Halfspace[], string[]]>): void {
+        super();
+        this.kind = kind;
+        this.kind.attach(() => this.updateTerms());
+        this.predicates = predicates;
+        this.predicates.attach(() => this.handleChange());
+        this.inputs = [];
+        this.previewTerm = null;
+        this.node = dom.div({ "class": "objective-terms" });
+        this.updateTerms();
+    }
+
+    get value(): Proposition[] {
+        return this.inputs.map(_ => _.value);
+    }
+
+    get text(): string {
+        return this.inputs.map(_ => _.text).join("\n")
+    }
+    
+    set text(text: string): void {
+        const lines = text.split("\n");
+        for (let i = 0; i < this.inputs.length; i++) {
+            this.inputs[i].text = (i < lines.length) ? lines[i] : "";
         }
     }
 
     get isValid(): boolean {
-        for (let term of this.terms) {
-            if (!term.isValid) return false;
-        }
-        return true;
+        return iter.and(this.inputs.map(_ => _.isValid));
     }
 
-    handleChange(): void {
+    setPreviewTerm(which: number): void {
+        this.previewTerm = (which < 0 || !this.inputs[which].isValid) ? null : this.inputs[which].value;
         this.notify();
     }
 
     // Update term input fields to match variable requirements of objective
-    updateTerms(variables: string[]): void {
-        const terms = [];
+    updateTerms(): void {
+        const variables = this.kind.value.variables;
+        const inputs = [];
         const termNodes = [];
         for (let i = 0; i < variables.length; i++) {
+            // TeXify name of proposition
+            const label = dom.renderTeX(variables[i] + " =", dom.span());
             // Preserve contents of previous term input fields
-            const oldText = i < this.terms.length ? this.terms[i].text : "";
-            terms.push(new LineInput(s => this.parseTerm(s), 70, oldText));
-            termNodes.push(dom.create("label", {}, [
-                dom.create("code", {}, [variables[i]]), " = ", terms[i].node
+            const oldText = i < this.inputs.length ? this.inputs[i].text : "";
+            const input = new LineInput(s => this.parseTerm(s), 60, oldText);
+            input.attach(() => this.notify());
+            inputs.push(input);
+            // Preview of propositional formula in state space
+            const preview = dom.span({ "class": "preview" }, ["show"]);
+            preview.addEventListener("mouseover", () => this.setPreviewTerm(i));
+            preview.addEventListener("mouseout", () => this.setPreviewTerm(-1));
+            termNodes.push(dom.create("p", {}, [
+                label, " ", input.node, " ", preview
             ]));
-            terms[i].attach(() => this.handleChange());
         }
-        dom.replaceChildren(this.termContainer, termNodes);
-        this.terms = terms;
+        dom.replaceChildren(this.node, termNodes);
+        this.inputs = inputs;
+        this.setPreviewTerm(-1);
+    }
+
+    handleChange(): void {
+        // React to changes in predicates by re-evaluating the term inputs,
+        // which reference named predicates
+        for (let input of this.inputs) {
+            input.handleChange();
+        }
+        this.notify();
     }
 
     parseTerm(text: string): Proposition {
         const formula = parseProposition(text);
-        const predicateNames = new Set(this.predicates.value[1]);
+        const predicates = this.predicates.value;
+        const predicateNames = new Set(predicates[1]);
         traverseProposition(prop => {
             if (prop instanceof AtomicProposition && !predicateNames.has(prop.symbol)) {
                 throw new Error("Unknown linear predicate '" + prop.symbol + "'");
@@ -528,3 +605,4 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
     }
 
 }
+

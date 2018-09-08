@@ -4,11 +4,12 @@
 
 export const objectives = {
 
+    // TODO: composite variables that are made up of other variables
+
     "Reachability": {
         name: "Reachability",
-        formula: "Fφ",
+        formula: "\\mathsf{F} φ",
         variables: ["φ"],
-        // TODO: composite variables that are made up of other variables
         automaton: "q0>φ>q1,q0>>q0,q1>>q1 | q0 | q0 | q1"
     }
 

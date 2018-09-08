@@ -161,6 +161,16 @@ a:hover {
     display: flex;
 }
 
+/* Problem Setup */
+
+.objective-terms .preview {
+    color: #666;
+    cursor: default;
+}
+.objective-terms .preview:hover {
+    color: #069;
+}
+
 /* Problem Summary*/
 
 .problem-summary > .boxes {

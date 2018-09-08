@@ -175,11 +175,8 @@ export class ProblemSummary {
                 dom.div({}, [dom.h3({}, ["State Space Polytope"]), ss.node]),
                 dom.div({}, [
                     dom.h3({}, ["Labeled Predicates"]),
-                    ...Array.from(system.predicates.entries()).map(([label, halfspace]) =>
-                        dom.p({}, [
-                            label, ": ",
-                            dom.span({}, [asInequation(halfspace)]) // TODO: use KaTeX
-                        ])
+                    ...Array.from(system.predicates.entries()).map(
+                        ([label, halfspace]) => dom.renderTeX(label + ": " + asInequation(halfspace), dom.p())
                     )
                 ])
             ]),

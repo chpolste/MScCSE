@@ -1239,17 +1239,19 @@ class SnapshotManager {
         this.analysis = analysis;
 
         this.forms = {
-            load: dom.create("button", {}, ["load"]),
-            take: dom.create("button", {}, ["new"]),
-            name: dom.create("input", { "type": "text", "placeholder": "Snapshot", "size": "25" })
+            take:   dom.create("button", {}, ["new"]),
+            load:   dom.create("button", {}, ["load"]),
+            rename: dom.create("button", {}, ["rename"]),
+            name:   dom.create("input", { "type": "text", "placeholder": "Snapshot", "size": "25" })
         };
         this.forms.take.addEventListener("click", () => this.newSnapshot());
         this.forms.load.addEventListener("click", () => this.loadSnapshot());
+        this.forms.rename.addEventListener("click", () => this.renameSnapshot());
         this.treeView = dom.div({ "class": "tree" });
         this.node = dom.div({ "class": "snapshot-view"}, [
             dom.p({}, [
                 this.forms.take, " ", this.forms.name,
-                dom.div({ "class": "right" }, [this.forms.load])
+                dom.div({ "class": "right" }, [this.forms.rename, " ", this.forms.load])
             ]),
             this.treeView
         ]);
@@ -1292,6 +1294,16 @@ class SnapshotManager {
         this.handleChange();
     }
 
+    renameSnapshot(): void {
+        const name = this.forms.name.value.trim();
+        const tree = this._selection;
+        if (tree != null && name.length > 0) {
+            tree.element.name = name;
+            this.forms.name.value = "";
+        }
+        this.handleChange();
+    }
+
     _takeSnapshot(name: string): InspectorSnapshot {
         return {
             name: name,
@@ -1330,6 +1342,7 @@ class SnapshotManager {
 
     handleChange(): void {
         this.forms.load.disabled = this._selection == null;
+        this.forms.rename.disabled = this._selection == null;
         dom.replaceChildren(this.treeView, this._renderTree(this._tree));
     }
 

@@ -14,9 +14,9 @@ import type { Input } from "./widgets-input.js";
 import * as linalg from "./linalg.js";
 import * as dom from "./domtools.js";
 import * as refinement from "./refinement.js";
-import { iter, arr, sets, n2s, t2s, ObservableMixin, WorkerCommunicator } from "./tools.js";
+import { iter, arr, sets, n2s, t2s, replaceAll, ObservableMixin, WorkerCommunicator } from "./tools.js";
 import { union } from "./geometry.js";
-import { Objective, stringifyProposition } from "./logic.js";
+import { Objective, stringifyProposition, texifyProposition } from "./logic.js";
 import { AbstractedLSS } from "./system.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Figure, autoProjection, Horizontal1D } from "./figure.js";
@@ -164,7 +164,7 @@ export class ProblemSummary {
 
         let formula = objective.kind.formula;
         for (let [symbol, prop] of objective.propositions) {
-            formula = formula.replace(symbol, stringifyProposition(prop));
+            formula = replaceAll(formula, symbol, "(" + texifyProposition(prop) + ")");
         }
 
         this.node = dom.div({ "class": "problem-summary" }, [
@@ -185,7 +185,7 @@ export class ProblemSummary {
             ]),
             dom.div({}, [
                 dom.h3({}, ["Objective"]),
-                dom.p({}, [objective.kind.name, ": ", dom.create("code", {}, [formula])]) // TODO: use KaTeX
+                dom.p({}, [objective.kind.name, ": ", dom.renderTeX(formula, dom.span())]) // TODO: use KaTeX
             ])
         ]);
     }

@@ -194,7 +194,11 @@ export const sets = {
 };
 
 
-/* Hashing */
+/* String Operations */
+
+export function replaceAll(haystack: string, needle: string, substitute: string): string {
+    return haystack.split(needle).join(substitute);
+}
 
 // Source: http://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
 export function hashString(s: string): number {

@@ -117,11 +117,20 @@ export class Implication {
 
 
 const PROP_OPS = [
-    { op: "->", precedence: 20, associativity:  1, cls: Implication },
-    { op: "|" , precedence: 30, associativity: -1, cls: Disjunction },
-    { op: "&" , precedence: 40, associativity: -1, cls: Conjunction },
-    { op: "!" , precedence: 50, associativity:  0, cls: Negation }
+    { op: "->", precedence: 20, associativity:  1, cls: Implication, tex: "\\rightarrow" },
+    { op: "|" , precedence: 30, associativity: -1, cls: Disjunction, tex: "\\vee" },
+    { op: "&" , precedence: 40, associativity: -1, cls: Conjunction, tex: "\\wedge" },
+    { op: "!" , precedence: 50, associativity:  0, cls: Negation, tex: "\\neg" }
 ];
+
+function getOpOf(prop: Proposition): * {
+    for (let op of PROP_OPS) {
+        if (prop instanceof op.cls) {
+            return op;
+        }
+    }
+    throw new Error(); // TODO
+}
 
 const parsePropositionAST = ASTParser(/[()!&|]|->|(?:[a-z][a-z0-9]*)/, PROP_OPS);
 
@@ -147,13 +156,44 @@ export function stringifyProposition(prop: Proposition): string {
     if (prop instanceof AtomicProposition) {
         return prop.symbol;
     }
-    for (let op of PROP_OPS) {
-        if (prop instanceof op.cls) {
-            const args = prop.args.map(stringifyProposition);
-            return "(" + (args.length == 1 ? op.op + args[0] : args.join(" " + op.op + " ")) + ")";
-        }
+    const op = getOpOf(prop);
+    const args = prop.args.map(stringifyProposition);
+    return "(" + (args.length === 1 ? op.op + args[0] : args.join(" " + op.op + " ")) + ")";
+}
+
+// TeX representation of propositional formula
+export function texifyProposition(prop: Proposition, parentOp?: *, rightArg?: boolean): string {
+    if (prop instanceof AtomicProposition) {
+        return prop.symbol;
     }
-    throw new Error(); // TODO
+    const op = getOpOf(prop);
+    let out = "";
+    let needsParentheses = false;
+    // Unary operator: always use parentheses if argument is more complex than
+    // atomic proposition (easier to read)
+    if (op.associativity === 0) {
+        const arg = prop.args[0]
+        if (arg instanceof AtomicProposition) {
+            out = op.tex + " " + arg.symbol;
+        } else {
+            out = op.tex + " (" + texifyProposition(arg) + ")";
+        }
+    // Binary operator: if parentheses are required depends on the operator
+    // precedence when compared to the parent operator or if both have equal
+    // precedence, on the argument position and associativity of the operator
+    } else {
+        const left = texifyProposition(prop.args[0], op, false);
+        const right = texifyProposition(prop.args[1], op, true);
+        out = left + " " + op.tex + " " + right;
+        needsParentheses = parentOp != null && (
+            parentOp.precedence > op.precedence || (
+                parentOp.precedence === op.precedence && (
+                    (rightArg && op.associativity < 0) || (!rightArg && op.associativity > 0)
+                )
+            )
+        );
+    }
+    return needsParentheses ? "(" + out + ")" : out;
 }
 
 // Call a function for every node of the expression tree

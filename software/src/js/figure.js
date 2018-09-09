@@ -12,14 +12,14 @@ type ShapeExt = { style?: ElementAttributes, events?: ElementEvents };
 export type Shape = ({ kind: "polytope", vertices: Point[] } & ShapeExt)
                   | ({ kind: "arrow", origin: Point, target: Point } & ShapeExt)
                   | ({ kind: "marker", coords: Point, size: number } & ShapeExt)
-                  | ({ kind: "text", coords: Point, text: string } & ShapeExt)
+                  | ({ kind: "label", coords: Point, text: string } & ShapeExt)
                   | ({ kind: "halfspace", normal: Point, offset: number } & ShapeExt)
                   | ({ kind: "vectorField", fun: Point => Point, n?: number[] } & ShapeExt);
 
 export type Primitive = { kind: "polygon", points: Point[] }
                       | { kind: "arrow", origin: Point, target: Point }
                       | { kind: "marker", coords: Point, size: number }
-                      | { kind: "text", coords: Point, text: string };
+                      | { kind: "label", coords: Point, text: string };
 
 
 
@@ -167,15 +167,15 @@ export class Cartesian2D implements Projection {
                 kind: "polygon",
                 points: shape.vertices.map(vertex => this.fwd(vertex))
             });
-        // arrow, text and marker are primitives
+        // arrow, label and marker are primitives
         } else if (shape.kind === "arrow") {
             primitives.push({
                 kind: "arrow",
                 origin: this.fwd(shape.origin),
                 target: this.fwd(shape.target)
             });
-        } else if (shape.kind === "text") {
-            primitives.push({ kind: "text", coords: this.fwd(shape.coords), text: shape.text });
+        } else if (shape.kind === "label") {
+            primitives.push({ kind: "label", coords: this.fwd(shape.coords), text: shape.text });
         } else if (shape.kind === "marker") {
             primitives.push({ kind: "marker", coords: this.fwd(shape.coords), size: shape.size });
         // Halfspaces are transformed into a polygon that covers the visible
@@ -288,11 +288,11 @@ export class Horizontal1D implements Projection {
                 kind: "polygon",
                 points: [[l[0], this.maxY], [l[0], this.minY], [r[0], this.minY], [r[0], this.maxY]]
             });
-        // arrow, text and marker are primitives
+        // arrow, label and marker are primitives
         } else if (shape.kind === "arrow") {
             primitives.push({ kind: "arrow", origin: this.fwd(shape.origin), target: this.fwd(shape.target) });
-        } else if (shape.kind === "text") {
-            primitives.push({ kind: "text", coords: this.fwd(shape.coords), text: shape.text });
+        } else if (shape.kind === "label") {
+            primitives.push({ kind: "label", coords: this.fwd(shape.coords), text: shape.text });
         } else if (shape.kind === "marker") {
             primitives.push({ kind: "marker", coords: this.fwd(shape.coords), size: shape.size });
         } else if (shape.kind === "halfspace") {

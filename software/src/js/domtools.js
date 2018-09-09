@@ -138,6 +138,38 @@ export class Keybindings {
 }
 
 
+/* Label styling */
+
+const SPLIT_LABEL_REGEX = /^([a-zA-Z]+)(\d+)$/;
+const NUM_TSPAN_ATTRS = { "dy": "2", "font-size": "0.8em" };
+export const label = {
+    
+    // Split labels like X12 or p3 into ["X", "12"] or ["p", "13"]
+    split: function (text: string): [string, string] {
+        const match = SPLIT_LABEL_REGEX.exec(text);
+        return (match == null) ? [text, ""] : [match[1], match[2]];
+    },
+
+    toTeX: function (text: string): string {
+        const [name, num] = label.split(text);
+        return (num.length === 0) ? name : name + "_" + num;
+    },
+
+    toHTML: function (text: string): HTMLSpanElement {
+        const [name, num] = label.split(text);
+        return span({}, (num.length === 0) ? [name] : [name, create("sub", {}, [num])]);
+    },
+
+    toSVG: function (text: string): Element {
+        const [name, num] = label.split(text);
+        return createSVG("text", {},
+            (num.length === 0) ? [name] : [name, createSVG("tspan", NUM_TSPAN_ATTRS, [num])]
+        );
+    }
+
+};
+
+
 /* Inline Information display
 
 A (?)-button that reveals an infobox specified elsewhere (identified by id)

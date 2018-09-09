@@ -12,7 +12,8 @@ import type { Input } from "./widgets-input.js";
 
 import * as linalg from "./linalg.js";
 import * as dom from "./domtools.js";
-import { iter, arr, sets, n2s, t2s, replaceAll, ObservableMixin, WorkerCommunicator } from "./tools.js";
+import { iter, arr, sets, n2s, t2s, replaceAll, ObservableMixin,
+         WorkerCommunicator } from "./tools.js";
 import { union } from "./geometry.js";
 import { Objective, stringifyProposition, texifyProposition } from "./logic.js";
 import { AbstractedLSS, partitionMap, controller, refinery } from "./system.js";
@@ -74,10 +75,10 @@ function styledStateLabel(state: State, markSelected?: ?State): HTMLSpanElement 
     } else if (state.isNonSatisfying) {
         attributes["class"] = "nonsatisfying";
     }
-    return dom.span(attributes, [state.label]);
+    return dom.span(attributes, [dom.label.toHTML(state.label)]);
 }
 
-function asInequation(h: Halfspace): string {
+function toInequation(h: Halfspace): string {
     const terms = [];
     for (let i = 0; i < h.dim; i++) {
         if (h.normal[i] === 0) {
@@ -96,7 +97,9 @@ function asInequation(h: Halfspace): string {
 }
 
 function styledPredicateLabel(label: string, system: AbstractedLSS): HTMLSpanElement {
-    return dom.span({ "title": asInequation(system.getPredicate(label)) }, [label]);
+    const node = dom.label.toHTML(label);
+    node.setAttribute("title", toInequation(system.getPredicate(label)));
+    return node;
 }
 
 function matrixToTeX(m: Matrix): string {
@@ -162,7 +165,7 @@ export class ProblemSummary {
 
         let formula = objective.kind.formula;
         for (let [symbol, prop] of objective.propositions) {
-            formula = replaceAll(formula, symbol, "(" + texifyProposition(prop) + ")");
+            formula = replaceAll(formula, symbol, "(" + texifyProposition(prop, dom.label.toTeX) + ")");
         }
 
         this.node = dom.div({ "class": "problem-summary" }, [
@@ -174,13 +177,14 @@ export class ProblemSummary {
                 dom.div({}, [
                     dom.h3({}, ["Labeled Predicates"]),
                     ...Array.from(system.predicates.entries()).map(
-                        ([label, halfspace]) => dom.renderTeX(label + ": " + asInequation(halfspace), dom.p())
+                        ([label, halfspace]) => dom.renderTeX(dom.label.toTeX(label) + ": " + toInequation(halfspace), dom.p())
                     )
                 ])
             ]),
             dom.div({}, [
                 dom.h3({}, ["Objective"]),
-                dom.p({}, [objective.kind.name, ": ", dom.renderTeX(formula, dom.span())]) // TODO: use KaTeX
+                dom.renderTeX(formula, dom.p()),
+                dom.p({}, [objective.kind.name])
             ])
         ]);
     }
@@ -1130,7 +1134,7 @@ class SystemView {
         let labels = [];
         if (this.settings.toggleLabel.value) {
             labels = iter.map(state => ({
-                kind: "text", coords: state.polytope.centroid, text: state.label, style: {dy: "3"}
+                kind: "label", coords: state.polytope.centroid, text: state.label, style: {dy: "3"}
             }), this.system.states.values());
         }
         this.layers.label.shapes = labels;

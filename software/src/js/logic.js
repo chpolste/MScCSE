@@ -27,7 +27,7 @@ export class Objective {
     constructor(kind: ObjectiveKind, terms: Proposition[] ): void {
         this.kind = kind;
         if (terms.length !== kind.variables.length) throw new Error(
-            "" // TODO
+            "Number of terms (" + terms.length + ") does not match number of variables (" + kind.variables.length + ")"
         );
         this.propositions = new Map(arr.zip2(kind.variables, terms));
         this.automaton = OnePairStreettAutomaton.parse(kind.automaton);
@@ -46,6 +46,7 @@ export class AtomicProposition {
     +symbol: string;
 
     constructor(symbol: string): void {
+        // TODO: verify symbols
         this.symbol = symbol;
     }
 
@@ -129,9 +130,14 @@ function getOpOf(prop: Proposition): * {
             return op;
         }
     }
-    throw new Error(); // TODO
+    throw new Error("unknown operator");
 }
 
+// Accepted tokens are:
+// - Parentheses
+// - Operators !, &, |, ->
+// - Atomic proposition labels (start with small letter, then any number of
+//   numbers, letters and underscores)
 const parsePropositionAST = ASTParser(/[()!&|]|->|(?:[a-z][a-z0-9]*)/, PROP_OPS);
 
 function asProposition(node: ASTNode): Proposition {
@@ -143,7 +149,7 @@ function asProposition(node: ASTNode): Proposition {
                 return new op.cls(...node.args.map(asProposition));
             }
         }
-        throw new ParseError(); // TODO
+        throw new ParseError("unknown operator '" + node.op + "'");
     }
 }
 
@@ -162,9 +168,12 @@ export function stringifyProposition(prop: Proposition): string {
 }
 
 // TeX representation of propositional formula
-export function texifyProposition(prop: Proposition, parentOp?: *, rightArg?: boolean): string {
+export function texifyProposition(prop: Proposition, symbolTransform?: (string) => string, parentOp?: *, rightArg?: boolean): string {
+    if (symbolTransform == null) {
+        symbolTransform = _ => _; // Identity
+    }
     if (prop instanceof AtomicProposition) {
-        return prop.symbol;
+        return symbolTransform(prop.symbol);
     }
     const op = getOpOf(prop);
     let out = "";
@@ -176,17 +185,21 @@ export function texifyProposition(prop: Proposition, parentOp?: *, rightArg?: bo
         if (arg instanceof AtomicProposition) {
             out = op.tex + " " + arg.symbol;
         } else {
-            out = op.tex + " (" + texifyProposition(arg) + ")";
+            out = op.tex + " (" + texifyProposition(arg, symbolTransform) + ")";
         }
     // Binary operator: if parentheses are required depends on the operator
     // precedence when compared to the parent operator or if both have equal
     // precedence, on the argument position and associativity of the operator
     } else {
-        const left = texifyProposition(prop.args[0], op, false);
-        const right = texifyProposition(prop.args[1], op, true);
+        const left = texifyProposition(prop.args[0], symbolTransform, op, false);
+        const right = texifyProposition(prop.args[1], symbolTransform, op, true);
         out = left + " " + op.tex + " " + right;
+        // No parentheses for top-level expressions
         needsParentheses = parentOp != null && (
+            // If parent has higher precedence, parentheses are always needed
             parentOp.precedence > op.precedence || (
+                // If parent has same precedence, associativity and position
+                // decide over need for parentheses
                 parentOp.precedence === op.precedence && (
                     (rightArg && op.associativity < 0) || (!rightArg && op.associativity > 0)
                 )

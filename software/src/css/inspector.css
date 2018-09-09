@@ -138,8 +138,10 @@ button {
     display: inline-block;
 }
 
+/* https://stackoverflow.com/questions/1530685 */
 sub {
     font-size: 7pt;
+    vertical-align: bottom;
 }
 
 code {
@@ -368,8 +370,6 @@ span.nonsatisfying {
 }
 .action-view > div {
     display: block;
-    text-indent: -12pt;
-    margin-left: 12pt;
 }
 .action-view > div:hover {
     cursor: pointer;

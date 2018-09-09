@@ -347,11 +347,11 @@ class ShapeGroup {
                     dom.addEventListeners(node, events);
                     children.push(node);
 
-                } else if (primitive.kind === "text") {
+                } else if (primitive.kind === "label") {
                     let xy = this.shapePlot.scaleFwd(primitive.coords);
-                    let node = dom.createSVG("text", {
-                        x: toStr(xy[0]), y: toStr(xy[1])
-                    }, [primitive.text]);
+                    let node = dom.label.toSVG(primitive.text);
+                    node.setAttribute("x", toStr(xy[0]));
+                    node.setAttribute("y", toStr(xy[1]));
                     dom.setAttributes(node, style);
                     dom.addEventListeners(node, events);
                     children.push(node);

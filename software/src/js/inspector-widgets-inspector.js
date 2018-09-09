@@ -4,20 +4,18 @@
 import type { Matrix } from "./linalg.js";
 import type { Observable, WorkerMessage } from "./tools.js";
 import type { ConvexPolytopeUnion, Halfspace } from "./geometry.js";
-import type { LSS, State, StateID, Action, ActionSupport, StrategyGenerator,
+import type { LSS, State, StateID, Action, ActionSupport, Controller, Refinery,
               Trace, JSONAbstractedLSS } from "./system.js";
-import type { Refinery } from "./refinement.js";
 import type { FigureLayer, Shape } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
 
 import * as linalg from "./linalg.js";
 import * as dom from "./domtools.js";
-import * as refinement from "./refinement.js";
 import { iter, arr, sets, n2s, t2s, replaceAll, ObservableMixin, WorkerCommunicator } from "./tools.js";
 import { union } from "./geometry.js";
 import { Objective, stringifyProposition, texifyProposition } from "./logic.js";
-import { AbstractedLSS } from "./system.js";
+import { AbstractedLSS, partitionMap, controller, refinery } from "./system.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Figure, autoProjection, Horizontal1D } from "./figure.js";
 import { InteractivePlot, AxesPlot, ShapePlot } from "./widgets-plot.js";
@@ -324,7 +322,6 @@ class Settings extends ObservableMixin<null> {
     +toggleVectorField: Input<boolean>;
     +highlight: Input<ClickOperatorWrapper>;
     +highlightNode: HTMLDivElement;
-    +strategy: Input<string>;
     
     constructor(wrapper: SystemWrapper, keybindings: dom.Keybindings): void {
         super();
@@ -343,18 +340,18 @@ class Settings extends ObservableMixin<null> {
         }, "None");
 
         this.node = dom.div({ "class": "settings" }, [
-            dom.create("label", {}, [this.toggleKind.node, "analysis ", dom.create("u", {}, ["c"]), "olors"]),
+            dom.create("label", {}, [this.toggleKind.node, "analysis c", dom.create("u", {}, ["o"]), "lors"]),
             dom.create("label", {}, [this.toggleLabel.node, "state ", dom.create("u", {}, ["l"]), "abels"]),
             dom.create("label", {}, [this.toggleVectorField.node, dom.create("u", {}, ["v"]), "ector field"]),
             dom.p({ "class": "highlight" }, [
-                "Highlight ", dom.create("u", {}, ["o"]), "perator:", this.highlight.node
+                dom.create("u", {}, ["H"]), "ighlight operator:", this.highlight.node
             ])
         ]);
 
-        keybindings.bind("c", inputTextRotation(this.toggleKind, ["t", "f"]));
+        keybindings.bind("o", inputTextRotation(this.toggleKind, ["t", "f"]));
         keybindings.bind("l", inputTextRotation(this.toggleLabel, ["t", "f"]));
         keybindings.bind("v", inputTextRotation(this.toggleVectorField, ["t", "f"]));
-        keybindings.bind("o", inputTextRotation(this.highlight, [
+        keybindings.bind("h", inputTextRotation(this.highlight, [
             "None", "Posterior", "Predecessor", "Robust Predecessor", "Attractor", "Robust Attractor"
         ]));
     }
@@ -386,14 +383,14 @@ class Analysis extends ObservableMixin<null> {
         this._results = new Map();
         this.wrapper = wrapper;
 
-        this.button = dom.create("button", {}, ["analys", dom.create("u", {}, ["e"])]);
+        this.button = dom.create("button", {}, [dom.create("u", {}, ["a"]), "nalyse"]);
         this.button.addEventListener("click", () => this.analyse());
         this.info = dom.span();
         this.node = dom.div({ "class": "analysis-control"}, [
             dom.p({}, [this.button, " ", this.info])
         ]);
 
-        keybindings.bind("e", () => this.analyse());
+        keybindings.bind("a", () => this.analyse());
 
         this.initializeAnalysisWorker();
     }
@@ -553,7 +550,7 @@ class Analysis extends ObservableMixin<null> {
 
 
 // Refinement controls. Observes analysis widget to block operations while
-// analysis is carried out. Also depends on analysis for refinement hints.
+// analysis is carried out. Also depends on analysis for refinement hints (TODO).
 class Refinement {
 
     +node: HTMLDivElement;
@@ -575,7 +572,7 @@ class Refinement {
         this.info = dom.span();
         this.buttons = {
             refineAll: dom.create("button", {}, [dom.create("u", {}, ["r"]), "efine all"]),
-            refineOne: dom.create("button", {}, ["refine selection"])
+            refineOne: dom.create("button", {}, ["r", dom.create("u", {}, ["e"]), "fine selection"])
         };
         this.toggles = {
             negativeAttr: new CheckboxInput(true)
@@ -591,6 +588,7 @@ class Refinement {
         this.buttons.refineOne.addEventListener("click", () => this.refineOne());
 
         keybindings.bind("r", () => this.refineAll());
+        keybindings.bind("e", () => this.refineOne());
 
         this.handleChange();
     }
@@ -602,7 +600,7 @@ class Refinement {
     getRefinementSequence(): Refinery[] {
         const steps = [];
         if (this.toggles.negativeAttr.value) {
-            steps.push(new refinement.NegativeAttr(this.system));
+            steps.push(new refinery.NegativeAttr(this.system));
         }
         return steps;
     }
@@ -613,7 +611,7 @@ class Refinement {
 
     refine(states: Iterable<State>): void {
         if (this.analysis.ready) {
-            const refined = this.wrapper.refine(refinement.partitionAll(this.getRefinementSequence(), states));
+            const refined = this.wrapper.refine(partitionMap(this.getRefinementSequence(), states));
             this.infoText = "Refined " + refined.size + (refined.size === 1 ? " state." : " states.");
         } else {
             this.infoText = "Cannot refine while analysis is running.";
@@ -715,7 +713,7 @@ class TraceView extends ObservableMixin<null> {
     +node: HTMLDivElement;
     +wrapper: SystemWrapper;
     +stateView: StateView;
-    +strategy: Input<StrategyGenerator>;
+    +controller: Input<Class<Controller>>;
     +arrowLayer: FigureLayer;
     +interactionLayer: FigureLayer;
     _trace: Trace;
@@ -742,14 +740,12 @@ class TraceView extends ObservableMixin<null> {
         const proj = new Horizontal1D([-1, 0.01], [0, 1]);
         const plot = new ShapePlot([510, 20], fig, proj, false);
 
-        this.strategy = new SelectInput({
-            "random": () => ((system, _) => this.system.lss.controlSpace[0].sample())
-        }, "random");
+        this.controller = new SelectInput(controller, "Random");
         const sampleButton = dom.create("button", {
-            "title": "sample a new trace based on the selected strategy"
-        }, ["sample tr", dom.create("u", {}, ["a"]), "ce"]);
+            "title": "sample a new trace with the selected controller"
+        }, [dom.create("u", {}, ["s"]), "ample trace"]);
         sampleButton.addEventListener("click", () => this.sample());
-        const clearButton = dom.create("button", { "title": "delete the current trace" }, [
+        const clearButton = dom.create("button", { "title": "clear the current trace" }, [
             dom.create("u", {}, ["d"]), "elete"
         ]);
         clearButton.addEventListener("click", () => this.clear());
@@ -758,15 +754,15 @@ class TraceView extends ObservableMixin<null> {
             dom.p({}, [
                 sampleButton, " ", clearButton,
                 dom.div({ "class": "right" }, [
-                    dom.create("u", {}, ["S"]), "trategy ",
-                    this.strategy.node
+                    dom.create("u", {}, ["C"]), "ontroller ",
+                    this.controller.node
                 ])
             ]),
             plot.node
         ]);
 
-        keybindings.bind("a", () => this.sample());
-        keybindings.bind("s", inputTextRotation(this.strategy, ["random"]));
+        keybindings.bind("s", () => this.sample());
+        keybindings.bind("c", inputTextRotation(this.controller, ["Random"]));
         keybindings.bind("d", () => this.clear());
 
         this.drawTraceArrows();
@@ -789,8 +785,8 @@ class TraceView extends ObservableMixin<null> {
         // from the entire state space polytope
         const selection = this.stateView.selection;
         const initPoly = selection == null ? this.system.lss.stateSpace : selection.polytope;
-        const strategy = this.strategy.value();
-        this._trace = this.system.sampleTrace(initPoly.sample(), strategy, TRACE_LENGTH);
+        const controller = new this.controller.value(this.system);
+        this._trace = this.system.sampleTrace(initPoly.sample(), controller, TRACE_LENGTH);
         // Reversing results in nicer plots (tips aren't covered by next line)
         this._trace.reverse();
         this.drawTraceSelectors();

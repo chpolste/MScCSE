@@ -45,7 +45,7 @@ DIST_HTML = $(DIST)
 JS_MODULES = ./modules
 JS_MODULES_FILES = $(JS_MODULES)/geometry.js $(JS_MODULES)/linalg.js $(JS_MODULES)/tools.js \
                    $(JS_MODULES)/parser.js $(JS_MODULES)/presets.js $(JS_MODULES)/logic.js \
-                   $(JS_MODULES)/game.js $(JS_MODULES)/refinement.js
+                   $(JS_MODULES)/game.js
 
 
 # General rules
@@ -136,8 +136,7 @@ $(SRC_JS)/inspector-widgets-setup.js: $(SRC_JS)/presets.js $(SRC_JS)/domtools.js
 
 $(SRC_JS)/inspector-widgets-inspector.js: $(SRC_JS)/linalg.js $(SRC_JS)/domtools.js \
 		$(SRC_JS)/tools.js $(SRC_JS)/geometry.js $(SRC_JS)/logic.js $(SRC_JS)/figure.js \
-		$(SRC_JS)/widgets-plot.js $(SRC_JS)/widgets-input.js $(SRC_JS)/refinement.js \
-		$(SRC_JS)/game.js $(SRC_JS)/system.js
+		$(SRC_JS)/widgets-plot.js $(SRC_JS)/widgets-input.js $(SRC_JS)/game.js $(SRC_JS)/system.js
 	@touch $(SRC_JS)/inspector-widgets-inspector.js
 
 $(SRC_JS)/inspector-worker-analysis.js: $(SRC_JS)/tools.js $(SRC_JS)/logic.js $(SRC_JS)/game.js
@@ -151,9 +150,6 @@ $(SRC_JS)/logic.js: $(SRC_JS)/parser.js $(SRC_JS)/tools.js
 
 $(SRC_JS)/system.js: $(SRC_JS)/tools.js $(SRC_JS)/linalg.js $(SRC_JS)/geometry.js
 	@touch $(SRC_JS)/system.js
-
-$(SRC_JS)/refinement.js: $(SRC_JS)/tools.js $(SRC_JS)/geometry.js
-	@touch $(SRC_JS)/refinement.js
 
 $(SRC_JS)/widgets-input.js: $(SRC_JS)/domtools.js $(SRC_JS)/tools.js
 	@touch $(SRC_JS)/widgets-input.js

@@ -61,7 +61,7 @@ function preciseOperatorPartition<T>(items: Iterable<T>, operator: (T) => Convex
 
 /* Linear Stochastic System */
 
-type JSONLSS = {
+export type JSONLSS = {
     A: number[][], // matrix
     B: number[][], // matrix
     stateSpace: JSONConvexPolytope,
@@ -242,13 +242,9 @@ export type ActionID = number;
 export type SupportID = number;
 export type PredicateID = string;
 
-// Strategies
-export type StrategyGenerator = () => Strategy;
-type Strategy = (AbstractedLSS, Vector) => Vector; // strategies must maintain their own memory
-
 // Traces
 export type Trace = TraceStep[];
-type TraceStep = {
+export type TraceStep = {
     origin: Vector;
     target: Vector;
     control: Vector;
@@ -405,7 +401,7 @@ export class AbstractedLSS implements GameGraph {
 
     // Refine states according to the given partitionings. Returns those states
     // which were refined.
-    refine(partitions: Map<State, ConvexPolytopeUnion>): Set<State> {
+    refine(partitions: PartitionMap): Set<State> {
         const refined = new Set();
         for (let [state, partition] of partitions.entries()) {
             // Validate that partition covers state polytope
@@ -435,7 +431,7 @@ export class AbstractedLSS implements GameGraph {
     }
 
     // Trace sampling
-    sampleTrace(init: Vector, strategy: Strategy, steps: number): Trace {
+    sampleTrace(init: Vector, controller: Controller, steps: number): Trace {
         // Trace starts from given location
         let x = init;
         // Take requested number of steps or end trace when it has left the
@@ -443,7 +439,7 @@ export class AbstractedLSS implements GameGraph {
         const trace = [];
         while (trace.length < steps && this.lss.stateSpace.contains(x)) {
             // Obtain the control input from the strategy
-            const u = strategy(this, x);
+            const u = controller.input(x);
             // Sample the random space polytope
             const w = this.lss.randomSpace.sample();
             // Evaluate the evolution equation to obtain the next point
@@ -674,6 +670,20 @@ export class State {
         return this.system.actionPolytope(this, y);
     }
 
+    // Partition the state using the given refinement steps.
+    partition(steps: Refinery[]): ConvexPolytopeUnion {
+        let parts = { done: [], rest: [this.polytope] };
+        for (let step of steps) {
+            const newParts = step.partition(this, parts.rest);
+            parts.done.push(...newParts.done);
+            parts.rest = newParts.rest;
+            if (union.isEmpty(parts.rest)) {
+                break;
+            }
+        }
+        return [].concat(parts.done, parts.rest);
+    }
+
     // Clear action cache if a state in the given set is reachable from this
     // state.
     resetActions(targets?: Set<State>): void {
@@ -794,4 +804,84 @@ export class ActionSupport {
     }
 
 }
+
+
+/* Controllers */
+
+// Controller instances keep their own memory
+export interface Controller {
+    constructor(AbstractedLSS): void;
+    input(Vector): Vector;
+}
+
+// Return a random control input at every step
+class RandomController implements Controller {
+    
+    +controlSpace: ConvexPolytopeUnion;
+    
+    constructor(system: AbstractedLSS): void {
+        this.controlSpace = system.lss.controlSpace;
+    }
+
+    input(x: Vector): Vector {
+        return this.controlSpace[0].sample();
+    }
+
+}
+
+// Collection of controllers for module export
+export const controller = {
+    Random: RandomController
+};
+
+
+/* Refinement */
+
+// Associate a partition to states (input to AbstractedLSS.refine)
+export type PartitionMap = Map<State, ConvexPolytopeUnion>;
+
+// Create a PartitionMap for the states when applying the refinement steps
+export function partitionMap(steps: Refinery[], states: Iterable<State>): PartitionMap {
+    return new Map(iter.map(state => [state, state.partition(steps)], states));
+}
+
+
+// A Refinery partitions a (subset of a) state
+export interface Refinery {
+    constructor(AbstractedLSS): void;
+    partition(State, ConvexPolytopeUnion): RefinementPartition;
+}
+
+// After every refinement step, the partition is divided into "done" and "rest"
+// parts. The former will not be refined further by subsequent refinement
+// steps, while the latter might be.
+export type RefinementPartition = { done: ConvexPolytopeUnion, rest: ConvexPolytopeUnion };
+
+
+/* Refinement procedures */
+
+// Remove Attractor of non-satisfying states
+class NegativeAttrRefinery implements Refinery {
+
+    +nonSatisfyingStates: State[];
+    +controlSpace: ConvexPolytopeUnion;
+
+    constructor(system: AbstractedLSS): void {
+        this.nonSatisfyingStates = Array.from(system.states.values()).filter(s => s.isNonSatisfying);
+        this.controlSpace = system.lss.controlSpace;
+    }
+
+    partition(state: State, rest: ConvexPolytopeUnion): RefinementPartition {
+        const attr = state.attr(this.controlSpace, this.nonSatisfyingStates);
+        const done = union.simplify(union.intersect(attr, rest));
+        const newRest = union.simplify(union.remove(rest, done));
+        return { done: done, rest: newRest };
+    }
+
+}
+
+// Collection of refineries for module export
+export const refinery = {
+    NegativeAttr: NegativeAttrRefinery
+};
 

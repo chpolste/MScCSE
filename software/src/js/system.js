@@ -345,7 +345,7 @@ export class AbstractedLSS implements GameGraph {
     getState(label: StateID): State {
         const state = this.states.get(label);
         if (state == null) throw new Error(
-            "..." // TODO
+            "A state with label '" + label + "' does not exist"
         );
         return state;
     }
@@ -354,7 +354,7 @@ export class AbstractedLSS implements GameGraph {
     getPredicate(label: PredicateID): Halfspace {
         const pred = this.predicates.get(label);
         if (pred == null) throw new Error(
-            "..." // TODO
+            "A predicate with label '" + label + "' does not exist"
         );
         return pred;
     }
@@ -377,19 +377,19 @@ export class AbstractedLSS implements GameGraph {
             let wasUpdated = false;
             if (satisfying.has(label)) {
                 if (state.isNonSatisfying) throw new Error(
-                    "nonsat state now sat, which should not happen..." // TODO
+                    "Non-satisfying state '" + state.label + "' is updated to be satisfying, which should never happen."
                 );
                 wasUpdated = !state.isSatisfying;
                 state.kind = SATISFYING;
             } else if (nonSatisfying.has(label)) {
                 if (state.isSatisfying) throw new Error(
-                    "sat state now nonsat, which should not happen..." // TODO
+                    "Satisfying state '" + state.label + "' is updated to be non-satisfying, which should never happen."
                 );
                 wasUpdated = state.isUndecided;
                 state.kind = state.isOuter ? OUTER : NONSATISFYING;
             } else {
                 if (!state.isUndecided) throw new Error(
-                    "sat/nonsat state has become undecided, which should not happen..." // TODO
+                    "Decided state '" + state.label + "' is updated to be undecided, which should never happen."
                 );
             }
             if (wasUpdated) {

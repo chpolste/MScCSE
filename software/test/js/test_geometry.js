@@ -8,10 +8,10 @@ let linalg = require("../../src/js/linalg.js");
 
 describe("geometry.HalfspaceIneqation.parse", function () {
 
-    let parse = geometry.HalfspaceInequation.parse;
+    let parse = geometry.HalfspaceInequality.parse;
 
     it("accepts 2D halfspace in various formats", function () {
-        let hs = geometry.HalfspaceInequation.normalized([1, 2], 1);
+        let hs = geometry.HalfspaceInequality.normalized([1, 2], 1);
         assert(hs.isSameAs(parse("x + 2y < 1", "xy")));
         assert(hs.isSameAs(parse("x + 2y <= 1", "xy")));
         assert(hs.isSameAs(parse("1 > x + 2y", "xy")));
@@ -50,12 +50,12 @@ describe("geometry.HalfspaceIneqation.parse", function () {
 });
 
 
-describe("geometry.HalfspaceInequation in 1 dimension", function () {
+describe("geometry.HalfspaceInequality in 1 dimension", function () {
     
-    let hs = new geometry.HalfspaceInequation([1], 0.5);
+    let hs = new geometry.HalfspaceInequality([1], 0.5);
 
     it("normalized", function () {
-        let hsn = geometry.HalfspaceInequation.normalized([2], 1);
+        let hsn = geometry.HalfspaceInequality.normalized([2], 1);
         assert.equal(hsn.dim, hs.dim);
         assert.equal(hsn.offset, hs.offset);
         assert.deepEqual(hsn.normal, hs.normal);
@@ -63,18 +63,18 @@ describe("geometry.HalfspaceInequation in 1 dimension", function () {
     });
 
     it("normalized breaks offset === 0 ties in favor of trivial", function () {
-        let h = geometry.HalfspaceInequation.normalized([0], 0);
+        let h = geometry.HalfspaceInequality.normalized([0], 0);
         assert(h.isTrivial);
     });
 
     it("isInfeasible", function () {
-        let h = geometry.HalfspaceInequation.normalized([0], -3);
+        let h = geometry.HalfspaceInequality.normalized([0], -3);
         assert(h.isInfeasible);
         assert(!hs.isInfeasible);
     });
 
     it("isTrivial", function () {
-        let h = geometry.HalfspaceInequation.normalized([0], 3);
+        let h = geometry.HalfspaceInequality.normalized([0], 3);
         assert(h.isTrivial);
         assert(!hs.isTrivial);
     });
@@ -154,15 +154,15 @@ describe("geometry.Interval", function () {
 
     it("noredund", function () {
         assert(poly.isSameAs(geometry.Interval.noredund(poly.halfspaces)));
-        let halfspaces = [new geometry.HalfspaceInequation([-1], 1),
-                          new geometry.HalfspaceInequation([-1], 1 + geometry.TOL/2),
-                          new geometry.HalfspaceInequation([-1], 4),
-                          new geometry.HalfspaceInequation([1], 1)];
+        let halfspaces = [new geometry.HalfspaceInequality([-1], 1),
+                          new geometry.HalfspaceInequality([-1], 1 + geometry.TOL/2),
+                          new geometry.HalfspaceInequality([-1], 4),
+                          new geometry.HalfspaceInequality([1], 1)];
         assert(poly.isSameAs(geometry.Interval.noredund(halfspaces)));
     });
 
     it("noredund yields empty for unbounded", function () {
-        let halfspaces = [new geometry.HalfspaceInequation([-1], 1)];
+        let halfspaces = [new geometry.HalfspaceInequality([-1], 1)];
         assert(geometry.Interval.noredund(halfspaces).isEmpty);
     });
 
@@ -285,7 +285,7 @@ describe("geometry.Interval", function () {
     });
 
     it("intersect with halfspace", function () {
-        let halfspace = new geometry.HalfspaceInequation([-1], 0.5);
+        let halfspace = new geometry.HalfspaceInequality([-1], 0.5);
         let poly2 = geometry.Interval.hull([[-0.5], [1]]);
         assert(poly.intersect(halfspace).isSameAs(poly2));
         let poly3 = geometry.Interval.hull([[-0.5], [-1]]);
@@ -328,7 +328,7 @@ describe("geometry.Interval", function () {
     it("split once", function () {
         let poly2 = geometry.Interval.hull([[0], [1]]);
         let poly3 = geometry.Interval.hull([[0], [-1]]);
-        let split = poly.split(new geometry.HalfspaceInequation([1], 0));
+        let split = poly.split(new geometry.HalfspaceInequality([1], 0));
         assert(split.length == 2);
         assert(split[0].isSameAs(poly2) || split[1].isSameAs(poly2));
         assert(split[0].isSameAs(poly3) || split[1].isSameAs(poly3));
@@ -336,8 +336,8 @@ describe("geometry.Interval", function () {
     });
 
     it("split twice", function () {
-        assert.equal(poly.split(new geometry.HalfspaceInequation([1], 0.4),
-                                new geometry.HalfspaceInequation([-1], 0.5)).length, 3);
+        assert.equal(poly.split(new geometry.HalfspaceInequality([1], 0.4),
+                                new geometry.HalfspaceInequality([-1], 0.5)).length, 3);
     });
 
 });
@@ -587,7 +587,7 @@ describe("geometry.Polygon with square", function () {
     it("split with vertical", function () {
         let poly2 = geometry.Polygon.hull([[0, 0], [0.5, 0], [0.5, 1], [0, 1]]);
         let poly3 = geometry.Polygon.hull([[0.5, 0], [1, 0], [1, 1], [0.5, 1]]);
-        let split = poly.split(new geometry.HalfspaceInequation([1, 0], 0.5));
+        let split = poly.split(new geometry.HalfspaceInequality([1, 0], 0.5));
         assert(split.length == 2);
         assert(split[0].isSameAs(poly2) || split[1].isSameAs(poly2));
         assert(split[0].isSameAs(poly3) || split[1].isSameAs(poly3));
@@ -595,14 +595,14 @@ describe("geometry.Polygon with square", function () {
     });
 
     it("split with two (almost) verticals", function () {
-        let split = poly.split(new geometry.HalfspaceInequation([1, -0.1], 0.5),
-                               new geometry.HalfspaceInequation([1, 0.1], 0.9));
+        let split = poly.split(new geometry.HalfspaceInequality([1, -0.1], 0.5),
+                               new geometry.HalfspaceInequality([1, 0.1], 0.9));
         assert(split.length == 3);
     });
 
     it("split with vertical and horizontal", function () {
-        assert.equal(poly.split(new geometry.HalfspaceInequation([0.1, 1], 0.4),
-                                new geometry.HalfspaceInequation([1, 0], 0.5)).length, 4);
+        assert.equal(poly.split(new geometry.HalfspaceInequality([0.1, 1], 0.4),
+                                new geometry.HalfspaceInequality([1, 0], 0.5)).length, 4);
     });
 
 });

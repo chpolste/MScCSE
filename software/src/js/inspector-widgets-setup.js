@@ -10,7 +10,7 @@ import type { Input } from "./widgets-input.js";
 import * as presets from "./presets.js";
 import * as dom from "./domtools.js";
 import { iter, ObservableMixin } from "./tools.js";
-import { HalfspaceInequation, polytopeType, union } from "./geometry.js";
+import { HalfspaceInequality, polytopeType, union } from "./geometry.js";
 import { Objective, AtomicProposition, parseProposition, traverseProposition } from "./logic.js";
 import { Figure, autoProjection } from "./figure.js";
 import { AxesPlot } from "./widgets-plot.js";
@@ -351,7 +351,7 @@ class PolytopeInput extends ObservableMixin<null> implements Input<ConvexPolytop
         });
         this.variables = VAR_NAMES.substring(0, this.dim.value)
         this.predicates = new MultiLineInput(
-            line => HalfspaceInequation.parse(line, this.variables),
+            line => HalfspaceInequality.parse(line, this.variables),
             [5, 25]
         );
         this.predicates.attach(() => this.handleChange());
@@ -454,10 +454,10 @@ class PredicatesInput extends ObservableMixin<null> implements Input<[Halfspace[
     parsePredicate(line: string): [Halfspace, string] {
         const match = line.match(/(?:\s*([a-z][a-z0-9]*)\s*:\s*)?(.*)/);
         if (match == null || match[2] == null) throw new Error(
-            "..." // TODO
+            "Invalid predicate specification '" + line.trim() + "'"
         );
         const name = match[1] == null ? "" : match[1];
-        const pred = HalfspaceInequation.parse(match[2], this.variables);
+        const pred = HalfspaceInequality.parse(match[2], this.variables);
         return [pred, name];
     }
 
@@ -495,7 +495,7 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
     set text(text: string): void {
         const lines = text.split("\n");
         if (lines.length < 1) throw new Error(
-            "Invalid ..." // TODO
+            "Invalid specification, requires at least one line stating the objective"
         );
         this.kind.text = lines[0];
         this.terms.text = lines.slice(1).join("\n");

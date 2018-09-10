@@ -73,11 +73,11 @@ communicator.postMessage("alphabetMap", null, function (msg) {
 // given set are TRUE.
 function predicateTest(transitionLabel: TransitionLabel, predicates: Set<PredicateID>): boolean {
     if (alphabetMap == null) throw new Error(
-        "..." // TODO
+        "Mapping of transition labels to propositional formulas not initialized"
     );
     const formula = alphabetMap.get(transitionLabel);
     if (formula == null) throw new Error(
-        "..." // TODO
+        "No propositional formula for transition '" + transitionLabel + "' specified"
     );
     return formula.evalWith(p => predicates.has(p.symbol));
 }

@@ -45,17 +45,17 @@ describe("geometry internals", function () {
             assert(2 * Math.PI - a12 - a21 < geom.TOL || (a12 === 0 && a21 === 0));
         }
         // Problem case: very close angles
-        const h1 = new geom.HalfspaceInequation([-1, 0], -1);
-        const h2 = new geom.HalfspaceInequation([-1, 2.1981294421572875e-15], -1);
+        const h1 = new geom.HalfspaceInequality([-1, 0], -1);
+        const h2 = new geom.HalfspaceInequality([-1, 2.1981294421572875e-15], -1);
         assert(angleCCW(h2.normal, h1.normal) < geom.TOL);
         assert(2 * Math.PI - angleCCW(h1.normal, h2.normal) < geom.TOL);
     });
 
     it("halfplaneIntersection", function () {
-        let h1 = geom.HalfspaceInequation.normalized([1, 0], 0);
-        let h2 = geom.HalfspaceInequation.normalized([0, 1], 0);
-        let h3 = geom.HalfspaceInequation.normalized([1, 0], 1);
-        let h4 = geom.HalfspaceInequation.normalized([0, 1], 1);
+        let h1 = geom.HalfspaceInequality.normalized([1, 0], 0);
+        let h2 = geom.HalfspaceInequality.normalized([0, 1], 0);
+        let h3 = geom.HalfspaceInequality.normalized([1, 0], 1);
+        let h4 = geom.HalfspaceInequality.normalized([0, 1], 1);
         let halfplaneIntersection = geom.__get__("halfplaneIntersection");
         assert.deepEqual(halfplaneIntersection(h1, h2), [0, 0]);
         assert.deepEqual(halfplaneIntersection(h2, h1), [0, 0]);

@@ -456,6 +456,9 @@ export class SelectableNodes<T> extends ObservableMixin<boolean> {
 
     // Create a single node and attach all necessary event handlers
     createNode(item: T): Element {
+        if (this.nodeMap.has(item)) throw new Error(
+            "Duplicate item in nodeMap of SelectableNodes"
+        );
         const node = this.itemToNode(item);
         node.className = "item";
         node.addEventListener("click", () => this.onClick(item));

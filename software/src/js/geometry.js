@@ -95,7 +95,7 @@ function halfplaneIntersection(g: Halfspace, h: Halfspace): ?Vector {
 
 /* Parser helpers
 
-HalfspaceInequation contains a parser of textual inequation representation,
+HalfspaceInequality contains a parser of textual inequality representation,
 which requires some helpers.
 */
 
@@ -110,7 +110,7 @@ function hsieSplit(text: string): [ASTNode, string, ASTNode] {
     // Capture group in splitting regex preserves comparison operator
     const parts = text.split(/\s*([<>]=?)\s*/);
     if (parts.length != 3) throw new ParseError(
-        "not a valid inequation (requires exactly one of <=, <, >, >=)"
+        "not a valid inequality (requires exactly one of <=, <, >, >=)"
     );
     // No distinction between < and <= and > and >=
     return [hsieParse(parts[0]), parts[1][0], hsieParse(parts[2])];
@@ -165,17 +165,17 @@ export interface Halfspace extends HalfspaceContainer {
 
 export type JSONHalfspace = { normal: number[], offset: number };
 
-// A halfspace represented by the inequation: normal · x <= offset. Due to the
+// A halfspace represented by the inequality: normal · x <= offset. Due to the
 // limitations of floating point arithmetic and using TOL for comparisons, no
 // distinction between < and <= is made.
-export class HalfspaceInequation implements Halfspace {
+export class HalfspaceInequality implements Halfspace {
 
     +dim: number;
     +normal: Vector;
     +offset: number;
 
     // No further processing of input arguments. Use static methods to
-    // construct a HalfspaceInequation from a textual or non-normalized
+    // construct a HalfspaceInequality from a textual or non-normalized
     // representation.
     constructor(normal: Vector, offset: number): void {
         this.normal = normal;
@@ -183,11 +183,11 @@ export class HalfspaceInequation implements Halfspace {
         this.dim = normal.length;
     }
 
-    static normalized(normal: Vector, offset: number): HalfspaceInequation {
+    static normalized(normal: Vector, offset: number): HalfspaceInequality {
         let norm = linalg.norm2(normal);
         if (norm < TOL) {
-            // Trivial/Infeasible inequations. Break ties (offset === 0) by
-            // assuming inequation is always fulfilled (in the spirit of <=).
+            // Trivial/Infeasible inequalities. Break ties (offset === 0) by
+            // assuming inequality is always fulfilled (in the spirit of <=).
             // These special cases must be considered to enable changes of
             // dimensionality with applyRight. E.g. if [[1, 2]] is applied from
             // the right to the normal vector parallel to [[2], [-1]], the
@@ -196,11 +196,11 @@ export class HalfspaceInequation implements Halfspace {
             offset = offset === 0 ? Infinity : Math.sign(offset) * Infinity
             norm = 1;
         }
-        return new HalfspaceInequation(normal.map(x => x / norm), offset / norm);
+        return new HalfspaceInequality(normal.map(x => x / norm), offset / norm);
     }
 
     // Parse expressions such as "x + 4y < 3".
-    static parse(text: string, variables: string): HalfspaceInequation {
+    static parse(text: string, variables: string): HalfspaceInequality {
         const [lhs, comp, rhs] = hsieSplit(text);
         const terms = hsieTerms(lhs, comp === ">").concat(hsieTerms(rhs, comp === "<"));
         let offset = 0;
@@ -215,7 +215,7 @@ export class HalfspaceInequation implements Halfspace {
                 normal[idx] += term.coefficient;
             }
         }
-        return HalfspaceInequation.normalized(normal, offset);
+        return HalfspaceInequality.normalized(normal, offset);
     }
 
     get isInfeasible(): boolean {
@@ -231,8 +231,8 @@ export class HalfspaceInequation implements Halfspace {
         return [this];
     }
 
-    flip(): HalfspaceInequation {
-        return new HalfspaceInequation(this.normal.map(x => -x), -this.offset);
+    flip(): HalfspaceInequality {
+        return new HalfspaceInequality(this.normal.map(x => -x), -this.offset);
     }
 
     contains(point: Vector): boolean {
@@ -246,14 +246,14 @@ export class HalfspaceInequation implements Halfspace {
 
     // Move Halfspace by the given vector. Project vector onto normal than
     // modify offset by the projection's length.
-    translate(v: Vector): HalfspaceInequation {
-        return HalfspaceInequation.normalized(this.normal, this.offset + linalg.dot(this.normal, v));
+    translate(v: Vector): HalfspaceInequality {
+        return HalfspaceInequality.normalized(this.normal, this.offset + linalg.dot(this.normal, v));
     }
 
     // Apply a matrix from the right to the normal vector. This may change the
     // dimensionality of the halfspace.
-    applyRight(m: Matrix): HalfspaceInequation {
-        return HalfspaceInequation.normalized(linalg.applyRight(m, this.normal), this.offset);
+    applyRight(m: Matrix): HalfspaceInequality {
+        return HalfspaceInequality.normalized(linalg.applyRight(m, this.normal), this.offset);
     }
 
     // JSON-compatible serialization and deserialization
@@ -264,7 +264,7 @@ export class HalfspaceInequation implements Halfspace {
 }
 
 export function deserializeHalfspace(json: JSONHalfspace): Halfspace {
-    return new HalfspaceInequation(json.normal, json.offset);
+    return new HalfspaceInequality(json.normal, json.offset);
 }
 
 
@@ -700,8 +700,8 @@ export class Interval extends AbstractConvexPolytope implements ConvexPolytope {
         }
         const [left, right] = this._vertices;
         this._halfspaces = [
-            new HalfspaceInequation([-1], -left[0]),
-            new HalfspaceInequation([1], right[0])
+            new HalfspaceInequality([-1], -left[0]),
+            new HalfspaceInequality([1], right[0])
         ];
     }
 
@@ -929,7 +929,7 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
             // Turn each edge into a halfspace. Use cyc2map to obtain
             // halfspaces in proper canonical order.
             this._halfspaces = arr.cyc2map(function (v, w) {
-                return HalfspaceInequation.normalized([w[1] - v[1], v[0] - w[0]], v[0]*w[1] - w[0]*v[1]);
+                return HalfspaceInequality.normalized([w[1] - v[1], v[0] - w[0]], v[0]*w[1] - w[0]*v[1]);
             }, this._vertices);
         }
     }

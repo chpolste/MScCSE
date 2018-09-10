@@ -78,7 +78,7 @@ function styledStateLabel(state: State, markSelected?: ?State): HTMLSpanElement 
     return dom.span(attributes, [dom.label.toHTML(state.label)]);
 }
 
-function toInequation(h: Halfspace): string {
+function ineq2s(h: Halfspace): string {
     const terms = [];
     for (let i = 0; i < h.dim; i++) {
         if (h.normal[i] === 0) {
@@ -98,7 +98,7 @@ function toInequation(h: Halfspace): string {
 
 function styledPredicateLabel(label: string, system: AbstractedLSS): HTMLSpanElement {
     const node = dom.label.toHTML(label);
-    node.setAttribute("title", toInequation(system.getPredicate(label)));
+    node.setAttribute("title", ineq2s(system.getPredicate(label)));
     return node;
 }
 
@@ -177,7 +177,7 @@ export class ProblemSummary {
                 dom.div({}, [
                     dom.h3({}, ["Labeled Predicates"]),
                     ...Array.from(system.predicates.entries()).map(
-                        ([label, halfspace]) => dom.renderTeX(dom.label.toTeX(label) + ": " + toInequation(halfspace), dom.p())
+                        ([label, halfspace]) => dom.renderTeX(dom.label.toTeX(label) + ": " + ineq2s(halfspace), dom.p())
                     )
                 ])
             ]),
@@ -495,7 +495,7 @@ class Analysis extends ObservableMixin<null> {
                 if (msg.kind !== "error" && results instanceof Map) {
                     this.processAnalysisResults(results, elapsed);
                 } else {
-                    this.infoText = "analysis error"; // TODO
+                    this.infoText = "analysis error '" + String(msg.data) + "'";
                 }
                 this.ready = true;
             });
@@ -503,7 +503,9 @@ class Analysis extends ObservableMixin<null> {
         } else {
             const predicateTest = (label, predicates) => {
                 const formula = this.objective.propositions.get(label);
-                if (formula == null) throw new Error(); // TODO
+                if (formula == null) throw new Error(
+                    "No propositional formula assigned to transition '" + label + "'"
+                );
                 return formula.evalWith(p => predicates.has(p.symbol));
             };
             const game = TwoPlayerProbabilisticGame.fromProduct(

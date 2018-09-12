@@ -1060,7 +1060,7 @@ class SystemView {
             label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" }),
             interaction:    fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" })
         };
-        this.plot = new InteractivePlot([630, 420], fig, autoProjection(6/4));
+        this.plot = new InteractivePlot([630, 420], fig, autoProjection(6/4, ...this.system.extent));
 
         this.drawSystem();
         this.drawHighlight();
@@ -1080,9 +1080,6 @@ class SystemView {
     }
 
     drawSystem(): void {
-        const proj = autoProjection(6/4, ...this.system.extent)
-        this.plot.projection = proj;
-        this.plot.referenceProjection = proj;
         this.layers.interaction.shapes = iter.map(state => ({
             kind: "polytope", vertices: state.polytope.vertices,
             events: {

@@ -9,28 +9,39 @@ interface MessageHost {
 
 type Message = { kind: string, data: mixed, id: string };
 
-type RequestHandler = (mixed) => mixed;
+type RequestHandler = (any) => any;
 
 
 // Two-way promise-based communication using web workers
 export class Communicator {
 
-    +host: MessageHost;
     +_callbacks: Map<string, (Message) => void>;
     +_handlers: Map<string, RequestHandler>;
     +_idPrefix: string;
     _idCounter: number;
+    _host: ?MessageHost;
 
-    constructor(host: MessageHost, idPrefix: string): void {
+    constructor(idPrefix: string): void {
         this._idPrefix = idPrefix;
         this._idCounter = 0;
         this._callbacks = new Map();
         this._handlers = new Map();
-        this.host = host;
-        this.host.onmessage = (e) => this._receive(e.data);
+        this._host = null;
     }
 
-    request(kind: string, data?: mixed): Promise<mixed> {
+    get host(): MessageHost {
+        if (this._host == null) throw new Error(
+            "No host attached"
+        );
+        return this._host;
+    }
+
+    set host(host: MessageHost): void {
+        this._host = host;
+        this._host.onmessage = (e) => this._receive(e.data);
+    }
+
+    request(kind: string, data?: any): Promise<any> {
         const message = {
             kind: kind,
             data: data,

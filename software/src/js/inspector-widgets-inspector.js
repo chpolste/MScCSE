@@ -430,7 +430,7 @@ class Analysis extends ObservableMixin<null> {
         try {
             const worker = new Worker("./js/inspector-worker-analysis.js");
             // Associcate a communicator for message exchange
-            const communicator = new Communicator(worker, "1B");
+            const communicator = new Communicator("1B");
             // Worker will request objective automaton
             communicator.onRequest("automaton", (msg) => {
                 return this.objective.automaton.stringify();
@@ -451,6 +451,7 @@ class Analysis extends ObservableMixin<null> {
                 this.infoText = "Web Worker ready.";
                 this.ready = true;
             });
+            communicator.host = worker;
             // If worker creation fails, switch to local game analysis.
             //worker.onerror = () => this.initializeAnalysisFallback();
         } catch (e) {

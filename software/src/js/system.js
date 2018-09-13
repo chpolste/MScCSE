@@ -4,7 +4,7 @@
 import type { Matrix, Vector } from "./linalg.js";
 import type { ConvexPolytope, ConvexPolytopeUnion, Halfspace,
               JSONConvexPolytope, JSONConvexPolytopeUnion, JSONHalfspace } from "./geometry.js";
-import type { GameGraph } from "./game.js";
+import type { GameGraph, JSONGameGraph } from "./game.js";
 
 import { iter, arr, sets, ValueError } from "./tools.js";
 import * as linalg from "./linalg.js";
@@ -249,14 +249,6 @@ export type TraceStep = {
     target: Vector;
     control: Vector;
     random: Vector;
-};
-
-// Game graph serialization for analysis
-export type JSONGameGraph = {
-    [string]: {
-        predicates: string[],
-        actions: (string[])[]
-    }
 };
 
 // Serialization of entire system (optionally with actions)

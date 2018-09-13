@@ -1,7 +1,7 @@
 // @flow
 "use strict";
 
-import type { StateID, ActionID, SupportID, PredicateID, JSONGameGraph } from "./system.js";
+import type { StateID, ActionID, SupportID, PredicateID } from "./system.js";
 
 import * as logic from "./logic.js";
 import { iter, sets, hashString, UniqueCollection } from "./tools.js";
@@ -36,6 +36,13 @@ export interface GameGraph {
     targetLabelsOf(StateID, ActionID, SupportID): Set<StateID>;
 }
 
+// Game graph serialization for analysis
+export type JSONGameGraph = {
+    [string]: {
+        predicates: string[],
+        actions: (string[])[]
+    }
+};
 
 // A wrapper around a snapshot of an abstracted LSS that supports the
 // TransitionsSystemMap interface and can therefore be used to generate the

@@ -5,6 +5,7 @@ import type { LayeredFigure, FigureLayer, Shape, Primitive, Projection } from ".
 
 import * as linalg from "./linalg.js";
 import * as dom from "./domtools.js";
+import { n2s } from "./tools.js";
 
 
 /* Plots */
@@ -29,24 +30,31 @@ export class InteractivePlot implements Plot {
     +figure: LayeredFigure;
     +axesPlot: AxesPlot;
     _referenceProjection: Projection;
-    panningState: number[] | null;
 
     constructor(size: Range, figure: LayeredFigure, projection: Projection): void {
         this._referenceProjection = projection;
-        let resetButton = dom.create("a", {"href": ""}, ["reset"]);
+        const resetButton = dom.create("a", {"href": ""}, ["reset"]);
         resetButton.addEventListener("click", (e: MouseEvent) => {
             this.projection = this._referenceProjection;
             e.preventDefault();
         });
-        let saveButton = dom.create("a", {"href": "", "download": "plot.svg"}, ["export"]);
+        const saveButton = dom.create("a", {"href": "", "download": "plot.svg"}, ["export"]);
         saveButton.addEventListener("click", () => {
             saveButton.setAttribute("href", "data:image/svg+xml;base64," + window.btoa(this.axesPlot.source));
         });
-        this.menu = dom.div({ "class": "menu" }, ["hold shift to pan and zoom :: ", resetButton, " :: ", saveButton]);
+        const coordsDisplay = dom.span({ "class": "coords" });
+        const menu = dom.div({ "class": "menu" }, [
+            coordsDisplay, "hold shift to pan and zoom :: ", resetButton, " :: ", saveButton
+        ]);
         this.axesPlot = new AxesPlot(size, figure, projection);
-        this.node = dom.div({ "class": "plot" }, [this.menu, this.axesPlot.node]);
+        this.node = dom.div({ "class": "plot" }, [menu, this.axesPlot.node]);
 
-        let shapePlot = this.axesPlot.shapePlot
+        const shapePlot = this.axesPlot.shapePlot
+        // Coordinate display
+        shapePlot.node.addEventListener("mousemove", (e: MouseEvent) => {
+            const [x, y] = shapePlot.getCoords(e.clientX, e.clientY);
+            dom.replaceChildren(coordsDisplay, [n2s(x, 2) + ", " + n2s(y, 2)]);
+        });
         // Mousewheel zoom
         shapePlot.node.addEventListener("wheel", (e: WheelEvent) => {
             if (e.shiftKey) {
@@ -55,33 +63,34 @@ export class InteractivePlot implements Plot {
             }
         });
         // Click-and-drag panning
-        this.panningState = null;
+        let panningState: (number[] | null) = null;
         shapePlot.node.addEventListener("mouseleave", () => {
-            if (this.panningState != null) {
-                this.panningState = null;
+            dom.removeChildren(coordsDisplay);
+            if (panningState != null) {
+                panningState = null;
                 dom.setCursor("auto");
             }
         });
         shapePlot.node.addEventListener("mousedown", (e: MouseEvent) => {
             if (e.buttons == 1 && e.shiftKey) {
-                this.panningState = shapePlot.getCoords(e.clientX, e.clientY);
+                panningState = shapePlot.getCoords(e.clientX, e.clientY);
                 e.preventDefault();
                 dom.setCursor("grabbing");
             }
         });
         shapePlot.node.addEventListener("mouseup", (e: MouseEvent) => {
             // click is triggered after mouseup, but only on same node
-            if (this.panningState != null && e.target != shapePlot.node) {
-                this.projection = this.projection.translate(this.panningState, shapePlot.getCoords(e.clientX, e.clientY));
-                this.panningState = null;
+            if (panningState != null && e.target != shapePlot.node) {
+                this.projection = this.projection.translate(panningState, shapePlot.getCoords(e.clientX, e.clientY));
+                panningState = null;
                 dom.setCursor("auto");
                 e.stopPropagation();
             }
         });
         shapePlot.node.addEventListener("click", (e: MouseEvent) => {
-            if (this.panningState != null) {
-                this.projection = this.projection.translate(this.panningState, shapePlot.getCoords(e.clientX, e.clientY));
-                this.panningState = null;
+            if (panningState != null) {
+                this.projection = this.projection.translate(panningState, shapePlot.getCoords(e.clientX, e.clientY));
+                panningState = null;
                 dom.setCursor("auto");
                 e.stopPropagation();
             }

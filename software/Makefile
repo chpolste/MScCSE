@@ -154,6 +154,6 @@ $(SRC_JS)/system.js: $(SRC_JS)/tools.js $(SRC_JS)/linalg.js $(SRC_JS)/geometry.j
 $(SRC_JS)/widgets-input.js: $(SRC_JS)/domtools.js $(SRC_JS)/tools.js
 	@touch $(SRC_JS)/widgets-input.js
 
-$(SRC_JS)/widgets-plot.js: $(SRC_JS)/linalg.js $(SRC_JS)/domtools.js
+$(SRC_JS)/widgets-plot.js: $(SRC_JS)/linalg.js $(SRC_JS)/domtools.js $(SRC_JS)/tools.js
 	@touch $(SRC_JS)/widgets-plot.js
 

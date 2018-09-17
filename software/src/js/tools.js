@@ -216,9 +216,10 @@ export function hashString(s: string): number {
 /* Formatting */
 
 // Number to string
-export function n2s(x: number): string {
+export function n2s(x: number, places?: number): string {
+    if (places == null) places = 5;
     // TODO: Change to scientific notation when numbers are small
-    return x.toFixed(5).replace(/\.?0*$/, "");
+    return x.toFixed(places).replace(/\.?0*$/, "");
 }
 
 // Timespan in milliseconds to formatted string

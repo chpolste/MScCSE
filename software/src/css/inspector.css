@@ -267,7 +267,6 @@ a:hover {
     margin: 0;
     display: inline-flex;
     flex-flow: column nowrap;
-    font-family: DejaVu Sans, sans-serif;
 }
 .plot .menu {
     font-size: 8pt;
@@ -285,6 +284,9 @@ a:hover {
 }
 .plot .menu a:hover {
     color: #000;
+}
+.plot .menu .coords {
+    float: left;
 }
 
 .matrix {

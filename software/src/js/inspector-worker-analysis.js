@@ -4,7 +4,8 @@
 import type { JSONGameGraph, PredicateID } from "./system.js";
 import type { Proposition, TransitionLabel } from "./logic.js";
 
-import { sets, iter, WorkerCommunicator } from "./tools.js";
+import { Communicator } from "./worker.js";
+import { sets, iter } from "./tools.js";
 import { parseProposition, OnePairStreettAutomaton } from "./logic.js";
 import { MappedJSONGameGraph, TwoPlayerProbabilisticGame } from "./game.js";
 
@@ -25,45 +26,34 @@ let alphabetMap: ?Map<TransitionLabel, Proposition> = null;
 
 // Because https://github.com/facebook/flow/pull/6100 is not merged yet:
 // $FlowFixMe
-const communicator = new WorkerCommunicator(self);
-
-communicator.onMessage(null, function (msg) {
-    throw new Error("received unexpected message");
-});
+const communicator = new Communicator(self, "1W");
 
 
-function checkIfReady() {
-    if (automaton != null && alphabetMap != null) {
-        communicator.postMessage("ready", null);
-    }
-}
-
-// Request automaton
-communicator.postMessage("automaton", null, function (msg) {
-    if (typeof msg.data !== "string") throw new Error(
-        "automaton: expected type 'string', got '" + typeof msg.data + "'"
+communicator.request("automaton", null).then(function (data) {
+    if (typeof data !== "string") throw new Error(
+        "automaton: expected type 'string', got '" + typeof data + "'"
     );
-    automaton = OnePairStreettAutomaton.parse(msg.data);
-    checkIfReady();
-});
-
-// Request alphabetMap
-communicator.postMessage("alphabetMap", null, function (msg) {
-    if (typeof msg.data !== "object") throw new Error(
-        "alphabetMap: expected type 'object', got '" + typeof msg.data + "'"
+    automaton = OnePairStreettAutomaton.parse(data);
+    return communicator.request("alphabetMap", null);
+}).then(function (data) {
+    if (typeof data !== "object") throw new Error(
+        "alphabetMap: expected type 'object', got '" + typeof data + "'"
     );
     const newAlphabetMap = new Map();
-    for (let label in msg.data) {
-        const prop = msg.data[label];
+    for (let label in data) {
+        const prop = data[label];
         if (typeof prop !== "string") throw new Error(
             "alphabetMap: expected type 'string', got '" + typeof prop + "'"
         );
         newAlphabetMap.set(label, parseProposition(prop));
     }
     alphabetMap = newAlphabetMap;
-    checkIfReady();
+    return communicator.request("ready");
+}).then(function (data) {
+    // All good
+}).catch(function (err) {
+    console.log(err);
 });
-
 
 
 /* Game Analysis */
@@ -85,23 +75,22 @@ function predicateTest(transitionLabel: TransitionLabel, predicates: Set<Predica
 // Receive the transition system induced by the abstracted LSS and create and
 // solve the product-game of the transition system with the objective
 // automaton. Return the analysis result to the inspector.
-communicator.onMessage("analysis", function (msg) {
+communicator.onRequest("analysis", function (data) {
     if (automaton == null) throw new Error(
         "cannot analyse game because automaton is not yet set"
     );
     if (alphabetMap == null) throw new Error(
         "cannot analyse game because alphabetMap is not yet set"
     );
-    if (typeof msg.data !== "string") throw new Error(
-        "analysis: expected type 'string', got '" + typeof msg.data + "'"
+    if (typeof data !== "string") throw new Error(
+        "analysis: expected type 'string', got '" + typeof data + "'"
     );
-    const snapshot: JSONGameGraph = JSON.parse(msg.data);
+    const snapshot: JSONGameGraph = JSON.parse(data);
     const gameGraph = new MappedJSONGameGraph(snapshot);
     const game = TwoPlayerProbabilisticGame.fromProduct(gameGraph, automaton, predicateTest);
-    const analysis = game.analyse(new Map([
+    return game.analyse(new Map([
         ["satisfying",      TwoPlayerProbabilisticGame.analyseSatisfying],
         ["non-satisfying",  TwoPlayerProbabilisticGame.analyseNonSatisfying]
     ]));
-    msg.answer(analysis);
 });
 

@@ -2,7 +2,7 @@
 "use strict";
 
 import type { Matrix } from "./linalg.js";
-import type { Observable, WorkerMessage } from "./tools.js";
+import type { Observable } from "./tools.js";
 import type { ConvexPolytopeUnion, Halfspace } from "./geometry.js";
 import type { LSS, State, StateID, Action, ActionSupport, Controller, Refinery,
               Trace, JSONAbstractedLSS } from "./system.js";
@@ -12,8 +12,8 @@ import type { Input } from "./widgets-input.js";
 
 import * as linalg from "./linalg.js";
 import * as dom from "./dom.js";
-import { iter, arr, sets, n2s, t2s, replaceAll, ObservableMixin,
-         WorkerCommunicator } from "./tools.js";
+import { Communicator } from "./worker.js";
+import { iter, arr, sets, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
 import { union } from "./geometry.js";
 import { Objective, stringifyProposition, texifyProposition } from "./logic.js";
 import { AbstractedLSS, partitionMap, controller, refinery } from "./system.js";
@@ -379,7 +379,7 @@ class Analysis extends ObservableMixin<null> {
     +info: HTMLSpanElement;
     _results: Map<string, Set<StateID>>; // TODO: provide interface for refinement
     worker: ?Worker;
-    communicator: ?WorkerCommunicator;
+    communicator: ?Communicator;
     _ready: boolean;
 
     constructor(wrapper: SystemWrapper, keybindings: dom.Keybindings): void {
@@ -430,30 +430,29 @@ class Analysis extends ObservableMixin<null> {
         try {
             const worker = new Worker("./js/inspector-worker-analysis.js");
             // Associcate a communicator for message exchange
-            const communicator = new WorkerCommunicator(worker);
+            const communicator = new Communicator(worker, "1B");
             // Worker will request objective automaton
-            communicator.onMessage("automaton", (msg) => {
-                const automaton = this.objective.automaton.stringify();
-                msg.answer(automaton);
+            communicator.onRequest("automaton", (msg) => {
+                return this.objective.automaton.stringify();
             });
             // Worker will request alphabetMap (connects the automaton transition
             // labels with the linear predicates of the system)
-            communicator.onMessage("alphabetMap", (msg) => {
+            communicator.onRequest("alphabetMap", (msg) => {
                 const alphabetMap = {};
                 for (let [label, prop] of this.objective.propositions.entries()) {
                     alphabetMap[label] = stringifyProposition(prop);
                 }
-                msg.answer(alphabetMap);
+                return alphabetMap;
             });
             // Worker will tell when ready
-            communicator.onMessage("ready", (msg) => {
+            communicator.onRequest("ready", (msg) => {
                 this.worker = worker;
                 this.communicator = communicator;
                 this.infoText = "Web Worker ready.";
                 this.ready = true;
             });
             // If worker creation fails, switch to local game analysis.
-            worker.onerror = () => this.initializeAnalysisFallback();
+            //worker.onerror = () => this.initializeAnalysisFallback();
         } catch (e) {
             // Chrome does not allow Web Workers for local resources
             if (e.name === "SecurityError") {
@@ -489,15 +488,18 @@ class Analysis extends ObservableMixin<null> {
         // abstracted LSS to the worker and analyse it with respect to the
         // previously sent objective and proposition mapping.
         if (this.worker != null && this.communicator != null) {
-            this.communicator.postMessage("analysis", JSON.stringify(snapshot), (msg) => {
+            this.communicator.request(
+                "analysis", JSON.stringify(snapshot)
+            ).then((results) => {
                 const elapsed = performance.now() - startTime;
-                const results = msg.data;
-                if (msg.kind !== "error" && results instanceof Map) {
+                if (results instanceof Map) {
                     this.processAnalysisResults(results, elapsed);
                 } else {
-                    this.infoText = "analysis error '" + String(msg.data) + "'";
+                    this.infoText = "analysis error '" + String(results) + "'";
                 }
                 this.ready = true;
+            }).catch((err) => {
+                throw err; // TODO
             });
         // Local analysis when Web Worker creation fails.
         } else {

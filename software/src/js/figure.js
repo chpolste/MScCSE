@@ -1,7 +1,7 @@
 // @flow
 "use strict";
 
-import type { ElementAttributes, ElementEvents } from "./domtools.js";
+import type { ElementAttributes, ElementEvents } from "./dom.js";
 import type { Observer, Observable } from "./tools.js";
 
 import * as linalg from "./linalg.js";

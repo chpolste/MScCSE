@@ -11,7 +11,7 @@ import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
 
 import * as linalg from "./linalg.js";
-import * as dom from "./domtools.js";
+import * as dom from "./dom.js";
 import { iter, arr, sets, n2s, t2s, replaceAll, ObservableMixin,
          WorkerCommunicator } from "./tools.js";
 import { union } from "./geometry.js";

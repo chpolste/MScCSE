@@ -8,7 +8,7 @@ import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
 
 import * as presets from "./presets.js";
-import * as dom from "./domtools.js";
+import * as dom from "./dom.js";
 import { iter, ObservableMixin } from "./tools.js";
 import { HalfspaceInequality, polytopeType, union } from "./geometry.js";
 import { Objective, AtomicProposition, parseProposition, traverseProposition } from "./logic.js";

@@ -3,9 +3,9 @@
 
 import type { Observable } from "./tools.js";
 import type { Matrix } from "./linalg.js";
-import type { KeyCallback } from "./domtools.js";
+import type { KeyCallback } from "./dom.js";
 
-import * as dom from "./domtools.js";
+import * as dom from "./dom.js";
 import { arr, ObservableMixin } from "./tools.js";
 
 

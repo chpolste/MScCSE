@@ -4,7 +4,7 @@
 import type { LayeredFigure, FigureLayer, Shape, Primitive, Projection } from "./figure.js";
 
 import * as linalg from "./linalg.js";
-import * as dom from "./domtools.js";
+import * as dom from "./dom.js";
 import { n2s } from "./tools.js";
 
 

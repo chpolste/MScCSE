@@ -45,18 +45,14 @@ const communicator = new Communicator("1W");
 // Receive the transition system induced by the abstracted LSS and create and
 // solve the product-game of the transition system with the objective
 // automaton. Return the analysis result to the inspector.
-communicator.onRequest("analysis", function (data) {
+communicator.onRequest("analysis", function (data: JSONGameGraph) {
     if (automaton == null) throw new Error(
         "cannot analyse game because automaton is not yet set"
     );
     if (alphabetMap == null) throw new Error(
         "cannot analyse game because alphabetMap is not yet set"
     );
-    if (typeof data !== "string") throw new Error(
-        "analysis: expected type 'string', got '" + typeof data + "'"
-    );
-    const snapshot: JSONGameGraph = JSON.parse(data);
-    const gameGraph = new MappedJSONGameGraph(snapshot);
+    const gameGraph = new MappedJSONGameGraph(data);
     const game = TwoPlayerProbabilisticGame.fromProduct(gameGraph, automaton, predicateTest);
     return game.analyse(new Map([
         ["satisfying",      TwoPlayerProbabilisticGame.analyseSatisfying],

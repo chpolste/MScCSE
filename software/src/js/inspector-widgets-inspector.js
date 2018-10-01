@@ -1,23 +1,23 @@
 // @flow
 "use strict";
 
-import type { Matrix } from "./linalg.js";
-import type { Observable } from "./tools.js";
-import type { ConvexPolytopeUnion, Halfspace } from "./geometry.js";
-import type { LSS, State, StateID, Action, ActionSupport, Controller, Refinery,
-              Trace, JSONAbstractedLSS } from "./system.js";
-import type { FigureLayer, Shape } from "./figure.js";
+import type { Vector, Matrix } from "./linalg.js";
+import type { JSONConvexPolytopeUnion, Halfspace } from "./geometry.js";
+import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
+import type { FigureLayer } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
+import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, TraceData,
+              GameGraphData, UpdateKindsData, RefineData, TakeSnapshotData, LoadSnapshotData,
+              NameSnapshotData, SnapshotData } from "./inspector-worker-system.js";
 
 import * as linalg from "./linalg.js";
 import * as dom from "./dom.js";
 import { Communicator } from "./worker.js";
-import { iter, arr, sets, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
+import { arr, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
 import { union } from "./geometry.js";
 import { Objective, stringifyProposition, texifyProposition } from "./logic.js";
-import { AbstractedLSS, partitionMap, controller, refinery } from "./system.js";
-import { TwoPlayerProbabilisticGame } from "./game.js";
+import { State } from "./system.js";
 import { Figure, autoProjection, Horizontal1D } from "./figure.js";
 import { InteractivePlot, AxesPlot, ShapePlot } from "./widgets-plot.js";
 import { CheckboxInput, SelectInput, SelectableNodes, inputTextRotation } from "./widgets-input.js";
@@ -44,35 +44,35 @@ const MARKED_STEP_STYLE = { "stroke": "#C00", "fill": "#C00" };
 export const TRACE_LENGTH = 35;
 
 
-function toShape(state: State): Shape {
+function stateColor(state: StateData): string {
     let fill = COLORS.undecided;
-    if (state.isSatisfying) {
+    if (State.isSatisfying(state)) {
         fill = COLORS.satisfying;
-    } else if (state.isNonSatisfying) {
+    } else if (State.isNonSatisfying(state)) {
         fill = COLORS.nonSatisfying;
     }
-    return { kind: "polytope", vertices: state.polytope.vertices, style: { fill: fill } };
+    return fill;
 }
 
-function stateKindString(state: State): string {
-    if (state.isSatisfying) {
+function stateKindString(state: StateData): string {
+    if (State.isSatisfying(state)) {
         return "satisfying";
-    } else if (state.isOuter) {
+    } else if (State.isOuter(state)) {
         return "outer";
-    } else if (state.isNonSatisfying) {
+    } else if (State.isNonSatisfying(state)) {
         return "non-satisfying";
     } else {
         return "undecided";
     }
 }
 
-function styledStateLabel(state: State, markSelected?: ?State): HTMLSpanElement {
+function styledStateLabel(state: StateData, markSelected?: ?StateData): HTMLSpanElement {
     let attributes = {};
-    if (markSelected != null && markSelected === state) {
+    if (markSelected != null && markSelected.label === state.label) {
         attributes["class"] = "selected";
-    } else if (state.isSatisfying) {
+    } else if (State.isSatisfying(state)) {
         attributes["class"] = "satisfying";
-    } else if (state.isNonSatisfying) {
+    } else if (State.isNonSatisfying(state)) {
         attributes["class"] = "nonsatisfying";
     }
     return dom.span(attributes, [dom.label.toHTML(state.label)]);
@@ -96,35 +96,14 @@ function ineq2s(h: Halfspace): string {
     return  terms.join(" ") + " < " + n2s(h.offset)
 }
 
-function styledPredicateLabel(label: string, system: AbstractedLSS): HTMLSpanElement {
+function styledPredicateLabel(label: string, halfspace: Halfspace): HTMLSpanElement {
     const node = dom.label.toHTML(label);
-    node.setAttribute("title", ineq2s(system.getPredicate(label)));
+    node.setAttribute("title", ineq2s(halfspace));
     return node;
 }
 
 function matrixToTeX(m: Matrix): string {
     return "\\begin{pmatrix}" + m.map(row => row.join("&")).join("\\\\") + "\\end{pmatrix}";
-}
-
-function volumeRatios(system: AbstractedLSS): { [string]: number } {
-    let volSat = 0;
-    let volUnd = 0;
-    let volNon = 0;
-    for (let state of system.states.values()) {
-        if (state.isSatisfying) {
-            volSat += state.polytope.volume;
-        } else if (state.isUndecided) {
-            volUnd += state.polytope.volume;
-        } else if (!state.isOuter) {
-            volNon += state.polytope.volume;
-        }
-    }
-    const volAll = volSat + volUnd + volNon;
-    return {
-        "satisfying": volSat / volAll,
-        "undecided": volUnd / volAll,
-        "non-satisfying": volNon / volAll
-    };
 }
 
 function percentageBar(ratios: { [string]: number }): HTMLDivElement {
@@ -195,22 +174,14 @@ export class ProblemSummary {
 
 /* System Inspector: interactive system visualization */
 
-interface SystemWrapper extends Observable<null> {
-    system: AbstractedLSS;
-    +objective: Objective;
-    updateKinds(Set<StateID>, Set<StateID>): Set<State>;
-    refine(Map<State, ConvexPolytopeUnion>): Set<State>;
-}
-
-export class SystemInspector extends ObservableMixin<null> implements SystemWrapper {
+export class SystemInspector extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
-
+    +systemComm: Communicator<Worker>;
     // ...
-    _system: AbstractedLSS;
-    _objective: Objective;
-
-    // Widgets
+    +objective: Objective;
+    +_system: AbstractedLSS;
+    // Sub-widgets are coordinated here
     +settings: Settings;
     +analysis: Analysis;
     +stateView: StateView;
@@ -225,15 +196,26 @@ export class SystemInspector extends ObservableMixin<null> implements SystemWrap
 
     constructor(system: AbstractedLSS, objective: Objective, keybindings: dom.Keybindings) {
         super();
+
+        this.systemComm = new Communicator("ISYS");
+        this.systemComm.onRequest("init", data => {
+            return system.serialize();
+        });
+        this.systemComm.onRequest("ready", data => {
+            this.notify();
+            this.snapshots.handleChange(); // TODO
+        });
+        this.systemComm.host = new Worker("./js/inspector-worker-system.js");
+
+        this.objective = objective;
         this._system = system;
-        this._objective = objective;
 
         this.settings = new Settings(this, keybindings);
         this.analysis = new Analysis(this, keybindings);
         this.stateView = new StateView(this);
         this.traceView = new TraceView(this, this.stateView, keybindings);
-        this.actionView = new ActionView(this.stateView);
-        this.supportView = new ActionSupportView(this.actionView);
+        this.actionView = new ActionView(this, this.stateView);
+        this.supportView = new ActionSupportView(this, this.actionView);
         this.systemView = new SystemView(
             this,
             this.settings,
@@ -281,66 +263,109 @@ export class SystemInspector extends ObservableMixin<null> implements SystemWrap
         ]);
     }
 
-    // WrappedSystem interface
+    // Static information from the system
 
-    get system(): AbstractedLSS {
-        return this._system;
+    get lss(): LSS {
+        return this._system.lss;
     }
 
-    set system(system: AbstractedLSS): void {
-        this._system = system;
-        this.notify();
+    getPredicate(label: PredicateID): Halfspace {
+        return this._system.getPredicate(label);
     }
 
-    get objective(): Objective {
-        return this._objective;
+    // Worker request interface
+
+    getState(state: StateID): Promise<StateDataPlus> {
+        return this.systemComm.request("getState", state);
     }
 
-    // Wrap mutating method calls of system, so that changes are properly
-    // propagated to the widgets
-
-    updateKinds(satisfying: Set<StateID>, nonSatisfying: Set<StateID>): Set<State> {
-        const out = this.system.updateKinds(satisfying, nonSatisfying);
-        if (out.size > 0) this.notify();
-        return out;
+    getStates(): Promise<StateDataPlus[]> {
+        return this.systemComm.request("getStates", null);
     }
 
-    refine(partitions: Map<State, ConvexPolytopeUnion>): Set<State> {
-        const out = this.system.refine(partitions);
-        if (out.size > 0) this.notify();
-        return out;
+    getActions(state: StateID): Promise<ActionData[]> {
+        return this.systemComm.request("getActions", state);
+    }
+
+    getSupports(state: StateID, action: ActionID): Promise<SupportData[]> {
+        return this.systemComm.request("getSupports", [state, action]);
+    }
+
+    getOperator(op: string, state: StateID, us: JSONConvexPolytopeUnion): Promise<OperatorData> {
+        return this.systemComm.request("getOperator", [op, state, us]);
+    }
+
+    getGameGraph(): Promise<GameGraphData> {
+        return this.systemComm.request("getGameGraph", null);
+    }
+
+    sampleTrace(state: ?StateID, controller: string, maxSteps: number): Promise<TraceData> {
+        return this.systemComm.request("sampleTrace", [state, controller, maxSteps]);
+    }
+
+    updateKinds(satisfying: Set<StateID>, nonSatisfying: Set<StateID>): Promise<UpdateKindsData> {
+        return this.systemComm.request("updateKinds", [satisfying, nonSatisfying]).then(data => {
+            if (data.size > 0) this.notify();
+            return data;
+        });
+    }
+
+    refine(state: ?StateID, steps: string[]): Promise<RefineData> {
+        return this.systemComm.request("refine", [state, steps]).then(data => {
+            if (data.size > 0) this.notify();
+            return data;
+        });
+    }
+
+    getSnapshots(): Promise<SnapshotData> {
+        return this.systemComm.request("getSnapshots", null);
+    }
+
+    takeSnapshot(name: string): Promise<TakeSnapshotData> {
+        return this.systemComm.request("takeSnapshot", [name]);
+    }
+
+    loadSnapshot(id: number): Promise<LoadSnapshotData> {
+        return this.systemComm.request("loadSnapshot", id).then(data => {
+            this.notify();
+            return data;
+        });
+    }
+
+    nameSnapshot(id: number, name: string): Promise<NameSnapshotData> {
+        return this.systemComm.request("nameSnapshot", [id, name]);
     }
 
 }
 
 
-type ClickOperatorWrapper = (state: State, control: ConvexPolytopeUnion) => ConvexPolytopeUnion;
+type OperatorWrapper = (StateData, JSONConvexPolytopeUnion) => Promise<OperatorData>;
 
 // Settings panel for the main view.
 class Settings extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
-    +wrapper: SystemWrapper;
+    +proxy: SystemInspector;
     +toggleKind: Input<boolean>;
     +toggleLabel: Input<boolean>;
     +toggleVectorField: Input<boolean>;
-    +highlight: Input<ClickOperatorWrapper>;
+    +highlight: Input<null|OperatorWrapper>;
     +highlightNode: HTMLDivElement;
     
-    constructor(wrapper: SystemWrapper, keybindings: dom.Keybindings): void {
+    constructor(proxy: SystemInspector, keybindings: dom.Keybindings): void {
         super();
-        this.wrapper = wrapper;
+        this.proxy = proxy;
 
         this.toggleKind = new CheckboxInput(true);
         this.toggleLabel = new CheckboxInput(false);
         this.toggleVectorField = new CheckboxInput(false);
         this.highlight = new SelectInput({
-            "None": (state, u) => [],
-            "Posterior": (state, u) => state.isOuter ? [] : state.post(u),
-            "Predecessor": (state, u) => this.lss.pre(this.lss.stateSpace, u, [state.polytope]),
-            "Robust Predecessor": (state, u) => this.lss.preR(this.lss.stateSpace, u, [state.polytope]),
-            "Attractor": (state, u) => this.lss.attr(this.lss.stateSpace, u, [state.polytope]),
-            "Robust Attractor": (state, u) => this.lss.attrR(this.lss.stateSpace, u, [state.polytope])
+            "None": null,
+            "Posterior": (state, us) => proxy.getOperator("post", state.label, us),
+            "Predecessor": (state, us) => proxy.getOperator("pre", state.label, us),
+            "Robust Predecessor": (state, us) => proxy.getOperator("preR", state.label, us),
+            "Attractor": (state, us) => proxy.getOperator("attr", state.label, us),
+            "Robust Attractor": (state, us) => proxy.getOperator("attrR", state.label, us)
         }, "None");
 
         this.node = dom.div({ "class": "settings" }, [
@@ -360,10 +385,6 @@ class Settings extends ObservableMixin<null> {
         ]));
     }
 
-    get lss(): LSS {
-        return this.wrapper.system.lss;
-    }
-
 }
 
 
@@ -374,18 +395,17 @@ type JSONAnalysisResults = { [string]: string[] };
 class Analysis extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
-    +wrapper: SystemWrapper;
+    +proxy: SystemInspector;
     +button: HTMLButtonElement;
     +info: HTMLSpanElement;
     _results: Map<string, Set<StateID>>; // TODO: provide interface for refinement
-    worker: ?Worker;
-    communicator: ?Communicator;
+    communicator: ?Communicator<Worker>;
     _ready: boolean;
 
-    constructor(wrapper: SystemWrapper, keybindings: dom.Keybindings): void {
+    constructor(proxy: SystemInspector, keybindings: dom.Keybindings): void {
         super();
         this._results = new Map();
-        this.wrapper = wrapper;
+        this.proxy = proxy;
 
         this.button = dom.create("button", {}, [dom.create("u", {}, ["a"]), "nalyse"]);
         this.button.addEventListener("click", () => this.analyse());
@@ -399,12 +419,8 @@ class Analysis extends ObservableMixin<null> {
         this.initializeAnalysisWorker();
     }
 
-    get system(): AbstractedLSS {
-        return this.wrapper.system;
-    }
-
     get objective(): Objective {
-        return this.wrapper.objective;
+        return this.proxy.objective;
     }
 
     get ready(): boolean {
@@ -426,11 +442,13 @@ class Analysis extends ObservableMixin<null> {
         this.ready = false;
         this.infoText = "initializing...";
         // Terminate an old worker if exists, then create new
-        if (this.worker != null) this.worker.terminate();
+        if (this.communicator != null) {
+            const oldWorker = this.communicator.host;
+            if (oldWorker != null) oldWorker.terminate();
+        }
         try {
-            const worker = new Worker("./js/inspector-worker-analysis.js");
             // Associcate a communicator for message exchange
-            const communicator = new Communicator("1B");
+            const communicator = new Communicator("IANA");
             // Worker will request objective automaton
             communicator.onRequest("automaton", (msg) => {
                 return this.objective.automaton.stringify();
@@ -446,32 +464,21 @@ class Analysis extends ObservableMixin<null> {
             });
             // Worker will tell when ready
             communicator.onRequest("ready", (msg) => {
-                this.worker = worker;
                 this.communicator = communicator;
                 this.infoText = "Web Worker ready.";
                 this.ready = true;
             });
-            communicator.host = worker;
-            // If worker creation fails, switch to local game analysis.
+            communicator.host = new Worker("./js/inspector-worker-analysis.js");
+            // If worker creation fails, switch to local game analysis. TODO
             //worker.onerror = () => this.initializeAnalysisFallback();
         } catch (e) {
             // Chrome does not allow Web Workers for local resources
             if (e.name === "SecurityError") {
-                this.initializeAnalysisFallback();
-                return;
+                //this.initializeAnalysisFallback(); TODO
+                //return;
             }
             throw e;
         }
-    }
-
-    // If a Web Worker cannot be created for some reason, analysis can still be
-    // performed locally, although this means the UI is locked the entire time.
-    initializeAnalysisFallback(): void {
-        this.ready = false;
-        this.worker = null;
-        this.communicator = null;
-        this.infoText = "Unable to create Web Worker. Will analyse locally instead.";
-        this.ready = true;
     }
 
     analyse(): void {
@@ -479,48 +486,27 @@ class Analysis extends ObservableMixin<null> {
             return;
         }
         this.ready = false;
-        // TODO: the message is not flushed properly by the browser before the
-        // snapshot locks the page :(
         this.infoText = "constructing game abstraction...";
         const startTime = performance.now();
-        const snapshot = this.system.serializeGameGraph();
-        this.infoText = "analysing...";
-        // Web Worker available. Send the transition system induced by the
-        // abstracted LSS to the worker and analyse it with respect to the
-        // previously sent objective and proposition mapping.
-        if (this.worker != null && this.communicator != null) {
-            this.communicator.request(
-                "analysis", JSON.stringify(snapshot)
-            ).then((results) => {
-                const elapsed = performance.now() - startTime;
-                if (results instanceof Map) {
-                    this.processAnalysisResults(results, elapsed);
-                } else {
-                    this.infoText = "analysis error '" + String(results) + "'";
-                }
-                this.ready = true;
-            }).catch((err) => {
-                throw err; // TODO
-            });
-        // Local analysis when Web Worker creation fails.
-        } else {
-            const predicateTest = (label, predicates) => {
-                const formula = this.objective.propositions.get(label);
-                if (formula == null) throw new Error(
-                    "No propositional formula assigned to transition '" + label + "'"
-                );
-                return formula.evalWith(p => predicates.has(p.symbol));
-            };
-            const game = TwoPlayerProbabilisticGame.fromProduct(
-                this.system, this.objective.automaton, predicateTest
-            );
-            const analysis = game.analyse(new Map([
-                ["satisfying",      TwoPlayerProbabilisticGame.analyseSatisfying],
-                ["non-satisfying",  TwoPlayerProbabilisticGame.analyseNonSatisfying]
-            ]));
-            this.processAnalysisResults(analysis, performance.now() - startTime);
+        // Send the transition system induced by the abstracted LSS to the
+        // worker and analyse it with respect to the previously sent objective
+        // and proposition mapping.
+        this.proxy.getGameGraph().then(gameGraph => {
+            this.infoText = "analysing...";
+            // Redirect game graph to analysis worker
+            if (this.communicator == null) throw new Error(); // TODO: no non-worker fallback anymore
+            return this.communicator.request("analysis", gameGraph);
+        }).then(results => {
+            const elapsed = performance.now() - startTime;
+            if (results instanceof Map) {
+                this.processAnalysisResults(results, elapsed);
+            } else {
+                this.infoText = "analysis error '" + String(results) + "'";
+            }
             this.ready = true;
-        }
+        }).catch(err => {
+            console.log(err); // TODO
+        });
     }
 
     // Apply analysis results to system and show information message
@@ -530,16 +516,18 @@ class Analysis extends ObservableMixin<null> {
         const nonSatisfying = results.get("non-satisfying");
         let updated = new Set();
         if (satisfying != null && nonSatisfying != null) {
-            updated = this.wrapper.updateKinds(satisfying, nonSatisfying);
+            this.proxy.updateKinds(satisfying, nonSatisfying).then(updated => {
+                this.infoText = (
+                    "Updated " + updated.size + (updated.size === 1 ? " state" : " states")
+                    + " after " + t2s(elapsed) + "."
+                );
+            }).catch(err => {
+                console.log(err); // TODO
+            });
         }
-        const nStates = this.system.states.size;
-        const nActions = iter.sum(iter.map(s => s.actions.length, this.system.states.values()));
-        this.infoText = (
-            nStates + " states and " + nActions + " actions analysed in " + t2s(elapsed) +
-            ". Updated " + updated.size + (updated.size === 1 ? " state" : " states.")
-        );
     }
 
+    // TODO
     serializeResults(): JSONAnalysisResults {
         const results = {};
         for (let [name, stateLabels] of this._results.entries()) {
@@ -548,6 +536,7 @@ class Analysis extends ObservableMixin<null> {
         return results;
     }
 
+    // TODO
     deserializeResults(json: JSONAnalysisResults): void {
         this._results = new Map();
         for (let name in json) {
@@ -563,16 +552,16 @@ class Analysis extends ObservableMixin<null> {
 class Refinement {
 
     +node: HTMLDivElement;
-    +wrapper: SystemWrapper;
+    +proxy: SystemInspector;
     +stateView: StateView;
     +analysis: Analysis;
     +info: HTMLSpanElement;
     +buttons: { [string]: HTMLButtonElement };
     +toggles: { [string]: Input<boolean> };
     
-    constructor(wrapper: SystemWrapper, analysis: Analysis, stateView: StateView,
+    constructor(proxy: SystemInspector, analysis: Analysis, stateView: StateView,
             keybindings: dom.Keybindings): void {
-        this.wrapper = wrapper;
+        this.proxy = proxy;
         this.analysis = analysis;
         this.analysis.attach(() => this.handleChange());
         this.stateView = stateView;
@@ -602,14 +591,10 @@ class Refinement {
         this.handleChange();
     }
 
-    get system(): AbstractedLSS {
-        return this.wrapper.system;
-    }
-
-    getRefinementSequence(): Refinery[] {
+    get steps(): string[] {
         const steps = [];
         if (this.toggles.negativeAttr.value) {
-            steps.push(new refinery.NegativeAttr(this.system));
+            steps.push("NegativeAttr");
         }
         return steps;
     }
@@ -618,23 +603,27 @@ class Refinement {
         dom.replaceChildren(this.info, [text]);
     }
 
-    refine(states: Iterable<State>): void {
+    refine(which: ?StateData): void {
         if (this.analysis.ready) {
-            const refined = this.wrapper.refine(partitionMap(this.getRefinementSequence(), states));
-            this.infoText = "Refined " + refined.size + (refined.size === 1 ? " state." : " states.");
+            const state = which == null ? null : which.label;
+            this.proxy.refine(state, this.steps).then(data => {
+                this.infoText = "Refined " + data.size + (data.size === 1 ? " state." : " states.");
+            }).catch(err => {
+                console.log(err); // TODO
+            });
         } else {
             this.infoText = "Cannot refine while analysis is running.";
         }
     }
 
     refineAll(): void {
-        this.refine(iter.filter(s => s.isUndecided, this.system.states.values()));
+        this.refine(null);
     }
 
     refineOne(): void {
         const state = this.stateView.selection;
-        if (state != null && state.isUndecided) {
-            this.refine([state]);
+        if (state != null && State.isUndecided(state)) {
+            this.refine(state);
         }
     }
 
@@ -642,7 +631,7 @@ class Refinement {
         const ready = this.analysis.ready;
         const state = this.stateView.selection;
         this.buttons["refineAll"].disabled = !ready;
-        this.buttons["refineOne"].disabled = !(ready && state != null && state.isUndecided);
+        this.buttons["refineOne"].disabled = !(ready && state != null && State.isUndecided(state));
     }
 
 }
@@ -654,21 +643,23 @@ class Refinement {
 class StateView extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
-    +wrapper: SystemWrapper;
+    +proxy: SystemInspector;
     +summary: HTMLDivElement;
     +predicates: SelectableNodes<string>;
-    _selection: ?State;
+    _selection: ?StateDataPlus;
 
-    constructor(wrapper: SystemWrapper): void {
+    constructor(proxy: SystemInspector): void {
         super();
         this._selection = null;
-        this.wrapper = wrapper;
-        this.wrapper.attach(() => this.handleChange());
+        this.proxy = proxy;
+        this.proxy.attach(() => this.handleChange());
 
         // Summary is filled with basic state information
         this.summary = dom.p();
         // Predicates that state fulfils
-        this.predicates = new SelectableNodes(p => styledPredicateLabel(p, this.wrapper.system), "-", ", ");
+        this.predicates = new SelectableNodes(
+            _ => styledPredicateLabel(_, this.proxy.getPredicate(_)), "-", ", "
+        );
         this.predicates.node.className = "predicates";
         this.node = dom.div({ "class": "state-view" }, [
             this.summary, this.predicates.node
@@ -677,40 +668,43 @@ class StateView extends ObservableMixin<null> {
         this.handleChange();
     }
 
-    get system(): AbstractedLSS {
-        return this.wrapper.system;
-    }
-
-    get selection(): ?State {
+    get selection(): ?StateDataPlus {
         return this._selection;
     }
 
-    set selection(state: ?State): void {
-        this._selection = state;
+    select(state: ?StateDataPlus): void {
+        const selection = this._selection;
+        if (selection != null && state != null && state.label === selection.label) {
+            this._selection = null;
+        } else {
+            this._selection = state;
+        }
         this.handleChange();
     }
 
     handleChange() {
         let state = this._selection;
-        // If system has changed, State instance has to be refreshed
         if (state != null) {
-            const newState = this.system.states.get(state.label);
-            // newState is undefined if state does not exist anymore
-            this._selection = state = (newState == null) ? null : newState;
-        }
-        if (state != null) {
-            const actionCount = state.actions.length;
-            const actionText = actionCount === 1 ? " action" : " actions";
-            dom.replaceChildren(this.summary, [
-                styledStateLabel(state, state),
-                " (", stateKindString(state), ", ", String(actionCount), actionText, ")"
-            ]);
-            this.predicates.items = Array.from(state.predicates);
+            // TODO: documentation
+            this.proxy.getState(state.label).then(data => {
+                this._selection = data;
+                const actionCount = data.numberOfActions;
+                const actionText = actionCount === 1 ? " action" : " actions";
+                dom.replaceChildren(this.summary, [
+                    styledStateLabel(data, data),
+                    " (", stateKindString(data), ", ", String(actionCount), actionText, ")"
+                ]);
+                this.predicates.items = Array.from(data.predicates);
+                this.notify();
+            }).catch(err => {
+                this._selection = null;
+                this.handleChange();
+            });
         } else {
             dom.replaceChildren(this.summary, ["no selection"]);
             this.predicates.items = [];
+            this.notify();
         }
-        this.notify();
     }
 
 }
@@ -720,18 +714,18 @@ class StateView extends ObservableMixin<null> {
 class TraceView extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
-    +wrapper: SystemWrapper;
+    +proxy: SystemInspector;
     +stateView: StateView;
-    +controller: Input<Class<Controller>>;
+    +controller: Input<string>;
     +arrowLayer: FigureLayer;
     +interactionLayer: FigureLayer;
-    _trace: Trace;
+    _trace: TraceData;
     _marked: number;
 
-    constructor(wrapper: SystemWrapper, stateView: StateView, keybindings: dom.Keybindings): void {
+    constructor(proxy: SystemInspector, stateView: StateView, keybindings: dom.Keybindings): void {
         super();
         this.stateView = stateView;
-        this.wrapper = wrapper;
+        this.proxy = proxy;
         this._trace = [];
         this._marked = -1;
 
@@ -749,7 +743,9 @@ class TraceView extends ObservableMixin<null> {
         const proj = new Horizontal1D([-1, 0.01], [0, 1]);
         const plot = new ShapePlot([510, 20], fig, proj, false);
 
-        this.controller = new SelectInput(controller, "Random");
+        this.controller = new SelectInput({
+            "Random": "Random"
+        }, "Random");
         const sampleButton = dom.create("button", {
             "title": "sample a new trace with the selected controller"
         }, [dom.create("u", {}, ["s"]), "ample trace"]);
@@ -777,11 +773,7 @@ class TraceView extends ObservableMixin<null> {
         this.drawTraceArrows();
     }
 
-    get system(): AbstractedLSS {
-        return this.wrapper.system;
-    }
-
-    get trace(): Trace {
+    get trace(): TraceData {
         return this._trace;
     }
 
@@ -793,14 +785,17 @@ class TraceView extends ObservableMixin<null> {
         // If a system state is selected, sample from its polytope, otherwise
         // from the entire state space polytope
         const selection = this.stateView.selection;
-        const initPoly = selection == null ? this.system.lss.stateSpace : selection.polytope;
-        const controller = new this.controller.value(this.system);
-        this._trace = this.system.sampleTrace(initPoly.sample(), controller, TRACE_LENGTH);
-        // Reversing results in nicer plots (tips aren't covered by next line)
-        this._trace.reverse();
-        this.drawTraceSelectors();
-        this.drawTraceArrows();
-        this.notify();
+        const initPoly = selection == null ? null : selection.label;
+        const controller = this.controller.value;
+        this.proxy.sampleTrace(initPoly, controller, TRACE_LENGTH).then(data => {
+            // Reversing results in nicer plots (tips aren't covered by next line)
+            this._trace = data.reverse();
+            this.drawTraceSelectors();
+            this.drawTraceArrows();
+            this.notify();
+        }).catch(err => {
+            console.log(err); // TODO
+        });
     }
 
     clear(): void {
@@ -845,23 +840,33 @@ class TraceView extends ObservableMixin<null> {
 
 // Lists actions available for the selected state and contains the currently
 // selected action. Observes StateView for the currently selected state.
-class ActionView extends SelectableNodes<Action> {
+class ActionView extends SelectableNodes<ActionData> {
 
+    +proxy: SystemInspector;
     +stateView: StateView;
 
-    constructor(stateView: StateView): void {
-        super(action => ActionView.asNode(action), "none");
+    constructor(proxy: SystemInspector, stateView: StateView): void {
+        super(ActionView.asNode, "none");
         this.node.className = "action-view";
+        this.proxy = proxy;
         this.stateView = stateView;
         this.stateView.attach(() => this.handleChange());
     }
 
     handleChange(): void {
         const state = this.stateView.selection;
-        this.items = state == null ? [] : state.actions;
+        if (state != null) {
+            this.proxy.getActions(state.label).then(actions => {
+                this.items = actions;
+            }).catch(err => {
+                console.log(err); // TODO
+            });
+        } else {
+            this.items = [];
+        }
     }
 
-    static asNode(action: Action): HTMLDivElement {
+    static asNode(action: ActionData): HTMLDivElement {
         return dom.div({}, [
             styledStateLabel(action.origin, action.origin), " → {",
             ...arr.intersperse(", ", action.targets.map(
@@ -877,13 +882,15 @@ class ActionView extends SelectableNodes<Action> {
 // Lists actions supports available for the selected action and contains the
 // currently selected action support. Observes ActionView for the currently
 // selected action.
-class ActionSupportView extends SelectableNodes<ActionSupport> {
+class ActionSupportView extends SelectableNodes<SupportData> {
     
+    +proxy: SystemInspector;
     +actionView: ActionView;
 
-    constructor(actionView: ActionView): void {
-        super(support => ActionSupportView.asNode(support), "none");
+    constructor(proxy: SystemInspector, actionView: ActionView): void {
+        super(ActionSupportView.asNode, "none");
         this.node.className = "support-view";
+        this.proxy = proxy;
         this.actionView = actionView;
         this.actionView.attach(isClick => {
             if (isClick) this.handleChange();
@@ -892,14 +899,22 @@ class ActionSupportView extends SelectableNodes<ActionSupport> {
 
     handleChange(): void {
         const action = this.actionView.selection;
-        this.items = action == null ? [] : action.supports;
+        if (action != null) {
+            this.proxy.getSupports(action.origin.label, action.id).then(supports => {
+                this.items = supports;
+            }).catch(err => {
+                console.log(err); // TODO
+            });
+        } else {
+            this.items = [];
+        }
     }
 
-    static asNode(support: ActionSupport): HTMLDivElement {
+    static asNode(support: SupportData): HTMLDivElement {
         return dom.div({}, [
             "{",
             ...arr.intersperse(", ", support.targets.map(
-                target => styledStateLabel(target, support.action.origin)
+                target => styledStateLabel(target, support.origin)
             )),
             "}"
         ]);
@@ -915,7 +930,7 @@ class ActionSupportView extends SelectableNodes<ActionSupport> {
 class ControlView {
 
     +node: HTMLDivElement;
-    +wrapper: SystemWrapper;
+    +proxy: SystemInspector;
     +traceView: TraceView;
     +actionView: ActionView;
     +ctrlPlot: Plot;
@@ -923,9 +938,9 @@ class ControlView {
     +randPlot: Plot;
     +randLayers: { [string]: FigureLayer };
 
-    constructor(wrapper: SystemWrapper, traceView: TraceView, actionView: ActionView): void {
-        this.wrapper = wrapper;
-        this.wrapper.attach(() => this.drawSpaces());
+    constructor(proxy: SystemInspector, traceView: TraceView, actionView: ActionView): void {
+        this.proxy = proxy;
+        this.proxy.attach(() => this.drawSpaces());
         this.actionView = actionView;
         this.actionView.attach(() => this.drawAction());
         this.traceView = traceView;
@@ -951,13 +966,9 @@ class ControlView {
         this.drawSpaces();
     }
 
-    get lss(): LSS {
-        return this.wrapper.system.lss;
-    }
-
     drawSpaces(): void {
-        const controlSpace = this.lss.controlSpace;
-        const randomSpace = this.lss.randomSpace;
+        const controlSpace = this.proxy.lss.controlSpace;
+        const randomSpace = this.proxy.lss.randomSpace;
         this.ctrlPlot.projection = autoProjection(1, ...union.extent(controlSpace));
         this.ctrlLayers.poly.shapes = controlSpace.map(u => ({ kind: "polytope", vertices: u.vertices }));
         this.randPlot.projection = autoProjection(1, ...randomSpace.extent);
@@ -1005,7 +1016,7 @@ class ControlView {
 // TraceView            → Trace sample.
 class SystemView {
 
-    +wrapper: SystemWrapper;
+    +proxy: SystemInspector;
     +settings: Settings;
     +stateView: StateView;
     +traceView: TraceView;
@@ -1013,18 +1024,18 @@ class SystemView {
     +supportView: ActionSupportView;
     +plot: InteractivePlot;
     +layers: { [string]: FigureLayer };
+    // Data caches
+    _data: ?StateDataPlus[];
+    _centroid: { [string]: Vector };
 
-    constructor(wrapper: SystemWrapper, settings: Settings, stateView: StateView,
+    constructor(proxy: SystemInspector, settings: Settings, stateView: StateView,
                 traceView: TraceView, actionView: ActionView,
                 supportView: ActionSupportView): void {
-        this.wrapper = wrapper;
+        this.proxy = proxy;
+        this._data = null;
+        this._centroid = {};
 
-        wrapper.attach(() => {
-            this.drawSystem();
-            this.drawKind();
-            this.drawLabels();
-            this.drawVectorField();
-        });
+        proxy.attach(() => this.drawSystem());
 
         this.settings = settings;
         this.settings.toggleKind.attach(() => this.drawKind());
@@ -1063,52 +1074,65 @@ class SystemView {
             label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" }),
             interaction:    fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" })
         };
-        this.plot = new InteractivePlot([630, 420], fig, autoProjection(6/4, ...this.system.extent));
+        this.plot = new InteractivePlot([630, 420], fig, autoProjection(6/4, ...this.proxy.lss.extent));
 
-        this.drawSystem();
-        this.drawHighlight();
-        this.drawKind();
         this.drawVectorField();
-        this.drawLabels();
-        this.drawPredicate();
-        this.drawTrace();
-    }
-
-    get system(): AbstractedLSS {
-        return this.wrapper.system;
     }
 
     get node(): Element {
         return this.plot.node;
     }
 
+    _cache(data: StateDataPlus[]): void {
+        this._data = data;
+        // Centroids are cached in a direct access data structure, as they are
+        // important for positioning arrows (action/support targets don't
+        // contain geometry)
+        this._centroid = {};
+        for (let state of data) {
+            this._centroid[state.label] = state.centroid;
+        }
+    }
+
+    // Fetch the current state of the system and redraw the shapes that handle
+    // mouse interaction 
     drawSystem(): void {
-        this.layers.interaction.shapes = iter.map(state => ({
-            kind: "polytope", vertices: state.polytope.vertices,
-            events: {
-                "click": () => {
-                    this.stateView.selection = this.stateView.selection === state ? null : state;
+        this.proxy.getStates().then(data => {
+            this._cache(data);
+            this.layers.interaction.shapes = data.map(state => ({
+                kind: "polytope", vertices: state.polytope.vertices,
+                events: {
+                    click: () => this.stateView.select(state)
                 }
-            }
-        }), this.system.states.values());
+            }));
+            this.drawKind();
+            this.drawLabels();
+        }).catch(err => {
+            console.log(err); // TODO
+        });
     }
 
     drawHighlight(): void {
-        const operator = this.settings.highlight;
+        const operator = this.settings.highlight.value;
         const state = this.stateView.selection;
-        const action = this.actionView.hoverSelection == null
-                     ? this.actionView.selection
-                     : this.actionView.hoverSelection;
-        const control = action == null ? this.system.lss.controlSpace : action.controls;
-        if (state != null) {
-            const shapes = operator.value(state, control).map(
-                poly => ({ kind: "polytope", vertices: poly.vertices })
-            );
-            this.layers.highlight1.shapes = shapes;
-            this.layers.highlight2.shapes = shapes;
-        } else {
+        if (operator == null || state == null) {
             this.layers.highlight1.shapes = [];
             this.layers.highlight2.shapes = [];
+        } else {
+            const action = this.actionView.hoverSelection == null
+                         ? this.actionView.selection
+                         : this.actionView.hoverSelection;
+            const control = action == null ? union.serialize(this.proxy.lss.controlSpace) : action.controls;
+            operator(state, control).then(data => {
+                const shapes = data.map(
+                    poly => ({ kind: "polytope", vertices: poly.vertices })
+                );
+                this.layers.highlight1.shapes = shapes;
+                this.layers.highlight2.shapes = shapes;
+            }).catch(err => {
+                console.log(err); // TODO
+            });
+
         }
     }
 
@@ -1117,7 +1141,7 @@ class SystemView {
         if (this.settings.toggleVectorField.value) {
             shapes.push({
                 kind: "vectorField",
-                fun: x => linalg.apply(this.system.lss.A, x),
+                fun: x => linalg.apply(this.proxy.lss.A, x),
                 n: [12, 12]
             });
         }
@@ -1126,18 +1150,20 @@ class SystemView {
 
     drawKind(): void {
         let shapes = [];
-        if (this.settings.toggleKind.value) {
-            shapes = iter.map(toShape, this.system.states.values());
+        if (this._data != null && this.settings.toggleKind.value) {
+            shapes = this._data.map(state => ({
+                kind: "polytope", vertices: state.polytope.vertices, style: { fill: stateColor(state) }
+            }));
         }
         this.layers.kind.shapes = shapes;
     }
 
     drawLabels(): void {
         let labels = [];
-        if (this.settings.toggleLabel.value) {
-            labels = iter.map(state => ({
-                kind: "label", coords: state.polytope.centroid, text: state.label, style: {dy: "3"}
-            }), this.system.states.values());
+        if (this._data != null && this.settings.toggleLabel.value) {
+            labels = this._data.map(state => ({
+                kind: "label", coords: state.centroid, text: state.label, style: {dy: "3"}
+            }));
         }
         this.layers.label.shapes = labels;
     }
@@ -1165,8 +1191,8 @@ class SystemView {
             this.layers.action.shapes = polys.map(
                 target => ({
                     kind: "arrow",
-                    origin: action.origin.polytope.centroid,
-                    target: target.polytope.centroid
+                    origin: this._centroid[action.origin.label],
+                    target: this._centroid[target.label]
                 })
             );
         }
@@ -1191,7 +1217,7 @@ class SystemView {
         if (label == null) {
             this.layers.predicate.shapes = [];
         } else {
-            const predicate = this.system.getPredicate(label);
+            const predicate = this.proxy.getPredicate(label);
             this.layers.predicate.shapes = [{
                 kind: "halfspace",
                 normal: predicate.normal,
@@ -1211,39 +1237,28 @@ class SystemView {
 }
 
 
-type InspectorSnapshot = {
-    name: string,
-    states: number,
-    ratios: { [string]: number },
-    system: JSONAbstractedLSS,
-    analysis: JSONAnalysisResults
-}
-
-type Tree<T> = { element: T, children: Tree<T>[] };
-
 class SnapshotManager {
 
     +node: HTMLDivElement;
-    +wrapper: SystemWrapper;
+    +proxy: SystemInspector;
     +analysis: Analysis;
-    +forms: { [string]: HTMLButtonElement };
+    +forms: { [string]: HTMLButtonElement|HTMLInputElement };
     +treeView: HTMLDivElement;
+    // Internal state
+    _data: ?SnapshotData;
+    _selection: ?number;
 
-    _tree: Tree<InspectorSnapshot>;
-    _current: Tree<InspectorSnapshot>;
-    _selection: ?Tree<InspectorSnapshot>;
-
-    constructor(wrapper: SystemWrapper, analysis: Analysis): void {
-        this.wrapper = wrapper;
+    constructor(proxy: SystemInspector, analysis: Analysis): void {
+        this.proxy = proxy;
         this.analysis = analysis;
-
+        // Widget: menu bar with tree-structure view below
         this.forms = {
             take:   dom.create("button", {}, ["new"]),
             load:   dom.create("button", {}, ["load"]),
             rename: dom.create("button", {}, ["rename"]),
             name:   dom.create("input", { "type": "text", "placeholder": "Snapshot", "size": "25" })
         };
-        this.forms.take.addEventListener("click", () => this.newSnapshot());
+        this.forms.take.addEventListener("click", () => this.takeSnapshot());
         this.forms.load.addEventListener("click", () => this.loadSnapshot());
         this.forms.rename.addEventListener("click", () => this.renameSnapshot());
         this.treeView = dom.div({ "class": "tree" });
@@ -1254,95 +1269,95 @@ class SnapshotManager {
             ]),
             this.treeView
         ]);
-
-        const tree = {
-            element: this._takeSnapshot("Initial Problem"),
-            children: []
-        }
-        this._current = tree;
-        this._tree = this._current;
+        // Ready-message from worker in proxy triggers first handleChange call
+        // and initializes the state variables
+        this._data = null;
         this._selection = null;
-
-        this.handleChange();
+        // Disable taking snapshots at first, will be enabled with the first
+        // handleChange call
+        this.forms.take.disabled = true;
     }
 
-    get system(): AbstractedLSS {
-        return this.wrapper.system;
-    }
-
-    newSnapshot(): void {
+    takeSnapshot(): void {
         const name = this.forms.name.value.trim();
         this.forms.name.value = "";
-        const tree = {
-            element: this._takeSnapshot(name.length === 0 ? "Snapshot" : name),
-            children: []
-        };
-        this._current.children.push(tree);
-        this._current = tree;
+        this.proxy.takeSnapshot(
+            (name.length === 0 ? "Snapshot" : name)
+            // TODO: analysis results
+        );
         this.handleChange();
     }
 
     loadSnapshot(): void {
-        const tree = this._selection;
-        if (tree != null) {
-            const snapshot = tree.element;
-            this.wrapper.system = AbstractedLSS.deserialize(snapshot.system);
-            this.analysis.deserializeResults(snapshot.analysis);
-            this._current = tree;
+        const selection = this._selection;
+        if (selection != null) {
+            this.proxy.loadSnapshot(selection).then(data => {
+                this.handleChange();
+            }).catch(err => {
+                console.log(err); // TODO
+            });
         }
         this.handleChange();
     }
 
     renameSnapshot(): void {
+        const selection = this._selection;
         const name = this.forms.name.value.trim();
-        const tree = this._selection;
-        if (tree != null && name.length > 0) {
-            tree.element.name = name;
-            this.forms.name.value = "";
+        if (selection != null && name.length > 0) {
+            this.proxy.nameSnapshot(selection, name).then(data => {
+                this.handleChange();
+            }).catch(err => {
+                console.log(err); // TODO
+            });
         }
-        this.handleChange();
     }
 
-    _takeSnapshot(name: string): InspectorSnapshot {
-        return {
-            name: name,
-            states: this.system.states.size,
-            ratios: volumeRatios(this.system),
-            system: this.system.serialize(true),
-            analysis: this.analysis.serializeResults()
-        };
+    handleChange(): void {
+        this.forms.take.disabled = false;
+        this.proxy.getSnapshots().then(data => {
+            this._data = data;
+            this.redraw();
+        }).catch(err => {
+            console.log(err); // TODO
+        });
     }
 
-    _select(tree: Tree<InspectorSnapshot>): void {
-        this._selection = this._selection === tree ? null : tree;
-        this.handleChange();
+    // Refresh the contents of the snapshot tree-view
+    redraw(): void {
+        if (this._data != null) {
+            dom.replaceChildren(this.treeView, this._renderTree(this._data));
+        } else {
+            dom.removeChildren(this.treeView);
+        }
     }
 
-    _renderTree(tree: Tree<InspectorSnapshot>): HTMLDivElement[] {
-        const snap = tree.element;
+    // Click handler
+    _select(which: number): void {
+        this._selection = this._selection === which ? null : which;
+        this.forms.load.disabled = this._selection == null;
+        this.forms.rename.disabled = this._selection == null;
+        this.redraw();
+    }
+
+    // Recursive-descent drawing of snapshot tree
+    _renderTree(snapshot: SnapshotData): HTMLDivElement[] {
         const nodes = [];
-        const cls = "snap" + (tree === this._current ? " current" : "")
-                           + (tree === this._selection ? " selection" : "");
+        const cls = "snap" + (snapshot.isCurrent ? " current" : "")
+                           + (snapshot.id === this._selection ? " selection" : "");
         const node = dom.div({ "class": cls }, [
-            snap.name,
-            dom.span({}, [snap.states + " states", percentageBar(snap.ratios)])
+            snapshot.name,
+            dom.span({}, [snapshot.states + " states", percentageBar(snapshot.ratios)])
         ]);
-        node.addEventListener("click", () => this._select(tree));
+        node.addEventListener("click", () => this._select(snapshot.id));
         nodes.push(node);
-        if (tree.children.length > 0) {
+        if (snapshot.children.size > 0) {
             const indented = dom.div({ "class": "indented" });
-            for (let child of tree.children) {
+            for (let child of snapshot.children) {
                 dom.appendChildren(indented, this._renderTree(child));
             }
             nodes.push(indented);
         }
         return nodes;
-    }
-
-    handleChange(): void {
-        this.forms.load.disabled = this._selection == null;
-        this.forms.rename.disabled = this._selection == null;
-        dom.replaceChildren(this.treeView, this._renderTree(this._tree));
     }
 
 }

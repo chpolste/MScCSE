@@ -13,13 +13,13 @@ type RequestHandler = (any) => any;
 
 
 // Two-way promise-based communication using web workers
-export class Communicator {
+export class Communicator<T: MessageHost> {
 
     +_callbacks: Map<string, (Message) => void>;
     +_handlers: Map<string, RequestHandler>;
     +_idPrefix: string;
     _idCounter: number;
-    _host: ?MessageHost;
+    _host: ?T;
 
     constructor(idPrefix: string): void {
         this._idPrefix = idPrefix;
@@ -29,14 +29,14 @@ export class Communicator {
         this._host = null;
     }
 
-    get host(): MessageHost {
+    get host(): T {
         if (this._host == null) throw new Error(
             "No host attached"
         );
         return this._host;
     }
 
-    set host(host: MessageHost): void {
+    set host(host: T): void {
         this._host = host;
         this._host.onmessage = (e) => this._receive(e.data);
     }

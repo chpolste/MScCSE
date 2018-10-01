@@ -189,6 +189,10 @@ export const sets = {
 
     difference: function <T>(xs: Iterable<T>, ys: Set<T>): Set<T> {
         return new Set(iter.filter(x => !ys.has(x), xs));
+    },
+    
+    map: function <A,B>(fun: (A) => B, xs: Iterable<A>): Set<B> {
+        return new Set(iter.map(fun, xs));
     }
 
 };

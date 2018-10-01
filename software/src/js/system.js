@@ -610,19 +610,19 @@ export class State {
     /* State kind properties */
 
     get isUndecided(): boolean {
-        return this.kind == 0;
+        return State.isUndecided(this);
     }
 
     get isSatisfying(): boolean {
-        return this.kind > 0;
+        return State.isSatisfying(this);
     }
 
     get isNonSatisfying(): boolean {
-        return this.kind < 0;
+        return State.isNonSatisfying(this);
     }
 
     get isOuter(): boolean {
-        return this.kind <= -10;
+        return State.isOuter(this);
     }
 
     /* Convenience wrappers for polytopic operators */
@@ -698,6 +698,22 @@ export class State {
             predicates: Array.from(this.predicates),
             kind: this.kind
         };
+    }
+
+    static isOuter(state: { kind: StateKind }) {
+        return state.kind === OUTER;
+    }
+
+    static isNonSatisfying(state: { kind: StateKind }) {
+        return state.kind < 0;
+    }
+
+    static isUndecided(state: { kind: StateKind }) {
+        return state.kind === UNDECIDED;
+    }
+
+    static isSatisfying(state: { kind: StateKind }) {
+        return state.kind > 0;
     }
 
 }

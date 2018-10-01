@@ -86,7 +86,7 @@ check:
 # Apps
 
 inspector: $(DIST_HTML)/inspector.html $(DIST_CSS)/inspector.css $(DIST_JS)/inspector.js \
-		$(DIST_JS)/inspector-worker-analysis.js
+		$(DIST_JS)/inspector-worker-analysis.js $(DIST_JS)/inspector-worker-system.js
 
 
 # File rules
@@ -139,6 +139,10 @@ $(SRC_JS)/inspector-widgets-inspector.js: $(SRC_JS)/linalg.js $(SRC_JS)/dom.js \
 		$(SRC_JS)/widgets-plot.js $(SRC_JS)/widgets-input.js $(SRC_JS)/game.js \
 		$(SRC_JS)/system.js $(SRC_JS)/worker.js
 	@touch $(SRC_JS)/inspector-widgets-inspector.js
+
+$(SRC_JS)/inspector-worker-system.js: $(SRC_JS)/worker.js $(SRC_JS)/system.js $(SRC_JS)/tools.js \
+		$(SRC_JS)/geometry.js
+	@touch $(SRC_JS)/inspector-worker-system.js
 
 $(SRC_JS)/inspector-worker-analysis.js: $(SRC_JS)/tools.js $(SRC_JS)/logic.js $(SRC_JS)/game.js \
 		$(SRC_JS)/worker.js

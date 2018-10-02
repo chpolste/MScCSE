@@ -50,22 +50,22 @@ export class SessionManager {
     +problemSetup: ProblemSetup;
 
     constructor(problemSetup: ProblemSetup): void {
-        this.node = dom.div();
+        this.node = dom.DIV();
         this.problemSetup = problemSetup;
         let presetSelect = new SelectInput(presets.setups);
-        let presetButton = dom.create("input", {"type": "button", "value": "fill in"});
+        let presetButton = dom.INPUT({"type": "button", "value": "fill in"});
         presetButton.addEventListener("click", () => this.problemSetup.load(presetSelect.value));
         dom.appendChildren(this.node, [
             /*
-            dom.h3({}, ["Load session from file"]),
-            dom.p({}, [dom.create("input", {"type": "file", "disabled": "true"})]),
-            dom.p({}, [
-                dom.create("input", {"type": "button", "value": "resume session", "disabled": "true"}), " ",
-                dom.create("input", {"type": "button", "value": "fill in setup only", "disabled": "true"}),
+            dom.H3({}, ["Load session from file"]),
+            dom.P({}, [dom.INPUT({"type": "file", "disabled": "true"})]),
+            dom.P({}, [
+                dom.INPUT({"type": "button", "value": "resume session", "disabled": "true"}), " ",
+                dom.INPUT({"type": "button", "value": "fill in setup only", "disabled": "true"}),
             ]),
             */
-            dom.p({}, ["Start from a preset:"]),
-            dom.p({}, [presetSelect.node, " ", presetButton])
+            dom.P({}, ["Start from a preset:"]),
+            dom.P({}, [presetSelect.node, " ", presetButton])
         ]);
     }
 
@@ -111,42 +111,42 @@ export class ProblemSetup extends ObservableMixin<null> {
         this.objective = new ObjectiveInput(this.predicates);
         this.preview = new SystemPreview(this, this.objective.terms);
 
-        const columns = dom.div({ "class": "inspector" }, [
-            dom.div({ "class": "left" }, [
+        const columns = dom.DIV({ "class": "inspector" }, [
+            dom.DIV({ "class": "left" }, [
                 this.preview.node,
-                dom.h3({}, ["Objective", dom.infoBox("info-input-objective")]), this.objective.node
+                dom.H3({}, ["Objective", dom.infoBox("info-input-objective")]), this.objective.node
             ]),
-            dom.div({ "class": "right" }, [
-                dom.div({"class": "cols"}, [
-                    dom.div({ "class": "left" }, [
-                        dom.h3({}, ["Control Space Polytope", dom.infoBox("info-input-control")]),
+            dom.DIV({ "class": "right" }, [
+                dom.DIV({"class": "cols"}, [
+                    dom.DIV({ "class": "left" }, [
+                        dom.H3({}, ["Control Space Polytope", dom.infoBox("info-input-control")]),
                         this.cs.node,
-                        dom.h3({}, ["Random Space Polytope", dom.infoBox("info-input-random")]),
+                        dom.H3({}, ["Random Space Polytope", dom.infoBox("info-input-random")]),
                         this.rs.node,
-                        dom.h3({}, ["State Space Polytope", dom.infoBox("info-input-state")]),
+                        dom.H3({}, ["State Space Polytope", dom.infoBox("info-input-state")]),
                         this.ss.node,
-                        dom.h3({}, ["Initial State Space Decomposition", dom.infoBox("info-input-predicates")]),
+                        dom.H3({}, ["Initial State Space Decomposition", dom.infoBox("info-input-predicates")]),
                         this.predicates.node
                     ]),
-                    dom.div({ "class": "right" }) // dummy column to fill space in layout
+                    dom.DIV({ "class": "right" }) // dummy column to fill space in layout
                 ])
             ])
         ]);
-        const submit = dom.create("input", {"type": "submit", "value": "run inspector"});
+        const submit = dom.INPUT({"type": "submit", "value": "run inspector"});
         submit.addEventListener("click", (e: Event) => {
             if (this.node.checkValidity()) {
                 e.preventDefault();
                 this.submit();
             }
         });
-        this.node = dom.create("form", {}, [
-            dom.h3({}, ["Dimensions"]),
-            dom.p({}, [this.ssDim.node, " state space"]),
-            dom.p({}, [this.csDim.node, " control space"]),
-            dom.h3({}, ["Evolution Equation"]), this.equation.node,
+        this.node = dom.FORM({}, [
+            dom.H3({}, ["Dimensions"]),
+            dom.P({}, [this.ssDim.node, " state space"]),
+            dom.P({}, [this.csDim.node, " control space"]),
+            dom.H3({}, ["Evolution Equation"]), this.equation.node,
             columns,
-            dom.h3({}, ["Continue"]),
-            dom.p({}, [submit])
+            dom.H3({}, ["Continue"]),
+            dom.P({}, [submit])
         ]);
 
         this.equation.A.attach(() => this.notify());
@@ -291,12 +291,12 @@ class EvolutionEquationInput {
         this.csDim = csDim;
         this.A = new MatrixInput(EvolutionEquationInput.parseNumber, [2, 2], 5);
         this.B = new MatrixInput(EvolutionEquationInput.parseNumber, [2, 2], 5);
-        this.node = dom.p({}, [
-            dom.renderTeX("x_{t+1} =", dom.span()),
+        this.node = dom.P({}, [
+            dom.renderTeX("x_{t+1} =", dom.SPAN()),
             this.A.node,
-            dom.renderTeX("x_t +", dom.span()),
+            dom.renderTeX("x_t +", dom.SPAN()),
             this.B.node,
-            dom.renderTeX("u_t + w_t", dom.span())
+            dom.renderTeX("u_t + w_t", dom.SPAN())
         ]);
         ssDim.attach(() => {
             this.A.shape = [ssDim.value, ssDim.value];
@@ -358,7 +358,7 @@ class PolytopeInput extends ObservableMixin<null> implements Input<ConvexPolytop
         let fig = new Figure();
         this.previewLayer = fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#EEE" });
         this.preview = new AxesPlot([90, 90], fig, autoProjection(4/3));
-        this.node = dom.div({ "class": "polytope-builder" }, [this.predicates.node, this.preview.node]);
+        this.node = dom.DIV({ "class": "polytope-builder" }, [this.predicates.node, this.preview.node]);
         this.handleChange();
     }
 
@@ -477,9 +477,9 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
         this.kind = new SelectInput(presets.objectives, "Reachability");
         this.kind.attach(() => this.handleChange());
         this.terms = new ObjectiveTermsInput(this.kind, predicates);
-        this.formula = dom.create("span");
-        this.node = dom.div({}, [
-            dom.p({}, [this.kind.node, ": ", this.formula, ", where"]), this.terms.node
+        this.formula = dom.SPAN();
+        this.node = dom.DIV({}, [
+            dom.P({}, [this.kind.node, ": ", this.formula, ", where"]), this.terms.node
         ]);
         this.handleChange();
     }
@@ -529,7 +529,7 @@ class ObjectiveTermsInput extends ObservableMixin<null> implements Input<Proposi
         this.predicates.attach(() => this.handleChange());
         this.inputs = [];
         this.previewTerm = null;
-        this.node = dom.div({ "class": "objective-terms" });
+        this.node = dom.DIV({ "class": "objective-terms" });
         this.updateTerms();
     }
 
@@ -564,17 +564,17 @@ class ObjectiveTermsInput extends ObservableMixin<null> implements Input<Proposi
         const termNodes = [];
         for (let i = 0; i < variables.length; i++) {
             // TeXify name of proposition
-            const label = dom.renderTeX(variables[i] + " =", dom.span());
+            const label = dom.renderTeX(variables[i] + " =", dom.SPAN());
             // Preserve contents of previous term input fields
             const oldText = i < this.inputs.length ? this.inputs[i].text : "";
             const input = new LineInput(s => this.parseTerm(s), 60, oldText);
             input.attach(() => this.notify());
             inputs.push(input);
             // Preview of propositional formula in state space
-            const preview = dom.span({ "class": "preview" }, ["show"]);
+            const preview = dom.SPAN({ "class": "preview" }, ["show"]);
             preview.addEventListener("mouseover", () => this.setPreviewTerm(i));
             preview.addEventListener("mouseout", () => this.setPreviewTerm(-1));
-            termNodes.push(dom.create("p", {}, [
+            termNodes.push(dom.P({}, [
                 label, " ", input.node, " ", preview
             ]));
         }

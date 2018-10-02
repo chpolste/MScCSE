@@ -75,7 +75,7 @@ function styledStateLabel(state: StateData, markSelected?: ?StateData): HTMLSpan
     } else if (State.isNonSatisfying(state)) {
         attributes["class"] = "nonsatisfying";
     }
-    return dom.span(attributes, [dom.label.toHTML(state.label)]);
+    return dom.SPAN(attributes, [dom.snLabel.toHTML(state.label)]);
 }
 
 function ineq2s(h: Halfspace): string {
@@ -97,7 +97,7 @@ function ineq2s(h: Halfspace): string {
 }
 
 function styledPredicateLabel(label: string, halfspace: Halfspace): HTMLSpanElement {
-    const node = dom.label.toHTML(label);
+    const node = dom.snLabel.toHTML(label);
     node.setAttribute("title", ineq2s(halfspace));
     return node;
 }
@@ -107,9 +107,9 @@ function matrixToTeX(m: Matrix): string {
 }
 
 function percentageBar(ratios: { [string]: number }): HTMLDivElement {
-    const bar = dom.div({ "class": "percentage-bar" });
+    const bar = dom.DIV({ "class": "percentage-bar" });
     for (let name in ratios) {
-        bar.appendChild(dom.div({
+        bar.appendChild(dom.DIV({
             "class": name,
             "title": (ratios[name] * 100).toFixed(1) + "% " + name,
             "style": "flex-grow:" + ratios[name]
@@ -144,26 +144,26 @@ export class ProblemSummary {
 
         let formula = objective.kind.formula;
         for (let [symbol, prop] of objective.propositions) {
-            formula = replaceAll(formula, symbol, "(" + texifyProposition(prop, dom.label.toTeX) + ")");
+            formula = replaceAll(formula, symbol, "(" + texifyProposition(prop, dom.snLabel.toTeX) + ")");
         }
 
-        this.node = dom.div({ "class": "problem-summary" }, [
-            dom.renderTeX("x_{t+1} = " + matrixToTeX(system.lss.A) + " x_t + " + matrixToTeX(system.lss.B) + " u_t + w_t", dom.p()),
-            dom.div({ "class": "boxes" }, [
-                dom.div({}, [dom.h3({}, ["Control Space Polytope"]), cs.node]),
-                dom.div({}, [dom.h3({}, ["Random Space Polytope"]), rs.node]),
-                dom.div({}, [dom.h3({}, ["State Space Polytope"]), ss.node]),
-                dom.div({}, [
-                    dom.h3({}, ["Labeled Predicates"]),
+        this.node = dom.DIV({ "class": "problem-summary" }, [
+            dom.renderTeX("x_{t+1} = " + matrixToTeX(system.lss.A) + " x_t + " + matrixToTeX(system.lss.B) + " u_t + w_t", dom.P()),
+            dom.DIV({ "class": "boxes" }, [
+                dom.DIV({}, [dom.H3({}, ["Control Space Polytope"]), cs.node]),
+                dom.DIV({}, [dom.H3({}, ["Random Space Polytope"]), rs.node]),
+                dom.DIV({}, [dom.H3({}, ["State Space Polytope"]), ss.node]),
+                dom.DIV({}, [
+                    dom.H3({}, ["Labeled Predicates"]),
                     ...Array.from(system.predicates.entries()).map(
-                        ([label, halfspace]) => dom.renderTeX(dom.label.toTeX(label) + ": " + ineq2s(halfspace), dom.p())
+                        ([label, halfspace]) => dom.renderTeX(dom.snLabel.toTeX(label) + ": " + ineq2s(halfspace), dom.P())
                     )
                 ])
             ]),
-            dom.div({}, [
-                dom.h3({}, ["Objective"]),
-                dom.renderTeX(formula, dom.p()),
-                dom.p({}, [objective.kind.name])
+            dom.DIV({}, [
+                dom.H3({}, ["Objective"]),
+                dom.renderTeX(formula, dom.P()),
+                dom.P({}, [objective.kind.name])
             ])
         ]);
     }
@@ -214,7 +214,7 @@ export class SystemInspector extends ObservableMixin<null> {
         } catch (e) {
             // Chrome does not allow Web Workers for local resources
             if (e.name === "SecurityError") {
-                this.node = dom.div({}, ["error: unable to start web worker for system"]);
+                this.node = dom.DIV({}, ["error: unable to start web worker for system"]);
                 return;
             }
             throw e;
@@ -243,35 +243,35 @@ export class SystemInspector extends ObservableMixin<null> {
         this.controlView = new ControlView(this, this.traceView, this.actionView);
         this.snapshots = new SnapshotManager(this, this.analysis);
 
-        this.node = dom.div({ "class": "inspector" }, [
-            dom.div({ "class": "left" }, [
+        this.node = dom.DIV({ "class": "inspector" }, [
+            dom.DIV({ "class": "left" }, [
                 this.systemView.node,
-                dom.h3({}, ["System Analysis", dom.infoBox("info-analysis")]),
+                dom.H3({}, ["System Analysis", dom.infoBox("info-analysis")]),
                 this.analysis.node,
-                dom.h3({}, ["Abstraction Refinement", dom.infoBox("info-refinement")]),
+                dom.H3({}, ["Abstraction Refinement", dom.infoBox("info-refinement")]),
                 this.refinement.node,
-                dom.h3({}, ["Snapshots", dom.infoBox("info-snapshots")]),
+                dom.H3({}, ["Snapshots", dom.infoBox("info-snapshots")]),
                 this.snapshots.node
             ]),
-            dom.div({ "class": "right" }, [
-                dom.div({"class": "cols"}, [
-                    dom.div({ "class": "left" }, [
-                        dom.h3({}, ["View Settings", dom.infoBox("info-settings")]),
+            dom.DIV({ "class": "right" }, [
+                dom.DIV({"class": "cols"}, [
+                    dom.DIV({ "class": "left" }, [
+                        dom.H3({}, ["View Settings", dom.infoBox("info-settings")]),
                         this.settings.node
                     ]),
-                    dom.div({ "class": "right" }, [
-                        dom.h3({}, ["Control and Random Space", dom.infoBox("info-control")]),
+                    dom.DIV({ "class": "right" }, [
+                        dom.H3({}, ["Control and Random Space", dom.infoBox("info-control")]),
                         this.controlView.node,
                     ])
                 ]),
-                dom.div({ "class": "rest" }, [
-                    dom.h3({}, ["Selected State", dom.infoBox("info-state")]),
+                dom.DIV({ "class": "rest" }, [
+                    dom.H3({}, ["Selected State", dom.infoBox("info-state")]),
                     this.stateView.node,
-                    dom.h3({}, ["Actions", dom.infoBox("info-actions")]),
+                    dom.H3({}, ["Actions", dom.infoBox("info-actions")]),
                     this.actionView.node,
-                    dom.h3({}, ["Action Supports", dom.infoBox("info-supports")]),
+                    dom.H3({}, ["Action Supports", dom.infoBox("info-supports")]),
                     this.supportView.node,
-                    dom.h3({}, ["Trace", dom.infoBox("info-trace")]),
+                    dom.H3({}, ["Trace", dom.infoBox("info-trace")]),
                     this.traceView.node,
                 ]),
             ])
@@ -383,11 +383,11 @@ class Settings extends ObservableMixin<null> {
             "Robust Attractor": (state, us) => proxy.getOperator("attrR", state.label, us)
         }, "None");
 
-        this.node = dom.div({ "class": "settings" }, [
-            dom.create("label", {}, [this.toggleKind.node, "analysis c", dom.create("u", {}, ["o"]), "lors"]),
-            dom.create("label", {}, [this.toggleLabel.node, "state ", dom.create("u", {}, ["l"]), "abels"]),
-            dom.create("label", {}, [this.toggleVectorField.node, dom.create("u", {}, ["v"]), "ector field"]),
-            dom.p({ "class": "highlight" }, [
+        this.node = dom.DIV({ "class": "settings" }, [
+            dom.LABEL({}, [this.toggleKind.node, "analysis c", dom.create("u", {}, ["o"]), "lors"]),
+            dom.LABEL({}, [this.toggleLabel.node, "state ", dom.create("u", {}, ["l"]), "abels"]),
+            dom.LABEL({}, [this.toggleVectorField.node, dom.create("u", {}, ["v"]), "ector field"]),
+            dom.P({ "class": "highlight" }, [
                 dom.create("u", {}, ["H"]), "ighlight operator:", this.highlight.node
             ])
         ]);
@@ -422,11 +422,11 @@ class Analysis extends ObservableMixin<null> {
         this._results = new Map();
         this.proxy = proxy;
 
-        this.button = dom.create("button", {}, [dom.create("u", {}, ["a"]), "nalyse"]);
+        this.button = dom.BUTTON({}, [dom.create("u", {}, ["a"]), "nalyse"]);
         this.button.addEventListener("click", () => this.analyse());
-        this.info = dom.span();
-        this.node = dom.div({ "class": "analysis-control"}, [
-            dom.p({}, [this.button, " ", this.info])
+        this.info = dom.SPAN();
+        this.node = dom.DIV({ "class": "analysis-control"}, [
+            dom.P({}, [this.button, " ", this.info])
         ]);
 
         keybindings.bind("a", () => this.analyse());
@@ -577,18 +577,18 @@ class Refinement {
         this.stateView = stateView;
         this.stateView.attach(() => this.handleChange());
 
-        this.info = dom.span();
+        this.info = dom.SPAN();
         this.buttons = {
-            refineAll: dom.create("button", {}, [dom.create("u", {}, ["r"]), "efine all"]),
-            refineOne: dom.create("button", {}, ["r", dom.create("u", {}, ["e"]), "fine selection"])
+            refineAll: dom.BUTTON({}, [dom.create("u", {}, ["r"]), "efine all"]),
+            refineOne: dom.BUTTON({}, ["r", dom.create("u", {}, ["e"]), "fine selection"])
         };
         this.toggles = {
             negativeAttr: new CheckboxInput(true)
         };
-        this.node = dom.div({}, [
-            dom.p({}, [this.buttons.refineAll, " ", this.buttons.refineOne, " ", this.info]),
-            dom.div({ "class": "refinement-toggles" }, [
-                dom.create("label", {}, [this.toggles.negativeAttr.node, "Negative Attractor"])
+        this.node = dom.DIV({}, [
+            dom.P({}, [this.buttons.refineAll, " ", this.buttons.refineOne, " ", this.info]),
+            dom.DIV({ "class": "refinement-toggles" }, [
+                dom.LABEL({}, [this.toggles.negativeAttr.node, "Negative Attractor"])
             ])
         ]);
 
@@ -654,7 +654,7 @@ class StateView extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
     +proxy: SystemInspector;
-    +summary: HTMLDivElement;
+    +summary: HTMLParagraphElement;
     +predicates: SelectableNodes<string>;
     _selection: ?StateDataPlus;
 
@@ -665,13 +665,13 @@ class StateView extends ObservableMixin<null> {
         this.proxy.attach(() => this.handleChange());
 
         // Summary is filled with basic state information
-        this.summary = dom.p();
+        this.summary = dom.P();
         // Predicates that state fulfils
         this.predicates = new SelectableNodes(
             _ => styledPredicateLabel(_, this.proxy.getPredicate(_)), "-", ", "
         );
         this.predicates.node.className = "predicates";
-        this.node = dom.div({ "class": "state-view" }, [
+        this.node = dom.DIV({ "class": "state-view" }, [
             this.summary, this.predicates.node
         ]);
 
@@ -756,19 +756,19 @@ class TraceView extends ObservableMixin<null> {
         this.controller = new SelectInput({
             "Random": "Random"
         }, "Random");
-        const sampleButton = dom.create("button", {
+        const sampleButton = dom.BUTTON({
             "title": "sample a new trace with the selected controller"
         }, [dom.create("u", {}, ["s"]), "ample trace"]);
         sampleButton.addEventListener("click", () => this.sample());
-        const clearButton = dom.create("button", { "title": "clear the current trace" }, [
+        const clearButton = dom.BUTTON({ "title": "clear the current trace" }, [
             dom.create("u", {}, ["d"]), "elete"
         ]);
         clearButton.addEventListener("click", () => this.clear());
 
-        this.node = dom.div({ "class": "trace-view" }, [
-            dom.p({}, [
+        this.node = dom.DIV({ "class": "trace-view" }, [
+            dom.P({}, [
                 sampleButton, " ", clearButton,
-                dom.div({ "class": "right" }, [
+                dom.DIV({ "class": "right" }, [
                     dom.create("u", {}, ["C"]), "ontroller ",
                     this.controller.node
                 ])
@@ -877,7 +877,7 @@ class ActionView extends SelectableNodes<ActionData> {
     }
 
     static asNode(action: ActionData): HTMLDivElement {
-        return dom.div({}, [
+        return dom.DIV({}, [
             styledStateLabel(action.origin, action.origin), " → {",
             ...arr.intersperse(", ", action.targets.map(
                 target => styledStateLabel(target, action.origin)
@@ -921,7 +921,7 @@ class ActionSupportView extends SelectableNodes<SupportData> {
     }
 
     static asNode(support: SupportData): HTMLDivElement {
-        return dom.div({}, [
+        return dom.DIV({}, [
             "{",
             ...arr.intersperse(", ", support.targets.map(
                 target => styledStateLabel(target, support.origin)
@@ -971,7 +971,7 @@ class ControlView {
         // Side-by-side plots
         this.ctrlPlot = new AxesPlot([90, 90], ctrlFig, autoProjection(1));
         this.randPlot = new AxesPlot([90, 90], randFig, autoProjection(1));
-        this.node = dom.div({}, [this.ctrlPlot.node, this.randPlot.node]);
+        this.node = dom.DIV({}, [this.ctrlPlot.node, this.randPlot.node]);
 
         this.drawSpaces();
     }
@@ -1263,19 +1263,19 @@ class SnapshotManager {
         this.analysis = analysis;
         // Widget: menu bar with tree-structure view below
         this.forms = {
-            take:   dom.create("button", {}, ["new"]),
-            load:   dom.create("button", {}, ["load"]),
-            rename: dom.create("button", {}, ["rename"]),
-            name:   dom.create("input", { "type": "text", "placeholder": "Snapshot", "size": "25" })
+            take:   dom.BUTTON({}, ["new"]),
+            load:   dom.BUTTON({}, ["load"]),
+            rename: dom.BUTTON({}, ["rename"]),
+            name:   dom.INPUT({ "type": "text", "placeholder": "Snapshot", "size": "25" })
         };
         this.forms.take.addEventListener("click", () => this.takeSnapshot());
         this.forms.load.addEventListener("click", () => this.loadSnapshot());
         this.forms.rename.addEventListener("click", () => this.renameSnapshot());
-        this.treeView = dom.div({ "class": "tree" });
-        this.node = dom.div({ "class": "snapshot-view"}, [
-            dom.p({}, [
+        this.treeView = dom.DIV({ "class": "tree" });
+        this.node = dom.DIV({ "class": "snapshot-view"}, [
+            dom.P({}, [
                 this.forms.take, " ", this.forms.name,
-                dom.div({ "class": "right" }, [this.forms.rename, " ", this.forms.load])
+                dom.DIV({ "class": "right" }, [this.forms.rename, " ", this.forms.load])
             ]),
             this.treeView
         ]);
@@ -1354,14 +1354,14 @@ class SnapshotManager {
         const nodes = [];
         const cls = "snap" + (snapshot.isCurrent ? " current" : "")
                            + (snapshot.id === this._selection ? " selection" : "");
-        const node = dom.div({ "class": cls }, [
+        const node = dom.DIV({ "class": cls }, [
             snapshot.name,
-            dom.span({}, [snapshot.states + " states", percentageBar(snapshot.ratios)])
+            dom.SPAN({}, [snapshot.states + " states", percentageBar(snapshot.ratios)])
         ]);
         node.addEventListener("click", () => this._select(snapshot.id));
         nodes.push(node);
         if (snapshot.children.size > 0) {
-            const indented = dom.div({ "class": "indented" });
+            const indented = dom.DIV({ "class": "indented" });
             for (let child of snapshot.children) {
                 dom.appendChildren(indented, this._renderTree(child));
             }

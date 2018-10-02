@@ -42,12 +42,12 @@ export class InteractivePlot implements Plot {
         saveButton.addEventListener("click", () => {
             saveButton.setAttribute("href", "data:image/svg+xml;base64," + window.btoa(this.axesPlot.source));
         });
-        const coordsDisplay = dom.span({ "class": "coords" });
-        const menu = dom.div({ "class": "menu" }, [
+        const coordsDisplay = dom.SPAN({ "class": "coords" });
+        const menu = dom.DIV({ "class": "menu" }, [
             coordsDisplay, "hold shift to pan and zoom :: ", resetButton, " :: ", saveButton
         ]);
         this.axesPlot = new AxesPlot(size, figure, projection);
-        this.node = dom.div({ "class": "plot" }, [menu, this.axesPlot.node]);
+        this.node = dom.DIV({ "class": "plot" }, [menu, this.axesPlot.node]);
 
         const shapePlot = this.axesPlot.shapePlot
         // Coordinate display
@@ -358,7 +358,7 @@ class ShapeGroup {
 
                 } else if (primitive.kind === "label") {
                     let xy = this.shapePlot.scaleFwd(primitive.coords);
-                    let node = dom.label.toSVG(primitive.text);
+                    let node = dom.snLabel.toSVG(primitive.text);
                     node.setAttribute("x", toStr(xy[0]));
                     node.setAttribute("y", toStr(xy[1]));
                     dom.setAttributes(node, style);

@@ -19,19 +19,28 @@ export type ElementAttributes = { [string]: string };
 export type ElementEvents = { [string]: () => void };
 
 
-// HTML DOM nodes
-export function create<T: HTMLElement>(tag: *, attributes?: ElementAttributes, children?: ElementChildren): T {
+// HTML DOM nodes: returns the generic HTMLElement to be safe. I cannot figure
+// out how to properly use the parametric nature of document.createElement so
+// that the return type matches the tag.
+export function create(tag: string, attributes?: ElementAttributes, children?: ElementChildren): HTMLElement {
     const node = document.createElement(tag);
     if (attributes != null) setAttributes(node, attributes);
     if (children != null) appendChildren(node, children);
     return node;
 }
-// Some common tags
-export const p = (attrs?: ElementAttributes, children?: ElementChildren) => create("p", attrs, children);
-export const h3 = (attrs?: ElementAttributes, children?: ElementChildren) => create("h3", attrs, children);
-export const div = (attrs?: ElementAttributes, children?: ElementChildren) => create("div", attrs, children);
-export const span = (attrs?: ElementAttributes, children?: ElementChildren) => create("span", attrs, children);
 
+// Some common tags (with proper return types through any-casting)
+export const BUTTON   = (a?: ElementAttributes, c?: ElementChildren) => ((create("button"  , a, c): any): HTMLButtonElement);
+export const DIV      = (a?: ElementAttributes, c?: ElementChildren) => ((create("div"     , a, c): any): HTMLDivElement);
+export const FORM     = (a?: ElementAttributes, c?: ElementChildren) => ((create("form"    , a, c): any): HTMLFormElement);
+export const H3       = (a?: ElementAttributes, c?: ElementChildren) => ((create("h3"      , a, c): any): HTMLHeadingElement);
+export const INPUT    = (a?: ElementAttributes, c?: ElementChildren) => ((create("input"   , a, c): any): HTMLInputElement);
+export const LABEL    = (a?: ElementAttributes, c?: ElementChildren) => ((create("label"   , a, c): any): HTMLLabelElement);
+export const P        = (a?: ElementAttributes, c?: ElementChildren) => ((create("p"       , a, c): any): HTMLParagraphElement);
+export const SELECT   = (a?: ElementAttributes, c?: ElementChildren) => ((create("select"  , a, c): any): HTMLSelectElement);
+export const SPAN     = (a?: ElementAttributes, c?: ElementChildren) => ((create("span"    , a, c): any): HTMLSpanElement);
+export const TABLE    = (a?: ElementAttributes, c?: ElementChildren) => ((create("table"   , a, c): any): HTMLTableElement);
+export const TEXTAREA = (a?: ElementAttributes, c?: ElementChildren) => ((create("textarea", a, c): any): HTMLTextAreaElement);
 
 // SVG DOM nodes
 export const SVGNS = "http://www.w3.org/2000/svg";
@@ -138,11 +147,11 @@ export class Keybindings {
 }
 
 
-/* Label styling */
+/* String-Number label styling */
 
 const SPLIT_LABEL_REGEX = /^([a-zA-Z]+)(\d+)$/;
 const NUM_TSPAN_ATTRS = { "dy": "2", "font-size": "0.8em" };
-export const label = {
+export const snLabel = {
     
     // Split labels like X12 or p3 into ["X", "12"] or ["p", "13"]
     split: function (text: string): [string, string] {
@@ -151,17 +160,17 @@ export const label = {
     },
 
     toTeX: function (text: string): string {
-        const [name, num] = label.split(text);
+        const [name, num] = snLabel.split(text);
         return (num.length === 0) ? name : name + "_" + num;
     },
 
     toHTML: function (text: string): HTMLSpanElement {
-        const [name, num] = label.split(text);
-        return span({}, (num.length === 0) ? [name] : [name, create("sub", {}, [num])]);
+        const [name, num] = snLabel.split(text);
+        return SPAN({}, (num.length === 0) ? [name] : [name, create("sub", {}, [num])]);
     },
 
     toSVG: function (text: string): Element {
-        const [name, num] = label.split(text);
+        const [name, num] = snLabel.split(text);
         return createSVG("text", {},
             (num.length === 0) ? [name] : [name, createSVG("tspan", NUM_TSPAN_ATTRS, [num])]
         );
@@ -177,7 +186,7 @@ next to it on hover.
 */
 
 export function infoBox(contentID: string): HTMLDivElement {
-    const node = div({ "class": "info-button" }, ["?"]);
+    const node = DIV({ "class": "info-button" }, ["?"]);
     node.addEventListener("mouseover", (e: MouseEvent) => {
         const content = document.getElementById(contentID);
         if (content != null) {

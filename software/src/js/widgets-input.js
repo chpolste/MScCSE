@@ -48,7 +48,7 @@ export class LineInput<T> extends ObservableMixin<null> implements Input<T> {
     constructor(parse: (txt: string) => T, size?: number, initialText?: string) {
         super();
         this.parse = parse;
-        this.node = dom.create("input", { "type": "text" });
+        this.node = dom.INPUT({ "type": "text" });
         if (size != null) {
             this.size = size;
         }
@@ -101,7 +101,7 @@ export class MultiLineInput<T> extends ObservableMixin<null> implements Input<T[
 
     constructor(parseLine: (txt: string) => T, size?: [number, number], initialText?: string) {
         super();
-        this.node = dom.create("textarea");
+        this.node = dom.TEXTAREA();
         this.node.addEventListener("change", () => this.handleChange());
         this.parseLine = parseLine;
         if (size != null) {
@@ -168,7 +168,7 @@ export class SelectInput<T> extends ObservableMixin<null> implements Input<T> {
         for (let key in options) {
             optionNodes.push(dom.create("option", {}, [key]));
         }
-        this.node = dom.create("select", {}, optionNodes);
+        this.node = dom.SELECT({}, optionNodes);
         this.node.addEventListener("change", () => this.handleChange());
         this.text = (initialText != null && options.hasOwnProperty(initialText)) ? initialText : Object.keys(options)[0];
         this.isValid = true;
@@ -205,7 +205,7 @@ export class CheckboxInput extends ObservableMixin<null> implements Input<boolea
 
     constructor(initialValue?: boolean): void {
         super();
-        this.node = dom.create("input", { "type": "checkbox" });
+        this.node = dom.INPUT({ "type": "checkbox" });
         this.node.addEventListener("change", () => this.handleChange());
         this.node.checked = initialValue != null && initialValue;
         this.isValid = true;
@@ -239,7 +239,7 @@ export class RangeInput extends ObservableMixin<null> implements Input<number> {
 
     constructor(min: number, max: number, step: number, initialValue?: number): void {
         super();
-        this.node = dom.create("input", {
+        this.node = dom.INPUT({
             "type": "range",
             "min": String(min),
             "max": String(max),
@@ -292,7 +292,7 @@ export class MatrixInput<T> extends ObservableMixin<null> implements Input<T[][]
         this.parse = parse;
         this._shape = shape;
         this._size = size;
-        this.node = dom.create("table", { "class": "matrix" });
+        this.node = dom.TABLE({ "class": "matrix" });
         this._createLineInputs();
         if (initialText != null) {
             this.text = initialText;
@@ -412,7 +412,7 @@ export class SelectableNodes<T> extends ObservableMixin<boolean> {
         this._selection = null;
         this.hoverSelection = null;
         this.nodeMap = new Map();
-        this.node = dom.div({}, [emptyMessage]);
+        this.node = dom.DIV({}, [emptyMessage]);
     }
 
     set items(items: T[]): void {

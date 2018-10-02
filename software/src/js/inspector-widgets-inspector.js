@@ -197,15 +197,30 @@ export class SystemInspector extends ObservableMixin<null> {
     constructor(system: AbstractedLSS, objective: Objective, keybindings: dom.Keybindings) {
         super();
 
-        this.systemComm = new Communicator("ISYS");
-        this.systemComm.onRequest("init", data => {
-            return system.serialize();
-        });
-        this.systemComm.onRequest("ready", data => {
-            this.notify();
-            this.snapshots.handleChange(); // TODO
-        });
-        this.systemComm.host = new Worker("./js/inspector-worker-system.js");
+        try {
+            this.systemComm = new Communicator("ISYS");
+            this.systemComm.onRequest("init", data => {
+                return system.serialize();
+            });
+            this.systemComm.onRequest("ready", data => {
+                this.notify();
+                this.snapshots.handleChange(); // TODO: explain
+            });
+            const worker = new Worker("./js/inspector-worker-system.js");
+            worker.onerror = () => {
+                // TODO: provide a global error mechanism
+            };
+            this.systemComm.host = worker;
+        } catch (e) {
+            // Chrome does not allow Web Workers for local resources
+            if (e.name === "SecurityError") {
+                this.node = dom.div({}, ["error: unable to start web worker for system"]);
+                return;
+            }
+            throw e;
+        }
+
+        const x = dom.create("dsfjkd");
 
         this.objective = objective;
         this._system = system;
@@ -416,36 +431,10 @@ class Analysis extends ObservableMixin<null> {
 
         keybindings.bind("a", () => this.analyse());
 
-        this.initializeAnalysisWorker();
-    }
-
-    get objective(): Objective {
-        return this.proxy.objective;
-    }
-
-    get ready(): boolean {
-        return this._ready;
-    }
-
-    set ready(ready: boolean): void {
-        this._ready = ready;
-        this.button.disabled = !ready;
-        this.notify();
-    }
-
-    set infoText(text: string): void {
-        dom.replaceChildren(this.info, [text]);
-    }
-
-    // Create and setup the worker
-    initializeAnalysisWorker(): void {
+        // Create and setup the worker (separate worker for analysis, so system
+        // exploration stays responsive)
         this.ready = false;
         this.infoText = "initializing...";
-        // Terminate an old worker if exists, then create new
-        if (this.communicator != null) {
-            const oldWorker = this.communicator.host;
-            if (oldWorker != null) oldWorker.terminate();
-        }
         try {
             // Associcate a communicator for message exchange
             const communicator = new Communicator("IANA");
@@ -468,17 +457,38 @@ class Analysis extends ObservableMixin<null> {
                 this.infoText = "Web Worker ready.";
                 this.ready = true;
             });
-            communicator.host = new Worker("./js/inspector-worker-analysis.js");
-            // If worker creation fails, switch to local game analysis. TODO
-            //worker.onerror = () => this.initializeAnalysisFallback();
+            const worker = new Worker("./js/inspector-worker-analysis.js");
+            worker.onerror = () => {
+                this.infoText = "error: unable to start web worker for analysis"
+            };
+            // Start communicator
+            communicator.host = worker;
         } catch (e) {
             // Chrome does not allow Web Workers for local resources
             if (e.name === "SecurityError") {
-                //this.initializeAnalysisFallback(); TODO
-                //return;
+                this.infoText = "error: unable to start web worker for analysis"
+                return;
             }
             throw e;
         }
+    }
+
+    get objective(): Objective {
+        return this.proxy.objective;
+    }
+
+    get ready(): boolean {
+        return this._ready;
+    }
+
+    set ready(ready: boolean): void {
+        this._ready = ready;
+        this.button.disabled = !ready;
+        this.notify();
+    }
+
+    set infoText(text: string): void {
+        dom.replaceChildren(this.info, [text]);
     }
 
     analyse(): void {

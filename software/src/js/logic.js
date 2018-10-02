@@ -6,7 +6,7 @@ import type { PredicateID } from "./system.js";
 import type { PredicateTest } from "./game.js";
 
 import { ASTParser, ParseError } from "./parser.js";
-import { arr, hashString, UniqueCollection } from "./tools.js";
+import { iter, arr, sets, hashString, UniqueCollection } from "./tools.js";
 
 
 /* Objective specification */
@@ -243,6 +243,24 @@ export class OnePairStreettAutomaton {
 
     get initialState(): State {
         return this._initialState;
+    }
+
+    // Hack for specifications that can be fulfilled in finite time: interpret
+    // acceptance set F as set of final states. Once a final state is reached,
+    // the run is accepting no matter what happens afterwards.
+    get isCoSafeCompatible(): boolean {
+        const E = this.acceptanceSetE;
+        const F = this.acceptanceSetF;
+        return (
+            // At least one state in F
+            F.size > 0
+            // E and F must be disjunct
+            && !sets.doIntersect(E, F)
+            // E and F must together contain all states
+            && sets.difference(this.states, sets.union(E, F)).size === 0
+            // All states in F can only have a self-loop without transition label
+            && iter.and(iter.map(_ => (_.transitions.size === 0 && _.defaultTarget === _), F))
+        );
     }
 
     takeState(label: string): State {

@@ -23,14 +23,17 @@ export class Objective {
     +kind: ObjectiveKind;
     +propositions: Map<TransitionLabel, Proposition>;
     +automaton: OnePairStreettAutomaton;
+    +coSafeInterpretation: boolean;
 
-    constructor(kind: ObjectiveKind, terms: Proposition[] ): void {
+    constructor(kind: ObjectiveKind, terms: Proposition[], coSafeInterpretation?: boolean): void {
         this.kind = kind;
         if (terms.length !== kind.variables.length) throw new Error(
             "Number of terms (" + terms.length + ") does not match number of variables (" + kind.variables.length + ")"
         );
         this.propositions = new Map(arr.zip2(kind.variables, terms));
         this.automaton = OnePairStreettAutomaton.parse(kind.automaton);
+        // Co-safe interpretation of automaton is disabled by default
+        this.coSafeInterpretation = coSafeInterpretation != null && coSafeInterpretation;
     }
 
 }
@@ -338,6 +341,9 @@ class State {
     defaultTarget: ?State;
 
     constructor(label: string): void {
+        if (label.startsWith("__")) throw new Error(
+            "automaton state labels starting with '__' are reserved"
+        );
         this.label = label;
         this.transitions = new Map();
         this.defaultTarget = null;

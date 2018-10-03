@@ -260,7 +260,12 @@ export class TwoPlayerProbabilisticGame {
     // matching automaton transitions are connected to a dedicated, dead-end
     // state in which only player 2 can win.
     static fromProduct(sys: GameGraph, automaton: logic.OnePairStreettAutomaton,
-            fulfils: PredicateTest): TwoPlayerProbabilisticGame {
+            fulfils: PredicateTest, coSafeInterpretation?: boolean): TwoPlayerProbabilisticGame {
+        // Cache sets of labels priority 0 and 1 states (used for co-safe
+        // interpretation and priority assignment)
+        const priority1 = new Set(iter.map(s => s.label, automaton.acceptanceSetE));
+        const priority0 = new Set(iter.map(s => s.label, automaton.acceptanceSetF));
+        // Output game
         const game = new TwoPlayerProbabilisticGame();
         // Game graph exploration queue
         const queue = [];
@@ -277,13 +282,37 @@ export class TwoPlayerProbabilisticGame {
             enqueued.add(state);
             game.initialStates.add(state);
         }
+
         // Dead-end state for non-existing automata transitions and system
         // states without actions.
-        const deadEndP1 = game.takeP1State("", "");
-        const deadEndP2 = game.takeP2State("", 0, "");
-        // Connect state to itself
+        const deadEndP1 = game.takeP1State("", "__END__");
+        const deadEndP2 = game.takeP2State("", 0, "__END__");
+        // Connect state only to itself
         deadEndP1.actions.push(new Set([deadEndP2]));
         deadEndP2.actions.push(new Set([deadEndP1]));
+
+        // Co-safe interpretation of automaton is off by default
+        coSafeInterpretation = coSafeInterpretation != null && coSafeInterpretation;
+        // For co-safe interpretation add a priority 0 state that cannot be
+        // left, therefore a win for player 1 is guaranteed. This state will be
+        // put as only successor after all priority 0 states from the automaton
+        // (so even if the trace leaves the state space afterwards, the game is
+        // still won by player 1). The co-safe compatibility test of the
+        // automaton ensures that leads to the desired game. This state is not
+        // used for the regular interpretation of the automaton (infinite
+        // plays, traces must not leave the state space).
+        let satEndP1 = null;
+        let satEndP2 = null;
+        if (coSafeInterpretation) {
+            if (!automaton.isCoSafeCompatible) throw new Error(
+                "Co-safe interpretation selected, but the automaton is not co-safe compatible"
+            );
+            satEndP1 = game.takeP1State("", "__SAT__");
+            satEndP2 = game.takeP2State("", 0, "__SAT__");
+            satEndP1.actions.push(new Set([satEndP2]));
+            satEndP2.actions.push(new Set([satEndP1]));
+        }
+
         // Explore reachable states from initial states and create their
         // associated actions.
         while (queue.length > 0) {
@@ -293,10 +322,17 @@ export class TwoPlayerProbabilisticGame {
             const xi = state.systemState;
             // Corresponding automaton state (label)
             const qi = state.automatonState;
+            // If a priority 1 state is reached in the co-safe interpretation,
+            // transition to the dedicated __SAT__ state which ensures that
+            // player 1 wins.
+            if (coSafeInterpretation && satEndP1 != null && priority0.has(qi)) {
+                const action = game.takeP2State(xi, 0, "__SAT__");
+                action.actions.push(new Set([satEndP1]));
+                state.actions.push(new Set([action]));
             // For every player 1 state (Xi, q), create actions to player
             // 2 states ((Xi, Uij), q') if automaton transitions from q to q'
             // under the predicates of Xi
-            if (state instanceof P1State) {
+            } else if (state instanceof P1State) {
                 // Set of linear predicates that are fulfiled by system state (labels)
                 const pis = sys.predicateLabelsOf(xi);
                 // Automaton transition that matches linear predicates
@@ -339,8 +375,6 @@ export class TwoPlayerProbabilisticGame {
             }
         }
         // Assign state priorities
-        const priority1 = new Set(iter.map(s => s.label, automaton.acceptanceSetE));
-        const priority0 = new Set(iter.map(s => s.label, automaton.acceptanceSetF));
         for (let state of game.states) {
             // Default state priority is 2
             game.setPriority(state, 2);
@@ -350,8 +384,10 @@ export class TwoPlayerProbabilisticGame {
             if (priority1.has(state.automatonState) || state === deadEndP1 || state === deadEndP2) {
                 game.setPriority(state, 1);
             }
-            // States from automaton acceptance set F have priority 0
-            if (priority0.has(state.automatonState)) {
+            // States from automaton acceptance set F have priority 0. The
+            // dedicated __SAT__ states also have priority 0 to ensure that
+            // player 1 wins.
+            if (priority0.has(state.automatonState) || state === satEndP1 || state === satEndP2) {
                 game.setPriority(state, 0);
             }
         }

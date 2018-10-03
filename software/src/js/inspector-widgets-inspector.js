@@ -163,7 +163,10 @@ export class ProblemSummary {
             dom.DIV({}, [
                 dom.H3({}, ["Objective"]),
                 dom.renderTeX(formula, dom.P()),
-                dom.P({}, [objective.kind.name])
+                dom.P({}, [
+                    objective.kind.name,
+                    objective.coSafeInterpretation ? " (co-safe)" : ""
+                ])
             ])
         ]);
     }
@@ -439,12 +442,16 @@ class Analysis extends ObservableMixin<null> {
             // Associcate a communicator for message exchange
             const communicator = new Communicator("IANA");
             // Worker will request objective automaton
-            communicator.onRequest("automaton", (msg) => {
+            communicator.onRequest("automaton", data => {
                 return this.objective.automaton.stringify();
+            });
+            // Worker will request co-safe interpretation of objective
+            communicator.onRequest("coSafeInterpretation", data => {
+                return this.objective.coSafeInterpretation;
             });
             // Worker will request alphabetMap (connects the automaton transition
             // labels with the linear predicates of the system)
-            communicator.onRequest("alphabetMap", (msg) => {
+            communicator.onRequest("alphabetMap", data => {
                 const alphabetMap = {};
                 for (let [label, prop] of this.objective.propositions.entries()) {
                     alphabetMap[label] = stringifyProposition(prop);

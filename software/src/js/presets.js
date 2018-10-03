@@ -27,7 +27,7 @@ export const setups = {
             stateSpace: "0 < x\nx < 4\n0 < y\ny < 2"
         },
         predicates: "p1: x > 2",
-        objective: "Reachability\np1"
+        objective: "Reachability\np1\nt"
     },
 
     "Svorenova et al. (2017)'s Double Integrator": {
@@ -39,7 +39,7 @@ export const setups = {
             stateSpace: "-5 < x\n x < 5\n-3 < y\n y < 3"
         },
         predicates: "p1: -1 < x\np2:  x < 1\np3: -1 < y\np4:  y < 1",
-        objective: "Reachability\np1 & p2 & p3 & p4"
+        objective: "Reachability\np1 & p2 & p3 & p4\nt"
     }
 
 }

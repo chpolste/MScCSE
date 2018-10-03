@@ -11,10 +11,10 @@ import * as presets from "./presets.js";
 import * as dom from "./dom.js";
 import { iter, ObservableMixin } from "./tools.js";
 import { HalfspaceInequality, polytopeType, union } from "./geometry.js";
-import { Objective, AtomicProposition, parseProposition, traverseProposition } from "./logic.js";
+import { Objective, OnePairStreettAutomaton, AtomicProposition, parseProposition, traverseProposition } from "./logic.js";
 import { Figure, autoProjection } from "./figure.js";
 import { AxesPlot } from "./widgets-plot.js";
-import { ValidationError, SelectInput, MultiLineInput, MatrixInput, LineInput } from "./widgets-input.js";
+import { ValidationError, CheckboxInput, SelectInput, MultiLineInput, MatrixInput, LineInput } from "./widgets-input.js";
 import { LSS, AbstractedLSS } from "./system.js";
 import { VAR_NAMES, COLORS } from "./inspector-widgets-inspector.js";
 
@@ -469,44 +469,67 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
 
     +node: HTMLDivElement;
     +kind: Input<ObjectiveKind>;
+    +coSafe: Input<boolean>;
     +terms: ObjectiveTermsInput;
     +formula: HTMLSpanElement;
+    +coSafeLine: HTMLLabelElement;
 
     constructor(predicates: Input<[Halfspace[], string[]]>): void {
         super();
         this.kind = new SelectInput(presets.objectives, "Reachability");
         this.kind.attach(() => this.handleChange());
+        this.coSafe = new CheckboxInput(false);
+        this.coSafeLine = dom.LABEL();
         this.terms = new ObjectiveTermsInput(this.kind, predicates);
         this.formula = dom.SPAN();
         this.node = dom.DIV({}, [
-            dom.P({}, [this.kind.node, ": ", this.formula, ", where"]), this.terms.node
+            dom.P({}, [this.kind.node, ": ", this.formula, ", where"]),
+            this.terms.node,
+            this.coSafeLine
         ]);
         this.handleChange();
     }
 
     get value(): Objective {
-        return new Objective(this.kind.value, this.terms.value);
+        return new Objective(
+            this.kind.value, this.terms.value, (this.isCoSafeCompatible && this.coSafe.value)
+        );
     }
 
     get text(): string {
         return this.kind.text + "\n" + this.terms.text;
     }
-    
+
     set text(text: string): void {
         const lines = text.split("\n");
-        if (lines.length < 1) throw new Error(
-            "Invalid specification, requires at least one line stating the objective"
+        if (lines.length < 2) throw new Error(
+            "Invalid objective specification, requires at least two lines (name and if co-safe)"
         );
         this.kind.text = lines[0];
-        this.terms.text = lines.slice(1).join("\n");
+        this.terms.text = lines.slice(1, -1).join("\n");
+        this.coSafe.text = lines[lines.length - 1];
     }
 
     get isValid(): boolean {
         return this.terms.isValid;
     }
 
+    get isCoSafeCompatible(): boolean {
+        return OnePairStreettAutomaton.parse(this.kind.value.automaton).isCoSafeCompatible;
+    }
+    
     handleChange(): void {
-        dom.renderTeX(this.kind.value.formula, this.formula);
+        const kind = this.kind.value;
+        dom.renderTeX(kind.formula, this.formula);
+        if (this.isCoSafeCompatible) {
+            dom.replaceChildren(this.coSafeLine, [
+                this.coSafe.node, "co-safe interpretation"
+            ]);
+        } else {
+            dom.replaceChildren(this.coSafeLine, [
+                this.kind.text + " objective has no co-safe interpretation"
+            ]);
+        }
         this.notify();
     }
 

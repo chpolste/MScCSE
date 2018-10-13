@@ -4,13 +4,25 @@
 
 export const objectives = {
 
-    // TODO: composite variables that are made up of other variables
-
     "Reachability": {
         name: "Reachability",
         formula: "\\mathsf{F} \\varphi",
         variables: ["\\varphi"],
         automaton: "q0>(\\varphi)>q1,q0>>q0,q1>>q1 | q0 | q0 | q1"
+    },
+
+    "Reachability & Safety": {
+        name: "Reachability & Safety",
+        formula: "(\\neg \\pi) \\mathsf{U} \\varphi",
+        variables: ["\\varphi", "\\pi"],
+        automaton: "q0>(\\varphi)>q1,q0>(!\\pi)>q0,q1>>q1 | q0 | q0 | q1"
+    },
+
+    "Recurrence": {
+        name: "Recurrence",
+        formula: "\\mathsf{G} \\mathsf{F} \\varphi",
+        variables: ["\\varphi"],
+        automaton: "q0>(\\varphi)>q1,q0>>q0,q1>(\\varphi)>q1,q1>>q0 | q0 | q0 | q1"
     }
 
 }

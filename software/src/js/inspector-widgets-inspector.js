@@ -590,11 +590,13 @@ class Refinement {
             refineOne: dom.BUTTON({}, ["r", dom.create("u", {}, ["e"]), "fine selection"])
         };
         this.toggles = {
-            negativeAttr: new CheckboxInput(true)
+            innerPreR: new CheckboxInput(false),
+            negativeAttr: new CheckboxInput(false)
         };
         this.node = dom.DIV({}, [
             dom.P({}, [this.buttons.refineAll, " ", this.buttons.refineOne, " ", this.info]),
             dom.DIV({ "class": "refinement-toggles" }, [
+                dom.LABEL({}, [this.toggles.innerPreR.node, "Inner Robust Predecessor"]),
                 dom.LABEL({}, [this.toggles.negativeAttr.node, "Negative Attractor"])
             ])
         ]);
@@ -612,6 +614,9 @@ class Refinement {
         const steps = [];
         if (this.toggles.negativeAttr.value) {
             steps.push("NegativeAttr");
+        }
+        if (this.toggles.innerPreR.value) {
+            steps.push("InnerPreR");
         }
         return steps;
     }

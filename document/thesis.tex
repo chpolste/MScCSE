@@ -1,0 +1,264 @@
+\usecolors[xwi]
+
+% Custom TeX-commands
+\input{inputs/commands}
+
+% Language
+\mainlanguage[en]
+\hyphenation{}
+
+% Page setup
+\setuppapersize[A4]
+\setuplayout[backspace=35mm,width=150mm,header=0mm,footer=0mm]
+
+% Setup links and assign PDF metadata
+\setupinteraction[
+        state=start,
+        color=black,
+        contrastcolor=black,
+        style=,
+        focus=standard,
+        title={}, % TODO
+        subtitle={}, % TODO
+        author={Christopher Polster},
+        ]
+
+% Title of table of content
+\setupheadtext[content={Table of Contents}]
+% Title of bibliography
+\setupheadtext[pubs={References}]
+
+% Fonts
+% Text uses serif font
+\setupbodyfont[11pt,serif]
+\definebodyfontenvironment[11pt][a=12pt,b=13pt,c=14pt,d=20pt]
+
+% Headings etc. are sans-serif
+\definefontfamily[titlefont][sans][dejavusans]
+\definefont[CoverTitleFont][dejavusansbold at 19pt]
+\definefont[CoverSubtitleFont][dejavusansbold at 15pt]
+\definefont[AbstractHeadingFont][dejavusans at 11pt]
+\definefont[ChapterFont][dejavusans at 19pt]
+\definefont[SectionFont][dejavusans at 13pt]
+\definefont[SubsectionFont][dejavusans at 12pt]
+\definefont[TOCHeadingFont][dejavusans at 11pt][2] % 3rd [] is line height
+\definefont[PageNumberFont][dejavusans at 10pt]
+\definefont[FooterFont][dejavusans at 8pt]
+\definefont[FigureFont][dejavusans at 8.5pt][1.1]
+\definefont[FigureCaptionFont][dejavusansbold at 8.5pt][1.1]
+
+% Styles for headings etc.
+\definealternativestyle[FigureStyle][\FigureFont]
+\definealternativestyle[FigureCaptionStyle][\FigureCaptionFont]
+\definealternativestyle[TOCStyle][\TOCHeadingFont]
+\definealternativestyle[ChapterStyle][\ChapterFont]
+\definealternativestyle[SectionStyle][\SectionFont]
+\definealternativestyle[SubsectionStyle][\SubsectionFont]
+
+% No chapter numbering, apply heading styles
+\setuphead[chapter][number=no,style=ChapterStyle,page=yes]
+\setuphead[section][style=SectionStyle,sectionsegments=section]
+\setuphead[subsection][style=SubsectionStyle,sectionsegments=section:subsection]
+
+% Don't reset section numbering in new chapter
+\definestructureresetset[nosecreset][1,1,0][1] % [part, chapter, section][default]
+\setuphead[sectionresetset=nosecreset]
+
+% Table of contents
+\setuplist[chapter][style=TOCStyle]
+\setupcombinedlist[section,subsection][alternative=c]
+\setuplist[section][width=9mm]
+\setuplist[subsection][width=9mm,margin=9mm]
+
+% Which captions to include in the table of contents?
+\placebookmarks[chapter,section,subsection]
+
+% Footnotes
+\define[1]\footnotebrack{\narrownobreakspace\high{[#1]}}
+\setupnotation[footnote][alternative=text]
+\setupfootnotes[
+        way=bytext,
+        frameoffset=0mm,
+        topframe=on,
+        rule=off,
+        toffset=1mm,
+        roffset=-14cm,
+        before={\blank[7mm]}%,
+        %textcommand=\footnotebrack
+        ] % fixes weird spacing when only one line of footnote
+
+% Figures
+\setupexternalfigures[directory=figures/]
+\setupcaptions[figure][
+        style={FigureStyle},
+        suffix={:},
+        headstyle={FigureCaptionStyle},
+        prefixsegments=none,
+        width=fit,
+        way=bytext,
+        spaceafter=2mm
+        ]
+
+% Formulas
+\defineseparatorset[none][][]
+\setupformulas[way=bytext,prefixsegments=none,numberseparatorset=none]
+% Increase spacing around binary relation symbols (default is 5mu plus 5mu).
+\thickmuskip=10mu plus 5mu
+
+% Bibliography
+\setupbibtex[database={inputs/references},sort=author]
+\setuppublications[criterium=cite,alternative=apa,sorttype=bbl,refcommand=authoryear]
+\setuppublicationlist[artauthoretallimit=40,criterium=all]
+\setupcite[authoryears][pubsep={; },lastpubsep={; },inbetween={ },compress=no]
+
+% Taken from bibl-apa.tex and added doi
+\setuppublicationlayout[article]{%
+   \insertartauthors{}{ }{\insertthekey{}{ }{}}%
+   \insertpubyear{(}{). }{\unskip.}%
+   \insertarttitle{\bgroup }{\egroup. }{}%
+   \insertjournal{\bgroup \it}{\egroup}
+    {\insertcrossref{In }{}{}}%
+   \insertvolume
+    {\bgroup \it, }
+    {\egroup\insertissue{\/(}{)}{}\insertpages{, }{.}{.}}
+    {\insertpages{, pp. }{.}{.}}%
+   \insertdoi{ doi:}{.}{}%
+   \insertnote{ }{.}{}%
+   \insertcomment{}{.}{}%
+}
+
+
+% Cover
+\definesectionblock[cover][,]
+\setupsectionblock[cover][page=right]
+\startsectionblockenvironment[cover]
+    \switchtobodyfont[titlefont,10pt]
+    \setupinterlinespace[line=14pt]
+    \setupwhitespace[medium]
+\stopsectionblockenvironment
+
+% Abstract
+\definesectionblock[abstract][,]
+\setupsectionblock[abstract][page=right]
+\startsectionblockenvironment[abstract]
+    \setuppagenumbering[state=stop,alternative=doublesided]
+    \setupinterlinespace[line=1.5em]
+    \setupwhitespace[medium]
+    \setupnarrower[middle=10mm]
+    \page[right]
+\stopsectionblockenvironment
+
+% Table of contents
+\definesectionblock[tableofcontents][,]
+\setupsectionblock[tableofcontents][page=right]
+\startsectionblockenvironment[tableofcontents]
+    \setupwhitespace[0.5em]
+    \setuppagenumbering[state=stop,alternative=doublesided]
+\stopsectionblockenvironment
+
+% Frontmatter: acknowledgements, preface
+\setupsectionblock[frontpart][page=right]
+\startsectionblockenvironment[frontpart]
+    \setuplayout[footerdistance=8mm,footer=6mm]
+    \setcounter[userpage][1] % Reset page counter
+    \setuppagenumbering[
+            state=start,
+            location={footer,right},
+            left={},
+            right={},
+            alternative=doublesided,
+            style=\PageNumberFont
+            ]
+    \setupuserpagenumber[numberconversion=romannumerals]
+    \setupwhitespace[medium]
+    \setupinterlinespace[line=1.5em]
+\stopsectionblockenvironment
+
+% Bodymatter: text
+\setupsectionblock[bodypart][page=right]
+\startsectionblockenvironment[bodypart]
+    \setuplayout[footerdistance=8mm,footer=6mm]
+    \setcounter[userpage][1] % Reset page counter
+    \setuppagenumbering[
+            state=start,
+            location={footer,right},
+            left={},
+            right={},
+            alternative=doublesided,
+            style=\PageNumberFont
+            ]
+    \setupfootertexts[{\FooterFont {\DocTitleFooter}}]
+                     [pagenumber]
+                     [pagenumber]
+                     [{\FooterFont Master's Thesis of {\Author} (\YearOfCompletion)}]
+    \setupbackgrounds[footer][text][topframe=on]
+    \setupwhitespace[medium]
+    \setupinterlinespace[line=1.5em]
+\stopsectionblockenvironment
+
+% Backmatter: bibliography
+\setupsectionblock[backpart][page=right]
+\startsectionblockenvironment[backpart]
+    \setuppagenumbering[alternative=doublesided,style=\PageNumberFont]
+    \setuplayout[footerdistance=8mm,footer=6mm]
+    \setupfootertexts[{\FooterFont {\DocTitleFooter}}]
+                     [pagenumber]
+                     [pagenumber]
+                     [{\FooterFont Master's Thesis of {\Author} (\YearOfCompletion)}]
+    \setupbackgrounds[footer][text][topframe=on]
+    \setupwhitespace[medium]
+    \setupinterlinespace[line=1.5em]
+\stopsectionblockenvironment
+
+% Declaration
+\definesectionblock[declaration][,]
+\setupsectionblock[declaration][page=right]
+\startsectionblockenvironment[declaration]
+    \setuppagenumbering[state=stop,alternative=doublesided]
+    \setupinterlinespace[line=1.5em]
+    \setupwhitespace[medium]
+\stopsectionblockenvironment
+
+
+
+\starttext
+
+    \startsectionblock[cover]
+        \input{inputs/cover}
+    \stopsectionblock
+
+    \startsectionblock[abstract]
+        \input{inputs/abstract}
+    \stopsectionblock
+
+    \startsectionblock[tableofcontents]
+        \completecontent
+    \stopsectionblock
+
+    \startfrontmatter
+        \startchapter[title=Acknowledgements]
+            ...
+        \stoptitle
+        \page[even,empty]
+        \startchapter[title=Preface]
+            ...
+        \stoptitle
+        \page[even,empty]
+    \stopfrontmatter
+
+    \startbodymatter
+    \stopbodymatter
+
+    \startbackmatter
+        \startchapter[title=References]
+            \placepublications
+            \break % makes footer work properly
+        \stopchapter
+    \stopbackmatter
+
+    \startsectionblock[declaration]
+        \input{inputs/declaration}
+    \stopsectionblock
+
+\stoptext
+

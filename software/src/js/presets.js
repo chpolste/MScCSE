@@ -8,9 +8,9 @@ export const objectives = {
 
     "Reachability": {
         name: "Reachability",
-        formula: "\\mathsf{F} φ",
-        variables: ["φ"],
-        automaton: "q0>φ>q1,q0>>q0,q1>>q1 | q0 | q0 | q1"
+        formula: "\\mathsf{F} \\varphi",
+        variables: ["\\varphi"],
+        automaton: "q0>(\\varphi)>q1,q0>>q0,q1>>q1 | q0 | q0 | q1"
     }
 
 }

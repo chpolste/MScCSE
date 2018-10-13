@@ -3,7 +3,6 @@
 
 import type { ASTNode } from "./parser.js";
 import type { PredicateID } from "./system.js";
-import type { PredicateTest } from "./game.js";
 
 import { ASTParser, ParseError } from "./parser.js";
 import { iter, arr, sets, hashString, UniqueCollection } from "./tools.js";
@@ -21,7 +20,7 @@ export type ObjectiveKind = {
 export class Objective {
     
     +kind: ObjectiveKind;
-    +propositions: Map<TransitionLabel, Proposition>;
+    +propositions: Map<string, Proposition>;
     +automaton: OnePairStreettAutomaton;
     +coSafeInterpretation: boolean;
 
@@ -139,9 +138,9 @@ function getOpOf(prop: Proposition): * {
 // Accepted tokens are:
 // - Parentheses
 // - Operators !, &, |, ->
-// - Atomic proposition labels (start with small letter, then any number of
-//   numbers, letters and underscores)
-const parsePropositionAST = ASTParser(/[()!&|]|->|(?:[a-z][a-z0-9]*)/, PROP_OPS);
+// - Atomic proposition labels (start with small letter or \ (to allow
+//   TeX-escaped letters, then any number of numbers, letters and underscores)
+const parsePropositionAST = ASTParser(/[()!&|]|->|(?:[a-z\\][a-z0-9]*)/, PROP_OPS);
 
 function asProposition(node: ASTNode): Proposition {
     if (typeof node === "string") {
@@ -229,8 +228,6 @@ States and transitions are identified by string labels. A default transition
 (else-case) is specified by an empty label.
 */
 
-export type TransitionLabel = string;
-
 export class OnePairStreettAutomaton {
 
     +states: UniqueCollection<State>;
@@ -280,8 +277,11 @@ export class OnePairStreettAutomaton {
         const acceptE = [];
         const acceptF = [];
         for (let state of this.states) {
-            for (let [prop, target] of state.transitions) {
-                transitions.push(state.label + ">" + prop + ">" + target.label);
+            for (let [formula, target] of state.transitions) {
+                // stringifyProposition adds outer parentheses for anything
+                // more complex than an atomic proposition
+                const proposition = stringifyProposition(formula);
+                transitions.push(state.label + ">" + proposition + ">" + target.label);
             }
             if (state.defaultTarget != null) {
                 transitions.push(state.label + ">>" + state.defaultTarget.label);
@@ -306,19 +306,30 @@ export class OnePairStreettAutomaton {
         const automaton = new OnePairStreettAutomaton();
         const [transitions, initialState, acceptanceSetE, acceptanceSetF] = s.split("|");
         for (let transition of transitions.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
-            const [o, p, t] = transition.split(/\s*>\s*/);
+            // origin > (propositional formula) > target
+            const opIdx = transition.indexOf(">");
+            const ptIdx = transition.lastIndexOf(">");
+            if (opIdx < 0 || ptIdx < 0 || opIdx == ptIdx) throw new Error(
+                "Invalid transition '" + transition + "'"
+            );
+            // Origin
+            const o = transition.substring(0, opIdx).trim();
             const origin = automaton.takeState(o);
+            // Target
+            const t = transition.substring(ptIdx + 1).trim();
             const target = automaton.takeState(t);
+            // Transition condition: propositional formula or none
+            const p = transition.substring(opIdx + 1, ptIdx).trim();
             if (p === "") {
                 if (origin.defaultTarget != null) throw new Error(
                     "Default target set twice for state '" + o + "'"
                 );
                 origin.defaultTarget = target;
             } else {
-                if (origin.transitions.has(p)) throw new Error(
-                    "Transition with label '" + o + "' specified twice for state '" + o + "'"
-                );
-                origin.transitions.set(p, target);
+                const formula = parseProposition(p);
+                // Map keeps track of insertion order so order of definition
+                // governs in which order transition conditions are tested
+                origin.transitions.set(formula, target);
             }
         }
         for (let label of acceptanceSetE.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
@@ -337,7 +348,7 @@ export class OnePairStreettAutomaton {
 class State {
 
     +label: string;
-    +transitions: Map<TransitionLabel, State>;
+    +transitions: Map<Proposition, State>;
     defaultTarget: ?State;
 
     constructor(label: string): void {
@@ -349,9 +360,9 @@ class State {
         this.defaultTarget = null;
     }
 
-    successor(test: PredicateTest, predicates: Set<PredicateID>): ?State {
-        for (let [label, target] of this.transitions) {
-            if (test(label, predicates)) return target;
+    successor(valuation: Valuation): ?State {
+        for (let [formula, target] of this.transitions) {
+            if (formula.evalWith(valuation)) return target;
         }
         return this.defaultTarget;
     }

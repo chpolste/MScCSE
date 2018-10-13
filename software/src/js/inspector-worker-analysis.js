@@ -3,11 +3,11 @@
 
 import type { PredicateID } from "./system.js";
 import type { JSONGameGraph } from "./game.js";
-import type { Proposition, TransitionLabel } from "./logic.js";
+import type { Valuation, Proposition } from "./logic.js";
 
 import { Communicator } from "./worker.js";
 import { sets, iter } from "./tools.js";
-import { parseProposition, OnePairStreettAutomaton } from "./logic.js";
+import { AtomicProposition, parseProposition, OnePairStreettAutomaton } from "./logic.js";
 import { MappedJSONGameGraph, TwoPlayerProbabilisticGame } from "./game.js";
 
 
@@ -21,23 +21,24 @@ let $coSafeInterpretation: boolean = false;
 let $automaton: ?OnePairStreettAutomaton = null;
 
 // The mapping of propositional formulas (over the linear predicates of the
-// abstracted LSS) to automaton transition labels is also fixed and reused
-// between subsequent analyses.
-let $alphabetMap: ?Map<TransitionLabel, Proposition> = null;
+// abstracted LSS) to the alphabet of automaton transitions is also fixed and
+// reused between subsequent analyses.
+let $alphabetMap: ?Map<string, Proposition> = null;
 
-
-// Check if the propositional formula associated with the transition label is
-// fulfilled assuming that the predicates (= atomic propositions) from the
-// given set are TRUE.
-function predicateTest(transitionLabel: TransitionLabel, predicates: Set<PredicateID>): boolean {
-    if ($alphabetMap == null) throw new Error(
-        "Mapping of transition labels to propositional formulas not initialized"
-    );
-    const formula = $alphabetMap.get(transitionLabel);
-    if (formula == null) throw new Error(
-        "No propositional formula for transition '" + transitionLabel + "' specified"
-    );
-    return formula.evalWith(p => predicates.has(p.symbol));
+// Return a valuation based on the current alphabetMap that evaluates
+// a proposition formula from an automaton transition based on the given (inner
+// function argument) fulfilled linear predicates.
+function $valuationFor(predicates: Set<PredicateID>): Valuation {
+    return function (transitionAtom) {
+        if ($alphabetMap == null) throw new Error(
+            "Mapping of transition labels to propositional formulas not initialized"
+        );
+        const formula = $alphabetMap.get(transitionAtom.symbol);
+        if (formula == null) throw new Error(
+            "No propositional formula for transition atom '" + transitionAtom.symbol + "' specified"
+        );
+        return formula.evalWith(_ => predicates.has(_.symbol));
+    };
 }
 
 
@@ -57,7 +58,7 @@ communicator.onRequest("analysis", function (data: AnalysisRequest): AnalysisDat
     );
     const gameGraph = new MappedJSONGameGraph(data);
     const game = TwoPlayerProbabilisticGame.fromProduct(
-        gameGraph, $automaton, predicateTest, $coSafeInterpretation
+        gameGraph, $automaton, $valuationFor, $coSafeInterpretation
     );
     return game.analyse(new Map([
         ["satisfying",      TwoPlayerProbabilisticGame.analyseSatisfying],

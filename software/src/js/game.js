@@ -97,7 +97,9 @@ often is even.
 
 export type Priority = 0 | 1 | 2;
 export type PState = P1State | P2State;
-export type PredicateTest = (logic.TransitionLabel, Set<PredicateID>) => boolean;
+// Take a set of predicate labels and return a valuation that can be used to
+// evaluate a propositional formula from an automaton transition.
+export type ValuationFactory = (Set<PredicateID>) => logic.Valuation;
 
 // Priority value for all newly created states. Can be changed later using the
 // setPriority method of game (not set directly on states, as these are not
@@ -253,14 +255,14 @@ export class TwoPlayerProbabilisticGame {
     }
 
     // Construct synchronous product game from system abstraction-induced game
-    // graph and one-pair Streett automaton. The fulfils test is used match the
-    // propositional formulas behind automaton transition labels with
-    // satisfying system states.
+    // graph and one-pair Streett automaton. valuationFor connects the
+    // propositional formulas behind automaton transitions with satisfying
+    // system states.
     // Dead-end states of the game graph and game graph transitions without
-    // matching automaton transitions are connected to a dedicated, dead-end
-    // state in which only player 2 can win.
+    // matching automaton transitions are connected to dead-end states,
+    // depending on the coSafeInterpretation setting.
     static fromProduct(sys: GameGraph, automaton: logic.OnePairStreettAutomaton,
-            fulfils: PredicateTest, coSafeInterpretation?: boolean): TwoPlayerProbabilisticGame {
+            valuationFor: ValuationFactory, coSafeInterpretation?: boolean): TwoPlayerProbabilisticGame {
         // Cache sets of labels priority 0 and 1 states (used for co-safe
         // interpretation and priority assignment)
         const priority1 = new Set(iter.map(s => s.label, automaton.acceptanceSetE));
@@ -336,7 +338,7 @@ export class TwoPlayerProbabilisticGame {
                 // Set of linear predicates that are fulfiled by system state (labels)
                 const pis = sys.predicateLabelsOf(xi);
                 // Automaton transition that matches linear predicates
-                const qNext = automaton.takeState(qi).successor(fulfils, pis);
+                const qNext = automaton.takeState(qi).successor(valuationFor(pis));
                 // Automaton transition exists, create game transition for
                 // every system action
                 if (qNext != null) {

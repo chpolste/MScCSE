@@ -52,7 +52,7 @@ JS_MODULES_FILES = $(JS_MODULES)/geometry.js $(JS_MODULES)/linalg.js $(JS_MODULE
 
 .PHONY: all release set-up-environment clean test check inspector
 
-all: $(JS_MODULES_FILES) inspector
+all: $(JS_MODULES_FILES) inspector plotter-2d
 
 release:
 	@make clean
@@ -87,6 +87,8 @@ check:
 
 inspector: $(DIST_HTML)/inspector.html $(DIST_CSS)/inspector.css $(DIST_JS)/inspector.js \
 		$(DIST_JS)/inspector-worker-analysis.js $(DIST_JS)/inspector-worker-system.js
+
+plotter-2d: $(DIST_HTML)/plotter-2d.html $(DIST_JS)/plotter-2d.js
 
 
 # File rules
@@ -124,6 +126,7 @@ $(SRC_JS)/game.js: $(SRC_JS)/tools.js $(SRC_JS)/logic.js
 $(SRC_JS)/geometry.js: $(SRC_JS)/linalg.js $(SRC_JS)/tools.js $(SRC_JS)/parser.js
 	@touch $(SRC_JS)/geometry.js
 
+# LSS Analysis and Abstraction Refinement Inspector Application
 $(SRC_JS)/inspector.js: $(SRC_JS)/presets.js $(SRC_JS)/system.js $(SRC_JS)/dom.js \
 		$(SRC_JS)/inspector-widgets-setup.js $(SRC_JS)/inspector-widgets-inspector.js
 	@touch $(SRC_JS)/inspector.js
@@ -162,4 +165,9 @@ $(SRC_JS)/widgets-input.js: $(SRC_JS)/dom.js $(SRC_JS)/tools.js
 
 $(SRC_JS)/widgets-plot.js: $(SRC_JS)/linalg.js $(SRC_JS)/dom.js $(SRC_JS)/tools.js
 	@touch $(SRC_JS)/widgets-plot.js
+
+# Plotter 2D Application
+$(SRC_JS)/plotter-2d.js: $(SRC_JS)/geometry.js $(SRC_JS)/widgets-plot.js  $(SRC_JS)/figure.js \
+		$(SRC_JS)/dom.js $(SRC_JS)/widgets-input.js
+	@touch $(SRC_JS)/plotter-2d.js
 

@@ -693,6 +693,77 @@ describe("geometry problem cases", function () {
         }
     });
 
+    it("Intersection with halfspace order float instability", function () {
+        const innerHs1 = [
+             new geometry.HalfspaceInequality([ -0.5547001962252289, -0.8320502943378439 ], -3.5223462460302057),
+             new geometry.HalfspaceInequality([ 0.7071067811865472, 0.7071067811865479 ], 3.818376618407357),
+             new geometry.HalfspaceInequality([ 0, 1 ], 3)
+        ];
+        const innerHs2 = [
+            new geometry.HalfspaceInequality([ -0.554700196225229, -0.8320502943378436 ], -3.5223462460302053),
+            new geometry.HalfspaceInequality([ 0.7071067811865475, 0.7071067811865475 ], 3.8183766184073566),
+            new geometry.HalfspaceInequality([ 0, 1 ], 3)
+        ];
+        assert.equal(innerHs1.length, innerHs2.length);
+        for (let i = 0; i < innerHs1.length; i++) {
+            assert(innerHs1[i].isSameAs(innerHs2[i]));
+            assert(innerHs2[i].isSameAs(innerHs1[i]));
+        }
+
+        const outerHs1 = [
+            new geometry.HalfspaceInequality([ -0.7071067811865476, -0.7071067811865476 ], -3.2880465325174475),
+            new geometry.HalfspaceInequality([ -0.55470019622523, -0.8320502943378432 ], -2.2188007849009224),
+            new geometry.HalfspaceInequality([ 0, -1 ], 1.7000000000000017),
+            new geometry.HalfspaceInequality([ 1, -2.4671622769448e-16 ], 6.749999999999998),
+            new geometry.HalfspaceInequality([ 0.7071067811865498, 0.7071067811865451 ], 6.116473657263642),
+            new geometry.HalfspaceInequality([ 0.554700196225228, 0.8320502943378444 ], 5.436061923007241),
+            new geometry.HalfspaceInequality([ 0, 1 ], 3.5999999999999974)
+        ];
+        const outerHs2 = [
+            new geometry.HalfspaceInequality([ -0.7071067811865475, -0.7071067811865475 ], -3.288046532517447),
+            new geometry.HalfspaceInequality([ -0.5547001962252296, -0.8320502943378435 ], -2.2188007849009197),
+            new geometry.HalfspaceInequality([ 0, -1 ], 1.6999999999999977),
+            new geometry.HalfspaceInequality([ 1, -1.5700924586837752e-16 ], 6.749999999999998),
+            new geometry.HalfspaceInequality([ 0.7071067811865475, 0.7071067811865475 ], 6.1164736572636285),
+            new geometry.HalfspaceInequality([ 0.5547001962252285, 0.8320502943378442 ], 5.436061923007242),
+            new geometry.HalfspaceInequality([ 0, 1 ], 3.599999999999997)
+        ];
+        assert.equal(outerHs1.length, outerHs2.length);
+        for (let i = 0; i < outerHs1.length; i++) {
+            assert(outerHs1[i].isSameAs(outerHs2[i]));
+            assert(outerHs2[i].isSameAs(outerHs1[i]));
+        }
+
+        const innerPoly1 = geometry.Polygon.intersection(innerHs1);
+        const innerPoly2 = geometry.Polygon.intersection(innerHs2);
+        const outerPoly1 = geometry.Polygon.intersection(outerHs1);
+        const outerPoly2 = geometry.Polygon.intersection(outerHs2);
+
+        const innerPolyHs1 = innerPoly1.halfspaces;
+        const innerPolyHs2 = innerPoly2.halfspaces;
+        assert.equal(innerPolyHs1.length, innerPolyHs2.length);
+        for (let i = 0; i < innerPolyHs1.length; i++) {
+            assert(innerPolyHs1[i].isSameAs(innerPolyHs2[i]));
+            assert(innerPolyHs2[i].isSameAs(innerPolyHs1[i]));
+        }
+
+        const outerPolyHs1 = outerPoly1.halfspaces;
+        const outerPolyHs2 = outerPoly2.halfspaces;
+        assert.equal(outerPolyHs1.length, outerPolyHs2.length);
+        for (let i = 0; i < outerPolyHs1.length; i++) {
+            assert(outerPolyHs1[i].isSameAs(outerPolyHs2[i]));
+            assert(outerPolyHs2[i].isSameAs(outerPolyHs1[i]));
+        }
+
+        const interPoly1 = innerPoly1.intersect(outerPoly1);
+        const interPoly2 = innerPoly2.intersect(outerPoly2);
+        assert(interPoly1.isSameAs(interPoly2));
+
+        const interPoly1reverse = outerPoly1.intersect(innerPoly1);
+        const interPoly2reverse = outerPoly2.intersect(innerPoly2);
+        assert(interPoly1reverse.isSameAs(interPoly2reverse));
+    });
+
 });
 
 

@@ -39,13 +39,16 @@ function cartesian<T>(...tuples: [T, T][]): T[][] {
 
 // Canonical ordering in 2D:
 // Vertices: ascending x then descending y
-// Halfspaces: counterclockwise by angle wrt normal [-1, 0]
+// Halfspaces: counterclockwise by angle wrt normal [-1, 0] with angleCCW
+//             behaviour as tiebreaker
 // /!\ This is carefully tuned so that canonical sets of halfspaces can be
 //     combined into a canonical set with a single merge operation.
 
 // Halfspace comparator for use with sort()
 function halfspaceOrdering2D(g: Halfspace, h: Halfspace): number {
-    return angleOrder(g.normal) - angleOrder(h.normal);
+    const gOrder = angleOrder(g.normal);
+    const hOrder = angleOrder(h.normal);
+    return gOrder == hOrder ? angleCCW(g.normal, h.normal) - Math.PI : gOrder - hOrder;
 }
 
 // CCW angle wrt to [-1, 0]. Only used for sorting, so no remapping to [0, 2π)

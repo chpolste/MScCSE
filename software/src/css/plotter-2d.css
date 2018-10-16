@@ -50,6 +50,22 @@ input {
     margin-right: 10px;
 }
 
+.error {
+    color: #900;
+    padding: 5px 0;
+}
+
+.matrix {
+    border: 0;
+    border-right: 2px solid #000;
+    border-left: 2px solid #000;
+    border-radius: 8px;
+    padding: 1px 3px;
+    margin: 0 5px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
 .plot-settings {
     padding: 0 40px 0 5px;
     text-align: right;
@@ -72,13 +88,13 @@ input {
 
 .polygon-selection {
     border-bottom: 2px solid #000;
-    padding-bottom: 15px;
+    padding-bottom: 12px;
     margin-bottom: 15px;
     display: flex;
 }
 .polygon-selection input {
     vertical-align: middle;
-    margin: 1px;
+    margin: 0 1px 3px 1px;
 }
 .polygon-selection .right {
     text-align: right;
@@ -88,7 +104,6 @@ input {
 }
 
 .item {
-    margin-bottom: 5px;
     padding: 0 5px 0 0;
     display: flex;
     border-right: 5px solid transparent;
@@ -101,11 +116,9 @@ input {
     border-color: #000;
     background-color: #EEE;
 }
-
 .item svg {
     display: block;
 }
-
 .item .right {
     color: #666;
     padding: 3px;

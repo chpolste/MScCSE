@@ -9,22 +9,28 @@ import * as dom from "./dom.js";
 import { Figure, autoProjection } from "./figure.js";
 import { Polygon, union } from "./geometry.js";
 import { ObservableMixin, n2s } from "./tools.js";
-import { LineInput, SelectInput, SelectableNodes } from "./widgets-input.js";
+import { LineInput, SelectInput, SelectableNodes, MatrixInput } from "./widgets-input.js";
 import { ShapePlot, InteractivePlot } from "./widgets-plot.js";
 
 
-/* Item in the PolygonList */
+type Range = [number, number];
+
+// Item Viewer widget
+type ItemView = SelectableNodes<PolygonItem>;
+
+
+// Item in the PolygonList
 class PolygonItem extends ObservableMixin<null> {
 
-    +list: PolygonList;
+    +polygons: PolygonList;
     +polygon: ConvexPolytope;
     label: string;
     fill: [boolean, string];
     stroke: [boolean, string];
 
-    constructor(list: PolygonList, polygon: ConvexPolytope, label: string): void {
+    constructor(polygons: PolygonList, polygon: ConvexPolytope, label: string): void {
         super();
-        this.list = list;
+        this.polygons = polygons;
         this.polygon = polygon;
         this.label = label;
         this.fill = [false, "#FFFFFF"];
@@ -43,17 +49,18 @@ class PolygonItem extends ObservableMixin<null> {
     }
 
     remove(): void {
-        this.list.remove(this);
+        this.polygons.remove(this);
     }
 
     moveup(): void {
-        this.list.moveup(this);
+        this.polygons.moveup(this);
     }
 
     movedown(): void {
-        this.list.movedown(this);
+        this.polygons.movedown(this);
     }
 
+    // Item to DOM element converter for SelectableNodes
     static toNode(item: PolygonItem): HTMLDivElement {
         const fig = new Figure();
         fig.newLayer().shapes = [item.asShape()];
@@ -74,7 +81,7 @@ class PolygonItem extends ObservableMixin<null> {
 }
 
 
-/* List of polygons with organization functionality */
+// List of polygons with organization functionality
 class PolygonList extends ObservableMixin<null> {
 
     items: PolygonItem[];
@@ -88,10 +95,11 @@ class PolygonList extends ObservableMixin<null> {
         return this.items.length;
     }
 
-    get extent(): null|[number, number][] {
-        return this.items.length > 0 ? union.extent(this.items.map(_ => _.polygon)) : null;
+    get extent(): Range[] {
+        return this.items.length > 0 ? union.extent(this.items.map(_ => _.polygon)) : [];
     }
 
+    // Insert a polygon at the top of the list
     add(polygon: ConvexPolytope, name: string): void {
         const item = new PolygonItem(this, polygon, name);
         item.attach(() => this.notify());
@@ -99,6 +107,7 @@ class PolygonList extends ObservableMixin<null> {
         this.notify();
     }
 
+    // Remove the given item
     remove(item: PolygonItem): void {
         const idx = this.items.indexOf(item);
         if (idx > -1) {
@@ -107,12 +116,14 @@ class PolygonList extends ObservableMixin<null> {
         this.notify();
     }
 
+    // Swap the given item with its upper neighbour
     moveup(item: PolygonItem): void {
         const idx1 = this.items.indexOf(item);
         const idx2 = Math.max(idx1 - 1, 0)
         this.swap(idx1, idx2);
     }
 
+    // Swap the given item with its lower neighbour
     movedown(item: PolygonItem): void {
         const idx1 = this.items.indexOf(item);
         const idx2 = Math.min(idx1 + 1, this.items.length - 1)
@@ -129,45 +140,71 @@ class PolygonList extends ObservableMixin<null> {
 }
 
 
-/* Add a polygon the the top of the list */
+// Add a polygon the the top of the list
 class PolygonInput {
 
     +polygons: PolygonList;
-    +node: HTMLDivElement;
-    +inputForm: Input<InputForm>;
+    +items: ItemView;
+    +errorBox: HTMLDivElement;
     +formContainer: HTMLDivElement;
+    +inputForm: Input<InputForm>;
+    +node: HTMLDivElement;
     counter: number;
 
-    constructor(polygons: PolygonList): void {
+    constructor(polygons: PolygonList, items: ItemView): void {
         this.polygons = polygons;
-
+        this.items = items;
+        // Errors in polygon input are shown to the user
+        this.errorBox = dom.DIV({ "class": "error" });
+        // Different input methods are selectable from a drop-down menu
         this.formContainer = dom.DIV({ "class": "input-form-container" });
         this.inputForm = new SelectInput({
-            "Hull": new HullInputForm()
+            "Hull": new HullInputForm(),
+            "Transformation": new TransformationInputForm(items)
         }, "Hull");
         this.inputForm.attach(() => this.handleChange());
-
+        // Add the polygon returned by the input form 
         const submit = dom.BUTTON({}, ["add"]);
-        submit.addEventListener("click", () => {
-            try {
-                const name = "Polygon #" + (this.counter++);
-                this.polygons.add(this.inputForm.value.polygon, name);
-            } catch (err) {
-                console.log(err.message);
-            }
-        });
-
+        submit.addEventListener("click", () => this.addPolygon());
+        // Build widget and initialize
         this.node = dom.DIV({}, [
             dom.P({}, [this.inputForm.node, " ", submit]),
-            this.formContainer
+            this.formContainer,
+            this.errorBox
         ]);
-
         this.counter = 1;
         this.handleChange();
     }
 
+    addPolygon(): void {
+        const selection = this.items.selection;
+        try {
+            const [polygon, name] = this.inputForm.value.getPolygon(this);
+            if (polygon.isEmpty) throw new Error("Polygon is empty");
+            this.polygons.add(polygon, name);
+            // Restore selection
+            this.items.selection = selection;
+            this.setError(null);
+        } catch (err) {
+            this.setError(err.message);
+        }
+    }
+
+    setError(message: ?string): void {
+        if (message == null) {
+            dom.removeChildren(this.errorBox);
+        } else {
+            dom.replaceChildren(this.errorBox, [message]);
+        }
+    }
+
+    genName(): string {
+        return "Polygon #" + (this.counter++);
+    }
+
     handleChange(): void {
         dom.replaceChildren(this.formContainer, [this.inputForm.value.node]);
+        this.setError(null);
     }
 
 }
@@ -175,27 +212,51 @@ class PolygonInput {
 
 interface InputForm {
     +node: HTMLElement;
-    +polygon: ConvexPolytope;
+    getPolygon(PolygonInput): [ConvexPolytope, string];
 }
 
-
-/* Insert the polytope that is the hull of a set of points inserted by the user */
+// Insert the polytope that is the hull of a set of points inserted by the user
 class HullInputForm implements InputForm {
 
     +node: HTMLTextAreaElement;
     
     constructor(): void {
         this.node = dom.TEXTAREA({ rows: "6", cols: "70" }, []);
-
     }
 
-    get polygon(): ConvexPolytope {
-        return Polygon.hull(JSON.parse(this.node.value));
+    getPolygon(input: PolygonInput): [ConvexPolytope, string] {
+        return [Polygon.hull(JSON.parse(this.node.value)), input.genName()];
     }
 }
 
+// Apply a 2 by 2 matrix to all vertices and/or translate the current selection
+class TransformationInputForm implements InputForm {
 
-/* Edit the current selection from the list */
+    +items: ItemView;
+    +matrix: Input<number[][]>;
+    +vector: Input<number[][]>;
+    +node: HTMLDivElement;
+
+    constructor(items: ItemView): void {
+        this.items = items;
+        this.matrix = new MatrixInput(parseFloat, [2, 2], 4, "1\n0\n0\n1");
+        this.vector = new MatrixInput(parseFloat, [2, 1], 4, "0\n0");
+        this.node = dom.DIV({}, ["v' = ", this.matrix.node, "v + ", this.vector.node]);
+    }
+
+    getPolygon(input: PolygonInput): [ConvexPolytope, string] {
+        const item = this.items.selection;
+        if (item == null) throw new Error("No polygon selected");
+        const matrix = this.matrix.value;
+        const vector = this.vector.value;
+        const polygon = item.polygon.apply(matrix).translate([vector[0][0], vector[1][0]]);
+        return [polygon, "Transformation of " + item.label];
+    }
+
+}
+
+
+// Edit the current selection from the list
 class SelectionView {
 
     +items: SelectableNodes<PolygonItem>;
@@ -208,7 +269,6 @@ class SelectionView {
         this.items.attach((isClick) => {
             if (isClick) this.handleChange();
         });
-
         // Input elements for properties of the item
         this.inputs = {
             label: dom.INPUT({ "type": "text", "id": "label", "size": "40" }),
@@ -220,7 +280,6 @@ class SelectionView {
         for (let name in this.inputs) {
             this.inputs[name].addEventListener("change", () => this.updateItem());
         }
-
         // Control elements for list organization
         this.buttons = {
             remove: dom.INPUT({ "type": "button", "value": "remove" }, []),
@@ -243,7 +302,7 @@ class SelectionView {
             // Restore the current selection
             this.items.selection = item;
         });
-
+        // Assemble the widget and initialize
         this.node = dom.DIV({ "class": "cols polygon-selection" }, [
             dom.DIV({ "class": "left" }, [
                 dom.DIV({}, [this.inputs.label]),
@@ -257,6 +316,7 @@ class SelectionView {
         this.handleChange();
     }
 
+    // (De-)Activate the form for the current selection
     handleChange(): void {
         const item = this.items.selection;
         for (let name in this.inputs) {
@@ -275,6 +335,8 @@ class SelectionView {
         this.inputs.fill.value = item != null ? item.fill[1] : "#FFFFFF";
     }
 
+    // On any change in the form input fields, update the item and trigger
+    // a notification from the polygon list
     updateItem(): void {
         const item = this.items.selection;
         if (item != null) {
@@ -294,7 +356,7 @@ class SelectionView {
 }
 
 
-/* Interactive, resizable plot of all polygons in the list */
+// Interactive, resizable plot of all polygons in the list
 class PlotView {
 
     +polygons: PolygonList;
@@ -309,58 +371,62 @@ class PlotView {
     constructor(polygons: PolygonList): void {
         this.polygons = polygons;
         this.polygons.attach(() => this.drawPolygons());
-        // ...
+        // Plot
         const fig = new Figure();
         this.layers = {
-            highlight2: fig.newLayer({ "fill": "none", "stroke": "red", "stroke-width": "1" }),
-            highlight1: fig.newLayer({ "fill": "#069" }),
-            polygons:   fig.newLayer()
+            polygons: fig.newLayer()
         };
         this.plot = new InteractivePlot([100, 100], fig, autoProjection(1));
-
-        this.plotSizeX = new LineInput(_ => parseInt(_), 5, "700");
-        this.plotSizeY = new LineInput(_ => parseInt(_), 5, "500");
+        // Resize form
+        this.plotSizeX = new LineInput(parseInt, 5, "700");
+        this.plotSizeY = new LineInput(parseInt, 5, "500");
         this.plotSizeX.attach(() => this.resizePlot());
         this.plotSizeY.attach(() => this.resizePlot());
-
+        // Assemble widget and initialize
         this.node = dom.DIV({}, [
             dom.DIV({ "class": "plot-settings" }, [
                 "plot size: ", this.plotSizeX.node, " by ", this.plotSizeY.node
             ]),
             this.plot.node
         ]);
-
         this._lastNumberOfPolygons = 0;
         this.resizePlot();
     }
 
+    get plotParameters(): [number, number, Range[]] {
+        return [this.plotSizeX.value, this.plotSizeY.value, this.polygons.extent];
+    }
+
+    // Refresh the polygon layer
     drawPolygons(): void {
         if (this._lastNumberOfPolygons === 0) {
             this.resizePlot();
+        } else {
+            this.resetReferenceProjection();
         }
         const shapes = this.polygons.items.map(_ => _.asShape());
-        // So that topmost item is on top, add shapes in reverse
+        // So that topmost item is really on top, add shapes in reverse
         this.layers.polygons.shapes = shapes.reverse();
         this._lastNumberOfPolygons = this.polygons.length;
     }
 
+    // Resize the plot and adapt the projection
     resizePlot(): void {
-        const x = this.plotSizeX.value;
-        const y = this.plotSizeY.value;
+        const [x, y, extent] = this.plotParameters;
         this.plot.size = [x, y];
-        const extent = this.polygons.extent;
-        if (extent == null) {
-            this.plot.projection = autoProjection(x/y);
-        } else {
-            this.plot.projection = autoProjection(x/y, ...extent);
-        }
-        this.plot.referenceProjection = this.plot.projection;
+        this.plot.projection = autoProjection(x/y, ...extent);
+        this.resetReferenceProjection();
+    }
+
+    resetReferenceProjection(): void {
+        const [x, y, extent] = this.plotParameters;
+        this.plot.referenceProjection = autoProjection(x/y, ...extent);
     }
 
 }
 
 
-/* Assemble the app */
+// Assemble the app
 document.addEventListener("DOMContentLoaded", function () {
 
     const contentNode = document.getElementById("content");
@@ -368,12 +434,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const polygons = new PolygonList();
     const plotView = new PlotView(polygons);
-    const listView = new SelectableNodes(PolygonItem.toNode, "no polygons");
+    const itemView = new SelectableNodes(PolygonItem.toNode, "no polygons");
     polygons.attach(() => {
-        listView.items = polygons.items;
+        itemView.items = polygons.items;
     });
-    const selectionView = new SelectionView(listView);
-    const input = new PolygonInput(polygons);
+    const selectionView = new SelectionView(itemView);
+    const input = new PolygonInput(polygons, itemView);
 
     // Build application
     dom.replaceChildren(contentNode, [
@@ -383,7 +449,7 @@ document.addEventListener("DOMContentLoaded", function () {
         ]),
         dom.DIV({ "class": "right" }, [
             selectionView.node,
-            listView.node
+            itemView.node
         ])
     ]);
 

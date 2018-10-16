@@ -1,0 +1,119 @@
+body {
+    font-family: sans-serif;
+    font-size: 9pt;
+    margin: 0;
+    padding: 0;
+}
+
+a {
+    color: #666;
+    text-decoration: underline;
+}
+a:hover {
+    text-decoration: none;
+}
+
+p {
+    margin: 5px 0;
+}
+
+input {
+    font-family: monospace;
+    text-align: center;
+}
+
+.cols {
+    display: flex;
+}
+.left {
+    flex: 0 0 auto;
+}
+.right {
+    flex: 1 1 auto;
+}
+
+#header {
+    height: 15px;
+    border-bottom: 3px solid #069;
+    background-color: #333;
+    margin: 0 0 15px 0;
+}
+
+#content {
+    display: flex;
+}
+#content > .left {
+    margin-left: 10px;
+    margin-right: 20px;
+}
+#content > .right {
+    margin-right: 10px;
+}
+
+.plot-settings {
+    padding: 0 40px 0 5px;
+    text-align: right;
+    margin-bottom: 10px;
+}
+.plot {
+    display: inline-flex;
+    flex-flow: column nowrap;
+    margin-bottom: 20px;
+}
+.plot .menu {
+    padding: 0 40px 0 5px;
+    text-align: right;
+    color: #666;
+    font-size: 8pt;
+}
+.plot .menu .coords {
+    float: left;
+}
+
+.polygon-selection {
+    border-bottom: 2px solid #000;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+    display: flex;
+}
+.polygon-selection input {
+    vertical-align: middle;
+    margin: 1px;
+}
+.polygon-selection .right {
+    text-align: right;
+}
+.polygon-selection input#label {
+    text-align: left;
+}
+
+.item {
+    margin-bottom: 5px;
+    padding: 2px 5px;
+    display: flex;
+    border-right: 5px solid transparent;
+}
+.item:hover {
+    border-color: #CCC;
+}
+.item.selection {
+    border-color: #000;
+}
+
+.item .left {
+    margin-right: 10px;
+}
+.item svg {
+    display: block;
+}
+
+.item .right {
+    color: #666;
+}
+.item .right > div {
+    margin-bottom: 1px;
+}
+.item .label {
+    color: #000;
+}
+

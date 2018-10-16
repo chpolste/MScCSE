@@ -89,31 +89,29 @@ input {
 
 .item {
     margin-bottom: 5px;
-    padding: 2px 5px;
+    padding: 0 5px 0 0;
     display: flex;
     border-right: 5px solid transparent;
+    cursor: pointer;
 }
 .item:hover {
     border-color: #CCC;
 }
 .item.selection {
     border-color: #000;
+    background-color: #EEE;
 }
 
-.item .left {
-    margin-right: 10px;
-}
 .item svg {
     display: block;
 }
 
 .item .right {
     color: #666;
-}
-.item .right > div {
-    margin-bottom: 1px;
+    padding: 3px;
 }
 .item .label {
     color: #000;
+    margin-bottom: 2px;
 }
 

@@ -19,6 +19,12 @@ type Range = [number, number];
 type ItemView = SelectableNodes<PolygonItem>;
 
 
+// #123 to #112233
+function longColor(color: string) {
+    return color.length === 4 ? "#" + color[1] + color[1] + color[2] + color[2] + color[3] + color[3] : color;
+}
+
+
 export type JSONPolygonItem = [
     JSONConvexPolytope,
     [boolean, string],
@@ -90,6 +96,8 @@ class PolygonItem extends ObservableMixin<null> {
     static deserialize(data: JSONPolygonItem, polygons: PolygonList): PolygonItem {
         const [poly, label, fill, stroke] = data;
         const item = new PolygonItem(polygons, deserializePolytope(poly), "");
+        fill[1] = longColor(fill[1]);
+        stroke[1] = longColor(stroke[1]);
         item.label = label;
         item.fill = fill;
         item.stroke = stroke;

@@ -26,6 +26,7 @@ export interface Plot {
 export class InteractivePlot implements Plot {
 
     +node: HTMLDivElement;
+    +menu: HTMLDivElement;
     +figure: LayeredFigure;
     +axesPlot: AxesPlot;
     _referenceProjection: Projection;
@@ -42,11 +43,11 @@ export class InteractivePlot implements Plot {
             saveButton.setAttribute("href", "data:image/svg+xml;base64," + window.btoa(this.axesPlot.source));
         });
         const coordsDisplay = dom.SPAN({ "class": "coords" });
-        const menu = dom.DIV({ "class": "menu" }, [
+        this.menu = dom.DIV({ "class": "menu" }, [
             coordsDisplay, "hold shift to pan and zoom :: ", resetButton, " :: ", saveButton
         ]);
         this.axesPlot = new AxesPlot(size, figure, projection);
-        this.node = dom.DIV({ "class": "plot" }, [menu, this.axesPlot.node]);
+        this.node = dom.DIV({ "class": "plot" }, [this.menu, this.axesPlot.node]);
 
         const shapePlot = this.axesPlot.shapePlot
         // Coordinate display
@@ -118,6 +119,10 @@ export class InteractivePlot implements Plot {
 
     get figure(): LayeredFigure {
         return this.axesPlot.figure;
+    }
+
+    addMenuElement(node: HTMLElement): void {
+        dom.appendChildren(this.menu, [" :: ", node]);
     }
 
 }

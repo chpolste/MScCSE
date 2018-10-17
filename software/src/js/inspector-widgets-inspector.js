@@ -10,6 +10,7 @@ import type { Input } from "./widgets-input.js";
 import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, TraceData,
               GameGraphData, UpdateKindsData, RefineData, TakeSnapshotData, LoadSnapshotData,
               NameSnapshotData, SnapshotData } from "./inspector-worker-system.js";
+import type { JSONPolygonItem } from "./plotter-2d.js";
 
 import * as linalg from "./linalg.js";
 import * as dom from "./dom.js";
@@ -1098,6 +1099,15 @@ class SystemView {
         };
         this.plot = new InteractivePlot([630, 420], fig, autoProjection(6/4, ...this.proxy.lss.extent));
 
+        // Add a link that opens view in plotter-2d if dimension matches
+        if (this.proxy.lss.stateSpace.dim === 2) {
+            const plotterLink = dom.A({ "href": "plotter-2d.html", "target": "_blank" }, ["open in plotter"]);
+            plotterLink.addEventListener("click", () => {
+                plotterLink.href = "plotter-2d.html#" + this.toExportURL();
+            });
+            this.plot.addMenuElement(plotterLink);
+        }
+
         this.drawVectorField();
     }
 
@@ -1254,6 +1264,17 @@ class SystemView {
             kind: "arrow", origin: step.origin, target: step.target,
             style: (i === marked ? MARKED_STEP_STYLE : {})
         }));
+    }
+
+    toExportURL(): string {
+        if (this._data == null) throw new Error("..."); // TODO
+        const data: JSONPolygonItem[] = this._data.map(_ => [
+            _.polytope,
+            [this.settings.toggleLabel.value, _.label],
+            [this.settings.toggleKind.value, stateColor(_)],
+            [true, "#000000"]
+        ]);
+        return window.btoa(JSON.stringify(data));
     }
 
 }

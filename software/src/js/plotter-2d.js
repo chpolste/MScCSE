@@ -2,12 +2,12 @@
 "use strict";
 
 import type { FigureLayer, Shape } from "./figure.js";
-import type { ConvexPolytope } from "./geometry.js";
+import type { JSONConvexPolytope, ConvexPolytope } from "./geometry.js";
 import type { Input } from "./widgets-input.js";
 
 import * as dom from "./dom.js";
 import { Figure, autoProjection } from "./figure.js";
-import { Polygon, union } from "./geometry.js";
+import { deserializePolytope, Polygon, union } from "./geometry.js";
 import { ObservableMixin, n2s } from "./tools.js";
 import { LineInput, SelectInput, SelectableNodes, MatrixInput } from "./widgets-input.js";
 import { ShapePlot, InteractivePlot } from "./widgets-plot.js";
@@ -19,12 +19,19 @@ type Range = [number, number];
 type ItemView = SelectableNodes<PolygonItem>;
 
 
+export type JSONPolygonItem = [
+    JSONConvexPolytope,
+    [boolean, string],
+    [boolean, string],
+    [boolean, string]
+]
+
 // Item in the PolygonList
 class PolygonItem extends ObservableMixin<null> {
 
     +polygons: PolygonList;
     +polygon: ConvexPolytope;
-    label: string;
+    label: [boolean, string];
     fill: [boolean, string];
     stroke: [boolean, string];
 
@@ -32,20 +39,31 @@ class PolygonItem extends ObservableMixin<null> {
         super();
         this.polygons = polygons;
         this.polygon = polygon;
-        this.label = label;
+        this.label = [false, label];
         this.fill = [false, "#FFFFFF"];
         this.stroke = [true, "#000000"];
+        this.attach(() => this.polygons.notify());
     }
 
-    asShape(): Shape {
-        return {
+    asShapes(): Shape[] {
+        const shapes = [];
+        // Polygon with styling
+        shapes.push({
             kind: "polytope",
             vertices: this.polygon.vertices,
             style: {
                 fill: this.fill[0] ? this.fill[1] : "none",
                 stroke: this.stroke[0] ? this.stroke[1] : "none"
             }
-        };
+        });
+        // Label if enabled
+        if (this.label[0]) shapes.push({
+            kind: "label",
+            coords: this.polygon.centroid,
+            text: this.label[1],
+            style: { dy: "3" }
+        });
+        return shapes;
     }
 
     remove(): void {
@@ -60,15 +78,33 @@ class PolygonItem extends ObservableMixin<null> {
         this.polygons.movedown(this);
     }
 
+    serialize(): JSONPolygonItem {
+        return [
+            this.polygon.serialize(),
+            this.label,
+            this.fill,
+            this.stroke
+        ];
+    }
+
+    static deserialize(data: JSONPolygonItem, polygons: PolygonList): PolygonItem {
+        const [poly, label, fill, stroke] = data;
+        const item = new PolygonItem(polygons, deserializePolytope(poly), "");
+        item.label = label;
+        item.fill = fill;
+        item.stroke = stroke;
+        return item;
+    }
+
     // Item to DOM element converter for SelectableNodes
     static toNode(item: PolygonItem): HTMLDivElement {
         const fig = new Figure();
-        fig.newLayer().shapes = [item.asShape()];
+        fig.newLayer().shapes = item.asShapes().filter(_ => _.kind === "polytope");
         const plot = new ShapePlot([40, 40], fig, autoProjection(1, ...item.polygon.extent), false);
         return dom.DIV({ "class": "poly" }, [
             dom.DIV({ "class": "left" }, [plot.node]),
             dom.DIV({ "class": "right" }, [
-                dom.DIV({ "class": "label" }, [item.label]),
+                dom.DIV({ "class": "label" }, [item.label[1]]),
                 dom.DIV({}, [
                     "Hull: [",
                     item.polygon.vertices.map(_ => "[" + _.map(n => n2s(n, 2)).join(",") + "]").join(", "),
@@ -102,7 +138,6 @@ class PolygonList extends ObservableMixin<null> {
     // Insert a polygon at the top of the list
     add(polygon: ConvexPolytope, name: string): void {
         const item = new PolygonItem(this, polygon, name);
-        item.attach(() => this.notify());
         this.items.unshift(item);
         this.notify();
     }
@@ -134,6 +169,16 @@ class PolygonList extends ObservableMixin<null> {
         const temp = this.items[idx1];
         this.items[idx1] = this.items[idx2];
         this.items[idx2] = temp;
+        this.notify();
+    }
+
+    // Serialization
+    serialize(): JSONPolygonItem[] {
+        return this.items.map(_ => _.serialize());
+    }
+
+    deserialize(data: JSONPolygonItem[]): void {
+        this.items = data.map(_ => PolygonItem.deserialize(_, this));
         this.notify();
     }
 
@@ -250,7 +295,7 @@ class TransformationInputForm implements InputForm {
         const matrix = this.matrix.value;
         const vector = this.vector.value;
         const polygon = item.polygon.apply(matrix).translate([vector[0][0], vector[1][0]]);
-        return [polygon, "Transformation of " + item.label];
+        return [polygon, "Transformation of " + item.label[1]];
     }
 
 }
@@ -271,6 +316,7 @@ class SelectionView {
         });
         // Input elements for properties of the item
         this.inputs = {
+            showLabel: dom.INPUT({ "type": "checkbox" }),
             label: dom.INPUT({ "type": "text", "id": "label", "size": "40" }),
             showFill: dom.INPUT({ "type": "checkbox" }),
             fill: dom.INPUT({ "type": "color" }),
@@ -305,7 +351,7 @@ class SelectionView {
         // Assemble the widget and initialize
         this.node = dom.DIV({ "class": "cols polygon-selection" }, [
             dom.DIV({ "class": "left" }, [
-                dom.DIV({}, [this.inputs.label]),
+                dom.DIV({}, [this.inputs.label, this.inputs.showLabel]),
                 dom.DIV({}, [this.buttons.remove, " :: ", this.buttons.movedown, this.buttons.moveup])
             ]),
             dom.DIV({ "class": "right" }, [
@@ -326,7 +372,8 @@ class SelectionView {
             this.buttons[name].disabled = item == null;
         }
         // Label
-        this.inputs.label.value = item == null ? "" : item.label;
+        this.inputs.showLabel.checked = item != null && item.label[0];
+        this.inputs.label.value = item == null ? "" : item.label[1];
         // Stroke color
         this.inputs.showStroke.checked = item != null && item.stroke[0];
         this.inputs.stroke.value = item != null ? item.stroke[1] : "#000000";
@@ -341,7 +388,7 @@ class SelectionView {
         const item = this.items.selection;
         if (item != null) {
             // Modify the properties of the selected item
-            item.label = this.inputs.label.value;
+            item.label = [this.inputs.showLabel.checked, this.inputs.label.value];
             item.stroke = [this.inputs.showStroke.checked, this.inputs.stroke.value];
             item.fill = [this.inputs.showFill.checked, this.inputs.fill.value];
             // The item should notify on change, but then there would be a lot
@@ -374,7 +421,7 @@ class PlotView {
         // Plot
         const fig = new Figure();
         this.layers = {
-            polygons: fig.newLayer()
+            polygons: fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" })
         };
         this.plot = new InteractivePlot([100, 100], fig, autoProjection(1));
         // Resize form
@@ -404,9 +451,12 @@ class PlotView {
         } else {
             this.resetReferenceProjection();
         }
-        const shapes = this.polygons.items.map(_ => _.asShape());
+        const shapes = [];
         // So that topmost item is really on top, add shapes in reverse
-        this.layers.polygons.shapes = shapes.reverse();
+        for (let i = this.polygons.length - 1; i >= 0; i--) {
+            shapes.push(...this.polygons.items[i].asShapes());
+        }
+        this.layers.polygons.shapes = shapes;
         this._lastNumberOfPolygons = this.polygons.length;
     }
 
@@ -426,11 +476,20 @@ class PlotView {
 }
 
 
+function toExportURL(polygons: PolygonList): string {
+    const data = polygons.serialize();
+    return window.btoa(JSON.stringify(data));
+}
+
+function fromExportURL(url: string, polygons: PolygonList): void {
+    const data = JSON.parse(window.atob(url));
+    polygons.deserialize(data);
+}
+
+
 // Assemble the app
 document.addEventListener("DOMContentLoaded", function () {
 
-    const contentNode = document.getElementById("content");
-    if (contentNode == null) throw new Error();
 
     const polygons = new PolygonList();
     const plotView = new PlotView(polygons);
@@ -442,6 +501,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const input = new PolygonInput(polygons, itemView);
 
     // Build application
+    const contentNode = document.getElementById("content");
+    if (contentNode == null) throw new Error();
     dom.replaceChildren(contentNode, [
         dom.DIV({ "class": "left" }, [
             plotView.node,
@@ -453,5 +514,16 @@ document.addEventListener("DOMContentLoaded", function () {
         ])
     ]);
 
+    // Load from #-part of URL if set at startup
+    if (window.location.hash.length > 0) {
+        const hash = window.location.hash.substring(1);
+        fromExportURL(hash, polygons);
+    }
+
+    // Keep #-part of URL updated after every change
+    polygons.attach(() => {
+        window.location.hash = "#" + toExportURL(polygons)
+    });
+    
 });
 

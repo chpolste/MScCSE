@@ -30,6 +30,7 @@ export function create(tag: string, attributes?: ElementAttributes, children?: E
 }
 
 // Some common tags (with proper return types through any-casting)
+export const A        = (a?: ElementAttributes, c?: ElementChildren) => ((create("a"       , a, c): any): HTMLAnchorElement);
 export const BUTTON   = (a?: ElementAttributes, c?: ElementChildren) => ((create("button"  , a, c): any): HTMLButtonElement);
 export const DIV      = (a?: ElementAttributes, c?: ElementChildren) => ((create("div"     , a, c): any): HTMLDivElement);
 export const FORM     = (a?: ElementAttributes, c?: ElementChildren) => ((create("form"    , a, c): any): HTMLFormElement);

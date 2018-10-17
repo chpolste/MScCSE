@@ -26,7 +26,6 @@ export interface Plot {
 export class InteractivePlot implements Plot {
 
     +node: HTMLDivElement;
-    +menu: HTMLDivElement;
     +figure: LayeredFigure;
     +axesPlot: AxesPlot;
     _referenceProjection: Projection;

@@ -1,0 +1,103 @@
+body {
+    font-family: sans-serif;
+    font-size: 9pt;
+    margin: 0;
+    padding: 0;
+}
+
+a {
+    color: #666;
+    text-decoration: underline;
+}
+a:hover {
+    text-decoration: none;
+}
+
+p {
+    margin: 5px 0;
+}
+
+input {
+    font-family: monospace;
+    text-align: center;
+}
+
+.cols {
+    display: flex;
+}
+.left {
+    flex: 0 0 auto;
+}
+.right {
+    flex: 1 1 auto;
+}
+
+#header {
+    height: 15px;
+    border-bottom: 3px solid #069;
+    background-color: #333;
+    margin: 0 0 15px 0;
+}
+
+.widget {
+    margin: 10px;
+    padding: 0 0 10px 0;
+    border-bottom: 1px solid #CCC;
+}
+.viewer > .left {
+    margin-right: 20px;
+}
+
+.item {
+    cursor: default;
+}
+.item:hover {
+    color: #000;
+}
+
+.vertices {
+    margin-bottom: 15px;
+    color: #666;
+}
+.vertices .item {
+    display: inline-block;
+}
+
+.halfspaces {
+    display:table;
+    margin-bottom:15px;
+    color:#666;
+}
+.halfspaces .item {
+    display: table-row;
+}
+.halfspaces .item > div {
+    display: table-cell;
+}
+.halfspaces .item > div:nth-child(1) {
+    text-align: right;
+}
+.halfspaces .item > div:nth-child(2) {
+    text-align: center;
+    padding: 0 5px;
+}
+.halfspaces .item > div:nth-child(3) {
+    text-align: left;
+}
+
+.error {
+    color: #900;
+    padding: 5px 0;
+}
+
+.matrix {
+    border: 0;
+    border-right: 2px solid #000;
+    border-left: 2px solid #000;
+    border-radius: 8px;
+    padding: 1px 3px;
+    margin: 0 5px;
+    display: inline-block;
+    vertical-align: middle;
+}
+

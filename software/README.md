@@ -4,6 +4,7 @@
 
 - [__Inspector__](https://chpolste.github.io/MScCSE/software/dist/inspector.html): visualization of the LSS abstraction-refinement and analysis.
 - [__Plotter 2D__](https://chpolste.github.io/MScCSE/software/dist/plotter-2d.html): vertex-based preview of polytopes. Useful for debugging and custom figure creation.
+- [__Polytopic Calculator__](https://chpolste.github.io/MScCSE/software/dist/polytopic-calculator.html): polytopic computations with visualizations.
 
 ## Development Environment
 

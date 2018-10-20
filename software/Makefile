@@ -52,7 +52,7 @@ JS_MODULES_FILES = $(JS_MODULES)/geometry.js $(JS_MODULES)/linalg.js $(JS_MODULE
 
 .PHONY: all release set-up-environment clean test check inspector
 
-all: $(JS_MODULES_FILES) inspector plotter-2d
+all: $(JS_MODULES_FILES) inspector plotter-2d polytopic-calculator
 
 release:
 	@make clean
@@ -89,6 +89,9 @@ inspector: $(DIST_HTML)/inspector.html $(DIST_CSS)/inspector.css $(DIST_JS)/insp
 		$(DIST_JS)/inspector-worker-analysis.js $(DIST_JS)/inspector-worker-system.js
 
 plotter-2d: $(DIST_HTML)/plotter-2d.html $(DIST_JS)/plotter-2d.js $(DIST_CSS)/plotter-2d.css
+
+polytopic-calculator: $(DIST_HTML)/polytopic-calculator.html \
+		$(DIST_CSS)/polytopic-calculator.css $(DIST_JS)/polytopic-calculator.js
 
 
 # File rules
@@ -170,4 +173,8 @@ $(SRC_JS)/widgets-plot.js: $(SRC_JS)/linalg.js $(SRC_JS)/dom.js $(SRC_JS)/tools.
 $(SRC_JS)/plotter-2d.js: $(SRC_JS)/geometry.js $(SRC_JS)/widgets-plot.js  $(SRC_JS)/figure.js \
 		$(SRC_JS)/dom.js $(SRC_JS)/widgets-input.js $(SRC_JS)/tools.js
 	@touch $(SRC_JS)/plotter-2d.js
+
+# Polytopic Calculator Application
+$(SRC_JS)/polytopic-calculator.js: $(SRC_JS)/dom.js $(SRC_JS)/figure.js $(SRC_JS)/geometry.js \
+		$(SRC_JS)/tools.js $(SRC_JS)/widgets-input.js $(SRC_JS)/widgets-plot.js
 

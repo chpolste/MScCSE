@@ -22,16 +22,6 @@ input {
     text-align: center;
 }
 
-.cols {
-    display: flex;
-}
-.left {
-    flex: 0 0 auto;
-}
-.right {
-    flex: 1 1 auto;
-}
-
 #header {
     height: 15px;
     border-bottom: 3px solid #069;
@@ -40,14 +30,27 @@ input {
 }
 
 .widget {
-    margin: 10px;
-    padding: 0 0 10px 0;
-    border-bottom: 1px solid #CCC;
+    margin: 20px 10px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
 }
-.viewer > .left {
+.widget > div {
+    flex: 0 0 auto;
     margin-right: 20px;
 }
+.widget > div:last-child {
+    flex: 1 1 auto;
+    margin-right: 0;
+}
+.widget .progress {
+    font-size: 12pt;
+}
 
+.viewer {
+    align-items: flex-start;
+    border-bottom: 1px solid #999;
+}
 .item {
     cursor: default;
 }
@@ -79,7 +82,7 @@ input {
 }
 .halfspaces .item > div:nth-child(2) {
     text-align: center;
-    padding: 0 5px;
+    padding: 0 10px;
 }
 .halfspaces .item > div:nth-child(3) {
     text-align: left;
@@ -87,7 +90,23 @@ input {
 
 .error {
     color: #900;
-    padding: 5px 0;
+}
+div.error {
+    margin: 10px 0;
+}
+
+.polytope-input {
+    display: flex;
+}
+.polytope-input > textarea {
+
+}
+.polytope-input > div {
+    margin-left: 5px;
+}
+.polytope-input svg {
+    display: block;
+    margin-top: 5px;
 }
 
 .matrix {

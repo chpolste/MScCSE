@@ -77,9 +77,19 @@ function vertexOrdering2D(p: Vector, q: Vector): number {
     return p[0] == q[0] ? q[1] - p[1] : p[0] - q[0];
 }
 
-// Is the turn described by the points p, q, r counterclockwise?
-function isCCWTurn(p: Vector, q: Vector, r: Vector): boolean {
-    return (p[0] - r[0]) * (q[1] - r[1]) - (p[1] - r[1]) * (q[0] - r[0]) > 0;
+// Is the turn described by the points p, q, r counterclockwise? The zero
+// parameter can be set to 0 for a strict test or TOL for an "almost test"
+// (sorts out close points and almost straight segments).
+function isCCWTurn(p: Vector, q: Vector, r: Vector, zero: number): boolean {
+    return (p[0] - r[0]) * (q[1] - r[1]) - (p[1] - r[1]) * (q[0] - r[0]) > zero;
+}
+
+// The pop-part of the convex hull algorithm in 2D. Mutates the input.
+// Extracted because pattern is used 5 times in Polygon.hull.
+function reduceHullPart(hull: Vector[], p: Vector, zero: number) {
+    while (hull.length > 1 && !isCCWTurn(hull[hull.length - 2], hull[hull.length - 1], p, zero)) {
+        hull.pop();
+    }
 }
 
 // Intersection point of the edges of two halfspaces. Returns null if edges are
@@ -725,6 +735,8 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
         return new Polygon([], []);
     }
 
+    // Algorithm based on
+    // https://en.wikibooks.org/wiki/Algorithm_Implementation/Geometry/Convex_hull/Monotone_chain
     static hull(ps: Vector[]): Polygon {
         ps.map(p => linalg.assertEqualDims(p.length, 2));
         // Sort a copy of points by x-coordinate (ascending, y as fallback).
@@ -734,25 +746,36 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
         // a counterclockwise angle.
         const ls = [];
         for (let i = 0; i < points.length; i++) {
-            while (ls.length > 1 && (!isCCWTurn(ls[ls.length - 2], ls[ls.length - 1], points[i])
-                                     || linalg.areClose(ls[ls.length - 1], points[i]))) {
-                ls.pop();
-            }
+            reduceHullPart(ls, points[i], 0);
             ls.push(points[i]);
         }
         // Upper part of convex hull: like lower part but start from right
         const us = [];
         for (let i = points.length - 1; i >= 0; i--) {
-            while (us.length > 1 && (!isCCWTurn(us[us.length - 2], us[us.length - 1], points[i])
-                                     || linalg.areClose(us[us.length - 1], points[i]))) {
-                us.pop();
-            }
+            reduceHullPart(us, points[i], 0);
             us.push(points[i]);
         }
-        // Ends of each part are start of other
-        ls.pop();
-        us.pop();
-        return new Polygon(ls.length + us.length < 3 ? [] : ls.concat(us), null);
+        // Polygon needs at least 3 vertices (because ends of each part are
+        // start of other, test with 5)
+        if (ls.length + us.length < 5) {
+            return Polygon.empty();
+        }
+        // Hull might still contain close points or sections that are straight
+        // wrt to TOL. Reduce the hull by removing such points.
+        const vs = [];
+        // Omit end from ls and us
+        for (let i = 0; i < ls.length - 1; i++) {
+            reduceHullPart(vs, ls[i], TOL);
+            vs.push(ls[i]);
+        }
+        for (let i = 0; i < us.length - 1; i++) {
+            reduceHullPart(vs, us[i], TOL);
+            vs.push(us[i]);
+        }
+        // Also reduce wrap-around
+        reduceHullPart(vs, vs[0], TOL);
+        // Return empty if less than 3 vertices remain after reduction
+        return vs.length < 3 ? Polygon.empty() : new Polygon(vs, null);
     }
 
     static intersection(halfspaces: Halfspace[]): Polygon {

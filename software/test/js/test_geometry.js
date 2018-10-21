@@ -764,6 +764,24 @@ describe("geometry problem cases", function () {
         assert(interPoly1reverse.isSameAs(interPoly2reverse));
     });
 
+    it("Polygon.hull and Polygon.intersection are equivalent", function () {
+        const vertices = [
+            [-5.75, 1.5],
+            [-5.75, 1.2999999999999998],
+            [-2.6, 1.2999999999999998],
+            [-2.45, 1.6],
+            [-2.45, 1.7999999999999998],
+            [-3.2, 3.3],
+            [-4.8500000000000005, 3.3],
+            // This point lies on the edge of the previous and first point:
+            [-5.6000000000000005, 1.7999999999999998]
+        ];
+        const poly = geometry.Polygon.hull(vertices);
+        const poly2 = geometry.Polygon.intersection(poly.halfspaces);
+        assert.equal(poly.vertices.length, 7);
+        assert.equal(poly.vertices.length, poly2.vertices.length);
+    });
+
 });
 
 

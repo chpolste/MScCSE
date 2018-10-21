@@ -176,5 +176,5 @@ $(SRC_JS)/plotter-2d.js: $(SRC_JS)/geometry.js $(SRC_JS)/widgets-plot.js  $(SRC_
 
 # Polytopic Calculator Application
 $(SRC_JS)/polytopic-calculator.js: $(SRC_JS)/dom.js $(SRC_JS)/figure.js $(SRC_JS)/geometry.js \
-		$(SRC_JS)/tools.js $(SRC_JS)/widgets-input.js $(SRC_JS)/widgets-plot.js
+		$(SRC_JS)/linalg.js $(SRC_JS)/tools.js $(SRC_JS)/widgets-input.js $(SRC_JS)/widgets-plot.js
 

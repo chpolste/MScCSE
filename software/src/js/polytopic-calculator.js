@@ -9,6 +9,7 @@ import type { Input } from "./widgets-input.js";
 import * as dom from "./dom.js";
 import { Figure, autoProjection } from "./figure.js";
 import { polytopeType } from "./geometry.js";
+import { minkowski, apply } from "./linalg.js";
 import { ObservableMixin, n2s } from "./tools.js";
 import { SelectInput, SelectableNodes, MatrixInput } from "./widgets-input.js";
 import { ShapePlot, AxesPlot } from "./widgets-plot.js";
@@ -160,7 +161,9 @@ class PolytopeForm extends ObservableMixin<null> {
         this.layer = fig.newLayer({ "stroke": "#000", "fill": "#EEE" });
         this.plot = new ShapePlot([100, 100], fig, autoProjection(1));
         // 2-column layout
-        this.node = dom.DIV({ "class": "polytope-input" }, [
+        let cls = "polytope-input";
+        if (readOnly) cls += " read-only";
+        this.node = dom.DIV({ "class": cls }, [
             this.input,
             dom.DIV({}, [send, this.plot.node])
         ]);
@@ -228,7 +231,7 @@ class TransformationWidget {
         this.input = new PolytopeForm(viewer, false);
         this.input.attach(() => this.handleChange());
 
-        this.matrix = dom.TEXTAREA({ "cols": "15", "rows": "4" });
+        this.matrix = dom.TEXTAREA({ "cols": "15", "rows": "3" });
         this.matrix.addEventListener("change", () => this.handleChange());
 
         this.transformationForm = dom.P();
@@ -319,6 +322,119 @@ class MinkowskiPontryaginWidget {
 }
 
 
+class OperatorsWidget {
+
+    +matrixA: HTMLTextAreaElement;
+    +matrixB: HTMLTextAreaElement;
+    +inputs: { [string]: PolytopeForm };
+    +op: Input<(Matrix, Matrix) => ConvexPolytope>;
+    +node: HTMLDivElement;
+
+    constructor(viewer: PolytopeViewer): void {
+        this.matrixA = dom.TEXTAREA({ "cols": "15", "rows": "3" });
+        this.matrixA.addEventListener("change", () => this.handleChange());
+        this.matrixB = dom.TEXTAREA({ "cols": "15", "rows": "3" });
+        this.matrixB.addEventListener("change", () => this.handleChange());
+
+        this.inputs = {
+            x: new PolytopeForm(viewer, false),
+            u: new PolytopeForm(viewer, false),
+            y: new PolytopeForm(viewer, false),
+            w: new PolytopeForm(viewer, false),
+            r: new PolytopeForm(viewer, true)
+        };
+        this.inputs.x.attach(() => this.handleChange());
+        this.inputs.u.attach(() => this.handleChange());
+        this.inputs.y.attach(() => this.handleChange());
+        this.inputs.w.attach(() => this.handleChange());
+
+        this.op = new SelectInput({
+            "Post(X, U)": (A, B) => this.post(A, B),
+            "U(X, Y)": (A, B) => this.actionPolytope(A, B),
+            "Pre(X, U, {Y})": (A, B) => this.pre(A, B),
+            "PreR(X, U, {Y})": (A, B) => this.preR(A, B)
+        }, "Post(X, U)");
+        this.op.attach(() => this.handleChange());
+
+        this.node = dom.DIV({}, [
+            dom.DIV({ "class": "widget" }, [
+                progressDiv("x' = "),
+                dom.DIV({ "class": "eq-matrix" }, [this.matrixA]),
+                progressDiv("x + "),
+                dom.DIV({ "class": "eq-matrix" }, [this.matrixB]),
+                progressDiv("u + w")
+            ]),
+            dom.DIV({ "class": "widget" }, [
+                dom.DIV({}, [dom.P({}, ["X"]), this.inputs.x.node]),
+                dom.DIV({}, [dom.P({}, ["U"]), this.inputs.u.node]),
+                dom.DIV({}, [dom.P({}, ["Y"]), this.inputs.y.node]),
+                dom.DIV({}, [dom.P({}, ["W"]), this.inputs.w.node])
+            ]),
+            dom.DIV({ "class": "widget" }, [
+                dom.DIV({}, [this.op.node]),
+                progressDiv("="),
+                this.inputs.r.node
+            ])
+        ]);
+
+        this.handleChange();
+    }
+
+    handleChange(): void {
+        try {
+            const A = JSON.parse(this.matrixA.value);
+            const B = JSON.parse(this.matrixB.value);
+            this.inputs.r.polytope = this.op.value(A, B);
+        } catch (err) {
+            this.inputs.r.polytope = null;
+        }
+    }
+
+    // TODO: use proper union-based operators from system
+
+    post(A: Matrix, B: Matrix): ConvexPolytope {
+        const x = this.inputs.x.polytope;
+        const u = this.inputs.u.polytope;
+        const w = this.inputs.w.polytope;
+        return polytopeType(x.dim).hull(
+            minkowski.axpy(A, x.vertices, minkowski.axpy(B, u.vertices, w.vertices))
+        );
+    }
+
+    actionPolytope(A: Matrix, B: Matrix): ConvexPolytope {
+        const x = this.inputs.x.polytope;
+        const y = this.inputs.y.polytope;
+        const w = this.inputs.w.polytope;
+        return polytopeType(x.dim).hull(
+            minkowski.xmy(y.vertices, minkowski.axpy(A, x.vertices, w.vertices))
+        ).applyRight(B);
+    }
+
+    pre(A: Matrix, B: Matrix): ConvexPolytope {
+        const x = this.inputs.x.polytope;
+        const u = this.inputs.u.polytope;
+        const y = this.inputs.y.polytope;
+        const w = this.inputs.w.polytope;
+        const Bus = u.vertices.map(_ => apply(B, _));
+        return polytopeType(x.dim).hull(
+            minkowski.xmy(y.vertices, minkowski.axpy(B, u.vertices, w.vertices))
+        ).applyRight(A).intersect(x);
+    }
+
+    preR(A: Matrix, B: Matrix): ConvexPolytope {
+        const x = this.inputs.x.polytope;
+        const u = this.inputs.u.polytope;
+        const y = this.inputs.y.polytope;
+        const w = this.inputs.w.polytope;
+        const Bus = u.vertices.map(_ => apply(B, _));
+        return polytopeType(x.dim).hull(
+            minkowski.xmy(y.pontryagin(w).vertices, Bus)
+        ).applyRight(A).intersect(x);
+    }
+
+}
+
+
 
 // Assemble the app
 document.addEventListener("DOMContentLoaded", function () {
@@ -327,8 +443,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const widget = dom.DIV();
     const widgets = new SelectInput({
         "Transformations": new TransformationWidget(viewer),
-        "Minkowski/Pontryagin": new MinkowskiPontryaginWidget(viewer)
-    }, "Transformations");
+        "Minkowski/Pontryagin": new MinkowskiPontryaginWidget(viewer),
+        "Polytopic Operators": new OperatorsWidget(viewer)
+    }, "Polytopic Operators");
     widgets.attach(() => dom.replaceChildren(widget, [widgets.value.node]));
     // Initialize
     widgets.notify();

@@ -17,9 +17,8 @@ p {
     margin: 5px 0;
 }
 
-input {
-    font-family: monospace;
-    text-align: center;
+textarea {
+    display: block;
 }
 
 #header {
@@ -98,15 +97,19 @@ div.error {
 .polytope-input {
     display: flex;
 }
-.polytope-input > textarea {
-
-}
 .polytope-input > div {
     margin-left: 5px;
 }
 .polytope-input svg {
     display: block;
     margin-top: 5px;
+}
+.polytope-input textarea {
+    border: 1px solid #999;
+}
+.polytope-input.read-only textarea {
+    border: 1px solid #069;
+    background-color: #EEE;
 }
 
 .matrix {
@@ -118,5 +121,8 @@ div.error {
     margin: 0 5px;
     display: inline-block;
     vertical-align: middle;
+}
+.widget .eq-matrix {
+    margin: 0 10px 0 -10px;
 }
 

@@ -57,6 +57,10 @@ textarea {
     color: #000;
 }
 
+.tex {
+    margin-bottom: 15px;
+}
+
 .vertices {
     margin-bottom: 15px;
     color: #666;

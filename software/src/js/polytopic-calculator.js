@@ -18,6 +18,16 @@ import { ShapePlot, AxesPlot } from "./widgets-plot.js";
 const VAR_NAMES = "xy";
 
 
+function texifyVertex(v: Vector): string {
+    if (v.length === 1) {
+        return "\\OneByOne{" + n2s(v[0], 4) + "}";
+    } else if (v.length === 2) {
+        return "\\TwoByOne{" + n2s(v[0], 4) + "}{" + n2s(v[1], 4) + "}";
+    }
+    throw new Error();
+}
+
+
 class PolytopeViewer {
 
     +input: HTMLTextAreaElement;
@@ -25,6 +35,7 @@ class PolytopeViewer {
     +layers: { [string]: FigureLayer };
     +vertices: SelectableNodes<Vector>;
     +halfspaces: SelectableNodes<Halfspace>;
+    +tex: HTMLTextAreaElement;
     +errorBox: HTMLDivElement;
     +node: HTMLDivElement;
 
@@ -52,11 +63,13 @@ class PolytopeViewer {
         this.halfspaces.attach(isClick => {
             if (!isClick) this.drawHalfspace();
         });
+        this.tex = dom.TEXTAREA({ "class": "tex", "rows": "3", "cols": "60" });
 
         this.node = dom.DIV({ "class": "widget viewer" }, [
             dom.DIV({}, [dom.P({}, ["Vertex Input"]), this.input]),
             dom.DIV({}, [this.plot.node]),
             dom.DIV({}, [
+                dom.P({}, ["TeX"]), this.tex,
                 dom.P({}, ["Vertices"]), this.vertices.node,
                 dom.P({}, ["Halfspaces"]), this.halfspaces.node,
                 this.errorBox
@@ -66,7 +79,6 @@ class PolytopeViewer {
 
     set polytope(poly: ConvexPolytope): void {
         this.input.value = JSON.stringify(poly.vertices);
-        console.log(poly);
         this.changeHandler();
     }
 
@@ -78,12 +90,14 @@ class PolytopeViewer {
             if (poly.isEmpty) throw new Error("Polytope is empty");
             this.vertices.items = poly.vertices;
             this.halfspaces.items = poly.halfspaces;
+            this.tex.value = "\\Hull \\Big( \\Big\\{ " + poly.vertices.map(texifyVertex).join(", ") + " \\Big\\} \\Big)";
             this.layers.poly.shapes = [{ "kind": "polytope", "vertices": poly.vertices }];
             this.plot.projection = autoProjection(4/3, ...poly.extent);
             this.setError();
         } catch (err) {
             this.halfspaces.items = [];
             this.vertices.items = [];
+            this.tex.value = "";
             this.layers.poly.shapes = [];
             this.plot.projection = autoProjection(4/3);
             this.setError(err.message);

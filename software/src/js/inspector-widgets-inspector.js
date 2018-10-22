@@ -148,8 +148,24 @@ export class ProblemSummary {
             formula = replaceAll(formula, symbol, "(" + texifyProposition(prop, dom.snLabel.toTeX) + ")");
         }
 
+        const calcData = {
+            "A": JSON.stringify(system.lss.A),
+            "B": JSON.stringify(system.lss.B),
+            "X": JSON.stringify(system.lss.stateSpace.vertices),
+            "U": JSON.stringify(system.lss.controlSpace[0].vertices),
+            "Y": "",
+            "W": JSON.stringify(system.lss.randomSpace.vertices)
+        };
+        const calcHash = window.btoa(JSON.stringify(calcData));
+
         this.node = dom.DIV({ "class": "problem-summary" }, [
-            dom.renderTeX("x_{t+1} = " + matrixToTeX(system.lss.A) + " x_t + " + matrixToTeX(system.lss.B) + " u_t + w_t", dom.P()),
+            dom.P({}, [
+                dom.renderTeX("x_{t+1} = " + matrixToTeX(system.lss.A) + " x_t + " + matrixToTeX(system.lss.B) + " u_t + w_t", dom.SPAN()),
+                dom.SPAN({ "id": "open-calc" }, [
+                    " :: ",
+                    dom.A({ "href": "polytopic-calculator.html#" + calcHash, "target": "_blank" }, ["open in calculator"])
+                ])
+            ]),
             dom.DIV({ "class": "boxes" }, [
                 dom.DIV({}, [dom.H3({}, ["Control Space Polytope"]), cs.node]),
                 dom.DIV({}, [dom.H3({}, ["Random Space Polytope"]), rs.node]),

@@ -50,7 +50,7 @@ class PolytopeViewer {
         this.plot = new AxesPlot([400, 300], fig, autoProjection(4/3));
 
         this.input = dom.TEXTAREA({ "cols": "30", "rows": "10" }, []);
-        this.input.addEventListener("change", () => this.changeHandler());
+        this.input.addEventListener("change", () => this.handleChange());
 
         this.errorBox = dom.DIV({ "class": "error" });
         this.vertices = new SelectableNodes(PolytopeViewer.vertexToNode, "-", ", ");
@@ -79,10 +79,10 @@ class PolytopeViewer {
 
     set polytope(poly: ConvexPolytope): void {
         this.input.value = JSON.stringify(poly.vertices);
-        this.changeHandler();
+        this.handleChange();
     }
 
-    changeHandler(): void {
+    handleChange(): void {
         try {
             const input = JSON.parse(this.input.value);
             const dim = input[0].length;
@@ -181,6 +181,15 @@ class PolytopeForm extends ObservableMixin<null> {
             this.input,
             dom.DIV({}, [send, this.plot.node])
         ]);
+        this.handleChange();
+    }
+
+    get text(): string {
+        return this.input.value;
+    }
+
+    set text(txt: string): void {
+        this.input.value = txt;
         this.handleChange();
     }
     
@@ -336,7 +345,7 @@ class MinkowskiPontryaginWidget {
 }
 
 
-class OperatorsWidget {
+class OperatorsWidget extends ObservableMixin<null> {
 
     +matrixA: HTMLTextAreaElement;
     +matrixB: HTMLTextAreaElement;
@@ -345,6 +354,7 @@ class OperatorsWidget {
     +node: HTMLDivElement;
 
     constructor(viewer: PolytopeViewer): void {
+        super();
         this.matrixA = dom.TEXTAREA({ "cols": "15", "rows": "3" });
         this.matrixA.addEventListener("change", () => this.handleChange());
         this.matrixB = dom.TEXTAREA({ "cols": "15", "rows": "3" });
@@ -402,6 +412,7 @@ class OperatorsWidget {
         } catch (err) {
             this.inputs.r.polytope = null;
         }
+        this.notify();
     }
 
     // TODO: use proper union-based operators from system
@@ -446,6 +457,32 @@ class OperatorsWidget {
         ).applyRight(A).intersect(x);
     }
 
+    serialize(): { [string]: string } {
+        return {
+            "A": this.matrixA.value,
+            "B": this.matrixB.value,
+            "X": this.inputs.x.text,
+            "U": this.inputs.u.text,
+            "Y": this.inputs.y.text,
+            "W": this.inputs.w.text
+        };
+    }
+
+    load(data: { [string]: string }): void {
+        this.matrixA.value = data.A;
+        this.matrixB.value = data.B;
+        this.inputs.x.text = data.X;
+        this.inputs.u.text = data.U;
+        this.inputs.y.text = data.Y;
+        this.inputs.w.text = data.W;
+    }
+
+}
+
+
+function toExportURL(ops: OperatorsWidget): string {
+    const data = ops.serialize();
+    return window.btoa(JSON.stringify(data));
 }
 
 
@@ -454,11 +491,14 @@ class OperatorsWidget {
 document.addEventListener("DOMContentLoaded", function () {
 
     const viewer = new PolytopeViewer();
+
+    const operators = new OperatorsWidget(viewer);
+
     const widget = dom.DIV();
     const widgets = new SelectInput({
         "Transformations": new TransformationWidget(viewer),
         "Minkowski/Pontryagin": new MinkowskiPontryaginWidget(viewer),
-        "Polytopic Operators": new OperatorsWidget(viewer)
+        "Polytopic Operators": operators
     }, "Polytopic Operators");
     widgets.attach(() => dom.replaceChildren(widget, [widgets.value.node]));
     // Initialize
@@ -471,6 +511,17 @@ document.addEventListener("DOMContentLoaded", function () {
         dom.DIV({ "class": "widget" }, [widgets.node]),
         widget
     ]);
+
+    // Load from #-part of URL if set at startup
+    if (window.location.hash.length > 0) {
+        const hash = window.location.hash.substring(1);
+        const data = JSON.parse(window.atob(hash));
+        operators.load(data);
+    }
+
+    operators.attach(() => {
+        window.location.hash = "#" + toExportURL(operators);
+    });
 
 });
 

@@ -182,6 +182,18 @@ a:hover {
 .problem-summary > .boxes > div {
     width: 25%;
 }
+#open-calc {
+    font-size: 8pt;
+    margin-left: 20pt;
+    color: #666;
+}
+#open-calc a {
+    color: #666;
+    text-decoration: none;
+}
+#open-calc a:hover {
+    color: #000;
+}
 
 /* Interactive system inspector */
 

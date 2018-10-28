@@ -137,6 +137,21 @@
    \insertcomment{}{.}{}%
 }
 
+% MetaPost: used to draw omega-automata with package automata.mp from
+% https://www.ctan.org/tex-archive/graphics/metapost/contrib/macros/automata.
+\startMPinclusions
+    input inputs/automata;
+    % Global settings for package automata
+    size := 30;
+    incominglength := 35;
+    loopsize := 30;
+    tipangle := 30;
+    tipsharpness := 25;
+    tipsize := 6;
+    arrowmargin := 1;
+    doublesize := 2;
+\stopMPinclusions
+
 
 % Cover
 \definesectionblock[cover][,]
@@ -268,8 +283,8 @@
                 \input{chapters/theory-transitions}
             \stopsection
 
-            \startsection[title={Finite Automata}]
-                %\input{chapters/theory-automata}
+            \startsection[title={Automata and Languages}]
+                \input{chapters/theory-automata}
             \stopsection
 
             \startsection[title={Temporal Logic}]

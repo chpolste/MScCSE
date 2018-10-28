@@ -119,7 +119,7 @@
 \setupbibtex[database={inputs/references},sort=author]
 \setuppublications[criterium=cite,alternative=apa,sorttype=bbl,refcommand=authoryear]
 \setuppublicationlist[artauthoretallimit=40,criterium=all]
-\setupcite[authoryears][pubsep={; },lastpubsep={; },inbetween={ },compress=no]
+\setupcite[authoryears][pubsep={; },lastpubsep={; },inbetween={ },compress=no,left={(},right={)}]
 
 % Taken from bibl-apa.tex and added doi
 \setuppublicationlayout[article]{%
@@ -265,7 +265,7 @@
             \stopsection
 
             \startsection[title={Transition Systems}]
-                %\input{chapters/theory-transitions}
+                \input{chapters/theory-transitions}
             \stopsection
 
             \startsection[title={Finite Automata}]

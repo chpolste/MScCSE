@@ -48,7 +48,7 @@
 \definefont[FigureCaptionFont][dejavusansbold at 8.5pt][1.1]
 
 % Styles for headings etc.
-\definealternativestyle[FigureStyle][\FigureFont]
+\definealternativestyle[FigureStyle][\small\FigureFont] % The \small ensures formulas are resized too
 \definealternativestyle[FigureCaptionStyle][\FigureCaptionFont]
 \definealternativestyle[TOCStyle][\TOCHeadingFont]
 \definealternativestyle[ChapterStyle][\ChapterFont]
@@ -99,11 +99,21 @@
         spaceafter=2mm
         ]
 
+% Tables
+\setupcaptions[table][
+        style={FigureStyle},
+        suffix={:},
+        headstyle={FigureCaptionStyle},
+        prefixsegments=none,
+        width=fit,
+        way=bytext,
+        spaceafter=2mm
+        ]
 % Formulas
 \defineseparatorset[none][][]
 \setupformulas[way=bytext,prefixsegments=none,numberseparatorset=none]
 % Increase spacing around binary relation symbols (default is 5mu plus 5mu).
-\thickmuskip=10mu plus 5mu
+\thickmuskip=7mu plus 5mu
 
 % Bibliography
 \setupbibtex[database={inputs/references},sort=author]
@@ -122,7 +132,7 @@
     {\bgroup \it, }
     {\egroup\insertissue{\/(}{)}{}\insertpages{, }{.}{.}}
     {\insertpages{, pp. }{.}{.}}%
-   \insertdoi{ doi:}{.}{}%
+   \insertdoi{ doi:\mbox\bgroup}{\egroup.}{}% no linebreaks in doi
    \insertnote{ }{.}{}%
    \insertcomment{}{.}{}%
 }
@@ -247,6 +257,39 @@
     \stopfrontmatter
 
     \startbodymatter
+
+        \startchapter[title={Theoretical Foundations}]
+
+            \startsection[title={Convex Geometry}]
+                \input{chapters/theory-geometry}
+            \stopsection
+
+            \startsection[title={Transition Systems}]
+                %\input{chapters/theory-transitions}
+            \stopsection
+
+            \startsection[title={Finite Automata}]
+                %\input{chapters/theory-automata}
+            \stopsection
+
+            \startsection[title={Temporal Logic}]
+                %\input{chapters/theory-logic}
+            \stopsection
+
+            \startsection[title={Markov Decision Processes and Probabilistic Games}]
+                %\input{chapters/theory-games}
+            \stopsection
+
+            \startsection[title={Hybrid Systems}]
+                %\input{chapters/theory-hybrids}
+            \stopsection
+
+            \startsection[title={Abstraction and Refinement}]
+                %\input{chapters/theory-abstraction}
+            \stopsection
+
+        \stopchapter
+
     \stopbodymatter
 
     \startbackmatter

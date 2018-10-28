@@ -1,0 +1,100 @@
+A (closed) halfspace $H \subset \reals^n$ is the set of points
+
+\startformula
+    H = \Set{ \Vec{x} \in \reals^n \mid \VecU \cdot \VecX \leq c }
+\stopformula
+
+that fulfill a linear inequality defined by the normal vector $\VecU \in \reals^n$, $\VecU \neq \Vec{0}$ and an offset $c \in \reals$.
+The normal vector $\VecU$ is pointing away from the halfspace and it is always assumed that its length is normalized, i.e. $\TwoNorm{\VecU} = 1$.
+
+A bounded intersection of halfspaces $\IndexedSet{H_j}{j \in J}$ is a convex polytope $P$ and can be written in so-called H-representation as
+
+\startformula
+    P = \bigcup_{j \in J} H_j = \Set{\VecX \in \reals^n \mid \MatU \VecX \leq \VecC } \EndComma
+\stopformula
+
+where $\Mat{U}$ is the stack of transposed normal vectors $\VecU_j$ of the halfspaces and $\Mat{C}$ the corresponding stack of offset values $c_j$.
+The inequation holds component-wise.
+A convex polytope can equivalently be defined as the convex hull
+
+\startformula
+    P = \Hull(X) = \BigSet{ \sum_{i \in I} \lambda_i x_i \Bigmid \forall i : \lambda_i \in \ClosedInterval{0}{1}, \sum_{i \in I} \lambda_i = 1 }
+\stopformula
+
+of a finite set of points $X = \IndexedSet{x_i}{i \in I} \subset \reals^n$.
+The vertices of $P$ are the minimum set of points $\Vertices(P) \subset \reals^n$ such that $P = \Hull({\Vertices(P)})$ and uniquely define the convex polytope (V-representation).
+
+
+\startsubsection[title={Properties of Convex Polytopes}]
+
+    Convex polytopes have advantages properties for practical applications, that make them popular for computational problems in geometry.
+    The intersection of two convex polytopes is always a convex polytope and can easily be computed in H-representation by merging the sets of bounding halfspaces of the polytopes that are intersected.
+    Linear transformations of convex polytopes again yield convex polytopes, see section \in[sec:theory-geometry-operations].
+    Every non-convex polytopic region can be decomposed into a set of convex polytopes, e.g. by triangulation.
+    Results based on convex polytopic geometry are therefore applicable to non-convex polytopic geometry after decomposition.
+
+    In this work all polytopes are convex polytopes and the word \quotation{polytope} will always refer to a convex polytope.
+    Furthermore, only full-dimensional polytopes are considered here, i.e. polytopes in which can fit a non-empty ball of the dimension that the polytope is embedded in.
+    All other polytopes are treated as empty.
+    Due to limitations imposed by computational geometry with floating point numbers, no distinction between closed and open polytopes/halfspaces is made and the closed form will be favoured in the text.
+
+\stopsubsection
+
+
+\startsubsection[title={Operations on Convex Polytopes},reference=sec:theory-geometry-operations]
+
+    Linear transformations of a convex polytope $X \in \reals^n$ are defined as:
+    application of a matrix $\MatA \in \reals^{m \times n}$ from the left and translation by a vector $\VecV \in \reals^m$
+
+    \startformula
+        \MatA X + \VecV \colonequals \Set{ \VecY \in \reals^m \mid \exists \VecX \in X : \VecY = \MatA\VecX + \VecV }
+    \stopformula
+
+    and application of a matrix $B \in \reals^{n \times n}$ from the right
+
+    \startformula
+        X \MatB \colonequals \Set{ \VecY \in \reals^m \mid \MatU \MatB \VecY \leq \VecC } \EndPeriod
+    \stopformula
+
+    The identity $X\MatB = \MatB^{-1}X$ holds for all invertible matrices $\MatB$.
+    Note that application of a matrix may change the dimension of the space the polytope is embedded in.
+
+    Aside from the usual set operations like intersection, union and difference, two additional binary operations are defined for polytopes $X, Y \in \reals^n$. The Minkowski sum
+
+    \startformula
+        X \oplus Y \colonequals \Set{ \VecZ \in \reals^n \mid \exists \VecX \in X, \exists \VecY \in Y : \VecZ = \VecX + \VecY}
+    \stopformula
+
+    can be computed by translating every vertex of $X$ with every vertex of $Y$ and then taking the convex hull of the resulting set of points.
+    The Pontryagin difference
+
+    \startformula
+        X \ominus Y \colonequals \Set{ \VecZ \in \reals^n \mid \forall \VecY \in Y : \VecZ + \VecY \in X }
+    \stopformula
+
+    can be computed by translating every halfspace of X by every vertex of Y and then taking the intersection of these halfspaces.
+    Minkowski sum and Pontryagin difference are not inverse operations.
+    In general it only holds that
+
+    \startformula
+        (X \ominus Y) \oplus Y \subseteq X
+    \stopformula
+
+    \cite[authoryears][Baotic2009].
+    This is illustrated in Figure \in[fig:theory-geometry-operations].
+    Furthermore, $X \ominus Y \neq X \oplus (-Y)$ in general.
+
+    \placefigure[top][fig:theory-geometry-operations]{
+        Illustration of the Pontryagin difference (center) and Minkowski sum (right).
+        Note that $(Z \oplus Y) \ominus Y = Z$, but $(X \ominus Y) \oplus Y = Z \oplus Y \neq X$.
+        Adapted from Figures 7 and 8 of \cite[Baotic2009].
+    }{
+        \startcombination[3*1]
+            {\externalfigure[theory-geometry-operand][width=0.32\textwidth]}{}
+            {\externalfigure[theory-geometry-pontryagin][width=0.32\textwidth]}{}
+            {\externalfigure[theory-geometry-minkowski][width=0.32\textwidth]}{}
+        \stopcombination
+    }
+
+\stopsubsection
+

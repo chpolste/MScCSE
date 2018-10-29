@@ -128,20 +128,20 @@ export class ProblemSummary {
 
     constructor(system: AbstractedLSS, objective: Objective): void {
         const csFig = new Figure();
-        csFig.newLayer({ stroke: "#000", fill: "#EEE" }).shapes = system.lss.controlSpace.map(
+        csFig.newLayer({ stroke: "#000", fill: "#EEE" }).shapes = system.lss.uus.map(
             u => ({ kind: "polytope", vertices: u.vertices })
         );
         const rsFig = new Figure();
         rsFig.newLayer({ stroke: "#000", fill: "#EEE" }).shapes = [
-            { kind: "polytope", vertices: system.lss.randomSpace.vertices }
+            { kind: "polytope", vertices: system.lss.ww.vertices }
         ];
         const ssFig = new Figure();
         ssFig.newLayer({ stroke: "#000", fill: "#EEE" }).shapes = [
-            { kind: "polytope", vertices: system.lss.stateSpace.vertices }
+            { kind: "polytope", vertices: system.lss.xx.vertices }
         ];
-        const cs = new AxesPlot([90, 90], csFig, autoProjection(1, ...union.extent(system.lss.controlSpace)));
-        const rs = new AxesPlot([90, 90], rsFig, autoProjection(1, ...system.lss.randomSpace.extent));
-        const ss = new AxesPlot([90, 90], ssFig, autoProjection(1, ...system.lss.stateSpace.extent));
+        const cs = new AxesPlot([90, 90], csFig, autoProjection(1, ...union.extent(system.lss.uus)));
+        const rs = new AxesPlot([90, 90], rsFig, autoProjection(1, ...system.lss.ww.extent));
+        const ss = new AxesPlot([90, 90], ssFig, autoProjection(1, ...system.lss.xx.extent));
 
         let formula = objective.kind.formula;
         for (let [symbol, prop] of objective.propositions) {
@@ -151,10 +151,10 @@ export class ProblemSummary {
         const calcData = {
             "A": JSON.stringify(system.lss.A),
             "B": JSON.stringify(system.lss.B),
-            "X": JSON.stringify(system.lss.stateSpace.vertices),
-            "U": JSON.stringify(system.lss.controlSpace[0].vertices),
+            "X": JSON.stringify(system.lss.xx.vertices),
+            "U": JSON.stringify(system.lss.uus[0].vertices),
             "Y": "",
-            "W": JSON.stringify(system.lss.randomSpace.vertices)
+            "W": JSON.stringify(system.lss.ww.vertices)
         };
         const calcHash = window.btoa(JSON.stringify(calcData));
 
@@ -1006,8 +1006,8 @@ class ControlView {
     }
 
     drawSpaces(): void {
-        const controlSpace = this.proxy.lss.controlSpace;
-        const randomSpace = this.proxy.lss.randomSpace;
+        const controlSpace = this.proxy.lss.uus;
+        const randomSpace = this.proxy.lss.ww;
         this.ctrlPlot.projection = autoProjection(1, ...union.extent(controlSpace));
         this.ctrlLayers.poly.shapes = controlSpace.map(u => ({ kind: "polytope", vertices: u.vertices }));
         this.randPlot.projection = autoProjection(1, ...randomSpace.extent);
@@ -1116,7 +1116,7 @@ class SystemView {
         this.plot = new InteractivePlot([630, 420], fig, autoProjection(6/4, ...this.proxy.lss.extent));
 
         // Add a link that opens view in plotter-2d if dimension matches
-        if (this.proxy.lss.stateSpace.dim === 2) {
+        if (this.proxy.lss.dim === 2) {
             const plotterLink = dom.A({ "href": "plotter-2d.html", "target": "_blank" }, ["open in plotter"]);
             plotterLink.addEventListener("click", () => {
                 plotterLink.href = "plotter-2d.html#" + this.toExportURL();
@@ -1170,7 +1170,7 @@ class SystemView {
             const action = this.actionView.hoverSelection == null
                          ? this.actionView.selection
                          : this.actionView.hoverSelection;
-            const control = action == null ? union.serialize(this.proxy.lss.controlSpace) : action.controls;
+            const control = action == null ? union.serialize(this.proxy.lss.uus) : action.controls;
             operator(state, control).then(data => {
                 const shapes = data.map(
                     poly => ({ kind: "polytope", vertices: poly.vertices })

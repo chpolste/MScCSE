@@ -18,7 +18,7 @@ function actionPolytopesCoverControlSpace(sys) {
             for (let action of state.actions) {
                 actionPolytopes.push(...action.controls);
             }
-            assert(geometry.union.isSameAs(actionPolytopes, sys.lss.controlSpace));
+            assert(geometry.union.isSameAs(actionPolytopes, sys.lss.uus));
         }
     }
 }
@@ -30,24 +30,6 @@ function actionPolytopesDoNotOverlap(sys) {
                 for (let action2 of state.actions) {
                     if (action1 === action2) continue;
                     assert(!geometry.union.doIntersect(action1.controls, action2.controls));
-                }
-            }
-        }
-    }
-}
-
-function actionSupportsDoNotOverlap(sys) {
-    return function () {
-        for (let state of sys.states.values()) {
-            for (let action of state.actions) {
-                for (let support1 of action.supports) {
-                    for (let support2 of action.supports) {
-                        if (support1 === support2) continue;
-                        assert(
-                            !geometry.union.doIntersect(support1.origins, support2.origins),
-                            "action " + state.label + " → {" + action.targets.map(s => s.label).join(", ") + "}"
-                        );
-                    }
                 }
             }
         }
@@ -118,7 +100,6 @@ describe("Svoreňová et al. (2017): illustrative example system", function () {
 
     it("union of action polytopes of each state is entire control space", actionPolytopesCoverControlSpace(sys));
     it("action polytopes of each state do not overlap", actionPolytopesDoNotOverlap(sys));
-    it("supports of each action do not overlap", actionSupportsDoNotOverlap(sys));
     it("supports of each action fulfil PreP properties", actionSupportsArePreP(sys));
 
 });
@@ -167,7 +148,6 @@ describe("Svoreňová et al. (2017): double integrator system", function () {
 
     it("union of action polytopes of each state is entire control space", actionPolytopesCoverControlSpace(sys));
     it("action polytopes of each state do not overlap", actionPolytopesDoNotOverlap(sys));
-    it("supports of each action do not overlap", actionSupportsDoNotOverlap(sys));
     it("supports of each action fulfil PreP properties", actionSupportsArePreP(sys));
 
 });

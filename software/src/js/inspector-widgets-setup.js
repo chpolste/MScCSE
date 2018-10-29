@@ -245,8 +245,8 @@ class SystemPreview {
         } else if (this.setup.lssIsValid) {
             const lss = this.setup.lss;
             this.plot.projection = autoProjection(3/2, ...lss.extent);
-            stateShapes.push({ kind: "polytope", vertices: lss.stateSpace.vertices });
-            outerShapes.push(...union.remove(lss.oneStepReachable, [lss.stateSpace]).map(
+            stateShapes.push({ kind: "polytope", vertices: lss.xx.vertices });
+            outerShapes.push(...union.remove(lss.oneStepReachable, [lss.xx]).map(
                 poly => ({ kind: "polytope", vertices: poly.vertices })
             ));
         // Form is not filled out sufficiently to preview a system

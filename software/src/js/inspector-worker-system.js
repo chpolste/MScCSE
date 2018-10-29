@@ -5,10 +5,10 @@ import type { JSONConvexPolytope, JSONConvexPolytopeUnion } from "./geometry.js"
 import type { JSONGameGraph } from "./game.js";
 import type { LSS, State, StateKind, Trace, JSONAbstractedLSS } from "./system.js";
 
+import { union } from "./geometry.js";
+import { AbstractedLSS, controller, refinery, partitionMap } from "./system.js";
 import { iter, sets } from "./tools.js";
 import { Communicator } from "./worker.js";
-import { AbstractedLSS, controller, refinery, partitionMap } from "./system.js";
-import { union } from "./geometry.js";
 
 
 // https://github.com/facebook/flow/issues/3128
@@ -227,10 +227,10 @@ export type OperatorRequest = [string, string, JSONConvexPolytopeUnion];
 export type OperatorData = JSONConvexPolytopeUnion;
 const OPERATORS = {
     "post":  (state, us) => state.isOuter ? [] : state.post(us),
-    "pre":   (state, us) => $.lss.pre($.lss.stateSpace, us, [state.polytope]),
-    "preR":  (state, us) => $.lss.preR($.lss.stateSpace, us, [state.polytope]),
-    "attr":  (state, us) => $.lss.attr($.lss.stateSpace, us, [state.polytope]),
-    "attrR": (state, us) => $.lss.attrR($.lss.stateSpace, us, [state.polytope])
+    "pre":   (state, us) => $.lss.pre($.lss.xx, us, [state.polytope]),
+    "preR":  (state, us) => $.lss.preR($.lss.xx, us, [state.polytope]),
+    "attr":  (state, us) => $.lss.attr($.lss.xx, us, [state.polytope]),
+    "attrR": (state, us) => $.lss.attrR($.lss.xx, us, [state.polytope])
 };
 communicator.onRequest("getOperator", function (data: OperatorRequest): OperatorData {
     const [operator, stateLabel, control] = data;
@@ -245,7 +245,7 @@ export type TraceRequest = [string|null, string, number];
 export type TraceData = Trace;
 communicator.onRequest("sampleTrace", function (data: TraceRequest): TraceData {
     const [sourceLabel, controllerName, maxSteps] = data;
-    const srcPoly = sourceLabel == null ? $.lss.stateSpace : $.system.getState(sourceLabel).polytope;
+    const srcPoly = sourceLabel == null ? $.lss.xx : $.system.getState(sourceLabel).polytope;
     const Strategy = controller[controllerName];
     if (Strategy == null) throw new Error(
         "Control strategy " + controllerName + " cannot be found"

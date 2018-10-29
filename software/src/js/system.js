@@ -6,15 +6,18 @@ import type { ConvexPolytope, ConvexPolytopeUnion, Halfspace,
               JSONConvexPolytope, JSONConvexPolytopeUnion, JSONHalfspace } from "./geometry.js";
 import type { GameGraph, JSONGameGraph } from "./game.js";
 
-import { iter, arr, sets, ValueError } from "./tools.js";
-import * as linalg from "./linalg.js";
 import { polytopeType, deserializePolytope, deserializeHalfspace, union } from "./geometry.js";
+import * as linalg from "./linalg.js";
+import { iter, arr, sets, ValueError } from "./tools.js";
 
 
-type PrecisePart<T> = { polys: ConvexPolytopeUnion, items: T[] };
-// Partition the region operator(items) based on each operator(items[i]) and
-// associate the items with each corresponding part.
-function preciseOperatorPartition<T>(items: Iterable<T>, operator: (T) => ConvexPolytopeUnion): PrecisePart<T>[] {
+// Partitioning that keeps track of items causing the partition. Used for
+// action and support computation as well as LSS decomposition.
+type ItemizedPart<T> = { polys: ConvexPolytopeUnion, items: T[] };
+// Partition the region of operator-transformed items based on the individual
+// operator(items[i]) results and associate the corresponding items with each
+// part (accumulating items when there is overlap).
+export function itemizedOperatorPartition<T>(items: Iterable<T>, operator: (T) => ConvexPolytopeUnion): ItemizedPart<T>[] {
     let parts = [];
     for (let item of items) {
         // Collect new parts in a separate array so they are not visited
@@ -74,22 +77,22 @@ export class LSS {
     +dim: number;
     +A: Matrix;
     +B: Matrix;
-    +stateSpace: ConvexPolytope;
-    +randomSpace: ConvexPolytope;
-    +controlSpace: ConvexPolytopeUnion;
+    +xx: ConvexPolytope;
+    +xxExt: ConvexPolytopeUnion;
+    +ww: ConvexPolytope;
+    +uus: ConvexPolytopeUnion;
     +oneStepReachable: ConvexPolytopeUnion;
-    +extendedStateSpace: ConvexPolytopeUnion;
 
     constructor(A: Matrix, B: Matrix, stateSpace: ConvexPolytope, randomSpace: ConvexPolytope,
                 controlSpace: ConvexPolytopeUnion): void {
         this.A = A;
         this.B = B;
-        this.stateSpace = stateSpace;
-        this.randomSpace = randomSpace;
-        this.controlSpace = controlSpace;
+        this.xx = stateSpace;
+        this.ww = randomSpace;
+        this.uus = controlSpace;
         this.dim = stateSpace.dim;
         this.oneStepReachable = this.post(stateSpace, controlSpace);
-        this.extendedStateSpace = union.disjunctify([this.stateSpace, ...this.oneStepReachable]);
+        this.xxExt = union.disjunctify([stateSpace, ...this.oneStepReachable]);
     }
 
     static deserialize(json: JSONLSS): LSS {
@@ -103,9 +106,7 @@ export class LSS {
     }
 
     get extent(): [number, number][] {
-        const ext1 = union.extent(this.post(this.stateSpace, this.controlSpace));
-        const ext2 = this.stateSpace.extent;
-        return arr.zip2map((a, b) => [Math.min(a[0], b[0]), Math.max(a[1], b[1])], ext1, ext2);
+        return union.extent(this.xxExt);
     }
 
     eval(x: Vector, u: Vector, w: Vector): Vector {
@@ -115,15 +116,11 @@ export class LSS {
     // Posterior: Post(x, {u0, ...})
     post(x: ConvexPolytope, us: ConvexPolytopeUnion): ConvexPolytopeUnion {
         const xvs = x.vertices;
-        const wvs = this.randomSpace.vertices;
+        const wvs = this.ww.vertices;
         const posts = [];
         for (let u of us) {
-            const uvs = u.vertices;
-            posts.push(
-                polytopeType(this.dim).hull(
-                    linalg.minkowski.axpy(this.A, xvs, linalg.minkowski.axpy(this.B, uvs, wvs))
-                )
-            );
+            const Bupws = linalg.minkowski.axpy(this.B, u.vertices, wvs);
+            posts.push(polytopeType(this.dim).hull(linalg.minkowski.axpy(this.A, xvs, Bupws)));
         }
         return union.disjunctify(posts);
     }
@@ -132,8 +129,7 @@ export class LSS {
     pre(x: ConvexPolytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
         const pres = [];
         for (let u of us) {
-            // Minkowski sum: hull of translated vertices (union of translated polygons)
-            const Bupws = linalg.minkowski.axpy(this.B, u.vertices, this.randomSpace.vertices);
+            const Bupws = linalg.minkowski.axpy(this.B, u.vertices, this.ww.vertices);
             for (let y of ys) {
                 const pre = polytopeType(this.dim).hull(linalg.minkowski.xmy(y.vertices, Bupws));
                 pres.push(x.intersect(pre.applyRight(this.A)));
@@ -144,7 +140,7 @@ export class LSS {
 
     // Robust Predecessor: PreR(x, {u0, ...}, {y0, ...})
     preR(x: ConvexPolytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        const pontrys = union.pontryagin(ys, this.randomSpace).filter(_ => !_.isEmpty);
+        const pontrys = union.pontryagin(ys, this.ww).filter(_ => !_.isEmpty);
         if (union.isEmpty(pontrys)) {
             return [];
         }
@@ -161,20 +157,29 @@ export class LSS {
 
     // Attractor: Attr(x, {u0, ...}, {y0, ...})
     attr(x: ConvexPolytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        return x.remove(...this.preR(x, us, union.remove(this.extendedStateSpace, ys)));
+        return x.remove(...this.preR(x, us, union.remove(this.xxExt, ys)));
     }
 
     // Robust Attractor: AttrR(x, {u0, ...}, {y0, ...})
     attrR(x: ConvexPolytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        return x.remove(...this.pre(x, us, union.remove(this.extendedStateSpace, ys)));
+        return x.remove(...this.pre(x, us, union.remove(this.xxExt, ys)));
     }
 
     // Action Polytope
     // TODO: accept a u that isn't the entire control space
     actionPolytope(x: ConvexPolytope, y: ConvexPolytope): ConvexPolytopeUnion {
-        const Axpws = linalg.minkowski.axpy(this.A, x.vertices, this.randomSpace.vertices);
+        const Axpws = linalg.minkowski.axpy(this.A, x.vertices, this.ww.vertices);
         const poly = polytopeType(this.dim).hull(linalg.minkowski.xmy(y.vertices, Axpws));
-        return union.intersect([poly.applyRight(this.B)], this.controlSpace);
+        return union.intersect([poly.applyRight(this.B)], this.uus);
+    }
+
+    zNonZero(xs: ConvexPolytopeUnion): ConvexPolytopeUnion {
+        const wwi = this.ww.invert();
+        return union.disjunctify(xs.map(_ => _.minkowski(wwi)));
+    }
+
+    zOne(xs: ConvexPolytopeUnion): ConvexPolytopeUnion {
+        return union.pontryagin(xs, this.ww);
     }
 
     // Split state space with linear predicates to create an AbstractedLSS
@@ -182,7 +187,7 @@ export class LSS {
         const system = new AbstractedLSS(this);
         // Initial abstraction into states is given by decomposition and
         // partition of outer region into convex polytopes
-        const outer = union.remove(this.oneStepReachable, [this.stateSpace]);
+        const outer = union.remove(this.oneStepReachable, [this.xx]);
         for (let polytope of outer) {
             system.newState(polytope, OUTER);
         }
@@ -192,10 +197,10 @@ export class LSS {
             if (label.length > 0) system.predicates.set(label, predicate);
         }
         // Split state space according to given predicates
-        const partition = preciseOperatorPartition(
+        const partition = itemizedOperatorPartition(
             arr.zip2(predicateLabels, predicates),
-            ([label, predicate]) => [this.stateSpace.intersect(predicate)]
-        )
+            ([label, predicate]) => [this.xx.intersect(predicate)]
+        );
         for (let part of partition) {
             if (part.polys.length > 1) throw new Error(
                 "State space was not split properly by linear predicates"
@@ -203,7 +208,7 @@ export class LSS {
             system.newState(part.polys[0], UNDECIDED, part.items.map(_ => _[0]).filter(_ => _.length > 0));
         }
         // Add the part of the state space not covered by any predicate
-        const leftOverPoly = this.stateSpace.intersect(...predicates.map(_ => _.flip()));
+        const leftOverPoly = this.xx.intersect(...predicates.map(_ => _.flip()));
         if (!leftOverPoly.isEmpty) {
             system.newState(leftOverPoly, UNDECIDED, []);
         }
@@ -215,9 +220,9 @@ export class LSS {
         return {
             A: this.A,
             B: this.B,
-            stateSpace: this.stateSpace.serialize(),
-            randomSpace: this.randomSpace.serialize(),
-            controlSpace: union.serialize(this.controlSpace)
+            stateSpace: this.xx.serialize(),
+            randomSpace: this.ww.serialize(),
+            controlSpace: union.serialize(this.uus)
         };
     }
 
@@ -429,11 +434,11 @@ export class AbstractedLSS implements GameGraph {
         // Take requested number of steps or end trace when it has left the
         // state space polytope
         const trace = [];
-        while (trace.length < steps && this.lss.stateSpace.contains(x)) {
+        while (trace.length < steps && this.lss.xx.contains(x)) {
             // Obtain the control input from the strategy
             const u = controller.input(x);
             // Sample the random space polytope
-            const w = this.lss.randomSpace.sample();
+            const w = this.lss.ww.sample();
             // Evaluate the evolution equation to obtain the next point
             const xx = this.lss.eval(x, u, w);
             trace.push({ origin: x, target: xx, control: u, random: w });
@@ -464,8 +469,16 @@ export class AbstractedLSS implements GameGraph {
         return this.lss.attrR(x.polytope, us, ys.map(y => y.polytope));
     }
 
-    actionPolytope(x: State, y: State) {
+    actionPolytope(x: State, y: State): ConvexPolytopeUnion {
         return this.lss.actionPolytope(x.polytope, y.polytope);
+    }
+
+    zNonZero(xs: State[]): ConvexPolytopeUnion {
+        return this.lss.zNonZero(xs.map(x => x.polytope));
+    }
+
+    zOne(xs: State[]): ConvexPolytopeUnion {
+        return this.lss.zOne(xs.map(x => x.polytope));
     }
 
     /* GameGraph Interface */
@@ -599,8 +612,8 @@ export class State {
             return this._actions;
         } else {
             const op = target => this.actionPolytope(target);
-            this._reachable = this.oneStepReachable(this.system.lss.controlSpace);
-            this._actions = preciseOperatorPartition(this._reachable, op).map(
+            this._reachable = this.oneStepReachable(this.system.lss.uus);
+            this._actions = itemizedOperatorPartition(this._reachable, op).map(
                 part => new Action(this, part.items, union.simplify(part.polys))
             );
             return this.actions;
@@ -660,6 +673,14 @@ export class State {
 
     actionPolytope(y: State): ConvexPolytopeUnion {
         return this.system.actionPolytope(this, y);
+    }
+
+    zNonZero(): ConvexPolytopeUnion {
+        return this.system.zNonZero([this]);
+    }
+    
+    zOne(): ConvexPolytopeUnion {
+        return this.system.zOne([this]);
     }
 
     // Partition the state using the given refinement steps.
@@ -757,11 +778,25 @@ export class Action {
         if (this._supports != null) {
             return this._supports;
         } else {
-            const op = target => this.origin.pre(this.controls, [target]);
-            const prer = union.simplify(this.origin.preR(this.controls, this.targets));
-            this._supports = preciseOperatorPartition(this.targets, op).map(
-                part => new ActionSupport(this, part.items, union.simplify(union.intersect(part.polys, prer)))
-            );
+            const lss = this.origin.system.lss;
+            const zNonZeros = itemizedOperatorPartition(this.targets, _ => _.zNonZero());
+            const zOnes = lss.zOne(this.targets.map(_ => _.polytope));
+            this._supports = zNonZeros.map(part => {
+                // Remove outer zNonZeros
+                const zs = union.intersect(part.polys, zOnes);
+                let prePs = [];
+                for (let u of this.controls) {
+                    const Bus = u.vertices.map(_ => linalg.apply(lss.B, _));
+                    for (let z of zs) {
+                        // Subtract Bu with Minkowski
+                        const preP = polytopeType(lss.dim).hull(linalg.minkowski.xmy(z.vertices, Bus));
+                        // Apply A from right
+                        prePs.push(preP.applyRight(lss.A));
+                    }
+                }
+                prePs = union.intersect(prePs, [this.origin.polytope]);
+                return new ActionSupport(this, part.items, union.simplify(prePs));
+            }).filter(_ => !union.isEmpty(_.origins));
             return this.supports;
         }
     }
@@ -825,14 +860,14 @@ export interface Controller {
 // Return a random control input at every step
 class RandomController implements Controller {
     
-    +controlSpace: ConvexPolytopeUnion;
+    +uus: ConvexPolytopeUnion;
     
     constructor(system: AbstractedLSS): void {
-        this.controlSpace = system.lss.controlSpace;
+        this.uus = system.lss.uus;
     }
 
     input(x: Vector): Vector {
-        return this.controlSpace[0].sample();
+        return this.uus[0].sample();
     }
 
 }
@@ -872,15 +907,15 @@ export type RefinementPartition = { done: ConvexPolytopeUnion, rest: ConvexPolyt
 class NegativeAttrRefinery implements Refinery {
 
     +nonSatisfyingStates: State[];
-    +controlSpace: ConvexPolytopeUnion;
+    +uus: ConvexPolytopeUnion;
 
     constructor(system: AbstractedLSS): void {
         this.nonSatisfyingStates = Array.from(system.states.values()).filter(s => s.isNonSatisfying);
-        this.controlSpace = system.lss.controlSpace;
+        this.uus = system.lss.uus;
     }
 
     partition(state: State, rest: ConvexPolytopeUnion): RefinementPartition {
-        const attr = state.attr(this.controlSpace, this.nonSatisfyingStates);
+        const attr = state.attr(this.uus, this.nonSatisfyingStates);
         const done = union.simplify(union.intersect(attr, rest));
         const newRest = union.simplify(union.remove(rest, done));
         return { done: done, rest: newRest };
@@ -894,10 +929,10 @@ class InnerPreRRefinery implements Refinery {
 
     constructor(system: AbstractedLSS): void {
         let inner = [];
-        let newInner = [system.lss.stateSpace];
+        let newInner = [system.lss.xx];
         do {
             inner = union.simplify(newInner);
-            newInner = system.lss.preR(system.lss.stateSpace, system.lss.controlSpace, inner);
+            newInner = system.lss.preR(system.lss.xx, system.lss.uus, inner);
         } while (!union.isSameAs(inner, newInner));
         this._inner = inner;
     }

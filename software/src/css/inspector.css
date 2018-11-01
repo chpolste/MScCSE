@@ -6,12 +6,13 @@ body {
     line-height: 1.5;
     color: #000;
     background-color: #FFF;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
-body > div {
-    max-width: 950px;
-    margin: 0 auto 15px auto;
-    padding: 15px 5px;
+p {
+    margin: 0 0 6pt 0;
 }
 
 .header {
@@ -23,97 +24,73 @@ body > div {
     background-color: #333;
     color: #FFF;
 }
-
-.navigation {
-    padding: 0 5px;
-}
-.navigation a {
-    margin-left: 4pt;
-}
-
 h1 {
-    max-width: 950px;
-    padding: 45px 0 5px 0;
+    max-width: 1200px;
+    padding: 15px 15px 5px 15px;
     margin: 0 auto;
-    font-size: 18pt;
+    font-size: 14pt;
     font-weight: normal;
 }
 
-h2 {
-    max-width: 950px;
-    margin: 15px auto 0 auto;
-    padding: 5px;
-    font-size: 16pt;
+#application {
+    flex: 1 0 auto;
+    width: 1200px;
+    margin: 0 auto;
+    padding: 25px 15px;
+    line-height: 1.2;
+}
+#application h3 {
+    font-size: 12pt;
     font-weight: normal;
-    border-bottom: 2px solid #999;
+    margin: 14pt 0 6pt 0;
 }
 
-h3 {
-    margin: 18pt 0 6pt 0;
+.text {
+    flex: 0 1 auto;
+    padding: 15px;
+    border-top: 3px solid #999;
+    background-color: #EEE;
+}
+.text > div.left {
+    padding: 5px 15px 5px 0;
+    margin: 0 15px 0 auto;
+    border-right: 1px solid #999;
+    width: 585px;
+}
+.text > div.right {
+    padding: 5px 0;
+    margin: 0 auto 0 0;
+    width: 585px;
+}
+.text h2 {
+    margin: 20px 0 10px 0;
+    padding: 0;
     font-size: 13pt;
     font-weight: normal;
 }
-body > div > h3:first-child {
+.text h2:first-child {
     margin-top: 0;
 }
-
-p {
-    margin: 0 0 6pt 0;
+.text h3 {
+    margin: 18px 0 6px 0;
+    font-size: 12pt;
+    font-weight: normal;
 }
-p.quote {
-    padding: 4pt 16pt;
+.text p {
+    margin: 0 0 10px 0;
+    padding: 0;
+    text-align: justify;
+}
+.text p.quote {
+    padding: 0 25px 0 15px;
     font-style: italic;
+    border-left: 1px solid #999;
+    margin-left: 10px;
 }
-p.math {
-    padding: 2pt 16pt;
-}
-
 
 u {
     text-decoration: underline;
 }
-
-/* Wide insert: interactive content */
-
-.wide {
-    max-width: 1200px;
-    min-width: 1200px;
-    margin: 15px auto;
-}
-.wide-inner {
-    width: 100%;
-    margin: 0;
-    padding: 25px 5px;
-    border-top: 2px solid #999;
-    border-bottom: 2px solid #999;
-}
-.wide hr {
-    margin: 7px auto;
-}
-.wide hr.width1 {
-    border: 1px solid #DDD;
-    margin: 7px 90px;
-}
-.wide hr.width2 {
-    border: 1px solid #CCC;
-    margin: 7px 60px;
-}
-.wide hr.width3 {
-    border: 1px solid #BBB;
-    margin: 7px 30px;
-}
-
-#application {
-    line-height: 1.2;
-}
-#application h3 {
-    margin-top: 14pt;
-    font-size: 12pt;
-}
-
-
-
-/* ... */
 
 label {
     display: block;

@@ -19,20 +19,23 @@
 % General math
 % ------------
 
+\define[3]\Function{#1:#2\rightarrow#3}
+
 % 2-Norm
 \define[1]\TwoNorm{\lVert{#1}\rVert}
 
-% Vector variables with bold font
-\define[1]\Vec{{\bf #1}}
+% Vector variables with bolditalic font
+\define[1]\Vec{{\bi #1}}
 \define\VecC{\Vec{c}}
 \define\VecU{\Vec{u}}
 \define\VecV{\Vec{v}}
+\define\VecW{\Vec{w}}
 \define\VecX{\Vec{x}}
 \define\VecY{\Vec{y}}
 \define\VecZ{\Vec{z}}
 
-% Matrix variables with bold font
-\define[1]\Mat{{\bf #1}}
+% Matrix variables with bolditalic font
+\define[1]\Mat{{\bi{#1}}}
 \define\MatA{\Mat{A}}
 \define\MatB{\Mat{B}}
 \define\MatU{\Mat{U}}
@@ -100,9 +103,9 @@
 \define[1]\RepeatFinitely{{#1}^{\ast}}
 \define[1]\RepeatInfinitely{{#1}^{\omega}}
 
-\define\True{{\mathss true}}
-\define\Next{{\mathss X}}
-\define\Until{{\mathss U}}
-\define\Finally{{\mathss F}}
-\define\Globally{{\mathss G}}
+\definemathcommand[True]{{\mathss true}}
+\definemathcommand[Next]{{\mathss X}}
+\definemathcommand[Until]{{\mathss U}}
+\definemathcommand[Finally]{{\mathss F}}
+\definemathcommand[Globally]{{\mathss G}}
 

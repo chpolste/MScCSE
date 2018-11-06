@@ -1,0 +1,72 @@
+If a system of interest exhibits stochastic behaviour, there is a need for probabilistic abstractions that can reflect this stochasticity appropriately.
+Markov models and the closely related probabilistic games are such models for systems with discrete time evolution.
+A few classes of these models are introduced in this section.
+
+
+\startsubsection[title={Markov Models}]
+
+    Markov models are transition systems enriched with probabilistic behaviour and have found numerous applications, including in probabilistic model checking \cite[alternative=authoryears,left={(see e.g. chapter 10 of }][Baier2008].
+
+    The most simple Markov model is the Markov chain (MC).
+    A Markov chain is a tuple (G, \delta) where $G$ is a set of states, $\Function{\delta}{G}{\ProbDist{G}}$ the transition relation, $\ProbDist{G}$ denotes the set of all probability distributions over $G$.
+    At every step of a trace through the MC, the successor is chosen by sampling the probability distribution of successors of the current state.
+
+    More complex behaviour is exhibited by Markov decision processes (MDPs), which introduces the concept of actions.
+    MDPs are tripels $(G, Act, \delta)$, where $G$ is a set of states, $Act$ is a set of actions and $\Function{\delta}{G \times Act}{\ProbDist{G}}$ is the probabilistic transition relation.
+    Not all actions are enabled in every state, but at least one action from $Act$ is.
+    At every step of a trace through the MDP, an enabled action is chosen and the successor state is then determined by sampling the probability distribution associated with the current state and chosen action.
+    A Markov chain is the degenerate case of a MDP with exactly one action enabled in every state.
+
+    The introduction of actions with the MDP opens up a game-theoretic perspective on Markov models.
+    From the perspective of games, the transition system of a MDP is a game graph on which a turn-based game is played between a player and a probabilistic environment.
+    The player chooses their move each turn by picking an action and the outcome is determined stochastically by the environment, which acts as a sort of passive player.
+    MDPs are therefore also called a 1-player probabilistic games or 1½-player games, with one \quotation{proper} player and the environment in a player-like role.
+    This game-based view of Markov models extends naturally to more complicated behaviour through the introduction of additional players.
+
+\stopsubsection
+
+
+\startsubsection[title={2-Player Probabilistic Games}]
+
+    A two-player probabilistic game aka 2½-player game is a turn-based probabilistic game played on a game graph
+
+    \startformula
+        \mathcal{G} = (G_1, G_2, Act, \delta) \EndComma
+    \stopformula
+
+    where $G_1$, $G_2$ are disjoint sets of player 1 and 2 states, respectively.
+    Let $G = G_1 \cup G_2$.
+    A play of the game is a sequence of states $g = g_0 g_1 ... \in G^\omega$ such that $g_i \in G_1$ for all even and $g_i \in G_2$ for all odd indices $i$, i.e. player's turns alternate.
+    In their turn, players choose an available action from the finite set of actions $Act$.
+    The next state of the play is then chosen stochastically based on the probability distribution defined by the probability transition function $\delta: G \times Act \rightarrow \mathcal{D}(G)$, where $\mathcal{D}(G)$ is the set of all probability distribution over set $G$.
+    Therefore, for every $g_i$ there must be an action $a \in Act$ such that $\delta(g_i, a)(g_{i+1}) \gt 0$.
+
+    A player $k$ strategy is a function $\Strategy{k}{\GameGraph}: G^+ \rightarrow Act$ that determines the action taken after a finite prefix of a play ending in a state of player $k$.
+    If a strategy uses only a finite memory, it is called finite-memory and if it only uses the one memory element (i.e. the current game state), it is called memoryless.
+
+\stopsubsection
+
+
+\startsubsection[title={Winning and Solving 2-Player Probabilistic Games}]
+
+    A notion of winning is introduced by extending the game graph $\mathcal{G}$ with an acceptance condition $\mathcal{C}$ to form the game
+
+    \startformula
+        \mathcal{G'} = (G_1, G_2, Act, \delta, \mathcal{C}) \EndPeriod
+    \stopformula
+
+    The acceptance condition separates the set of all possible plays into those which are won by player 1 and those plays are won by player 2.
+    One example are parity acceptance conditions.
+    In a parity-$n$ game, every state is associated with a priority, which is an integer value originating from a set of size $n$.
+    Player 1 wins a play if the lowest priority occuring infinitely often in the play is even, otherwise player 2 wins.
+
+    The solution of a game are the sets of initial states for which player 1 (2) has a winning strategy, i.e. a strategy that ensures a win of player 1 (2).
+    The meaning of \quotation{ensuring a win} depends on the type of analysis carried out.
+    In this work, almost-sure analysis (qualitative) for an adversarial and cooperative player 2 is the main concern.
+    Almost-sure analysis requires a winning strategy that can ensure a win for the player with probability 1.
+    Adversarial analysis means that the player strategy must yield a win for every possible strategy of the opponent player, while in a cooperative setting a winning strategy only has to exist for some strategy of the other player, i.e. a win is possible but only ensurable if the opponent is \quotation{nice} and cooperates.
+    In the cooperative interpretation, the 2 player probabilistic game can be reduced to a 1 player probabilistic game \cite[authoryears][Svorenova2017].
+    The set of initial states for which player 1 has a strategy to ensure winning almost surely are denoted in the adversarial setting by $\Almost{\GameGraph}(\mathcal{C})$ and in the cooperative setting as $\AlmostCoop{\GameGraph}(\mathcal{C})$.
+
+\stopsubsection
+

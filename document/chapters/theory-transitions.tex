@@ -1,6 +1,6 @@
 Transitions systems are a versatile abstraction, used ubiquitously in computer science to model soft- and hardware systems \cite[alternative=authoryears][Baier2008].
 
-A basic transition systems is built from a finite or inifinite set of states and actions and a transition function that combines the two into a directed graph with states as nodes and actions as edges.
+A basic transition system is built from a finite or inifinite set of states and actions and a transition function that combines the two into a directed graph with states as nodes and actions as edges.
 The transition relation describes how the system evolves from its states can be deterministic with a unique target state for every transition or have multiple target states with non-determinism or a stochastic choice.
 Labeling functions can be used to associate states and/or actions with additional information, typically valuations of atomic propositions.
 An initial state or a set of initial states is usually defined to provide an entry point for the system.
@@ -19,4 +19,8 @@ An important operation is the product of two or more transition systems that mus
 The synchronized product will result in a single transition system that enforces the synchronized evolution.
 This way, properties of all involved subsystems can be tested together and combined to form more complex tests.
 In model checking, the typical approach is to combine an abstraction model of some system of interest with an automaton specifying the behaviour that is required from the system using the synchronized product and then inspecting the resulting transition system to determine if the abstraction model fulfills the specification.
+
+In order to be able to decide if a specification is met, one has to determine which behaviour of a system is essential and needs to be preserved in the abstraction used in the verification procedure.
+Finding the right set of features a transition system abstraction must exhibit to ensure decidability is not easy.
+Fortunately, the technique of abstraction refinement provides a way out of this predicament.
 

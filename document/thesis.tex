@@ -136,6 +136,7 @@
    \insertnote{ }{.}{}%
    \insertcomment{}{.}{}%
 }
+% TODO also add doi to inproceedings
 
 % MetaPost: used to draw omega-automata with package automata.mp from
 % https://www.ctan.org/tex-archive/graphics/metapost/contrib/macros/automata.
@@ -275,12 +276,30 @@
 
         \startchapter[title={Theoretical Foundations}]
 
-            \startsection[title={Convex Geometry}]
-                \input{chapters/theory-geometry}
+            \input{chapters/theory}
+
+            \startsection[title={Model Checking}]
+                \input{chapters/theory-checking}
             \stopsection
 
             \startsection[title={Transition Systems}]
                 \input{chapters/theory-transitions}
+            \stopsection
+
+            \startsection[title={Abstraction Refinement}]
+                \input{chapters/theory-refinement}
+            \stopsection
+
+            \startsection[title={Hybrid Systems}]
+                \input{chapters/theory-hybrids}
+            \stopsection
+
+            \startsection[title={Convex Geometry}]
+                \input{chapters/theory-geometry}
+            \stopsection
+
+            \startsection[title={Markov Models and Probabilistic Games}]
+                \input{chapters/theory-games}
             \stopsection
 
             \startsection[title={Automata and Languages}]
@@ -288,19 +307,7 @@
             \stopsection
 
             \startsection[title={Temporal Logic}]
-                %\input{chapters/theory-logic}
-            \stopsection
-
-            \startsection[title={Markov Decision Processes and Probabilistic Games}]
-                %\input{chapters/theory-games}
-            \stopsection
-
-            \startsection[title={Hybrid Systems}]
-                %\input{chapters/theory-hybrids}
-            \stopsection
-
-            \startsection[title={Abstraction and Refinement}]
-                %\input{chapters/theory-abstraction}
+                \input{chapters/theory-logic}
             \stopsection
 
         \stopchapter

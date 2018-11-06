@@ -122,7 +122,7 @@ function linearTicks(min: number, max: number, n: number): number[] {
     const ticks = [];
     for (let i = -n; i <= n; i++) {
         const tick = init + i * increment;
-        if (min <= tick && tick <= max) ticks.push(tick);
+        if (min < tick && tick < max) ticks.push(tick);
     }
     return ticks;
 }

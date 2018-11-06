@@ -151,7 +151,7 @@ export class AxesPlot implements Plot {
         this.shapePlot = new ShapePlot(size, figure, projection);
         this.shapePlot.node.setAttribute("x", "5");
         this.shapePlot.node.setAttribute("y", "5");
-        this.node = dom.createSVG("svg", {xmlns: dom.SVGNS}, [this.ticks, this.tickLabels, this.shapePlot.node]);
+        this.node = dom.createSVG("svg", {xmlns: dom.SVGNS}, [this.tickLabels, this.shapePlot.node, this.ticks]);
         this.draw();
     }
 
@@ -184,18 +184,18 @@ export class AxesPlot implements Plot {
     draw(): void {
         let [sizeX, sizeY] = this.size;
         this.node.setAttribute("width", String(sizeX + 45))
-        this.node.setAttribute("height", String(sizeY + 30))
+        this.node.setAttribute("height", String(sizeY + 25))
         const ticks = [];
         const labels = [];
-        for (let tick of this.projection.getXTicks(Math.ceil(sizeX / 50))) {
+        for (let tick of this.projection.getXTicks(Math.ceil(sizeX / 43))) {
             let x = 5 + tick[0] * sizeX
-            ticks.push(this._createTickLine(x, x, sizeY + 4, sizeY + 10));
-            labels.push(this._createTickLabel(x, sizeY + 25, "middle", tick[1]));
+            ticks.push(this._createTickLine(x, x, sizeY + 1, sizeY + 4.5));
+            labels.push(this._createTickLabel(x, sizeY + 20, "middle", tick[1]));
         }
         for (let tick of this.projection.getYTicks(Math.ceil(sizeY / 30))) {
             let y = (1 - tick[0]) * sizeY + 5;
-            ticks.push(this._createTickLine(4 + sizeX, 10 + sizeX, y, y));
-            labels.push(this._createTickLabel(15 + sizeX, y + 4, "start", tick[1]));
+            ticks.push(this._createTickLine(sizeX + 1, sizeX + 4.5, y, y));
+            labels.push(this._createTickLabel(12 + sizeX, y + 4, "start", tick[1]));
         }
         dom.replaceChildren(this.ticks, ticks);
         dom.replaceChildren(this.tickLabels, labels);

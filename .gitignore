@@ -1,4 +1,11 @@
 misc/
+document/*.aux
+document/*.bbl
+document/*.blg
+document/*.log
+document/*.tuc
+document/*.pdf
+document/figures/*.svg.pdf
 software/dist/
 software/modules/
 software/node_modules/

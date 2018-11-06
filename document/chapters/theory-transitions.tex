@@ -1,0 +1,26 @@
+Transitions systems are a versatile abstraction, used ubiquitously in computer science to model soft- and hardware systems \cite[alternative=authoryears][Baier2008].
+
+A basic transition system is built from a finite or inifinite set of states and actions and a transition function that combines the two into a directed graph with states as nodes and actions as edges.
+The transition relation describes how the system evolves from its states can be deterministic with a unique target state for every transition or have multiple target states with non-determinism or a stochastic choice.
+Labeling functions can be used to associate states and/or actions with additional information, typically valuations of atomic propositions.
+An initial state or a set of initial states is usually defined to provide an entry point for the system.
+The evolution of a system from state to state along the transitions induces a seqence of states, typically called a run, that is a recording of the states passed in a run.
+For specific applications, the system may be extended with other necessary features.
+
+Transitions systems are e.g. the foundation of turn-based games, with game states and actions triggered by a set of players who move in turns.
+The states of the system are divided into disjunct subsets for each player and player actions alternate between these sets to enforce that the players apply their moves in turns.
+Additionally, the system will feature some condition or reward system, that determines which player wins the game.
+Automata representing a language of words are another common application of transition systems.
+By labeling the transitions with symbols that make up the words of the language, each run through the automaton generates word.
+An acceptance condition then decides if a generated word belongs to the language or not.
+
+Transition systems can be combined to yield new transition systems that contain properties from the systems they are made up from.
+An important operation is the product of two or more transition systems that must evolve in synchronized fashion.
+The synchronized product will result in a single transition system that enforces the synchronized evolution.
+This way, properties of all involved subsystems can be tested together and combined to form more complex tests.
+In model checking, the typical approach is to combine an abstraction model of some system of interest with an automaton specifying the behaviour that is required from the system using the synchronized product and then inspecting the resulting transition system to determine if the abstraction model fulfills the specification.
+
+In order to be able to decide if a specification is met, one has to determine which behaviour of a system is essential and needs to be preserved in the abstraction used in the verification procedure.
+Finding the right set of features a transition system abstraction must exhibit to ensure decidability is not easy.
+Fortunately, the technique of abstraction refinement provides a way out of this predicament.
+

@@ -1,0 +1,123 @@
+% CamelCase for custom commands
+
+\define\DocTitleFooter{Abstraction Refinement for Continuous-Space MDPs} % TODO
+\define\Author{Christopher Polster}
+\define\YearOfCompletion{2019}
+\define\DateOfCompletion{\YearOfCompletion-??-??} % TODO
+
+% Vertical position of default coloncolon command is not right
+\definemathcommand[coloncolon][rel]{\colon\!\colon}
+% Tall version of \mid
+\definemathcommand[Bigmid][rel]{\mathrel{\Big|}}
+
+% Equation endings
+\define\EndComma{\;\text{,}}
+\define\EndPeriod{\;\text{.}}
+\define\EndAnd{\;\text{and}}
+
+
+% General math
+% ------------
+
+\define[3]\Function{#1:#2\rightarrow#3}
+
+% 2-Norm
+\define[1]\TwoNorm{\lVert{#1}\rVert}
+
+% Vector variables with bolditalic font
+\define[1]\Vec{{\bi #1}}
+\define\VecC{\Vec{c}}
+\define\VecU{\Vec{u}}
+\define\VecV{\Vec{v}}
+\define\VecW{\Vec{w}}
+\define\VecX{\Vec{x}}
+\define\VecY{\Vec{y}}
+\define\VecZ{\Vec{z}}
+
+% Matrix variables with bolditalic font
+\define[1]\Mat{{\bi{#1}}}
+\define\MatA{\Mat{A}}
+\define\MatB{\Mat{B}}
+\define\MatU{\Mat{U}}
+
+% Vectors and matrices with square brackets
+\definemathmatrix[sqmatrix][left={\left\lbrack\,},right={\,\right\rbrack},strut=0.8,distance=0.8em]
+\define[4]\TwoByTwo{ \startsqmatrix[n=2,align={middle,middle}] \NC #1 \NC #2 \NR \NC #3 \NC #4 \NR \stopsqmatrix }
+\define[2]\TwoByOne{ \startsqmatrix[n=1,align={middle}] \NC #1 \NR \NC #2 \NR \stopsqmatrix }
+\define[2]\OneByTwo{ \startsqmatrix[n=2,align={middle,middle}] \NC #1 \NC #2 \NR \stopsqmatrix }
+\define[1]\OneByOne{ \startsqmatrix[n=1,align={middle}] \NC #1 \NR \stopsqmatrix }
+
+% Inline vectors and matrices with square brackets (https://www.mail-archive.com/ntg-context@ntg.nl/msg78899.html)
+\definemathmatrix[ssqmatrix][left=\left\lbrack,right=\right\rbrack,style=\scriptstyle,strut=0.5,distance=0.5em]
+\define[2]\TwoByOneSmall{ \startssqmatrix[n=1,align={middle}] \NC #1 \NR \NC #2 \NR \stopssqmatrix }
+
+% Sets and Intervals
+\define[1]\Set{\{ {#1} \}}
+\define[1]\BigSet{\Big\{ {#1} \Big\}}
+\define[2]\IndexedSet{\Set{#1}_{#2}}
+\define[2]\ClosedInterval{\left[\, #1,\, #2 \,\right]}
+
+
+% Polytopic Computations
+% ----------------------
+
+% Custom function names
+\definemathcommand[Hull][nolop]{\mfunction{hull}}
+\definemathcommand[Vertices][nolop]{\mfunction{vert}}
+\definemathcommand[Post][nolop]{\mfunction{Post}}
+\definemathcommand[Pre][nolop]{\mfunction{Pre}}
+\definemathcommand[PreR][nolop]{\mfunction{PreR}}
+\definemathcommand[PreP][nolop]{\mfunction{PreP}}
+\definemathcommand[Attr][nolop]{\mfunction{Attr}}
+\definemathcommand[AttrR][nolop]{\mfunction{AttrR}}
+
+% States
+\define\StateSpace{X}
+\define[1]\State{X_{#1}}
+
+% Control
+\define\ControlSpace{U}
+\define[2]\Action{U_{#1}^{\{#2\}}}
+\define[2]\ActionPolytope{U^{#1 \rightarrow #2}}
+
+% Random
+\define\RandomSpace{W}
+
+% Polytopic Operators
+\define[2]\Posterior{\Post({#1},\, {#2})}
+\define[3]\Predecessor{\Pre({#1},\, {#2},\, {#3})}
+\define[3]\RobustPredecessor{\PreR({#1},\, {#2},\, {#3})}
+\define[3]\PrecisePredecessor{\PreP({#1},\, {#2},\, {#3})}
+\define[3]\Attractor{\Attr({#1},\, {#2},\, {#3})}
+\define[3]\RobustAttractor{\AttrR({#1},\, {#2},\, {#3})}
+
+
+% Logic and Automata
+% ------------------
+
+\definemathcommand[Inf][nolop]{\mfunction{Inf}}
+\define[1]\InfinitelyOften{\Inf(#1)}
+
+% Words
+\define\Language{{\mathcal L}}
+\define[1]\RepeatFinitely{{#1}^{\ast}}
+\define[1]\RepeatInfinitely{{#1}^{\omega}}
+
+\definemathcommand[True]{{\mathss true}}
+\definemathcommand[Next]{{\mathss X}}
+\definemathcommand[Until]{\,{\mathss U}\,}
+\definemathcommand[Finally]{{\mathss F}}
+\definemathcommand[Globally]{{\mathss G}}
+
+
+% Games
+% -----
+
+\definemathcommand[AlmostSure][nolop]{\mfunction{Almost}}
+
+\define\GameGraph{\mathcal{G}}
+\define[2]\Strategy{S_{#2}^{#1}}
+\define[1]\Almost{\AlmostSure_{#1}}
+\define[1]\AlmostCoop{\AlmostSure_{#1}^{coop}}
+\define[1]\ProbDist{\mathcal{D}(#1)}
+

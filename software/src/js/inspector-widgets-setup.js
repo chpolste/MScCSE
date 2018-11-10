@@ -212,7 +212,7 @@ class SystemPreview {
         this.terms.attach(() => this.drawObjectiveTerm());
         this._system = null;
         let fig = new Figure();
-        this.plot = new AxesPlot([630, 420], fig, autoProjection(3/2));
+        this.plot = new AxesPlot([630, 525], fig, autoProjection(6/5));
         this.layers = {
             objective: fig.newLayer({ "stroke": COLORS.selection, "fill": COLORS.selection }),
             state:     fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill-opacity": "0" }),
@@ -233,7 +233,7 @@ class SystemPreview {
         // initial decomposition and mark outer states
         if (this.setup.systemIsValid) {
             const system = this.setup.system;
-            this.plot.projection = autoProjection(3/2, ...system.extent);
+            this.plot.projection = autoProjection(6/5, ...system.extent);
             for (let state of system.states.values()) {
                 (state.isOuter ? outerShapes : stateShapes).push({
                     kind: "polytope", vertices: state.polytope.vertices
@@ -244,14 +244,14 @@ class SystemPreview {
         // space polytope and mark outer states
         } else if (this.setup.lssIsValid) {
             const lss = this.setup.lss;
-            this.plot.projection = autoProjection(3/2, ...lss.extent);
+            this.plot.projection = autoProjection(6/5, ...lss.extent);
             stateShapes.push({ kind: "polytope", vertices: lss.xx.vertices });
             outerShapes.push(...union.remove(lss.oneStepReachable, [lss.xx]).map(
                 poly => ({ kind: "polytope", vertices: poly.vertices })
             ));
         // Form is not filled out sufficiently to preview a system
         } else {
-            this.plot.projection = autoProjection(3/2);
+            this.plot.projection = autoProjection(6/5);
         }
         this.layers.state.shapes = stateShapes;
         this.layers.outer.shapes = outerShapes;

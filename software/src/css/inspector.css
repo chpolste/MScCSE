@@ -130,7 +130,7 @@ pre {
 }
 
 a {
-    color: #369;
+    color: #069;
 }
 a:hover {
     text-decoration: none;
@@ -183,21 +183,38 @@ a:hover {
     margin-right: 30px;
     padding: 0 20px 0 0;
 }
-.inspector > .right {
-    flex: 1 1 auto;
-    margin-top: -12pt;
-}
-.inspector > .right > .cols > .left {
+.inspector > .left > .cols > .left {
     flex: 0 0 auto;
-    min-width: 170px;
     padding: 0 20px 0 0;
     margin-right: 10px;
 }
-.inspector > .right > .cols > .right {
+.inspector > .left > .cols > .right {
     flex: 1 1 auto;
 }
-.inspector > .right > .rest {
-    margin-top: 20px;
+.inspector > .right {
+    margin-top: -12pt;
+}
+.inspector > .tabs {
+    flex: 1 1 auto;
+}
+.inspector > .tabs > .bar {
+    display: flex;
+    flex-direction: row;
+    background-color: #EEE;
+    color: #333;
+}
+.inspector > .tabs > .bar div {
+    flex: 1 1 auto;
+    padding: 5px 15px;
+    text-align: center;
+    cursor: pointer;
+}
+.inspector > .tabs > .bar div.selection {
+    background-color: #069;
+    color: #FFF;
+}
+.inspector > .tabs > .bar div:hover{
+    background-color: #CCC;
 }
 
 
@@ -323,13 +340,12 @@ a:hover {
 
 .settings select {
     display: block;
-    width: 100%;
     margin-top: 3pt;
 }
 .settings .highlight {
-    margin-top: 6pt;
-    padding-right: 6pt;
-    border-right: 6pt solid #FC0;
+    margin: 6pt 0 0 2pt;
+    padding-left: 5pt;
+    border-left: 8pt solid #FC0;
 }
 
 span.selected {
@@ -355,7 +371,7 @@ span.nonsatisfying {
 }
 
 .action-view {
-    height: 12em;
+    height: 15em;
     overflow-y: scroll;
     padding-right: 4px;
 }
@@ -372,7 +388,7 @@ span.nonsatisfying {
 }
 
 .support-view {
-    height: 8em;
+    height: 15em;
     overflow-y: scroll;
     padding-right: 4px;
 }
@@ -401,14 +417,14 @@ span.nonsatisfying {
 }
 .refinement-toggles label {
     margin-top: 0;
-    width: 33.3%;
+    width: 50%;
 }
 
 .snapshot-view .right {
     float: right;
 }
 .snapshot-view .tree {
-    min-height: 10em;
+    min-height: 15em;
     overflow-y: scroll;
     padding-right: 4px;
 }

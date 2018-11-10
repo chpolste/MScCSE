@@ -15,7 +15,7 @@ import type { JSONPolygonItem } from "./plotter-2d.js";
 import * as linalg from "./linalg.js";
 import * as dom from "./dom.js";
 import { Communicator } from "./worker.js";
-import { arr, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
+import { arr, obj, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
 import { union } from "./geometry.js";
 import { Objective, stringifyProposition, texifyProposition } from "./logic.js";
 import { State } from "./system.js";
@@ -263,38 +263,46 @@ export class SystemInspector extends ObservableMixin<null> {
         this.controlView = new ControlView(this, this.traceView, this.actionView);
         this.snapshots = new SnapshotManager(this, this.analysis);
 
-        this.node = dom.DIV({ "class": "inspector" }, [
-            dom.DIV({ "class": "left" }, [
-                this.systemView.node,
+        const sideTabs = new TabbedView({
+            "Game": [
+                dom.H3({}, ["Selected State", dom.infoBox("info-state")]),
+                this.stateView.node,
+                dom.H3({}, ["Actions", dom.infoBox("info-actions")]),
+                this.actionView.node,
+                dom.H3({}, ["Action Supports", dom.infoBox("info-supports")]),
+                this.supportView.node
+            ],
+            "System": [
                 dom.H3({}, ["System Analysis", dom.infoBox("info-analysis")]),
                 this.analysis.node,
                 dom.H3({}, ["Abstraction Refinement", dom.infoBox("info-refinement")]),
-                this.refinement.node,
+                this.refinement.node
+            ],
+            "Control": [
+                dom.H3({}, ["Trace", dom.infoBox("info-trace")]),
+                this.traceView.node
+            ],
+            "Snapshots": [
                 dom.H3({}, ["Snapshots", dom.infoBox("info-snapshots")]),
                 this.snapshots.node
-            ]),
-            dom.DIV({ "class": "right" }, [
+            ]
+        }, "Game");
+
+        this.node = dom.DIV({ "class": "inspector" }, [
+            dom.DIV({ "class": "left" }, [
+                this.systemView.node,
                 dom.DIV({"class": "cols"}, [
                     dom.DIV({ "class": "left" }, [
-                        dom.H3({}, ["View Settings", dom.infoBox("info-settings")]),
-                        this.settings.node
-                    ]),
-                    dom.DIV({ "class": "right" }, [
                         dom.H3({}, ["Control and Random Space", dom.infoBox("info-control")]),
                         this.controlView.node,
+                    ]),
+                    dom.DIV({ "class": "right" }, [
+                        dom.H3({}, ["View Settings", dom.infoBox("info-settings")]),
+                        this.settings.node
                     ])
-                ]),
-                dom.DIV({ "class": "rest" }, [
-                    dom.H3({}, ["Selected State", dom.infoBox("info-state")]),
-                    this.stateView.node,
-                    dom.H3({}, ["Actions", dom.infoBox("info-actions")]),
-                    this.actionView.node,
-                    dom.H3({}, ["Action Supports", dom.infoBox("info-supports")]),
-                    this.supportView.node,
-                    dom.H3({}, ["Trace", dom.infoBox("info-trace")]),
-                    this.traceView.node,
-                ]),
-            ])
+                ])
+            ]),
+            sideTabs.node
         ]);
     }
 
@@ -404,11 +412,11 @@ class Settings extends ObservableMixin<null> {
         }, "None");
 
         this.node = dom.DIV({ "class": "settings" }, [
-            dom.LABEL({}, [this.toggleKind.node, "analysis c", dom.create("u", {}, ["o"]), "lors"]),
-            dom.LABEL({}, [this.toggleLabel.node, "state ", dom.create("u", {}, ["l"]), "abels"]),
-            dom.LABEL({}, [this.toggleVectorField.node, dom.create("u", {}, ["v"]), "ector field"]),
+            dom.LABEL({}, [this.toggleKind.node, "Analysis C", dom.create("u", {}, ["o"]), "lors"]),
+            dom.LABEL({}, [this.toggleLabel.node, "State ", dom.create("u", {}, ["L"]), "abels"]),
+            dom.LABEL({}, [this.toggleVectorField.node, dom.create("u", {}, ["V"]), "ector Field"]),
             dom.P({ "class": "highlight" }, [
-                dom.create("u", {}, ["H"]), "ighlight operator:", this.highlight.node
+                dom.create("u", {}, ["H"]), "ighlight Operator:", this.highlight.node
             ])
         ]);
 
@@ -676,6 +684,45 @@ class Refinement {
 }
 
 
+type Tabs = { [string]: TabContent[] };
+type TabContent = Element | { +node: Element };
+// TODO
+class TabbedView {
+
+    +tabs: Tabs;
+    +content: HTMLDivElement;
+    +titles: { [string]: HTMLDivElement };
+    _selection: ?string;
+    +node: HTMLDivElement;
+
+    constructor(tabs: Tabs, init: string): void {
+        this.tabs = tabs;
+        this.content = dom.DIV();
+        this.titles = obj.map((key, _) => {
+            const link = dom.DIV({}, [key]);
+            link.addEventListener("click", () => this.select(key));
+            return link;
+        }, tabs);
+        this.node = dom.DIV({ "class": "tabs" }, [
+            dom.DIV({ "class": "bar" }, [...obj.values(this.titles)]), this.content
+        ]);
+        this._selection = null;
+        this.select(init);
+    }
+
+    select(tab: string): void {
+        const sel = this._selection;
+        if (sel != null) {
+            this.titles[sel].className = "";
+        }
+        const nodes = this.tabs[tab];
+        dom.replaceChildren(this.content, nodes.map(_ => (_ instanceof Element ? _ : _.node)));
+        this.titles[tab].className = "selection";
+        this._selection = tab;
+    }
+
+}
+
 
 // Contains and provides information on and preview of the currently selected
 // state.
@@ -769,16 +816,8 @@ class TraceView extends ObservableMixin<null> {
         this._marked = -1;
 
         const fig = new Figure();
-        this.arrowLayer = fig.newLayer({
-            "stroke": COLORS.trace,
-            "stroke-width": "1.5",
-            "fill": COLORS.trace
-        });
-        this.interactionLayer = fig.newLayer({
-            "stroke": "none",
-            "fill": "#FFF",
-            "fill-opacity": "0"
-        });
+        this.arrowLayer = fig.newLayer({ "stroke": COLORS.trace, "stroke-width": "1.5", "fill": COLORS.trace });
+        this.interactionLayer = fig.newLayer({ "stroke": "none", "fill": "#FFF", "fill-opacity": "0" });
         const proj = new Horizontal1D([-1, 0.01], [0, 1]);
         const plot = new ShapePlot([510, 20], fig, proj, false);
 
@@ -998,8 +1037,8 @@ class ControlView {
             trace:  randFig.newLayer(MARKED_STEP_STYLE)
         };
         // Side-by-side plots
-        this.ctrlPlot = new AxesPlot([90, 90], ctrlFig, autoProjection(1));
-        this.randPlot = new AxesPlot([90, 90], randFig, autoProjection(1));
+        this.ctrlPlot = new AxesPlot([180, 120], ctrlFig, autoProjection(1));
+        this.randPlot = new AxesPlot([120, 120], randFig, autoProjection(1));
         this.node = dom.DIV({}, [this.ctrlPlot.node, this.randPlot.node]);
 
         this.drawSpaces();
@@ -1008,7 +1047,7 @@ class ControlView {
     drawSpaces(): void {
         const controlSpace = this.proxy.lss.uus;
         const randomSpace = this.proxy.lss.ww;
-        this.ctrlPlot.projection = autoProjection(1, ...union.extent(controlSpace));
+        this.ctrlPlot.projection = autoProjection(3/2, ...union.extent(controlSpace));
         this.ctrlLayers.poly.shapes = controlSpace.map(u => ({ kind: "polytope", vertices: u.vertices }));
         this.randPlot.projection = autoProjection(1, ...randomSpace.extent);
         this.randLayers.poly.shapes = [{ kind: "polytope", vertices: randomSpace.vertices }];
@@ -1113,7 +1152,7 @@ class SystemView {
             label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" }),
             interaction:    fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" })
         };
-        this.plot = new InteractivePlot([630, 420], fig, autoProjection(6/4, ...this.proxy.lss.extent));
+        this.plot = new InteractivePlot([630, 525], fig, autoProjection(6/5, ...this.proxy.lss.extent));
 
         // Add a link that opens view in plotter-2d if dimension matches
         if (this.proxy.lss.dim === 2) {

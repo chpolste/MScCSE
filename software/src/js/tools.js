@@ -198,6 +198,45 @@ export const sets = {
 };
 
 
+/* Object operations */
+
+export const obj = {
+
+    forEach: function <A>(fun: (string, A) => void, kvs: { [string]: A }): void {
+        for (let key in kvs) {
+            if (kvs.hasOwnProperty(key)) {
+                fun(key, kvs[key]);
+            }
+        }
+    },
+
+    map2Array: function <A,B>(fun: (string, A) => B, kvs: { [string]: A }): B[] {
+        const out = [];
+        obj.forEach((key, val) => {
+            out.push(fun(key, val));
+        }, kvs);
+        return out;
+    },
+
+    map: function <A,B>(fun: (string, A) => B, kvs: { [string]: A }): { [string]: B } {
+        const out = {};
+        obj.forEach((key, val) => {
+            out[key] = fun(key, val);
+        }, kvs);
+        return out;
+    },
+
+    values: function <A>(kvs: { [string]: A }): A[] {
+        return obj.map2Array((k, v) => v, kvs);
+    },
+
+    keys: function <A>(kvs: { [string]: A }): string[] {
+        return obj.map2Array((k, v) => k, kvs);
+    }
+
+};
+
+
 /* String Operations */
 
 export function replaceAll(haystack: string, needle: string, substitute: string): string {

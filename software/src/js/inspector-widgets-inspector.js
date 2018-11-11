@@ -581,6 +581,12 @@ class Analysis extends ObservableMixin<null> {
 
 // Refinement controls. Observes analysis widget to block operations while
 // analysis is carried out. Also depends on analysis for refinement hints (TODO).
+type RefinementStep = {
+    +node: HTMLDivElement,
+    +toggle: HTMLInputElement,
+    +text: string,
+    +name: string
+};
 class Refinement {
 
     +node: HTMLDivElement;
@@ -589,7 +595,8 @@ class Refinement {
     +analysis: Analysis;
     +info: HTMLSpanElement;
     +buttons: { [string]: HTMLButtonElement };
-    +toggles: { [string]: Input<boolean> };
+    +_steps: RefinementStep[];
+    +stepBox: HTMLDivElement;
     
     constructor(proxy: SystemInspector, analysis: Analysis, stateView: StateView,
             keybindings: dom.Keybindings): void {
@@ -598,42 +605,38 @@ class Refinement {
         this.analysis.attach(() => this.handleChange());
         this.stateView = stateView;
         this.stateView.attach(() => this.handleChange());
-
+        // Information display
         this.info = dom.SPAN();
+        // Refinement step configurator
+        this._steps = [
+            this._newStep("Negative Attractor", "NegativeAttr"),
+            this._newStep("Positive Robust Predecessor (TODO)", "PositivePreR"),
+            this._newStep("Positive Robust Attractors (TODO)", "PositiveAttrR")
+        ];
+        this.stepBox = dom.DIV({ "class": "refinement-steps" }, [
+            dom.P({}, ["The following refinement steps are applied in order:"]),
+            ...this._steps.map(_ => _.node)
+        ]);
+        // Interface
         this.buttons = {
             refineAll: dom.BUTTON({}, [dom.create("u", {}, ["r"]), "efine all"]),
             refineOne: dom.BUTTON({}, ["r", dom.create("u", {}, ["e"]), "fine selection"])
         };
-        this.toggles = {
-            innerPreR: new CheckboxInput(false),
-            negativeAttr: new CheckboxInput(false)
-        };
-        this.node = dom.DIV({}, [
-            dom.P({}, [this.buttons.refineAll, " ", this.buttons.refineOne, " ", this.info]),
-            dom.DIV({ "class": "refinement-toggles" }, [
-                dom.LABEL({}, [this.toggles.innerPreR.node, "Inner Robust Predecessor"]),
-                dom.LABEL({}, [this.toggles.negativeAttr.node, "Negative Attractor"])
-            ])
-        ]);
-
         this.buttons.refineAll.addEventListener("click", () => this.refineAll());
         this.buttons.refineOne.addEventListener("click", () => this.refineOne());
-
+        this.node = dom.DIV({}, [
+            dom.P({}, [this.buttons.refineAll, " ", this.buttons.refineOne, " ", this.info]),
+            this.stepBox
+        ]);
+        // Keyboard Shortcuts
         keybindings.bind("r", () => this.refineAll());
         keybindings.bind("e", () => this.refineOne());
-
+        // Initialize
         this.handleChange();
     }
 
     get steps(): string[] {
-        const steps = [];
-        if (this.toggles.negativeAttr.value) {
-            steps.push("NegativeAttr");
-        }
-        if (this.toggles.innerPreR.value) {
-            steps.push("InnerPreR");
-        }
-        return steps;
+        return this._steps.filter(_ => _.toggle.checked).map(_ => _.name);
     }
 
     set infoText(text: string): void {
@@ -669,6 +672,41 @@ class Refinement {
         const state = this.stateView.selection;
         this.buttons["refineAll"].disabled = !ready;
         this.buttons["refineOne"].disabled = !(ready && state != null && State.isUndecided(state));
+    }
+
+    _newStep(text: string, name: string): RefinementStep {
+        const toggle = dom.INPUT({ "type": "checkbox" });
+        const up = dom.BUTTON({}, ["▲"]);
+        up.addEventListener("click", () => {
+            const i = this._steps.indexOf(step);
+            if (i > 0) {
+                const other = this._steps[i - 1];
+                this.stepBox.insertBefore(step.node, other.node);
+                this._steps[i - 1] = step;
+                this._steps[i] = other;
+            }
+        });
+        const down = dom.BUTTON({}, ["▼"]);
+        down.addEventListener("click", () => {
+            const i = this._steps.indexOf(step);
+            if (i < this._steps.length - 1) {
+                const other = this._steps[i + 1];
+                this.stepBox.insertBefore(other.node, step.node);
+                this._steps[i + 1] = step;
+                this._steps[i] = other;
+            }
+        });
+        const step = {
+            node: dom.DIV({}, [
+                dom.DIV({ "class": "step-toggle" }, [toggle]),
+                dom.DIV({ "class": "step-text" }, [text]),
+                dom.DIV({ "class": "step-move" }, [up, down])
+            ]),
+            toggle: toggle,
+            text: text,
+            name: name
+        };
+        return step;
     }
 
 }

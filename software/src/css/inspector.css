@@ -411,13 +411,30 @@ span.nonsatisfying {
     float: right;
 }
 
-.refinement-toggles {
-    display: flex;
-    flex-flow: row wrap;
+.refinement-steps {
+    margin-top: 15px;
 }
-.refinement-toggles label {
-    margin-top: 0;
-    width: 50%;
+.refinement-steps > div {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 1px 0 1px 2px;
+}
+.refinement-steps > div:hover {
+    background-color: #EEE;
+}
+.refinement-steps > div > div {
+    display: flex;
+}
+.refinement-steps > div .step-toggle {
+    flex: 0 0 auto;
+}
+.refinement-steps > div .step-text {
+    flex: 1 1 auto;
+}
+.refinement-steps > div .step-move button {
+    margin-left: 2px;
+    padding: 0 2px;
 }
 
 .snapshot-view .right {

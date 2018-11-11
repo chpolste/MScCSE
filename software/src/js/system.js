@@ -923,24 +923,26 @@ class NegativeAttrRefinery implements Refinery {
 
 }
 
-class InnerPreRRefinery implements Refinery {
-
-    +_inner: ConvexPolytopeUnion;
+class PositivePreRRefinery implements Refinery {
 
     constructor(system: AbstractedLSS): void {
-        let inner = [];
-        let newInner = [system.lss.xx];
-        do {
-            inner = union.simplify(newInner);
-            newInner = system.lss.preR(system.lss.xx, system.lss.uus, inner);
-        } while (!union.isSameAs(inner, newInner));
-        this._inner = inner;
+        // TODO
     }
 
     partition(state: State, rest: ConvexPolytopeUnion): RefinementPartition {
-        const newRest = union.simplify(union.intersect(rest, this._inner));
-        const done = union.simplify(union.remove(rest, newRest));
-        return { done: done, rest: newRest };
+        return { done: [], rest: rest };
+    }
+
+}
+
+class PositiveAttrRRefinery implements Refinery {
+
+    constructor(system: AbstractedLSS): void {
+        // TODO
+    }
+
+    partition(state: State, rest: ConvexPolytopeUnion): RefinementPartition {
+        return { done: [], rest: rest };
     }
 
 }
@@ -948,6 +950,7 @@ class InnerPreRRefinery implements Refinery {
 // Collection of refineries for module export
 export const refinery = {
     NegativeAttr: NegativeAttrRefinery,
-    InnerPreR: InnerPreRRefinery
+    PositivePreR: PositivePreRRefinery,
+    PositiveAttrR: PositiveAttrRRefinery
 };
 

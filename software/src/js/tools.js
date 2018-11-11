@@ -200,9 +200,10 @@ export const sets = {
 
 /* Object operations */
 
+type Obj<A> = { [string]: A };
 export const obj = {
 
-    forEach: function <A>(fun: (string, A) => void, kvs: { [string]: A }): void {
+    forEach: function <A>(fun: (string, A) => void, kvs: Obj<A>): void {
         for (let key in kvs) {
             if (kvs.hasOwnProperty(key)) {
                 fun(key, kvs[key]);
@@ -210,7 +211,7 @@ export const obj = {
         }
     },
 
-    map2Array: function <A,B>(fun: (string, A) => B, kvs: { [string]: A }): B[] {
+    map2Array: function <A,B>(fun: (string, A) => B, kvs: Obj<A>): B[] {
         const out = [];
         obj.forEach((key, val) => {
             out.push(fun(key, val));
@@ -218,7 +219,7 @@ export const obj = {
         return out;
     },
 
-    map: function <A,B>(fun: (string, A) => B, kvs: { [string]: A }): { [string]: B } {
+    map: function <A,B>(fun: (string, A) => B, kvs: Obj<A>): Obj<B> {
         const out = {};
         obj.forEach((key, val) => {
             out[key] = fun(key, val);
@@ -226,12 +227,22 @@ export const obj = {
         return out;
     },
 
-    values: function <A>(kvs: { [string]: A }): A[] {
+    values: function <A>(kvs: Obj<A>): A[] {
         return obj.map2Array((k, v) => v, kvs);
     },
 
-    keys: function <A>(kvs: { [string]: A }): string[] {
+    keys: function <A>(kvs: Obj<A>): string[] {
         return obj.map2Array((k, v) => k, kvs);
+    },
+
+    merge: function <A>(...kvss: Obj<A>[]): Obj<A> {
+        const out = {};
+        for (let kvs of kvss) {
+            obj.forEach((key, val) => {
+                out[key] = val;
+            }, kvs);
+        }
+        return out;
     }
 
 };

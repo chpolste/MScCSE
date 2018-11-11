@@ -14,12 +14,21 @@ export type Shape = ({ kind: "polytope", vertices: Point[] } & ShapeExt)
                   | ({ kind: "marker", coords: Point, size: number } & ShapeExt)
                   | ({ kind: "label", coords: Point, text: string } & ShapeExt)
                   | ({ kind: "halfspace", normal: Point, offset: number } & ShapeExt)
-                  | ({ kind: "vectorField", fun: Point => Point, n?: number[] } & ShapeExt);
+                  | ({ kind: "vectorField", fun: (Point) => Point, n?: number[] } & ShapeExt)
+                  | ({ kind: "state", coords: Point, member: string } & ShapeExt)
+                  | ({ kind: "transition", origin: Point, target: Point } & ShapeExt)
+                  | ({ kind: "transitionLabel", origin: Point, target: Point, text: string } & ShapeExt)
+                  | ({ kind: "loop", coords: Point, angle: number } & ShapeExt)
+                  | ({ kind: "loopLabel", coords: Point, angle: number, text: string } & ShapeExt);
 
-export type Primitive = { kind: "polygon", points: Point[] }
-                      | { kind: "arrow", origin: Point, target: Point }
-                      | { kind: "marker", coords: Point, size: number }
-                      | { kind: "label", coords: Point, text: string };
+type Delta = [number, number];
+type PrimitiveExt = { style?: ElementAttributes };
+export type Primitive = ({ kind: "polygon", points: Point[] } & PrimitiveExt)
+                      | ({ kind: "arrow", origin: Point, target: Point, deltaO?: Delta, deltaT?: Delta } & PrimitiveExt)
+                      | ({ kind: "marker", coords: Point, size: number, delta?: Delta } & PrimitiveExt)
+                      | ({ kind: "label", coords: Point, text: string } & PrimitiveExt)
+                      | ({ kind: "loop", coords: Point, angle: number } & PrimitiveExt)
+                      | ({ kind: "__label", text: string, p1: Point, p2: Point, offset: number } & PrimitiveExt);
 
 
 
@@ -160,7 +169,7 @@ export class Cartesian2D implements Projection {
     }
 
     project(shape: Shape): Primitive[] {
-        let primitives = [];
+        let primitives: Primitive[] = [];
         // 2-dimensional polytopes are polygons which are a primitive
         if (shape.kind === "polytope") {
             primitives.push({
@@ -215,8 +224,47 @@ export class Cartesian2D implements Projection {
                     });
                 }
             }
+        // Automata. This is not particularly sophisticated and only allows the
+        // drawing of very simple automata.
+        // States: fixed-size circles
+        } else if (shape.kind === "state") {
+            const coords = this.fwd(shape.coords);
+            primitives.push({
+                kind: "marker", coords: coords, size: 20,
+                style: (shape.member.indexOf("E") !== -1 ? { "stroke-dasharray": "5 3"} : {})
+            });
+            // Inner circle
+            if (shape.member.indexOf("F") !== -1) {
+                primitives.push({ kind: "marker", coords: coords, size: 16 });
+            }
+        // Transitions: arrows (offset to the side, so back-and-forth arrows
+        // don't overlap)
+        } else if (shape.kind === "transition") {
+            primitives.push({
+                kind: "arrow", origin: this.fwd(shape.origin), target: this.fwd(shape.target),
+                deltaO: [20, -6], deltaT: [-21, -6]
+            });
+        // Self-loop for states
+        } else if (shape.kind === "loop") {
+            primitives.push({ kind: "loop", coords: this.fwd(shape.coords), angle: shape.angle });
+        // Special __label kind that takes position of transition/loop arrow
+        // into account and tries not to overlap the label.
+        } else if (shape.kind === "transitionLabel") {
+            primitives.push({
+                kind: "__label", text: shape.text,
+                p1: this.fwd(shape.origin), p2: this.fwd(shape.target), offset: -17
+            });
+        } else if (shape.kind === "loopLabel") {
+            const [x, y] = shape.coords;
+            // 90° phase shifted (loop angle 0 is at 12 o'clock)
+            const dx = Math.cos(Math.PI * shape.angle / 180);
+            const dy = -Math.sin(Math.PI * shape.angle / 180);
+            primitives.push({
+                kind: "__label", text: shape.text,
+                p1: this.fwd([x - dx, y - dy]), p2: this.fwd([x + dx, y + dy]), offset: -49 });
+
         } else {
-            throw new Error("unknown shape kind");
+            throw new Error("unknown shape kind '" + shape.kind + "' (Cartesian2D)");
         }
         return primitives;
     }
@@ -320,8 +368,10 @@ export class Horizontal1D implements Projection {
                     target: this.fwd(shape.fun([x]))
                 });
             }
+        // Automata are not implemented for 1D Projection
+
         } else {
-            throw new Error("unknown shape kind");
+            throw new Error("unknown shape kind '" + shape.kind + "' (Horizontal1D)");
         }
         return primitives;
     }

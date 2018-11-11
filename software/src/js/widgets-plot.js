@@ -5,7 +5,7 @@ import type { LayeredFigure, FigureLayer, Shape, Primitive, Projection } from ".
 
 import * as linalg from "./linalg.js";
 import * as dom from "./dom.js";
-import { n2s } from "./tools.js";
+import { obj, n2s } from "./tools.js";
 
 
 /* Plots */
@@ -345,15 +345,16 @@ class ShapeGroup {
         const children = [];
         for (let shape of this.layer.shapes) {
             const primitives = this.shapePlot.project(shape);
-            const style = shape.style == null ? {} : shape.style;
+            const shapeStyle = shape.style == null ? {} : shape.style;
             const events = shape.events == null ? {} : shape.events;
             // A shape can turn into multiple primitives
             for (let primitive of primitives) {
+                const style = obj.merge(primitive.style == null ? {} : primitive.style, shapeStyle);
 
                 if (primitive.kind === "polygon") {
                     let node = dom.createSVG("polygon", {
                         points: primitive.points.map(point => {
-                            return this.shapePlot.scaleFwd(point).map(toStr).join(",");
+                            return this.fwd(point).map(toStr).join(",");
                         }).join(" ")
                     });
                     dom.setAttributes(node, style);
@@ -361,7 +362,7 @@ class ShapeGroup {
                     children.push(node);
 
                 } else if (primitive.kind === "label") {
-                    let xy = this.shapePlot.scaleFwd(primitive.coords);
+                    let xy = this.fwd(primitive.coords);
                     let node = dom.snLabel.toSVG(primitive.text);
                     node.setAttribute("x", toStr(xy[0]));
                     node.setAttribute("y", toStr(xy[1]));
@@ -370,7 +371,7 @@ class ShapeGroup {
                     children.push(node);
 
                 } else if (primitive.kind === "marker") {
-                    const [x, y] = this.shapePlot.scaleFwd(primitive.coords);
+                    const [x, y] = this.fwd(primitive.coords);
                     const node = dom.createSVG("circle", {
                         cx: toStr(x), cy: toStr(y), r: toStr(primitive.size)
                     });
@@ -379,49 +380,105 @@ class ShapeGroup {
                     children.push(node);
 
                 } else if (primitive.kind === "arrow") {
-                    let [x1, y1] = this.shapePlot.scaleFwd(primitive.origin);
-                    let [x2, y2] = this.shapePlot.scaleFwd(primitive.target);
+                    let [x1, y1] = this.fwd(primitive.origin);
+                    let [x2, y2] = this.fwd(primitive.target);
                     // Draw zero-length arrows as circles
                     if (linalg.areClose(primitive.origin, primitive.target)) {
-                        let node = dom.createSVG("circle", {
+                        const node = dom.createSVG("circle", {
                             cx: toStr(x1), cy: toStr(y1), r: "3"
                         });
                         dom.setAttributes(node, style);
                         dom.addEventListeners(node, events);
                         children.push(node);
-                    // Draw a line with a triangle at the end. Because there is
-                    // no convenient way to apply styling to markers, they are
-                    // not used and the triangle is painted explicitly.
                     } else {
-                        let line = dom.createSVG("line", {
+                        // Vector from target to origin of vector, scaled to length 1
+                        let nvec = [x2 - x1, y2 - y1]
+                        let norm = linalg.norm2(nvec);
+                        nvec = [nvec[0] / norm, nvec[1] / norm];
+                        // Apply offset wrt arrow direction
+                        if (primitive.deltaO != null) {
+                            const [dxO, dyO] = primitive.deltaO;
+                            x1 += dxO * nvec[0] - dyO * nvec[1];
+                            y1 += dxO * nvec[1] + dyO * nvec[0];
+                        }
+                        if (primitive.deltaT != null) {
+                            const [dxT, dyT] = primitive.deltaT;
+                            x2 += dxT * nvec[0] - dyT * nvec[1];
+                            y2 += dxT * nvec[1] + dyT * nvec[0];
+                        }
+                        // Draw a line with a triangle at the end. Because
+                        // there is no convenient way to apply styling to
+                        // markers, they are not used and the triangle is
+                        // painted explicitly.
+                        const line = dom.createSVG("line", {
                             x1: toStr(x1), y1: toStr(y1), x2: toStr(x2), y2: toStr(y2)
+                        });
+                        // Rotate by 45° and -45° and subtract from endpoint to
+                        // obtain other triangle points.
+                        const scale = 6 / Math.sqrt(2);
+                        const l = [x2 - (nvec[0] - nvec[1]) * scale, y2 - (nvec[0] + nvec[1]) * scale];
+                        const r = [x2 - (nvec[0] + nvec[1]) * scale, y2 - (nvec[1] - nvec[0]) * scale];
+                        const triangle = dom.createSVG("polygon", {
+                            points: [[x2, y2], l, r].map(p => p.map(toStr).join(",")).join(" ")
                         });
                         dom.setAttributes(line, style);
                         dom.addEventListeners(line, events);
-                        // Vector from target to origin of vector, scaled to length 6
-                        let sqrt2 = Math.sqrt(2);
-                        let vec = [x2 - x1, y2 - y1];
-                        let norm = linalg.norm2(vec);
-                        vec = [6 * vec[0] / norm, 6 * vec[1] / norm];
-                        // Rotate by 45° and -45° and subtract from endpoint to
-                        // obtain other triangle points
-                        let l = [x2 - (vec[0] - vec[1]) / sqrt2, y2 - (vec[0] + vec[1]) / sqrt2];
-                        let r = [x2 - (vec[0] + vec[1]) / sqrt2, y2 - (vec[1] - vec[0]) / sqrt2];
-                        let triangle = dom.createSVG("polygon", {
-                            points: [[x2, y2], l, r].map(p => p.map(toStr).join(",")).join(" ")
-                        });
                         dom.setAttributes(triangle, style);
                         dom.addEventListeners(triangle, events);
                         children.push(line, triangle);
                     }
+                // Pre-drawn self-loop of state that is rotated into correct
+                // position.
+                } else if (primitive.kind === "loop") {
+                    const [x, y] = this.fwd(primitive.coords);
+                    const line = dom.createSVG("path", {
+                        d: "M -6,-20 C -18,-35 -6,-40 0,-40 C 6,-40 18,-35 7,-22", fill: "none",
+                        transform: "translate(" + toStr(x) + " " + toStr(y) + ") rotate(" + toStr(primitive.angle) + ")"
+                    });
+                    const triangle = dom.createSVG("polygon", {
+                        points: "4.95,-26.63 12.63,-23.05 7,-21",
+                        transform: "translate(" + toStr(x) + " " + toStr(y) + ") rotate(" + toStr(primitive.angle) + ")"
+                    });
+                    dom.setAttributes(line, style);
+                    dom.addEventListeners(line, events);
+                    dom.setAttributes(triangle, style);
+                    dom.addEventListeners(triangle, events);
+                    children.push(line, triangle);
+                // Label in direction of an arrow, with orthogonal offset and
+                // automatic text-anchor selection, so label does not intersect
+                // with arrow. Main use case: automaton transition labels.
+                } else if (primitive.kind === "__label") {
+                    const [x1, y1] = this.fwd(primitive.p1);
+                    const [x2, y2] = this.fwd(primitive.p2);
+                    const nvec = [x2 - x1, y2 - y1];
+                    const scale = -primitive.offset / linalg.norm2(nvec);
+                    const x = 0.5 * (x1 + x2) + nvec[1] * scale;
+                    const y = 0.5 * (y1 + y2) - nvec[0] * scale;
+                    // Determine text-anchor based on angle of nvec
+                    const angle = 180 * Math.atan2(nvec[1], nvec[0]) / Math.PI;
+                    let textAnchor = "middle";
+                    if (angle > 15 && angle < 165) textAnchor = "start"
+                    if (angle < -15 && angle > -165) textAnchor = "end"
+                    const text = dom.createSVG("text", {
+                        "x": toStr(x), "y": toStr(y), "text-anchor": textAnchor,
+                        "transform": "rotate(" + 0 + " " + toStr(x) + " " + toStr(y) + ")"
+                    }, [primitive.text]);
+                    dom.setAttributes(text, style);
+                    dom.addEventListeners(text, events);
+                    children.push(text);
 
                 } else {
-                    throw new Error("unknown primitive");
+                    throw new Error("unknown primitive kind '" + primitive.kind + "'");
                 }
 
             }
         }
         dom.replaceChildren(this.node, children);
+    }
+
+    // Project from [0, 1] coordinates to actual pixel coordinates
+    fwd(coords: number[]): number[] {
+        return this.shapePlot.scaleFwd(coords);
     }
 
 }

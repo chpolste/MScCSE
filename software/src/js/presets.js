@@ -8,21 +8,24 @@ export const objectives = {
         name: "Reachability",
         formula: "\\mathsf{F} \\varphi",
         variables: ["\\varphi"],
-        automaton: "q0>(\\varphi)>q1,q0>>q0,q1>>q1 | q0 | q0 | q1"
+        automaton: "q0>(\\varphi)>q1,q0>>q0,q1>>q1 | q0 | q0 | q1",
+        automatonPlacement: { "q0": [0, 0, 0], "q1": [1, 0, 0] }
     },
 
-    "Reachability & Safety": {
-        name: "Reachability & Safety",
+    "Reachability & Avoidance": {
+        name: "Reachability & Avoidance",
         formula: "(\\neg \\pi) \\mathsf{U} \\varphi",
         variables: ["\\varphi", "\\pi"],
-        automaton: "q0>(\\varphi)>q1,q0>(!\\pi)>q0,q1>>q1 | q0 | q0 | q1"
+        automaton: "q0>(\\varphi)>q1,q0>(!\\pi)>q0,q1>>q1 | q0 | q0 | q1",
+        automatonPlacement: { "q0": [0, 0, 0], "q1": [1, 0, 0] }
     },
 
     "Recurrence": {
         name: "Recurrence",
         formula: "\\mathsf{G} \\mathsf{F} \\varphi",
         variables: ["\\varphi"],
-        automaton: "q0>(\\varphi)>q1,q0>>q0,q1>(\\varphi)>q1,q1>>q0 | q0 | q0 | q1"
+        automaton: "q0>(\\varphi)>q1,q0>>q0,q1>(\\varphi)>q1,q1>>q0 | q0 | q0 | q1",
+        automatonPlacement: { "q0": [0, 0, 0], "q1": [1, 0, 0] }
     }
 
 }

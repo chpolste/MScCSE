@@ -1,27 +1,37 @@
 // @flow
 "use strict";
 
+import type { Shape } from "./figure.js";
 import type { ASTNode } from "./parser.js";
 import type { PredicateID } from "./system.js";
 
 import { ASTParser, ParseError } from "./parser.js";
-import { iter, arr, sets, hashString, UniqueCollection } from "./tools.js";
+import { obj, iter, arr, sets, hashString, replaceAll } from "./tools.js";
 
 
-/* Objective specification */
+/* Objective specification
 
+Associates automaton variables with propositional formulas so they can be
+evaluated together.
+*/
+
+type AutomatonPlacement = { [string]: [number, number, number] }; // x, y, loop angle
 export type ObjectiveKind = {
     name: string,
     formula: string,
     variables: string[],
-    automaton: string
+    automaton: string,
+    automatonPlacement: AutomatonPlacement
 };
 
+// Shape collection maps
 export class Objective {
     
     +kind: ObjectiveKind;
-    +propositions: Map<string, Proposition>;
     +automaton: OnePairStreettAutomaton;
+    // Mapping of automaton variables to propositions
+    +propositions: Map<string, Proposition>;
+    // Interpret objective as co-safe (fulfillable in finite time)
     +coSafeInterpretation: boolean;
 
     constructor(kind: ObjectiveKind, terms: Proposition[], coSafeInterpretation?: boolean): void {
@@ -33,12 +43,35 @@ export class Objective {
         this.automaton = OnePairStreettAutomaton.parse(kind.automaton);
         // Co-safe interpretation of automaton is disabled by default
         this.coSafeInterpretation = coSafeInterpretation != null && coSafeInterpretation;
+        if (this.coSafeInterpretation && !this.automaton.isCoSafeCompatible) throw new Error(
+            "Co-safe interpretation chosen, but automaton is not co-safe compatible"
+        );
+    }
+
+    toShapes(): AutomatonShapeCollection {
+        const shapes = this.automaton.toShapes(this.kind.automatonPlacement);
+        let xmin = Infinity;
+        let xmax = -Infinity;
+        let ymin = Infinity;
+        let ymax = -Infinity;
+        for (let [x, y, _] of obj.values(this.kind.automatonPlacement)) {
+            if (x < xmin) xmin = x;
+            if (x > xmax) xmax = x;
+            if (y < ymin) ymin = y;
+            if (y > ymax) ymax = y;
+        }
+        shapes.extent = [[xmin - 0.1, xmax + 0.1], [ymin - 0.1, ymax + 0.1]];
+        return shapes;
     }
 
 }
 
 
-/* Propositional Logic Formulas */
+/* Propositional Logic Formulas
+
+evalWith method determines the truth value of the formula, given a valuation of
+atomic propositions.
+*/
 
 export type Proposition = AtomicProposition | Negation | Conjunction | Disjunction | Implication;
 export type Valuation = (AtomicProposition) => boolean;
@@ -119,6 +152,9 @@ export class Implication {
 }
 
 
+/* Parsing and printing of propositional formulas */
+
+// Definition of propositional operators for parser and printers
 const PROP_OPS = [
     { op: "->", precedence: 20, associativity:  1, cls: Implication, tex: "\\rightarrow" },
     { op: "|" , precedence: 30, associativity: -1, cls: Disjunction, tex: "\\vee" },
@@ -126,6 +162,8 @@ const PROP_OPS = [
     { op: "!" , precedence: 50, associativity:  0, cls: Negation, tex: "\\neg" }
 ];
 
+// Find operator definition associated with given Proposition form PROP_OPS.
+// Used by formula printers.
 function getOpOf(prop: Proposition): * {
     for (let op of PROP_OPS) {
         if (prop instanceof op.cls) {
@@ -142,6 +180,7 @@ function getOpOf(prop: Proposition): * {
 //   TeX-escaped letters, then any number of numbers, letters and underscores)
 const parsePropositionAST = ASTParser(/[()!&|]|->|(?:[a-z\\][a-z0-9]*)/, PROP_OPS);
 
+// Convert parsed ASTNode to Proposition according to PROP_OPS definitions
 function asProposition(node: ASTNode): Proposition {
     if (typeof node === "string") {
         return new AtomicProposition(node);
@@ -155,11 +194,13 @@ function asProposition(node: ASTNode): Proposition {
     }
 }
 
+// All-in-one parser for Propostions
 export function parseProposition(text: string): Proposition {
     return asProposition(parsePropositionAST(text));
 }
 
-// Serialization
+// Serialization: print proposition as string that can be parsed again. This is
+// not a pretty printer.
 export function stringifyProposition(prop: Proposition): string {
     if (prop instanceof AtomicProposition) {
         return prop.symbol;
@@ -169,7 +210,10 @@ export function stringifyProposition(prop: Proposition): string {
     return "(" + (args.length === 1 ? op.op + args[0] : args.join(" " + op.op + " ")) + ")";
 }
 
-// TeX representation of propositional formula
+// TeX representation of propositional formula that takes associativity and
+// operator precedence into account to produce pretty formulas. Arguments
+// parentOp and rightArg are for own, recursive calls and should not be set
+// when calling function on a proposition otherwise.
 export function texifyProposition(prop: Proposition, symbolTransform?: (string) => string, parentOp?: *, rightArg?: boolean): string {
     if (symbolTransform == null) {
         symbolTransform = _ => _; // Identity
@@ -222,27 +266,46 @@ export function traverseProposition(fun: (Proposition) => void, prop: Propositio
 }
 
 
-/* Deterministic ω-Automata with one-pair Streett acceptance condition (E, F)
+// Translation of some TeX symbols (stuff for propositional formulas)
+export function unicodeifyTransitionLabel(text: string): string {
+    obj.forEach((k, v) => {
+        text = replaceAll(text, k, v)
+    }, {
+        "\\varphi": "φ", "\\theta": "θ", "\\mu": "μ",
+        "\\pi": "π", "\\rho": "ρ", "\\vee": "∨",
+        "\\wedge": "∧", "\\neg": "¬", "\\rightarrow": "→",
+        " ": ""
+    });
+    return text;
+}
 
-States and transitions are identified by string labels. A default transition
-(else-case) is specified by an empty label.
+/* Deterministic ω-Automaton with one-pair Streett acceptance condition (E, F)
+
+Used to represent an LTL formula. State-based acceptance. States are identified
+by labels (strings). Transitions are identified by their target and associated
+with a propositional formula.
 */
+
+export type AutomatonShapeCollection = {
+    states: Map<string, Shape>,
+    stateLabels: Shape[],
+    transitions: Map<string, Map<string, Shape>>,
+    transitionLabels: Shape[],
+    extent?: [number, number][]
+};
 
 export class OnePairStreettAutomaton {
 
-    +states: UniqueCollection<State>;
+    +states: Map<string, State>;
     +acceptanceSetE: Set<State>;
     +acceptanceSetF: Set<State>;
-    _initialState: State;
+    initialState: State;
 
+    // Initialize empty automaton
     constructor(): void {
-        this.states = new UniqueCollection(State.hash, State.areEqual);
+        this.states = new Map();
         this.acceptanceSetE = new Set();
         this.acceptanceSetF = new Set();
-    }
-
-    get initialState(): State {
-        return this._initialState;
     }
 
     // Hack for specifications that can be fulfilled in finite time: interpret
@@ -257,18 +320,80 @@ export class OnePairStreettAutomaton {
             // E and F must be disjunct
             && !sets.doIntersect(E, F)
             // E and F must together contain all states
-            && sets.difference(this.states, sets.union(E, F)).size === 0
+            && sets.difference(this.states.values(), sets.union(E, F)).size === 0
             // All states in F can only have a self-loop without transition label
             && iter.and(iter.map(_ => (_.transitions.size === 0 && _.defaultTarget === _), F))
         );
     }
 
     takeState(label: string): State {
-        return this.states.take(new State(label));
+        let state = this.states.get(label);
+        if (state == null) {
+            state = new State(label);
+            this.states.set(label, state);
+        }
+        return state;
     }
 
-    // Serialization to "1|2|3|4", where
-    // 1: transitions in the form ORIGIN>LABEL>TARGET, comma-separated
+    // Return an organized collection with shapes for states, transitions and
+    // their labels. The organization enables finding specific
+    // transitions/states later so they can be highlighted.
+    toShapes(placement: AutomatonPlacement, propositions?: null): AutomatonShapeCollection {
+        // States
+        const ss = new Map();
+        // State labels
+        const sls = [];
+        // Transitions
+        const tss = new Map();
+        // Transition labels
+        const tls = [];
+
+        for (let origin of this.states.values()) {
+            // State with acceptance set membership and its label
+            const [x, y, loopAngle] = placement[origin.label];
+            ss.set(origin.label, {
+                kind: "state", coords: [x, y],
+                member: (this.acceptanceSetE.has(origin) ? "E" : "") + (this.acceptanceSetF.has(origin) ? "F" : "")
+            });
+            sls.push({ kind: "label", coords: [x, y], text: origin.label });
+            // Transitions are indexed by the target state label
+            const ts = new Map();
+            // Transitions with associated propositional formulas
+            for (let [target, proposition] of origin.transitions) {
+                // loopLabel and transitionLabel crudely understand TeX
+                const text = unicodeifyTransitionLabel(texifyProposition(proposition));
+                // Self-loop
+                if (origin.label === target.label) {
+                    ts.set(origin.label, { kind: "loop", coords: [x, y], angle: loopAngle });
+                    tls.push({ kind: "loopLabel", text: text, coords: [x, y], angle: loopAngle });
+                // Other target
+                } else {
+                    const [xx, yy, _] = placement[target.label];
+                    ts.set(target.label, { kind: "transition", origin: [x, y], target: [xx, yy] });
+                    tls.push({ kind: "transitionLabel", text: text, origin: [x, y], target: [xx, yy] });
+                }
+            }
+            // Default transition: print asterisk symbol as label
+            if (origin.defaultTarget != null) {
+                // Self-loop
+                if (origin.label === origin.defaultTarget.label) {
+                    ts.set(origin.label, { kind: "loop", coords: [x, y], angle: loopAngle });
+                    tls.push({ kind: "loopLabel", text: "∗", coords: [x, y], angle: loopAngle });
+                // Other target
+                } else {
+                    const [xx, yy, _] = placement[origin.defaultTarget.label];
+                    ts.set(origin.defaultTarget.label, { kind: "transition", origin: [x, y], target: [xx, yy] });
+                    tls.push({ kind: "transitionLabel", text: "∗", origin: [x, y], target: [xx, yy] });
+                }
+            }
+            // Add collected transitions to state
+            tss.set(origin.label, ts);
+        }
+        return { states: ss, stateLabels: sls, transitions: tss, transitionLabels: tls };
+    }
+
+    // Serialization to form "1|2|3|4", where
+    // 1: transitions in the form ORIGIN>(PROPOSITION)>TARGET, comma-separated
     // 2: initial state
     // 3: acceptance set E of states, comma-separated
     // 4: acceptance set F of states, comma-separated
@@ -276,8 +401,8 @@ export class OnePairStreettAutomaton {
         const transitions = [];
         const acceptE = [];
         const acceptF = [];
-        for (let state of this.states) {
-            for (let [formula, target] of state.transitions) {
+        for (let state of this.states.values()) {
+            for (let [target, formula] of state.transitions) {
                 // stringifyProposition adds outer parentheses for anything
                 // more complex than an atomic proposition
                 const proposition = stringifyProposition(formula);
@@ -324,12 +449,18 @@ export class OnePairStreettAutomaton {
                 if (origin.defaultTarget != null) throw new Error(
                     "Default target set twice for state '" + o + "'"
                 );
+                if (origin.transitions.has(target)) throw new Error(
+                    "Two transitions to target '" + t + "' set for state '" + o + "'"
+                );
                 origin.defaultTarget = target;
             } else {
                 const formula = parseProposition(p);
                 // Map keeps track of insertion order so order of definition
-                // governs in which order transition conditions are tested
-                origin.transitions.set(formula, target);
+                // governs in which order transition conditions are tested.
+                if (origin.transitions.has(target) || origin.defaultTarget === target) throw new Error(
+                    "Two transitions to target '" + t + "' set for state '" + o + "'"
+                );
+                origin.transitions.set(target, formula);
             }
         }
         for (let label of acceptanceSetE.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
@@ -338,7 +469,7 @@ export class OnePairStreettAutomaton {
         for (let label of acceptanceSetF.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
             automaton.acceptanceSetF.add(automaton.takeState(label));
         }
-        automaton._initialState = automaton.takeState(initialState.trim());
+        automaton.initialState = automaton.takeState(initialState.trim());
         // TODO: test for unreachable states
         return automaton;
     }
@@ -348,7 +479,7 @@ export class OnePairStreettAutomaton {
 class State {
 
     +label: string;
-    +transitions: Map<Proposition, State>;
+    +transitions: Map<State, Proposition>;
     defaultTarget: ?State;
 
     constructor(label: string): void {
@@ -361,18 +492,11 @@ class State {
     }
 
     successor(valuation: Valuation): ?State {
-        for (let [formula, target] of this.transitions) {
+        for (let [target, formula] of this.transitions) {
+            // First match is returned
             if (formula.evalWith(valuation)) return target;
         }
         return this.defaultTarget;
-    }
-
-    static hash(x: State): number {
-        return hashString(x.label);
-    }
-
-    static areEqual(x: State, y: State): boolean {
-        return x.label == y.label;
     }
 
 }

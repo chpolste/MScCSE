@@ -1,16 +1,17 @@
 // @flow
 "use strict";
 
-import type { Vector, Matrix } from "./linalg.js";
 import type { JSONConvexPolytopeUnion, Halfspace } from "./geometry.js";
+import type { Vector, Matrix } from "./linalg.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
-import type { FigureLayer } from "./figure.js";
+import type { FigureLayer, Shape } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
 import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, TraceData,
               GameGraphData, UpdateKindsData, RefineData, TakeSnapshotData, LoadSnapshotData,
               NameSnapshotData, SnapshotData } from "./inspector-worker-system.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
+import type { AutomatonShapeCollection } from "./logic.js";
 
 import * as linalg from "./linalg.js";
 import * as dom from "./dom.js";
@@ -201,18 +202,6 @@ export class SystemInspector extends ObservableMixin<null> {
     // ...
     +objective: Objective;
     +_system: AbstractedLSS;
-    // Sub-widgets are coordinated here
-    +settings: Settings;
-    +analysis: Analysis;
-    +stateView: StateView;
-    +traceView: TraceView;
-    +actionView: ActionView;
-    +supportView: ActionSupportView;
-    +systemView: SystemView;
-    +refinement: Refinement;
-    +controlView: ControlView;
-    +snapshots: SnapshotManager;
-    +keybindings: dom.Keybindings;
 
     constructor(system: AbstractedLSS, objective: Objective, keybindings: dom.Keybindings) {
         super();
@@ -224,7 +213,7 @@ export class SystemInspector extends ObservableMixin<null> {
             });
             this.systemComm.onRequest("ready", data => {
                 this.notify();
-                this.snapshots.handleChange(); // TODO: explain
+                snapshots.handleChange(); // TODO: explain
             });
             const worker = new Worker("./js/inspector-worker-system.js");
             worker.onerror = () => {
@@ -240,65 +229,66 @@ export class SystemInspector extends ObservableMixin<null> {
             throw e;
         }
 
-        const x = dom.create("dsfjkd");
-
         this.objective = objective;
         this._system = system;
 
-        this.settings = new Settings(this, keybindings);
-        this.analysis = new Analysis(this, keybindings);
-        this.stateView = new StateView(this);
-        this.traceView = new TraceView(this, this.stateView, keybindings);
-        this.actionView = new ActionView(this, this.stateView);
-        this.supportView = new ActionSupportView(this, this.actionView);
-        this.systemView = new SystemView(
+        const settings = new Settings(this, keybindings);
+        const analysis = new Analysis(this, keybindings);
+        const stateView = new StateView(this);
+        const actionView = new ActionView(this, stateView);
+        const supportView = new ActionSupportView(this, actionView);
+        const traceView = new TraceView(this, stateView, keybindings);
+        const objectiveView = new ObjectiveView(this, traceView);
+        const systemView = new SystemView(
             this,
-            this.settings,
-            this.stateView,
-            this.traceView,
-            this.actionView,
-            this.supportView
+            settings,
+            stateView,
+            traceView,
+            actionView,
+            supportView
         );
-        this.refinement = new Refinement(this, this.analysis, this.stateView, keybindings);
-        this.controlView = new ControlView(this, this.traceView, this.actionView);
-        this.snapshots = new SnapshotManager(this, this.analysis);
+        const refinement = new Refinement(this, analysis, stateView, keybindings);
+        const controlView = new ControlView(this, traceView, actionView);
+        const snapshots = new SnapshotManager(this, analysis);
 
         const sideTabs = new TabbedView({
             "Game": [
                 dom.H3({}, ["Selected State", dom.infoBox("info-state")]),
-                this.stateView.node,
+                stateView.node,
                 dom.H3({}, ["Actions", dom.infoBox("info-actions")]),
-                this.actionView.node,
+                actionView.node,
                 dom.H3({}, ["Action Supports", dom.infoBox("info-supports")]),
-                this.supportView.node
+                supportView.node
             ],
             "System": [
                 dom.H3({}, ["System Analysis", dom.infoBox("info-analysis")]),
-                this.analysis.node,
+                analysis.node,
                 dom.H3({}, ["Abstraction Refinement", dom.infoBox("info-refinement")]),
-                this.refinement.node
+                refinement.node
             ],
             "Control": [
-                dom.H3({}, ["Trace", dom.infoBox("info-trace")]),
-                this.traceView.node
+                dom.H3({}, ["Objective Automaton", dom.infoBox("info-automaton")]),
+                objectiveView.node,
+                dom.H3({}, ["Trace Sample", dom.infoBox("info-trace")]),
+                traceView.node
             ],
             "Snapshots": [
                 dom.H3({}, ["Snapshots", dom.infoBox("info-snapshots")]),
-                this.snapshots.node
+                snapshots.node
             ]
         }, "Game");
 
         this.node = dom.DIV({ "class": "inspector" }, [
             dom.DIV({ "class": "left" }, [
-                this.systemView.node,
+                systemView.node,
                 dom.DIV({"class": "cols"}, [
                     dom.DIV({ "class": "left" }, [
                         dom.H3({}, ["Control and Random Space", dom.infoBox("info-control")]),
-                        this.controlView.node,
+                        controlView.node,
                     ]),
                     dom.DIV({ "class": "right" }, [
                         dom.H3({}, ["View Settings", dom.infoBox("info-settings")]),
-                        this.settings.node
+                        settings.node
                     ])
                 ])
             ]),
@@ -796,6 +786,91 @@ class StateView extends ObservableMixin<null> {
 }
 
 
+// Lists actions available for the selected state and contains the currently
+// selected action. Observes StateView for the currently selected state.
+class ActionView extends SelectableNodes<ActionData> {
+
+    +proxy: SystemInspector;
+    +stateView: StateView;
+
+    constructor(proxy: SystemInspector, stateView: StateView): void {
+        super(ActionView.asNode, "none");
+        this.node.className = "action-view";
+        this.proxy = proxy;
+        this.stateView = stateView;
+        this.stateView.attach(() => this.handleChange());
+    }
+
+    handleChange(): void {
+        const state = this.stateView.selection;
+        if (state != null) {
+            this.proxy.getActions(state.label).then(actions => {
+                this.items = actions;
+            }).catch(err => {
+                console.log(err); // TODO
+            });
+        } else {
+            this.items = [];
+        }
+    }
+
+    static asNode(action: ActionData): HTMLDivElement {
+        return dom.DIV({}, [
+            styledStateLabel(action.origin, action.origin), " → {",
+            ...arr.intersperse(", ", action.targets.map(
+                target => styledStateLabel(target, action.origin)
+            )),
+            "}"
+        ]);
+    }
+
+}
+
+
+// Lists actions supports available for the selected action and contains the
+// currently selected action support. Observes ActionView for the currently
+// selected action.
+class ActionSupportView extends SelectableNodes<SupportData> {
+    
+    +proxy: SystemInspector;
+    +actionView: ActionView;
+
+    constructor(proxy: SystemInspector, actionView: ActionView): void {
+        super(ActionSupportView.asNode, "none");
+        this.node.className = "support-view";
+        this.proxy = proxy;
+        this.actionView = actionView;
+        this.actionView.attach(isClick => {
+            if (isClick) this.handleChange();
+        });
+    }
+
+    handleChange(): void {
+        const action = this.actionView.selection;
+        if (action != null) {
+            this.proxy.getSupports(action.origin.label, action.id).then(supports => {
+                this.items = supports;
+            }).catch(err => {
+                console.log(err); // TODO
+            });
+        } else {
+            this.items = [];
+        }
+    }
+
+    static asNode(support: SupportData): HTMLDivElement {
+        return dom.DIV({}, [
+            "{",
+            ...arr.intersperse(", ", support.targets.map(
+                target => styledStateLabel(target, support.origin)
+            )),
+            "}"
+        ]);
+    }
+
+}
+
+
 // Traces through the system
 class TraceView extends ObservableMixin<null> {
 
@@ -916,86 +991,66 @@ class TraceView extends ObservableMixin<null> {
 }
 
 
-// Lists actions available for the selected state and contains the currently
-// selected action. Observes StateView for the currently selected state.
-class ActionView extends SelectableNodes<ActionData> {
+// Automaton Objective
+class ObjectiveView {
 
-    +proxy: SystemInspector;
-    +stateView: StateView;
+    +node: HTMLDivElement;
+    +traceView: TraceView;
+    +transitions: Map<string, Map<string, Shape>>;
+    +transitionsLayer: FigureLayer;
 
-    constructor(proxy: SystemInspector, stateView: StateView): void {
-        super(ActionView.asNode, "none");
-        this.node.className = "action-view";
-        this.proxy = proxy;
-        this.stateView = stateView;
-        this.stateView.attach(() => this.handleChange());
-    }
-
-    handleChange(): void {
-        const state = this.stateView.selection;
-        if (state != null) {
-            this.proxy.getActions(state.label).then(actions => {
-                this.items = actions;
-            }).catch(err => {
-                console.log(err); // TODO
-            });
-        } else {
-            this.items = [];
-        }
-    }
-
-    static asNode(action: ActionData): HTMLDivElement {
-        return dom.DIV({}, [
-            styledStateLabel(action.origin, action.origin), " → {",
-            ...arr.intersperse(", ", action.targets.map(
-                target => styledStateLabel(target, action.origin)
-            )),
-            "}"
-        ]);
-    }
-
-}
-
-
-// Lists actions supports available for the selected action and contains the
-// currently selected action support. Observes ActionView for the currently
-// selected action.
-class ActionSupportView extends SelectableNodes<SupportData> {
-    
-    +proxy: SystemInspector;
-    +actionView: ActionView;
-
-    constructor(proxy: SystemInspector, actionView: ActionView): void {
-        super(ActionSupportView.asNode, "none");
-        this.node.className = "support-view";
-        this.proxy = proxy;
-        this.actionView = actionView;
-        this.actionView.attach(isClick => {
-            if (isClick) this.handleChange();
+    constructor(proxy: SystemInspector, traceView: TraceView): void {
+        this.traceView = traceView;
+        const objective = proxy.objective;
+        // Automaton visualization
+        const fig = new Figure();
+        const shapes = objective.toShapes();
+        // Plot automaton states
+        const states = fig.newLayer({ "fill": "none", "stroke": "#000", "stroke-width": "1.5" });
+        states.shapes = shapes.states.values();
+        // State and transition labels are offset by 4px to achieve vertical
+        // centering
+        const stateLabels = fig.newLayer({
+            "font-family": "DejaVu Sans, sans-serif", "font-size": "10pt",
+            "text-anchor": "middle", "transform": "translate(0 4)"
         });
-    }
+        stateLabels.shapes = shapes.stateLabels;
+        const transitionLabels = fig.newLayer({
+            "font-family": "serif", "font-size": "10pt",
+            "transform": "translate(0 4)"
+        });
+        transitionLabels.shapes = shapes.transitionLabels;
+        // Transitions are draw dynamically
+        this.transitionsLayer = fig.newLayer({ "fill": "#000", "stroke": "#000", "stroke-width": "2" });
+        this.transitions = shapes.transitions;
+        this.drawTransitions();
+        // Observe trace highlight and highlight transition in automaton plot
+        this.traceView.attach(() => this.drawTransitions());
+        // Setup plot area
+        const extent = shapes.extent;
+        if (extent == null) throw new Error("No automaton plot extent given by objective");
+        const proj = autoProjection(2, ...extent);
+        const plot = new ShapePlot([510, 255], fig, proj, false);
+        // Additional textual information about automaton
+        const info = dom.P({}, ["initial state: ", dom.snLabel.toHTML(proxy.objective.automaton.initialState.label)]);
 
-    handleChange(): void {
-        const action = this.actionView.selection;
-        if (action != null) {
-            this.proxy.getSupports(action.origin.label, action.id).then(supports => {
-                this.items = supports;
-            }).catch(err => {
-                console.log(err); // TODO
-            });
-        } else {
-            this.items = [];
-        }
-    }
-
-    static asNode(support: SupportData): HTMLDivElement {
-        return dom.DIV({}, [
-            "{",
-            ...arr.intersperse(", ", support.targets.map(
-                target => styledStateLabel(target, support.origin)
-            )),
-            "}"
+        this.node = dom.DIV({}, [
+            plot.node, info
         ]);
+    }
+
+    drawTransitions(): void {
+        const marked = this.traceView.marked;
+        if (marked != null) {
+            // TODO
+        }
+        const ts = [];
+        for (let [origin, transitions] of this.transitions) {
+            for (let [target, shape] of transitions) {
+                ts.push(shape);
+            }
+        }
+        this.transitionsLayer.shapes = ts;
     }
 
 }
@@ -1149,7 +1204,7 @@ class SystemView {
             action:         fig.newLayer({ "stroke": COLORS.action, "stroke-width": "2", "fill": COLORS.action }),
             predicate:      fig.newLayer({ "stroke": COLORS.predicate, "fill": COLORS.predicate, "fill-opacity": "0.2" }),
             trace:          fig.newLayer({ "stroke": COLORS.trace, "stroke-width": "1.5", "fill": COLORS.trace }),
-            label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" }),
+            label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle", "transform": "translate(0 3)" }),
             interaction:    fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" })
         };
         this.plot = new InteractivePlot([630, 525], fig, autoProjection(6/5, ...this.proxy.lss.extent));
@@ -1249,7 +1304,7 @@ class SystemView {
         let labels = [];
         if (this._data != null && this.settings.toggleLabel.value) {
             labels = this._data.map(state => ({
-                kind: "label", coords: state.centroid, text: state.label, style: {dy: "3"}
+                kind: "label", coords: state.centroid, text: state.label
             }));
         }
         this.layers.label.shapes = labels;

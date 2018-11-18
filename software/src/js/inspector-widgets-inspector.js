@@ -149,24 +149,8 @@ export class ProblemSummary {
             formula = replaceAll(formula, symbol, "(" + texifyProposition(prop, dom.snLabel.toTeX) + ")");
         }
 
-        const calcData = {
-            "A": JSON.stringify(system.lss.A),
-            "B": JSON.stringify(system.lss.B),
-            "X": JSON.stringify(system.lss.xx.vertices),
-            "U": JSON.stringify(system.lss.uus[0].vertices),
-            "Y": "",
-            "W": JSON.stringify(system.lss.ww.vertices)
-        };
-        const calcHash = window.btoa(JSON.stringify(calcData));
-
         this.node = dom.DIV({ "class": "problem-summary" }, [
-            dom.P({}, [
-                dom.renderTeX("x_{t+1} = " + matrixToTeX(system.lss.A) + " x_t + " + matrixToTeX(system.lss.B) + " u_t + w_t", dom.SPAN()),
-                dom.SPAN({ "id": "open-calc" }, [
-                    " :: ",
-                    dom.A({ "href": "polytopic-calculator.html#" + calcHash, "target": "_blank" }, ["open in calculator"])
-                ])
-            ]),
+            dom.renderTeX("x_{t+1} = " + matrixToTeX(system.lss.A) + " x_t + " + matrixToTeX(system.lss.B) + " u_t + w_t", dom.P()),
             dom.DIV({ "class": "boxes" }, [
                 dom.DIV({}, [dom.H3({}, ["Control Space Polytope"]), cs.node]),
                 dom.DIV({}, [dom.H3({}, ["Random Space Polytope"]), rs.node]),
@@ -192,13 +176,14 @@ export class ProblemSummary {
 }
 
 
-
 /* System Inspector: interactive system visualization */
 
 export class SystemInspector extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
     +systemComm: Communicator<Worker>;
+    +_log: HTMLDivElement;
+    +tabs: TabbedView;
     // ...
     +objective: Objective;
     +_system: AbstractedLSS;
@@ -217,7 +202,7 @@ export class SystemInspector extends ObservableMixin<null> {
             });
             const worker = new Worker("./js/inspector-worker-system.js");
             worker.onerror = () => {
-                // TODO: provide a global error mechanism
+                this.logError({ name: "WorkerError", message: "unable to start system worker" });
             };
             this.systemComm.host = worker;
         } catch (e) {
@@ -251,7 +236,32 @@ export class SystemInspector extends ObservableMixin<null> {
         const controlView = new ControlView(this, traceView, actionView);
         const snapshots = new SnapshotManager(this, analysis);
 
-        const sideTabs = new TabbedView({
+        // Debug: connectivity
+        const appLinks = dom.P();
+        // Link that opens polytopic calculator with basic problem setup loaded
+        const calcData = {
+            "A": JSON.stringify(system.lss.A),
+            "B": JSON.stringify(system.lss.B),
+            "X": JSON.stringify(system.lss.xx.vertices),
+            "U": JSON.stringify(system.lss.uus[0].vertices),
+            "Y": "",
+            "W": JSON.stringify(system.lss.ww.vertices)
+        };
+        dom.appendChildren(appLinks, [
+            dom.A({ "href": "polytopic-calculator.html#" + window.btoa(JSON.stringify(calcData)), "target": "_blank" }, ["Polytopic Calculator"])
+        ]);
+        // Link that opens view in plotter-2d if dimension matches
+        if (system.lss.dim === 2) {
+            const plotterLink = dom.A({ "href": "plotter-2d.html", "target": "_blank" }, ["Plotter 2D"]);
+            plotterLink.addEventListener("click", () => {
+                plotterLink.href = "plotter-2d.html#" + systemView.toExportURL();
+            });
+            dom.appendChildren(appLinks, [" :: ", plotterLink]);
+        }
+        // Debut: Message
+        this._log = dom.DIV({ "class": "log" }, ["-"]);
+
+        this.tabs = new TabbedView({
             "Game": [
                 dom.H3({}, ["Selected State", dom.infoBox("info-state")]),
                 stateView.node,
@@ -264,7 +274,9 @@ export class SystemInspector extends ObservableMixin<null> {
                 dom.H3({}, ["System Analysis", dom.infoBox("info-analysis")]),
                 analysis.node,
                 dom.H3({}, ["Abstraction Refinement", dom.infoBox("info-refinement")]),
-                refinement.node
+                refinement.node,
+                dom.H3({}, ["Snapshots", dom.infoBox("info-snapshots")]),
+                snapshots.node
             ],
             "Control": [
                 dom.H3({}, ["Objective Automaton", dom.infoBox("info-automaton")]),
@@ -272,9 +284,11 @@ export class SystemInspector extends ObservableMixin<null> {
                 dom.H3({}, ["Trace Sample", dom.infoBox("info-trace")]),
                 traceView.node
             ],
-            "Snapshots": [
-                dom.H3({}, ["Snapshots", dom.infoBox("info-snapshots")]),
-                snapshots.node
+            "Debug": [
+                dom.H3({}, ["Connectivity"]),
+                appLinks,
+                dom.H3({}, ["Error Message"]),
+                this._log
             ]
         }, "Game");
 
@@ -292,7 +306,7 @@ export class SystemInspector extends ObservableMixin<null> {
                     ])
                 ])
             ]),
-            sideTabs.node
+            this.tabs.node
         ]);
     }
 
@@ -304,6 +318,16 @@ export class SystemInspector extends ObservableMixin<null> {
 
     getPredicate(label: PredicateID): Halfspace {
         return this._system.getPredicate(label);
+    }
+
+    log(text: string): void {
+        dom.replaceChildren(this._log, [text]);
+    }
+
+    logError(e: { name: string, message: string }): void {
+        console.log(e);
+        this.log(e.name + " :: " + e.message);
+        this.tabs.highlight("Debug");
     }
 
     // Worker request interface
@@ -481,7 +505,8 @@ class Analysis extends ObservableMixin<null> {
             });
             const worker = new Worker("./js/inspector-worker-analysis.js");
             worker.onerror = () => {
-                this.infoText = "error: unable to start web worker for analysis"
+                this.infoText = "startup error"
+                this.proxy.logError({ name: "WorkerError", message: "unable to start analysis web worker" });
             };
             // Start communicator
             communicator.host = worker;
@@ -537,7 +562,7 @@ class Analysis extends ObservableMixin<null> {
             }
             this.ready = true;
         }).catch(err => {
-            console.log(err); // TODO
+            this.proxy.logError(err);
         });
     }
 
@@ -554,7 +579,7 @@ class Analysis extends ObservableMixin<null> {
                     + " after " + t2s(elapsed) + "."
                 );
             }).catch(err => {
-                console.log(err); // TODO
+                this.proxy.logError(err);
             });
         }
     }
@@ -648,8 +673,8 @@ class Refinement {
             const state = which == null ? null : which.label;
             this.proxy.refine(state, this.steps).then(data => {
                 this.infoText = "Refined " + data.size + (data.size === 1 ? " state." : " states.");
-            }).catch(err => {
-                console.log(err); // TODO
+            }).catch(e => {
+                this.proxy.logError(e);
             });
         } else {
             this.infoText = "Cannot refine while analysis is running.";
@@ -749,6 +774,12 @@ class TabbedView {
         this._selection = tab;
     }
 
+    highlight(tab: string): void {
+        if (this._selection == null || this._selection != tab) {
+            this.titles[tab].className = "highlight";
+        }
+    }
+
 }
 
 
@@ -810,7 +841,7 @@ class StateView extends ObservableMixin<null> {
                 ]);
                 this.predicates.items = Array.from(data.predicates);
                 this.notify();
-            }).catch(err => {
+            }).catch(e => {
                 this._selection = null;
                 this.handleChange();
             });
@@ -844,8 +875,8 @@ class ActionView extends SelectableNodes<ActionData> {
         if (state != null) {
             this.proxy.getActions(state.label).then(actions => {
                 this.items = actions;
-            }).catch(err => {
-                console.log(err); // TODO
+            }).catch(e => {
+                this.proxy.logError(e);
             });
         } else {
             this.items = [];
@@ -888,8 +919,8 @@ class ActionSupportView extends SelectableNodes<SupportData> {
         if (action != null) {
             this.proxy.getSupports(action.origin.label, action.id).then(supports => {
                 this.items = supports;
-            }).catch(err => {
-                console.log(err); // TODO
+            }).catch(e => {
+                this.proxy.logError(e);
             });
         } else {
             this.items = [];
@@ -984,8 +1015,8 @@ class TraceView extends ObservableMixin<null> {
             this.drawTraceSelectors();
             this.drawTraceArrows();
             this.notify();
-        }).catch(err => {
-            console.log(err); // TODO
+        }).catch(e => {
+            this.proxy.logError(e);
         });
     }
 
@@ -1247,15 +1278,6 @@ class SystemView {
         };
         this.plot = new InteractivePlot([630, 525], fig, autoProjection(6/5, ...this.proxy.lss.extent));
 
-        // Add a link that opens view in plotter-2d if dimension matches
-        if (this.proxy.lss.dim === 2) {
-            const plotterLink = dom.A({ "href": "plotter-2d.html", "target": "_blank" }, ["open in plotter"]);
-            plotterLink.addEventListener("click", () => {
-                plotterLink.href = "plotter-2d.html#" + this.toExportURL();
-            });
-            this.plot.addMenuElement(plotterLink);
-        }
-
         this.drawVectorField();
     }
 
@@ -1287,8 +1309,8 @@ class SystemView {
             }));
             this.drawKind();
             this.drawLabels();
-        }).catch(err => {
-            console.log(err); // TODO
+        }).catch(e => {
+            this.proxy.logError(e);
         });
     }
 
@@ -1309,8 +1331,8 @@ class SystemView {
                 );
                 this.layers.highlight1.shapes = shapes;
                 this.layers.highlight2.shapes = shapes;
-            }).catch(err => {
-                console.log(err); // TODO
+            }).catch(e => {
+                this.proxy.logError(e);
             });
 
         }
@@ -1484,8 +1506,8 @@ class SnapshotManager {
         if (selection != null) {
             this.proxy.loadSnapshot(selection).then(data => {
                 this.handleChange();
-            }).catch(err => {
-                console.log(err); // TODO
+            }).catch(e => {
+                this.proxy.logError(e);
             });
         }
         this.handleChange();
@@ -1497,8 +1519,8 @@ class SnapshotManager {
         if (selection != null && name.length > 0) {
             this.proxy.nameSnapshot(selection, name).then(data => {
                 this.handleChange();
-            }).catch(err => {
-                console.log(err); // TODO
+            }).catch(e => {
+                this.proxy.logError(e);
             });
         }
     }
@@ -1508,8 +1530,8 @@ class SnapshotManager {
         this.proxy.getSnapshots().then(data => {
             this._data = data;
             this.redraw();
-        }).catch(err => {
-            console.log(err); // TODO
+        }).catch(e => {
+            this.proxy.logError(e);
         });
     }
 

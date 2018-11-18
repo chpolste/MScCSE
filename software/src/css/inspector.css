@@ -213,6 +213,10 @@ a:hover {
     background-color: #069;
     color: #FFF;
 }
+.inspector > .tabs > .bar div.highlight {
+    background-color: #C00;
+    color: #FFF;
+}
 .inspector > .tabs > .bar div:hover{
     background-color: #CCC;
 }

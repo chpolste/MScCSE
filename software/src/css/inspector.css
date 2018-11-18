@@ -2,7 +2,7 @@ body {
     margin: 0;
     padding: 0;
     font-family: DejaVu Sans, sans-serif;
-    font-size: 10pt;
+    font-size: 13px;
     line-height: 1.5;
     color: #000;
     background-color: #FFF;
@@ -12,7 +12,7 @@ body {
 }
 
 p {
-    margin: 0 0 6pt 0;
+    margin: 0 0 8px 0;
 }
 
 .header {
@@ -28,7 +28,7 @@ h1 {
     max-width: 1200px;
     padding: 15px 15px 5px 15px;
     margin: 0 auto;
-    font-size: 14pt;
+    font-size: 19px;
     font-weight: normal;
 }
 
@@ -40,9 +40,9 @@ h1 {
     line-height: 1.2;
 }
 #application h3 {
-    font-size: 12pt;
+    font-size: 16px;
     font-weight: normal;
-    margin: 14pt 0 6pt 0;
+    margin: 18px 0 8px 0;
 }
 
 .text {
@@ -65,16 +65,11 @@ h1 {
 .text h2 {
     margin: 20px 0 10px 0;
     padding: 0;
-    font-size: 13pt;
+    font-size: 16px;
     font-weight: normal;
 }
 .text h2:first-child {
     margin-top: 0;
-}
-.text h3 {
-    margin: 18px 0 6px 0;
-    font-size: 12pt;
-    font-weight: normal;
 }
 .text p {
     margin: 0 0 10px 0;
@@ -101,7 +96,7 @@ textarea {
     overflow-wrap: normal;
 }
 textarea, input[type=text] {
-    font-size: 9pt;
+    font-size: 12px;
     font-family: monospace;
 }
 
@@ -117,7 +112,7 @@ button {
 
 /* https://stackoverflow.com/questions/1530685 */
 sub {
-    font-size: 7pt;
+    font-size: 9px;
     vertical-align: bottom;
 }
 
@@ -159,18 +154,6 @@ a:hover {
 .problem-summary > .boxes > div {
     width: 25%;
 }
-#open-calc {
-    font-size: 8pt;
-    margin-left: 20pt;
-    color: #666;
-}
-#open-calc a {
-    color: #666;
-    text-decoration: none;
-}
-#open-calc a:hover {
-    color: #000;
-}
 
 /* Interactive system inspector */
 
@@ -192,7 +175,7 @@ a:hover {
     flex: 1 1 auto;
 }
 .inspector > .right {
-    margin-top: -12pt;
+    margin-top: -16px;
 }
 .inspector > .tabs {
     flex: 1 1 auto;
@@ -236,7 +219,7 @@ a:hover {
     height: 1.2em;
     border: 1px solid #999;
     border-radius: 1em;
-    font-size: 9pt;
+    font-size: 12px;
     color: #999;
     line-height: 1.3;
 }
@@ -255,15 +238,15 @@ a:hover {
     margin: 0;
     display: none;
     position: absolute;
-    font-size: 9pt;
+    font-size: 12px;
     line-height: 1.5;
 }
 .info-box ul {
-    margin: -2pt 0 4pt 0;
+    margin: -3px 0 5px 0;
     padding: 0 0 0 1.5em;
 }
 .info-box p {
-    margin-bottom: 3pt;
+    margin-bottom: 4px;
 }
 .info-box p:last-child {
     margin-bottom: 0;
@@ -279,7 +262,7 @@ a:hover {
     flex-flow: column nowrap;
 }
 .plot .menu {
-    font-size: 8pt;
+    font-size: 11px;
     padding: 0 40px 0 5px;
     margin: 0 0 -3px 0;
     flex: 0 0 auto;
@@ -344,12 +327,12 @@ a:hover {
 
 .settings select {
     display: block;
-    margin-top: 3pt;
+    margin-top: 4px;
 }
 .settings .highlight {
-    margin: 6pt 0 0 2pt;
-    padding-left: 5pt;
-    border-left: 8pt solid #FC0;
+    margin: 8px 0 0 2px;
+    padding-left: 6px;
+    border-left: 10px solid #FC0;
 }
 
 span.selected {
@@ -375,7 +358,7 @@ span.nonsatisfying {
 }
 
 .action-view {
-    height: 15em;
+    height: 200px;
     overflow-y: scroll;
     padding-right: 4px;
 }
@@ -388,17 +371,17 @@ span.nonsatisfying {
 }
 .action-view > div.selection {
     background-color: #EEE;
-    border-right: 6pt solid #000;
+    border-right: 8px solid #000;
 }
 
 .support-view {
-    height: 15em;
+    height: 200px;
     overflow-y: scroll;
     padding-right: 4px;
 }
 .support-view > div {
     display: inline-block;
-    border-right: 6pt solid transparent;
+    border-right: 8px solid transparent;
     padding-right: 2px;
     margin-right: 2px;
     cursor: pointer;

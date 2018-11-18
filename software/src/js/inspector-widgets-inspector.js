@@ -1,32 +1,34 @@
 // @flow
 "use strict";
 
-import type { JSONConvexPolytopeUnion, Halfspace } from "./geometry.js";
-import type { Vector, Matrix } from "./linalg.js";
-import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
 import type { FigureLayer, Shape } from "./figure.js";
-import type { Plot } from "./widgets-plot.js";
-import type { Input } from "./widgets-input.js";
+import type { JSONConvexPolytopeUnion, Halfspace } from "./geometry.js";
 import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, TraceData,
               GameGraphData, UpdateKindsData, RefineData, TakeSnapshotData, LoadSnapshotData,
               NameSnapshotData, SnapshotData } from "./inspector-worker-system.js";
-import type { JSONPolygonItem } from "./plotter-2d.js";
+import type { Vector, Matrix } from "./linalg.js";
 import type { AutomatonShapeCollection } from "./logic.js";
+import type { JSONPolygonItem } from "./plotter-2d.js";
+import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
+import type { Plot } from "./widgets-plot.js";
+import type { Input } from "./widgets-input.js";
 
-import * as linalg from "./linalg.js";
 import * as dom from "./dom.js";
-import { Communicator } from "./worker.js";
-import { arr, obj, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
+import { Figure, autoProjection, Horizontal1D } from "./figure.js";
 import { union } from "./geometry.js";
+import * as linalg from "./linalg.js";
 import { Objective, stringifyProposition, texifyProposition } from "./logic.js";
 import { State } from "./system.js";
-import { Figure, autoProjection, Horizontal1D } from "./figure.js";
-import { InteractivePlot, AxesPlot, ShapePlot } from "./widgets-plot.js";
+import { arr, obj, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
 import { CheckboxInput, SelectInput, SelectableNodes, inputTextRotation } from "./widgets-input.js";
+import { InteractivePlot, AxesPlot, ShapePlot } from "./widgets-plot.js";
+import { Communicator } from "./worker.js";
 
 
+// Variable names for space dimensions
 export const VAR_NAMES = "xy";
 
+// Visualization/highlight colors
 export const COLORS = {
     satisfying: "#093",
     nonSatisfying: "#CCC",
@@ -41,11 +43,12 @@ export const COLORS = {
     trace: "#000"
 };
 
+// Arrow style of trace highlight
 const MARKED_STEP_STYLE = { "stroke": "#C00", "fill": "#C00" };
-
+// Max number of steps when sampling
 export const TRACE_LENGTH = 35;
 
-
+// Highlight color corresponding to state kind
 function stateColor(state: StateData): string {
     let fill = COLORS.undecided;
     if (State.isSatisfying(state)) {
@@ -56,6 +59,7 @@ function stateColor(state: StateData): string {
     return fill;
 }
 
+// Display text corresponding to state kind
 function stateKindString(state: StateData): string {
     if (State.isSatisfying(state)) {
         return "satisfying";
@@ -68,6 +72,7 @@ function stateKindString(state: StateData): string {
     }
 }
 
+// State label with applied style corresponding to state kind
 function styledStateLabel(state: StateData, markSelected?: ?StateData): HTMLSpanElement {
     let attributes = {};
     if (markSelected != null && markSelected.label === state.label) {
@@ -80,6 +85,7 @@ function styledStateLabel(state: StateData, markSelected?: ?StateData): HTMLSpan
     return dom.SPAN(attributes, [dom.snLabel.toHTML(state.label)]);
 }
 
+// String representation of halfspace inequation
 function ineq2s(h: Halfspace): string {
     const terms = [];
     for (let i = 0; i < h.dim; i++) {
@@ -98,16 +104,19 @@ function ineq2s(h: Halfspace): string {
     return  terms.join(" ") + " < " + n2s(h.offset)
 }
 
+// Predicate label with inequation as title text
 function styledPredicateLabel(label: string, halfspace: Halfspace): HTMLSpanElement {
     const node = dom.snLabel.toHTML(label);
     node.setAttribute("title", ineq2s(halfspace));
     return node;
 }
 
+// Matrix display with KaTeX
 function matrixToTeX(m: Matrix): string {
     return "\\begin{pmatrix}" + m.map(row => row.join("&")).join("\\\\") + "\\end{pmatrix}";
 }
 
+// Graphical depiction of analysis progress
 function percentageBar(ratios: { [string]: number }): HTMLDivElement {
     const bar = dom.DIV({ "class": "percentage-bar" });
     for (let name in ratios) {
@@ -121,7 +130,6 @@ function percentageBar(ratios: { [string]: number }): HTMLDivElement {
 }
 
 
-/* Problem Summary: summary of the problem setup */
 
 export class ProblemSummary {
 
@@ -143,12 +151,10 @@ export class ProblemSummary {
         const cs = new AxesPlot([90, 90], csFig, autoProjection(1, ...union.extent(system.lss.uus)));
         const rs = new AxesPlot([90, 90], rsFig, autoProjection(1, ...system.lss.ww.extent));
         const ss = new AxesPlot([90, 90], ssFig, autoProjection(1, ...system.lss.xx.extent));
-
         let formula = objective.kind.formula;
         for (let [symbol, prop] of objective.propositions) {
             formula = replaceAll(formula, symbol, "(" + texifyProposition(prop, dom.snLabel.toTeX) + ")");
         }
-
         this.node = dom.DIV({ "class": "problem-summary" }, [
             dom.renderTeX("x_{t+1} = " + matrixToTeX(system.lss.A) + " x_t + " + matrixToTeX(system.lss.B) + " u_t + w_t", dom.P()),
             dom.DIV({ "class": "boxes" }, [
@@ -176,7 +182,6 @@ export class ProblemSummary {
 }
 
 
-/* System Inspector: interactive system visualization */
 
 export class SystemInspector extends ObservableMixin<null> {
 
@@ -198,7 +203,7 @@ export class SystemInspector extends ObservableMixin<null> {
             });
             this.systemComm.onRequest("ready", data => {
                 this.notify();
-                snapshots.handleChange(); // TODO: explain
+                snapshotCtrl.handleChange(); // TODO: explain
             });
             const worker = new Worker("./js/inspector-worker-system.js");
             worker.onerror = () => {
@@ -218,12 +223,12 @@ export class SystemInspector extends ObservableMixin<null> {
         this._system = system;
 
         const settings = new Settings(this, keybindings);
-        const analysis = new Analysis(this, keybindings);
+        const analysisCtrl = new AnalysisCtrl(this, keybindings);
         const stateView = new StateView(this);
         const actionView = new ActionView(this, stateView);
         const supportView = new ActionSupportView(this, actionView);
         const traceView = new TraceView(this, stateView, keybindings);
-        const objectiveView = new ObjectiveView(this, traceView);
+        const automatonView = new AutomatonView(this, traceView);
         const systemView = new SystemView(
             this,
             settings,
@@ -232,9 +237,9 @@ export class SystemInspector extends ObservableMixin<null> {
             actionView,
             supportView
         );
-        const refinement = new Refinement(this, analysis, stateView, keybindings);
-        const controlView = new ControlView(this, traceView, actionView);
-        const snapshots = new SnapshotManager(this, analysis);
+        const refinementCtrl = new RefinementCtrl(this, analysisCtrl, stateView, keybindings);
+        const spaceView = new SpaceView(this, traceView, actionView);
+        const snapshotCtrl = new SnapshotCtrl(this, analysisCtrl);
 
         // Debug: connectivity
         const appLinks = dom.P();
@@ -272,15 +277,15 @@ export class SystemInspector extends ObservableMixin<null> {
             ],
             "System": [
                 dom.H3({}, ["System Analysis", dom.infoBox("info-analysis")]),
-                analysis.node,
+                analysisCtrl.node,
                 dom.H3({}, ["Abstraction Refinement", dom.infoBox("info-refinement")]),
-                refinement.node,
+                refinementCtrl.node,
                 dom.H3({}, ["Snapshots", dom.infoBox("info-snapshots")]),
-                snapshots.node
+                snapshotCtrl.node
             ],
             "Control": [
                 dom.H3({}, ["Objective Automaton", dom.infoBox("info-automaton")]),
-                objectiveView.node,
+                automatonView.node,
                 dom.H3({}, ["Trace Sample", dom.infoBox("info-trace")]),
                 traceView.node
             ],
@@ -298,7 +303,7 @@ export class SystemInspector extends ObservableMixin<null> {
                 dom.DIV({"class": "cols"}, [
                     dom.DIV({ "class": "left" }, [
                         dom.H3({}, ["Control and Random Space", dom.infoBox("info-control")]),
-                        controlView.node,
+                        spaceView.node,
                     ]),
                     dom.DIV({ "class": "right" }, [
                         dom.H3({}, ["View Settings", dom.infoBox("info-settings")]),
@@ -396,60 +401,223 @@ export class SystemInspector extends ObservableMixin<null> {
 }
 
 
-type OperatorWrapper = (StateData, JSONConvexPolytopeUnion) => Promise<OperatorData>;
 
-// Settings panel for the main view.
-class Settings extends ObservableMixin<null> {
+// Right Column: Tabs
 
+type Tabs = { [string]: TabContent[] };
+type TabContent = Element | { +node: Element };
+class TabbedView {
+
+    +tabs: Tabs;
+    +content: HTMLDivElement;
+    +titles: { [string]: HTMLDivElement };
+    _selection: ?string;
     +node: HTMLDivElement;
-    +proxy: SystemInspector;
-    +toggleKind: Input<boolean>;
-    +toggleLabel: Input<boolean>;
-    +toggleVectorField: Input<boolean>;
-    +highlight: Input<null|OperatorWrapper>;
-    +highlightNode: HTMLDivElement;
-    
-    constructor(proxy: SystemInspector, keybindings: dom.Keybindings): void {
-        super();
-        this.proxy = proxy;
 
-        this.toggleKind = new CheckboxInput(true);
-        this.toggleLabel = new CheckboxInput(false);
-        this.toggleVectorField = new CheckboxInput(false);
-        this.highlight = new SelectInput({
-            "None": null,
-            "Posterior": (state, us) => proxy.getOperator("post", state.label, us),
-            "Predecessor": (state, us) => proxy.getOperator("pre", state.label, us),
-            "Robust Predecessor": (state, us) => proxy.getOperator("preR", state.label, us),
-            "Attractor": (state, us) => proxy.getOperator("attr", state.label, us),
-            "Robust Attractor": (state, us) => proxy.getOperator("attrR", state.label, us)
-        }, "None");
-
-        this.node = dom.DIV({ "class": "settings" }, [
-            dom.LABEL({}, [this.toggleKind.node, "Analysis C", dom.create("u", {}, ["o"]), "lors"]),
-            dom.LABEL({}, [this.toggleLabel.node, "State ", dom.create("u", {}, ["L"]), "abels"]),
-            dom.LABEL({}, [this.toggleVectorField.node, dom.create("u", {}, ["V"]), "ector Field"]),
-            dom.P({ "class": "highlight" }, [
-                dom.create("u", {}, ["H"]), "ighlight Operator:", this.highlight.node
-            ])
+    constructor(tabs: Tabs, init: string): void {
+        this.tabs = tabs;
+        this.content = dom.DIV();
+        this.titles = obj.map((key, _) => {
+            const link = dom.DIV({}, [key]);
+            link.addEventListener("click", () => this.select(key));
+            return link;
+        }, tabs);
+        this.node = dom.DIV({ "class": "tabs" }, [
+            dom.DIV({ "class": "bar" }, [...obj.values(this.titles)]), this.content
         ]);
+        this._selection = null;
+        this.select(init);
+    }
 
-        keybindings.bind("o", inputTextRotation(this.toggleKind, ["t", "f"]));
-        keybindings.bind("l", inputTextRotation(this.toggleLabel, ["t", "f"]));
-        keybindings.bind("v", inputTextRotation(this.toggleVectorField, ["t", "f"]));
-        keybindings.bind("h", inputTextRotation(this.highlight, [
-            "None", "Posterior", "Predecessor", "Robust Predecessor", "Attractor", "Robust Attractor"
-        ]));
+    select(tab: string): void {
+        const sel = this._selection;
+        if (sel != null) {
+            this.titles[sel].className = "";
+        }
+        const nodes = this.tabs[tab];
+        dom.replaceChildren(this.content, nodes.map(_ => (_ instanceof Element ? _ : _.node)));
+        this.titles[tab].className = "selection";
+        this._selection = tab;
+    }
+
+    highlight(tab: string): void {
+        if (this._selection == null || this._selection != tab) {
+            this.titles[tab].className = "highlight";
+        }
     }
 
 }
 
 
+// Tab: Game
+// - StateView
+// - ActionView
+// - SupportView
+
+// Contains and provides information on and preview of the currently selected
+// state.
+class StateView extends ObservableMixin<null> {
+
+    +node: HTMLDivElement;
+    +proxy: SystemInspector;
+    +summary: HTMLParagraphElement;
+    +predicates: SelectableNodes<string>;
+    _selection: ?StateDataPlus;
+
+    constructor(proxy: SystemInspector): void {
+        super();
+        this._selection = null;
+        this.proxy = proxy;
+        this.proxy.attach(() => this.handleChange());
+
+        // Summary is filled with basic state information
+        this.summary = dom.P();
+        // Predicates that state fulfils
+        this.predicates = new SelectableNodes(
+            _ => styledPredicateLabel(_, this.proxy.getPredicate(_)), "-", ", "
+        );
+        this.predicates.node.className = "predicates";
+        this.node = dom.DIV({ "class": "state-view" }, [
+            this.summary, this.predicates.node
+        ]);
+
+        this.handleChange();
+    }
+
+    get selection(): ?StateDataPlus {
+        return this._selection;
+    }
+
+    select(state: ?StateDataPlus): void {
+        const selection = this._selection;
+        if (selection != null && state != null && state.label === selection.label) {
+            this._selection = null;
+        } else {
+            this._selection = state;
+        }
+        this.handleChange();
+    }
+
+    handleChange() {
+        let state = this._selection;
+        if (state != null) {
+            // TODO: documentation
+            this.proxy.getState(state.label).then(data => {
+                this._selection = data;
+                const actionCount = data.numberOfActions;
+                const actionText = actionCount === 1 ? " action" : " actions";
+                dom.replaceChildren(this.summary, [
+                    styledStateLabel(data, data),
+                    " (", stateKindString(data), ", ", String(actionCount), actionText, ")"
+                ]);
+                this.predicates.items = Array.from(data.predicates);
+                this.notify();
+            }).catch(e => {
+                this._selection = null;
+                this.handleChange();
+            });
+        } else {
+            dom.replaceChildren(this.summary, ["no selection"]);
+            this.predicates.items = [];
+            this.notify();
+        }
+    }
+
+}
+
+
+// Lists actions available for the selected state and contains the currently
+// selected action. Observes StateView for the currently selected state.
+class ActionView extends SelectableNodes<ActionData> {
+
+    +proxy: SystemInspector;
+    +stateView: StateView;
+
+    constructor(proxy: SystemInspector, stateView: StateView): void {
+        super(ActionView.asNode, "none");
+        this.node.className = "action-view";
+        this.proxy = proxy;
+        this.stateView = stateView;
+        this.stateView.attach(() => this.handleChange());
+    }
+
+    handleChange(): void {
+        const state = this.stateView.selection;
+        if (state != null) {
+            this.proxy.getActions(state.label).then(actions => {
+                this.items = actions;
+            }).catch(e => {
+                this.proxy.logError(e);
+            });
+        } else {
+            this.items = [];
+        }
+    }
+
+    static asNode(action: ActionData): HTMLDivElement {
+        return dom.DIV({}, [
+            styledStateLabel(action.origin, action.origin), " → {",
+            ...arr.intersperse(", ", action.targets.map(
+                target => styledStateLabel(target, action.origin)
+            )),
+            "}"
+        ]);
+    }
+
+}
+
+
+// Lists actions supports available for the selected action and contains the
+// currently selected action support. Observes ActionView for the currently
+// selected action.
+class ActionSupportView extends SelectableNodes<SupportData> {
+    
+    +proxy: SystemInspector;
+    +actionView: ActionView;
+
+    constructor(proxy: SystemInspector, actionView: ActionView): void {
+        super(ActionSupportView.asNode, "none");
+        this.node.className = "support-view";
+        this.proxy = proxy;
+        this.actionView = actionView;
+        this.actionView.attach(isClick => {
+            if (isClick) this.handleChange();
+        });
+    }
+
+    handleChange(): void {
+        const action = this.actionView.selection;
+        if (action != null) {
+            this.proxy.getSupports(action.origin.label, action.id).then(supports => {
+                this.items = supports;
+            }).catch(e => {
+                this.proxy.logError(e);
+            });
+        } else {
+            this.items = [];
+        }
+    }
+
+    static asNode(support: SupportData): HTMLDivElement {
+        return dom.DIV({}, [
+            "{",
+            ...arr.intersperse(", ", support.targets.map(
+                target => styledStateLabel(target, support.origin)
+            )),
+            "}"
+        ]);
+    }
+
+}
+
+
+// Tab: System
+// - AnalysisCtrl
+// - RefinementCtrl
+// - SnapshotCtrl
+
 type JSONAnalysisResults = { [string]: string[] };
-
-
-// Analysis
-class Analysis extends ObservableMixin<null> {
+class AnalysisCtrl extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
     +proxy: SystemInspector;
@@ -612,22 +780,22 @@ type RefinementStep = {
     +text: string,
     +name: string
 };
-class Refinement {
+class RefinementCtrl {
 
     +node: HTMLDivElement;
     +proxy: SystemInspector;
     +stateView: StateView;
-    +analysis: Analysis;
+    +analysisCtrl: AnalysisCtrl;
     +info: HTMLSpanElement;
     +buttons: { [string]: HTMLButtonElement };
     +_steps: RefinementStep[];
     +stepBox: HTMLDivElement;
     
-    constructor(proxy: SystemInspector, analysis: Analysis, stateView: StateView,
+    constructor(proxy: SystemInspector, analysisCtrl: AnalysisCtrl, stateView: StateView,
             keybindings: dom.Keybindings): void {
         this.proxy = proxy;
-        this.analysis = analysis;
-        this.analysis.attach(() => this.handleChange());
+        this.analysisCtrl = analysisCtrl;
+        this.analysisCtrl.attach(() => this.handleChange());
         this.stateView = stateView;
         this.stateView.attach(() => this.handleChange());
         // Information display
@@ -669,7 +837,7 @@ class Refinement {
     }
 
     refine(which: ?StateData): void {
-        if (this.analysis.ready) {
+        if (this.analysisCtrl.ready) {
             const state = which == null ? null : which.label;
             this.proxy.refine(state, this.steps).then(data => {
                 this.infoText = "Refined " + data.size + (data.size === 1 ? " state." : " states.");
@@ -693,7 +861,7 @@ class Refinement {
     }
 
     handleChange(): void {
-        const ready = this.analysis.ready;
+        const ready = this.analysisCtrl.ready;
         const state = this.stateView.selection;
         this.buttons["refineAll"].disabled = !ready;
         this.buttons["refineOne"].disabled = !(ready && state != null && State.isUndecided(state));
@@ -737,210 +905,137 @@ class Refinement {
 }
 
 
-type Tabs = { [string]: TabContent[] };
-type TabContent = Element | { +node: Element };
-// TODO
-class TabbedView {
-
-    +tabs: Tabs;
-    +content: HTMLDivElement;
-    +titles: { [string]: HTMLDivElement };
-    _selection: ?string;
-    +node: HTMLDivElement;
-
-    constructor(tabs: Tabs, init: string): void {
-        this.tabs = tabs;
-        this.content = dom.DIV();
-        this.titles = obj.map((key, _) => {
-            const link = dom.DIV({}, [key]);
-            link.addEventListener("click", () => this.select(key));
-            return link;
-        }, tabs);
-        this.node = dom.DIV({ "class": "tabs" }, [
-            dom.DIV({ "class": "bar" }, [...obj.values(this.titles)]), this.content
-        ]);
-        this._selection = null;
-        this.select(init);
-    }
-
-    select(tab: string): void {
-        const sel = this._selection;
-        if (sel != null) {
-            this.titles[sel].className = "";
-        }
-        const nodes = this.tabs[tab];
-        dom.replaceChildren(this.content, nodes.map(_ => (_ instanceof Element ? _ : _.node)));
-        this.titles[tab].className = "selection";
-        this._selection = tab;
-    }
-
-    highlight(tab: string): void {
-        if (this._selection == null || this._selection != tab) {
-            this.titles[tab].className = "highlight";
-        }
-    }
-
-}
-
-
-// Contains and provides information on and preview of the currently selected
-// state.
-class StateView extends ObservableMixin<null> {
+class SnapshotCtrl {
 
     +node: HTMLDivElement;
     +proxy: SystemInspector;
-    +summary: HTMLParagraphElement;
-    +predicates: SelectableNodes<string>;
-    _selection: ?StateDataPlus;
+    +analysisCtrl: AnalysisCtrl;
+    +forms: { [string]: HTMLButtonElement|HTMLInputElement };
+    +treeView: HTMLDivElement;
+    // Internal state
+    _data: ?SnapshotData;
+    _selection: ?number;
 
-    constructor(proxy: SystemInspector): void {
-        super();
-        this._selection = null;
+    constructor(proxy: SystemInspector, analysisCtrl: AnalysisCtrl): void {
         this.proxy = proxy;
-        this.proxy.attach(() => this.handleChange());
+        this.analysisCtrl = analysisCtrl;
+        // Widget: menu bar with tree-structure view below
+        this.forms = {
+            take:   dom.BUTTON({}, ["new"]),
+            load:   dom.BUTTON({}, ["load"]),
+            rename: dom.BUTTON({}, ["rename"]),
+            name:   dom.INPUT({ "type": "text", "placeholder": "Snapshot", "size": "25" })
+        };
+        this.forms.take.addEventListener("click", () => this.takeSnapshot());
+        this.forms.load.addEventListener("click", () => this.loadSnapshot());
+        this.forms.rename.addEventListener("click", () => this.renameSnapshot());
+        this.treeView = dom.DIV({ "class": "tree" });
+        this.node = dom.DIV({ "class": "snapshot-view"}, [
+            dom.P({}, [
+                this.forms.take, " ", this.forms.name,
+                dom.DIV({ "class": "right" }, [this.forms.rename, " ", this.forms.load])
+            ]),
+            this.treeView
+        ]);
+        // Ready-message from worker in proxy triggers first handleChange call
+        // and initializes the state variables
+        this._data = null;
+        this._selection = null;
+        // Disable taking snapshots at first, will be enabled with the first
+        // handleChange call
+        this.forms.take.disabled = true;
+    }
 
-        // Summary is filled with basic state information
-        this.summary = dom.P();
-        // Predicates that state fulfils
-        this.predicates = new SelectableNodes(
-            _ => styledPredicateLabel(_, this.proxy.getPredicate(_)), "-", ", "
+    takeSnapshot(): void {
+        const name = this.forms.name.value.trim();
+        this.forms.name.value = "";
+        this.proxy.takeSnapshot(
+            (name.length === 0 ? "Snapshot" : name)
+            // TODO: analysis results
         );
-        this.predicates.node.className = "predicates";
-        this.node = dom.DIV({ "class": "state-view" }, [
-            this.summary, this.predicates.node
-        ]);
-
         this.handleChange();
     }
 
-    get selection(): ?StateDataPlus {
-        return this._selection;
-    }
-
-    select(state: ?StateDataPlus): void {
+    loadSnapshot(): void {
         const selection = this._selection;
-        if (selection != null && state != null && state.label === selection.label) {
-            this._selection = null;
-        } else {
-            this._selection = state;
-        }
-        this.handleChange();
-    }
-
-    handleChange() {
-        let state = this._selection;
-        if (state != null) {
-            // TODO: documentation
-            this.proxy.getState(state.label).then(data => {
-                this._selection = data;
-                const actionCount = data.numberOfActions;
-                const actionText = actionCount === 1 ? " action" : " actions";
-                dom.replaceChildren(this.summary, [
-                    styledStateLabel(data, data),
-                    " (", stateKindString(data), ", ", String(actionCount), actionText, ")"
-                ]);
-                this.predicates.items = Array.from(data.predicates);
-                this.notify();
-            }).catch(e => {
-                this._selection = null;
+        if (selection != null) {
+            this.proxy.loadSnapshot(selection).then(data => {
                 this.handleChange();
-            });
-        } else {
-            dom.replaceChildren(this.summary, ["no selection"]);
-            this.predicates.items = [];
-            this.notify();
-        }
-    }
-
-}
-
-
-// Lists actions available for the selected state and contains the currently
-// selected action. Observes StateView for the currently selected state.
-class ActionView extends SelectableNodes<ActionData> {
-
-    +proxy: SystemInspector;
-    +stateView: StateView;
-
-    constructor(proxy: SystemInspector, stateView: StateView): void {
-        super(ActionView.asNode, "none");
-        this.node.className = "action-view";
-        this.proxy = proxy;
-        this.stateView = stateView;
-        this.stateView.attach(() => this.handleChange());
-    }
-
-    handleChange(): void {
-        const state = this.stateView.selection;
-        if (state != null) {
-            this.proxy.getActions(state.label).then(actions => {
-                this.items = actions;
             }).catch(e => {
                 this.proxy.logError(e);
             });
-        } else {
-            this.items = [];
+        }
+        this.handleChange();
+    }
+
+    renameSnapshot(): void {
+        const selection = this._selection;
+        const name = this.forms.name.value.trim();
+        if (selection != null && name.length > 0) {
+            this.proxy.nameSnapshot(selection, name).then(data => {
+                this.handleChange();
+            }).catch(e => {
+                this.proxy.logError(e);
+            });
         }
     }
 
-    static asNode(action: ActionData): HTMLDivElement {
-        return dom.DIV({}, [
-            styledStateLabel(action.origin, action.origin), " → {",
-            ...arr.intersperse(", ", action.targets.map(
-                target => styledStateLabel(target, action.origin)
-            )),
-            "}"
-        ]);
-    }
-
-}
-
-
-// Lists actions supports available for the selected action and contains the
-// currently selected action support. Observes ActionView for the currently
-// selected action.
-class ActionSupportView extends SelectableNodes<SupportData> {
-    
-    +proxy: SystemInspector;
-    +actionView: ActionView;
-
-    constructor(proxy: SystemInspector, actionView: ActionView): void {
-        super(ActionSupportView.asNode, "none");
-        this.node.className = "support-view";
-        this.proxy = proxy;
-        this.actionView = actionView;
-        this.actionView.attach(isClick => {
-            if (isClick) this.handleChange();
+    handleChange(): void {
+        this.forms.take.disabled = false;
+        this.proxy.getSnapshots().then(data => {
+            this._data = data;
+            this.redraw();
+        }).catch(e => {
+            this.proxy.logError(e);
         });
     }
 
-    handleChange(): void {
-        const action = this.actionView.selection;
-        if (action != null) {
-            this.proxy.getSupports(action.origin.label, action.id).then(supports => {
-                this.items = supports;
-            }).catch(e => {
-                this.proxy.logError(e);
-            });
+    // Refresh the contents of the snapshot tree-view
+    redraw(): void {
+        if (this._data != null) {
+            dom.replaceChildren(this.treeView, this._renderTree(this._data));
         } else {
-            this.items = [];
+            dom.removeChildren(this.treeView);
         }
     }
 
-    static asNode(support: SupportData): HTMLDivElement {
-        return dom.DIV({}, [
-            "{",
-            ...arr.intersperse(", ", support.targets.map(
-                target => styledStateLabel(target, support.origin)
-            )),
-            "}"
+    // Click handler
+    _select(which: number): void {
+        this._selection = this._selection === which ? null : which;
+        this.forms.load.disabled = this._selection == null;
+        this.forms.rename.disabled = this._selection == null;
+        this.redraw();
+    }
+
+    // Recursive-descent drawing of snapshot tree
+    _renderTree(snapshot: SnapshotData): HTMLDivElement[] {
+        const nodes = [];
+        const cls = "snap" + (snapshot.isCurrent ? " current" : "")
+                           + (snapshot.id === this._selection ? " selection" : "");
+        const node = dom.DIV({ "class": cls }, [
+            snapshot.name,
+            dom.SPAN({}, [snapshot.states + " states", percentageBar(snapshot.ratios)])
         ]);
+        node.addEventListener("click", () => this._select(snapshot.id));
+        nodes.push(node);
+        if (snapshot.children.size > 0) {
+            const indented = dom.DIV({ "class": "indented" });
+            for (let child of snapshot.children) {
+                dom.appendChildren(indented, this._renderTree(child));
+            }
+            nodes.push(indented);
+        }
+        return nodes;
     }
 
 }
 
 
-// Traces through the system
+
+// Tab: Control
+// - TraceView
+// - AutomatonView
+
 class TraceView extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
@@ -1060,8 +1155,7 @@ class TraceView extends ObservableMixin<null> {
 }
 
 
-// Automaton Objective
-class ObjectiveView {
+class AutomatonView {
 
     +node: HTMLDivElement;
     +traceView: TraceView;
@@ -1125,11 +1219,61 @@ class ObjectiveView {
 }
 
 
-// Information on and preview of the control space polytope and sampling of
-// traces through the system based on specific strategies. Observes ActionView
-// to display the control subset (action polytope) of the currently selected
-// action.
-class ControlView {
+
+// Left column
+// - Settings
+// - SpaceView
+// - SystemView
+
+type OperatorWrapper = (StateData, JSONConvexPolytopeUnion) => Promise<OperatorData>;
+// Settings panel for the main view.
+class Settings extends ObservableMixin<null> {
+
+    +node: HTMLDivElement;
+    +proxy: SystemInspector;
+    +toggleKind: Input<boolean>;
+    +toggleLabel: Input<boolean>;
+    +toggleVectorField: Input<boolean>;
+    +highlight: Input<null|OperatorWrapper>;
+    +highlightNode: HTMLDivElement;
+    
+    constructor(proxy: SystemInspector, keybindings: dom.Keybindings): void {
+        super();
+        this.proxy = proxy;
+
+        this.toggleKind = new CheckboxInput(true);
+        this.toggleLabel = new CheckboxInput(false);
+        this.toggleVectorField = new CheckboxInput(false);
+        this.highlight = new SelectInput({
+            "None": null,
+            "Posterior": (state, us) => proxy.getOperator("post", state.label, us),
+            "Predecessor": (state, us) => proxy.getOperator("pre", state.label, us),
+            "Robust Predecessor": (state, us) => proxy.getOperator("preR", state.label, us),
+            "Attractor": (state, us) => proxy.getOperator("attr", state.label, us),
+            "Robust Attractor": (state, us) => proxy.getOperator("attrR", state.label, us)
+        }, "None");
+
+        this.node = dom.DIV({ "class": "settings" }, [
+            dom.LABEL({}, [this.toggleKind.node, "Analysis C", dom.create("u", {}, ["o"]), "lors"]),
+            dom.LABEL({}, [this.toggleLabel.node, "State ", dom.create("u", {}, ["L"]), "abels"]),
+            dom.LABEL({}, [this.toggleVectorField.node, dom.create("u", {}, ["V"]), "ector Field"]),
+            dom.P({ "class": "highlight" }, [
+                dom.create("u", {}, ["H"]), "ighlight Operator:", this.highlight.node
+            ])
+        ]);
+
+        keybindings.bind("o", inputTextRotation(this.toggleKind, ["t", "f"]));
+        keybindings.bind("l", inputTextRotation(this.toggleLabel, ["t", "f"]));
+        keybindings.bind("v", inputTextRotation(this.toggleVectorField, ["t", "f"]));
+        keybindings.bind("h", inputTextRotation(this.highlight, [
+            "None", "Posterior", "Predecessor", "Robust Predecessor", "Attractor", "Robust Attractor"
+        ]));
+    }
+
+}
+
+
+class SpaceView {
 
     +node: HTMLDivElement;
     +proxy: SystemInspector;
@@ -1209,9 +1353,9 @@ class ControlView {
 // states. Has layers for displaying state space subsets (polytopic operators,
 // action supports), state information (selection, labels, kinds), linear
 // predicates, traces, A-induced vector field. Observes:
-// Settings             → Toggle labels, kinds, vector field. Select polytopic operator.
-// Analysis             → Kind changes after analysis.
-// Refinement           → System refresh after refinement.
+// SettingsCtrl         → Toggle labels, kinds, vector field. Select polytopic operator.
+// AnalysisCtrl         → Kind changes after analysis.
+// RefinementCtrl       → System refresh after refinement.
 // StateView            → Selected state.
 // ActionView           → Selected action.
 // ActionSupportView    → Selected action support.
@@ -1445,132 +1589,6 @@ class SystemView {
             [true, "#000000"]
         ]);
         return window.btoa(JSON.stringify(data));
-    }
-
-}
-
-
-class SnapshotManager {
-
-    +node: HTMLDivElement;
-    +proxy: SystemInspector;
-    +analysis: Analysis;
-    +forms: { [string]: HTMLButtonElement|HTMLInputElement };
-    +treeView: HTMLDivElement;
-    // Internal state
-    _data: ?SnapshotData;
-    _selection: ?number;
-
-    constructor(proxy: SystemInspector, analysis: Analysis): void {
-        this.proxy = proxy;
-        this.analysis = analysis;
-        // Widget: menu bar with tree-structure view below
-        this.forms = {
-            take:   dom.BUTTON({}, ["new"]),
-            load:   dom.BUTTON({}, ["load"]),
-            rename: dom.BUTTON({}, ["rename"]),
-            name:   dom.INPUT({ "type": "text", "placeholder": "Snapshot", "size": "25" })
-        };
-        this.forms.take.addEventListener("click", () => this.takeSnapshot());
-        this.forms.load.addEventListener("click", () => this.loadSnapshot());
-        this.forms.rename.addEventListener("click", () => this.renameSnapshot());
-        this.treeView = dom.DIV({ "class": "tree" });
-        this.node = dom.DIV({ "class": "snapshot-view"}, [
-            dom.P({}, [
-                this.forms.take, " ", this.forms.name,
-                dom.DIV({ "class": "right" }, [this.forms.rename, " ", this.forms.load])
-            ]),
-            this.treeView
-        ]);
-        // Ready-message from worker in proxy triggers first handleChange call
-        // and initializes the state variables
-        this._data = null;
-        this._selection = null;
-        // Disable taking snapshots at first, will be enabled with the first
-        // handleChange call
-        this.forms.take.disabled = true;
-    }
-
-    takeSnapshot(): void {
-        const name = this.forms.name.value.trim();
-        this.forms.name.value = "";
-        this.proxy.takeSnapshot(
-            (name.length === 0 ? "Snapshot" : name)
-            // TODO: analysis results
-        );
-        this.handleChange();
-    }
-
-    loadSnapshot(): void {
-        const selection = this._selection;
-        if (selection != null) {
-            this.proxy.loadSnapshot(selection).then(data => {
-                this.handleChange();
-            }).catch(e => {
-                this.proxy.logError(e);
-            });
-        }
-        this.handleChange();
-    }
-
-    renameSnapshot(): void {
-        const selection = this._selection;
-        const name = this.forms.name.value.trim();
-        if (selection != null && name.length > 0) {
-            this.proxy.nameSnapshot(selection, name).then(data => {
-                this.handleChange();
-            }).catch(e => {
-                this.proxy.logError(e);
-            });
-        }
-    }
-
-    handleChange(): void {
-        this.forms.take.disabled = false;
-        this.proxy.getSnapshots().then(data => {
-            this._data = data;
-            this.redraw();
-        }).catch(e => {
-            this.proxy.logError(e);
-        });
-    }
-
-    // Refresh the contents of the snapshot tree-view
-    redraw(): void {
-        if (this._data != null) {
-            dom.replaceChildren(this.treeView, this._renderTree(this._data));
-        } else {
-            dom.removeChildren(this.treeView);
-        }
-    }
-
-    // Click handler
-    _select(which: number): void {
-        this._selection = this._selection === which ? null : which;
-        this.forms.load.disabled = this._selection == null;
-        this.forms.rename.disabled = this._selection == null;
-        this.redraw();
-    }
-
-    // Recursive-descent drawing of snapshot tree
-    _renderTree(snapshot: SnapshotData): HTMLDivElement[] {
-        const nodes = [];
-        const cls = "snap" + (snapshot.isCurrent ? " current" : "")
-                           + (snapshot.id === this._selection ? " selection" : "");
-        const node = dom.DIV({ "class": cls }, [
-            snapshot.name,
-            dom.SPAN({}, [snapshot.states + " states", percentageBar(snapshot.ratios)])
-        ]);
-        node.addEventListener("click", () => this._select(snapshot.id));
-        nodes.push(node);
-        if (snapshot.children.size > 0) {
-            const indented = dom.DIV({ "class": "indented" });
-            for (let child of snapshot.children) {
-                dom.appendChildren(indented, this._renderTree(child));
-            }
-            nodes.push(indented);
-        }
-        return nodes;
     }
 
 }

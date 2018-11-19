@@ -2,9 +2,10 @@
 "use strict";
 
 import type { FigureLayer, Shape } from "./figure.js";
+import type { AnalysisResults } from "./game.js";
 import type { JSONConvexPolytopeUnion, Halfspace } from "./geometry.js";
 import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, TraceData,
-              GameGraphData, UpdateKindsData, RefineData, TakeSnapshotData, LoadSnapshotData,
+              GameGraphData, ProcessAnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData,
               NameSnapshotData, SnapshotData } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
 import type { AutomatonShapeCollection } from "./logic.js";
@@ -365,8 +366,9 @@ export class SystemInspector extends ObservableMixin<null> {
         return this.systemComm.request("sampleTrace", [state, controller, maxSteps]);
     }
 
-    updateKinds(satisfying: Set<StateID>, nonSatisfying: Set<StateID>): Promise<UpdateKindsData> {
-        return this.systemComm.request("updateKinds", [satisfying, nonSatisfying]).then(data => {
+    processAnalysis(results: AnalysisResults): Promise<ProcessAnalysisData> {
+        return this.systemComm.request("processAnalysis", results).then(data => {
+            // Returned is the set of states that has changed kind
             if (data.size > 0) this.notify();
             return data;
         });
@@ -384,7 +386,7 @@ export class SystemInspector extends ObservableMixin<null> {
     }
 
     takeSnapshot(name: string): Promise<TakeSnapshotData> {
-        return this.systemComm.request("takeSnapshot", [name]);
+        return this.systemComm.request("takeSnapshot", name);
     }
 
     loadSnapshot(id: number): Promise<LoadSnapshotData> {
@@ -622,14 +624,12 @@ class AnalysisCtrl extends ObservableMixin<null> {
     +proxy: SystemInspector;
     +button: HTMLButtonElement;
     +info: HTMLSpanElement;
-    _results: Map<string, Set<StateID>>; // TODO: provide interface for refinement
     communicator: ?Communicator<Worker>;
     _ready: boolean;
 
     constructor(proxy: SystemInspector, keybindings: dom.Keybindings): void {
         super();
         this.proxy = proxy;
-        this._results = new Map();
         // Control elements, information display, keybindings
         this.button = dom.BUTTON({}, [dom.create("u", {}, ["a"]), "nalyse"]);
         this.button.addEventListener("click", () => this.analyse());
@@ -717,19 +717,14 @@ class AnalysisCtrl extends ObservableMixin<null> {
                 "worker not available, game analysis not possible"
              );
             return this.communicator.request("analysis", gameGraph);
-        // Process results and update state kinds of system
+        // Hand over analysis results to system worker (triggers update of
+        // system state kinds)
         }).then(results => {
             if (!(results instanceof Map)) throw new Error(
                 "invalid analysis results (must be of type Map)"
             );
-            const satisfying = results.get("satisfying");
-            const nonSatisfying = results.get("non-satisfying");
-            if (satisfying == null || nonSatisfying == null) throw new Error(
-                "invalid analysis results (satisfying and non-satisfying set missing)"
-            );
             this.infoText = "processing results...";
-            // TODO: send all results
-            return this.proxy.updateKinds(satisfying, nonSatisfying);
+            return this.proxy.processAnalysis(results);
         // Show information message
         }).then(updated => {
             const s = updated.size;
@@ -749,14 +744,14 @@ class AnalysisCtrl extends ObservableMixin<null> {
 }
 
 
-// Refinement controls. Observes analysis widget to block operations while
-// analysis is carried out. Also depends on analysis for refinement hints (TODO).
 type RefinementStep = {
     +node: HTMLDivElement,
     +toggle: HTMLInputElement,
     +text: string,
     +name: string
 };
+// Refinement controls. Observes analysis widget to block operations while
+// analysis is carried out.
 class RefinementCtrl {
 
     +node: HTMLDivElement;
@@ -926,10 +921,7 @@ class SnapshotCtrl {
     takeSnapshot(): void {
         const name = this.forms.name.value.trim();
         this.forms.name.value = "";
-        this.proxy.takeSnapshot(
-            (name.length === 0 ? "Snapshot" : name)
-            // TODO: analysis results
-        );
+        this.proxy.takeSnapshot(name.length === 0 ? "Snapshot" : name);
         this.handleChange();
     }
 

@@ -2,7 +2,7 @@
 "use strict";
 
 import type { PredicateID } from "./system.js";
-import type { JSONGameGraph } from "./game.js";
+import type { JSONGameGraph, AnalysisResults } from "./game.js";
 import type { Valuation, Proposition } from "./logic.js";
 
 import { Communicator } from "./worker.js";
@@ -45,7 +45,7 @@ function $valuationFor(predicates: Set<PredicateID>): Valuation {
 const communicator = new Communicator("1W");
 
 type AnalysisRequest = JSONGameGraph;
-type AnalysisData = Map<string, Set<string>>;
+type AnalysisData = AnalysisResults;
 // Receive the transition system induced by the abstracted LSS and create and
 // solve the product-game of the transition system with the objective
 // automaton. Return the analysis result to the inspector.
@@ -60,10 +60,9 @@ communicator.onRequest("analysis", function (data: AnalysisRequest): AnalysisDat
     const game = TwoPlayerProbabilisticGame.fromProduct(
         gameGraph, $automaton, $valuationFor, $coSafeInterpretation
     );
-    return game.analyse(new Map([
-        ["satisfying",      TwoPlayerProbabilisticGame.analyseSatisfying],
-        ["non-satisfying",  TwoPlayerProbabilisticGame.analyseNonSatisfying]
-    ]));
+    return game.analyse([
+        TwoPlayerProbabilisticGame.analyseKind
+    ]);
 });
 
 
@@ -82,7 +81,6 @@ communicator.request("automaton", null).then(function (data) {
     );
     $automaton = OnePairStreettAutomaton.parse(data);
     return communicator.request("coSafeInterpretation", null);
-
 // Obtain co-safe interpretation status (true/false)
 }).then(function (data) {
     if (typeof data !== "boolean") throw new Error(
@@ -93,7 +91,6 @@ communicator.request("automaton", null).then(function (data) {
     );
     $coSafeInterpretation = data;
     return communicator.request("alphabetMap", null);
-
 // Obtain alphabetMap connecting transition labels and propositional formulas
 }).then(function (data) {
     if (typeof data !== "object") throw new Error(
@@ -109,7 +106,6 @@ communicator.request("automaton", null).then(function (data) {
     }
     $alphabetMap = newAlphabetMap;
     return communicator.request("ready");
-
 // All good
 }).then(function (data) {
     // pass

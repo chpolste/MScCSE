@@ -2,7 +2,8 @@
 "use strict";
 
 import type { JSONConvexPolytope, JSONConvexPolytopeUnion } from "./geometry.js";
-import type { JSONGameGraph } from "./game.js";
+import type { JSONGameGraph, AnalysisResults } from "./game.js";
+import type { PartitionMap } from "./refinement.js";
 import type { LSS, State, StateKind, Trace, JSONAbstractedLSS } from "./system.js";
 
 import { controller } from "./controller.js";
@@ -45,7 +46,7 @@ type Snapshot = {
     states: number,
     ratios: { [string]: number },
     system: JSONAbstractedLSS,
-    //analysis: JSONAnalysisResults, // TODO
+    analysis: ?AnalysisResults,
     // Tree structure
     parent: ?Snapshot,
     children: Set<Snapshot>
@@ -59,6 +60,7 @@ class SnapshotManager {
     _root: ?Snapshot;
     _current: ?Snapshot;
     _system: ?AbstractedLSS;
+    _analysis: ?AnalysisResults;
 
     constructor(): void {
         this._snapshots = new Map();
@@ -66,7 +68,10 @@ class SnapshotManager {
         this._root = null;
         this._current = null;
         this._system = null;
+        this._analysis = null;
     }
+
+    // Basic accessors
 
     get system(): AbstractedLSS {
         if (this._system == null) throw new Error(
@@ -79,6 +84,8 @@ class SnapshotManager {
         return this.system.lss;
     }
 
+    // Transferable tree representation for widget-display
+
     get tree(): SnapshotData {
         if (this._root == null) throw new Error(
             "system worker is not initialized yet (snapshot tree root is not set)"
@@ -86,12 +93,26 @@ class SnapshotManager {
         return this._treeify(this._root);
     }
 
-    // Has to be called before instance can be used
+    _treeify(node: Snapshot): SnapshotData {
+        return {
+            id: node.id,
+            name: node.name,
+            states: node.states,
+            ratios: node.ratios,
+            children: sets.map(_ => this._treeify(_), node.children),
+            isCurrent: node === this._current
+        };
+    }
+
+    // Startup (has to be called before instance can be used)
+
     initialize(system: AbstractedLSS): void {
         this._snapshots.clear();
         this._system = system;
         this.take("Initial Problem");
     }
+
+    // Snapshot management
 
     take(name: string): void { // TODO: analysis results
         const snapshot = {
@@ -99,10 +120,10 @@ class SnapshotManager {
             name: name,
             states: this.system.states.size,
             ratios: volumeRatios(this.system),
-            system: this.system.serialize(),
+            system: this.system.serialize(true), // include actions/supports
+            analysis: this._analysis,
             parent: this._current,
-            children: new Set(),
-
+            children: new Set()
         }
         // Maintain snapshot tree
         if (this._current != null) {
@@ -123,6 +144,7 @@ class SnapshotManager {
         );
         this._current = snapshot;
         this._system = AbstractedLSS.deserialize(snapshot.system);
+        this._analysis = snapshot.analysis;
     }
 
     rename(id: number, name: string): void {
@@ -133,16 +155,36 @@ class SnapshotManager {
         snapshot.name = name;
     }
 
-    _treeify(node: Snapshot): SnapshotData {
-        return {
-            id: node.id,
-            name: node.name,
-            states: node.states,
-            ratios: node.ratios,
-            children: sets.map(_ => this._treeify(_), node.children),
-            isCurrent: node === this._current
-        };
+    // Wrapped system functionality (with additional housekeeping)
+
+    processAnalysis(results: AnalysisResults): Set<State> {
+        this._analysis = results;
+        // Update state kinds
+        const satisfying = new Set();
+        const nonSatisfying = new Set();
+        for (let [label, result] of results) {
+            if (result.kind === 1) satisfying.add(label);
+            if (result.kind === -1) nonSatisfying.add(label);
+        }
+        return this.system.updateKinds(satisfying, nonSatisfying);
     }
+
+    refine(partitions: PartitionMap): Set<State> {
+        const refined = $.system.refine(partitions);
+        // TODO: invalidate analysis results for changed states/keep track of
+        // refined states
+        // - how to properly do this?
+        // - is this compatible with refinement of individual states? Should
+        //   the refineries be set up during processAnalysis and then be
+        //   reused so analysis state is preserved? The problem that needs to
+        //   be solved is e.g. in negative refinement, the "no" status of
+        //   states that have been refined should be kept stored or else
+        //   refinement of individual states yields only partial results.
+        // - should this be communicated to the refinement widget, so options
+        //   can be disabled?
+        return refined;
+    }
+
 
 }
 
@@ -265,11 +307,11 @@ communicator.onRequest("getGameGraph", function (data: GameGraphRequest): GameGr
 
 
 // 
-export type UpdateKindsRequest = [Set<string>, Set<string>];
-export type UpdateKindsData = Set<string>;
-communicator.onRequest("updateKinds", function (data: UpdateKindsRequest): UpdateKindsData {
-    const [satisfying, nonSatisfying] = data;
-    return sets.map(_ => _.label, $.system.updateKinds(satisfying, nonSatisfying));
+export type ProcessAnalysisRequest = AnalysisResults;
+export type ProcessAnalysisData = Set<string>;
+communicator.onRequest("processAnalysis", function (data: ProcessAnalysisRequest): ProcessAnalysisData {
+    // State kinds are updated during processing (system.updateKinds)
+    return sets.map(_ => _.label, $.processAnalysis(data));
 });
 
 
@@ -286,7 +328,7 @@ communicator.onRequest("refine", function (data: RefineRequest): RefineData {
         const state = $.system.getState(stateLabel);
         if (state.isUndecided) states.push(state);
     }
-    return sets.map(_ => _.label, $.system.refine(partitionMap(refineries, states)));
+    return sets.map(_ => _.label, $.refine(partitionMap(refineries, states)));
 });
 
 
@@ -303,10 +345,10 @@ communicator.onRequest("getSnapshots", function (data: SnapshotsRequest): Snapsh
     return $.tree;
 });
 
-export type TakeSnapshotRequest = [string]; // TODO: send analysis results
+export type TakeSnapshotRequest = string;
 export type TakeSnapshotData = null;
 communicator.onRequest("takeSnapshot", function (data: TakeSnapshotRequest): TakeSnapshotData {
-    $.take(...data);
+    $.take(data);
     return null;
 });
 

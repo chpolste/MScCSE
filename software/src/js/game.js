@@ -4,7 +4,7 @@
 import type { StateID, ActionID, SupportID, PredicateID } from "./system.js";
 
 import * as logic from "./logic.js";
-import { iter, sets, hashString, UniqueCollection } from "./tools.js";
+import { iter, sets, obj, hashString, UniqueCollection } from "./tools.js";
 
 
 /* Game graph navigation interface
@@ -112,8 +112,10 @@ const DEFAULT_PRIORITY = 2;
 export class ValidationError extends Error {}
 
 // Game analysis after solution
-export type Analyser = (game: TwoPlayerProbabilisticGame) => Set<StateID>;
-export type AnalysisResults = Map<string, Set<StateID>>;
+export type Analyser = TwoPlayerProbabilisticGame => AnalysisResults;
+// Each state has an object with results attached (these should be
+// JSON-compatible)
+export type AnalysisResults = Map<StateID, { [string]: mixed }>;
 
 // 2½-player game
 export class TwoPlayerProbabilisticGame {
@@ -157,11 +159,17 @@ export class TwoPlayerProbabilisticGame {
         return this._winningStatesCoop;
     }
 
-    analyse(analysers: Map<string, Analyser>): AnalysisResults {
-        return new Map(iter.map(
-            ([name, analyser]) => [name, analyser(this)],
-            analysers
-        ));
+    analyse(analysers: Iterable<Analyser>): AnalysisResults {
+        const results = new Map();
+        // Apply each analyser to game
+        for (let analyse of analysers) {
+            // Extend results by results of analyser
+            for (let [label, dict] of analyse(this)) {
+                const result = results.get(label);
+                results.set(label, result == null ? dict : obj.merge(result, dict));
+            }
+        }
+        return results;
     }
 
     takeP1State(systemState: string, automatonState: string): P1State {
@@ -398,20 +406,25 @@ export class TwoPlayerProbabilisticGame {
         return game;
     }
 
-    // Satisfying = initial states from which game can be won
-    static analyseSatisfying(game: TwoPlayerProbabilisticGame): Set<StateID> {
-        return new Set(iter.map(
-            s => s.systemState,
-            sets.intersection(game.winningStates, game.initialStates)
-        ));
-    }
-
-    // Non-satisfying = initial states for which game cannot be won cooperatively
-    static analyseNonSatisfying(game: TwoPlayerProbabilisticGame): Set<StateID> {
-        return new Set(iter.map(
-            s => s.systemState,
-            sets.difference(game.initialStates, game.winningStatesCoop)
-        ));
+    // From which states can the objective be guaranteed by player
+    // 1 independent of the player 2 strategy almost-surely? From which is it
+    // impossible to guarantee almost-sure satisfyability? Which are left
+    // undecided (abstraction too coarse).
+    static analyseKind(game: TwoPlayerProbabilisticGame): AnalysisResults {
+        const win = game.winningStates;
+        const winCoop = game.winningStatesCoop;
+        if (!sets.isSubset(win, winCoop)) throw new Error(
+            "states " + Array.from(sets.difference(win, winCoop)).join(", ")
+            + " have a winning stategy but cannot be won cooperatively"
+        );
+        const results = new Map();
+        for (let state of game.initialStates) {
+            let kind = -1; // non-satisfying
+            if (winCoop.has(state)) kind++; // bump to undecided
+            if (win.has(state)) kind++; // bump to satisfying
+            results.set(state.systemState, { kind: kind });
+        }
+        return results;
     }
 
 }

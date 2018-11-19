@@ -5,8 +5,10 @@ import type { JSONConvexPolytope, JSONConvexPolytopeUnion } from "./geometry.js"
 import type { JSONGameGraph } from "./game.js";
 import type { LSS, State, StateKind, Trace, JSONAbstractedLSS } from "./system.js";
 
+import { controller } from "./controller.js";
 import { union } from "./geometry.js";
-import { AbstractedLSS, controller, refinery, partitionMap } from "./system.js";
+import { refinery, partitionMap } from "./refinement.js";
+import { AbstractedLSS } from "./system.js";
 import { iter, sets } from "./tools.js";
 import { Communicator } from "./worker.js";
 

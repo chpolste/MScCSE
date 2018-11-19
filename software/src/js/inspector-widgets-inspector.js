@@ -616,7 +616,6 @@ class ActionSupportView extends SelectableNodes<SupportData> {
 // - RefinementCtrl
 // - SnapshotCtrl
 
-type JSONAnalysisResults = { [string]: string[] };
 class AnalysisCtrl extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
@@ -629,18 +628,16 @@ class AnalysisCtrl extends ObservableMixin<null> {
 
     constructor(proxy: SystemInspector, keybindings: dom.Keybindings): void {
         super();
-        this._results = new Map();
         this.proxy = proxy;
-
+        this._results = new Map();
+        // Control elements, information display, keybindings
         this.button = dom.BUTTON({}, [dom.create("u", {}, ["a"]), "nalyse"]);
         this.button.addEventListener("click", () => this.analyse());
         this.info = dom.SPAN();
         this.node = dom.DIV({ "class": "analysis-control"}, [
             dom.P({}, [this.button, " ", this.info])
         ]);
-
         keybindings.bind("a", () => this.analyse());
-
         // Create and setup the worker (separate worker for analysis, so system
         // exploration stays responsive)
         this.ready = false;
@@ -712,61 +709,41 @@ class AnalysisCtrl extends ObservableMixin<null> {
         }
         this.ready = false;
         this.infoText = "constructing game abstraction...";
-        const startTime = performance.now();
-        // Send the transition system induced by the abstracted LSS to the
-        // worker and analyse it with respect to the previously sent objective
-        // and proposition mapping.
+        let startTime = performance.now();
+        // Redirect game graph to analysis worker and wait for results
         this.proxy.getGameGraph().then(gameGraph => {
             this.infoText = "analysing...";
-            // Redirect game graph to analysis worker
-            if (this.communicator == null) throw new Error(); // TODO: no non-worker fallback anymore
+            if (this.communicator == null) throw new Error(
+                "worker not available, game analysis not possible"
+             );
             return this.communicator.request("analysis", gameGraph);
+        // Process results and update state kinds of system
         }).then(results => {
+            if (!(results instanceof Map)) throw new Error(
+                "invalid analysis results (must be of type Map)"
+            );
+            const satisfying = results.get("satisfying");
+            const nonSatisfying = results.get("non-satisfying");
+            if (satisfying == null || nonSatisfying == null) throw new Error(
+                "invalid analysis results (satisfying and non-satisfying set missing)"
+            );
+            this.infoText = "processing results...";
+            // TODO: send all results
+            return this.proxy.updateKinds(satisfying, nonSatisfying);
+        // Show information message
+        }).then(updated => {
+            const s = updated.size;
             const elapsed = performance.now() - startTime;
-            if (results instanceof Map) {
-                this.processAnalysisResults(results, elapsed);
-            } else {
-                this.infoText = "analysis error '" + String(results) + "'";
-            }
+            this.infoText = "Updated " + s + (s === 1 ? " state" : " states") + " after " + t2s(elapsed) + ".";
             this.ready = true;
         }).catch(err => {
+            this.infoText = "analysis error";
             this.proxy.logError(err);
+            // Even though it is probably not a good idea to continue once an
+            // analysis error has occured, the user could still resume from
+            // a previous snapshot
+            this.ready = true;
         });
-    }
-
-    // Apply analysis results to system and show information message
-    processAnalysisResults(results: Map<string, Set<StateID>>, elapsed: number): void {
-        this._results = results;
-        const satisfying = results.get("satisfying");
-        const nonSatisfying = results.get("non-satisfying");
-        let updated = new Set();
-        if (satisfying != null && nonSatisfying != null) {
-            this.proxy.updateKinds(satisfying, nonSatisfying).then(updated => {
-                this.infoText = (
-                    "Updated " + updated.size + (updated.size === 1 ? " state" : " states")
-                    + " after " + t2s(elapsed) + "."
-                );
-            }).catch(err => {
-                this.proxy.logError(err);
-            });
-        }
-    }
-
-    // TODO
-    serializeResults(): JSONAnalysisResults {
-        const results = {};
-        for (let [name, stateLabels] of this._results.entries()) {
-            results[name] = Array.from(stateLabels);
-        }
-        return results;
-    }
-
-    // TODO
-    deserializeResults(json: JSONAnalysisResults): void {
-        this._results = new Map();
-        for (let name in json) {
-            this._results.set(name, new Set(json[name]));
-        }
     }
 
 }

@@ -405,7 +405,7 @@ class AbstractConvexPolytope implements ConvexPolytope {
     get centroid() { throw new NotImplementedError() };
 
     constructor(vertices: ?Vector[], halfspaces: ?Halfspace[]): void {
-        if (this.constructor === "AbstractConvexPolytope") {
+        if (this.constructor.name === "AbstractConvexPolytope") {
             throw new TypeError("must not instanciate AbstractConvexPolytope");
         }
         this._vertices = vertices;
@@ -573,7 +573,7 @@ class AbstractConvexPolytope implements ConvexPolytope {
 
     // Set difference, yields a union of convex polytopes (in general).
     // Implementation of the regiondiff algorithm by Baotić (2009).
-    remove(...others?: HalfspaceContainer[]): ConvexPolytopeUnion {
+    remove(...others: HalfspaceContainer[]): ConvexPolytopeUnion {
         if (others == null || others.length == 0) {
             return [this];
         }

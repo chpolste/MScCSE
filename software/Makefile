@@ -1,22 +1,20 @@
 # CLI tools and their flags
 
-NODE_BIN = ./node_modules/.bin
-
 BABEL_FLAGS = --source-maps inline
-BABEL = $(NODE_BIN)/babel $(BABEL_FLAGS)
+BABEL = npx babel $(BABEL_FLAGS)
 
 BABELIFY_FLAGS = 
 BROWSERIFY_FLAGS = --debug
-BROWSERIFY = $(NODE_BIN)/browserify $(BROWSERIFY_FLAGS) -t [ babelify $(BABELIFY_FLAGS) ]
+BROWSERIFY = npx browserify $(BROWSERIFY_FLAGS) -t [ babelify $(BABELIFY_FLAGS) ]
 
-MOCHA_FLAGS = --require babel-core/register --timeout 5000
-MOCHA = $(NODE_BIN)/mocha $(MOCHA_FLAGS)
+MOCHA_FLAGS = --compilers js:@babel/register --timeout 5000
+MOCHA = npx mocha $(MOCHA_FLAGS)
 
 UGLIFYCSS_FLAGS = 
-UGLIFYCSS = $(NODE_BIN)/uglifycss $(UGLIFYCSS_FLAGS)
+UGLIFYCSS = npx uglifycss $(UGLIFYCSS_FLAGS)
 
-FLOW = $(NODE_BIN)/flow 
-FLOW_TYPED = $(NODE_BIN)/flow-typed
+FLOW = npx flow 
+FLOW_TYPED = npx flow-typed
 
 HTML_INJECT_FLAGS = 
 HTML_INJECT = ./scripts/html-inject

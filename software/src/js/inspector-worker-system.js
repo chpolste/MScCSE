@@ -162,9 +162,10 @@ class SnapshotManager {
         // Update state kinds
         const satisfying = new Set();
         const nonSatisfying = new Set();
-        for (let [label, result] of results) {
-            if (result.kind === 1) satisfying.add(label);
-            if (result.kind === -1) nonSatisfying.add(label);
+        for (let state of this.system.states.values()) {
+            if (results.winInit.has(state.label)) satisfying.add(state.label);
+            if (!results.winInitCoop.has(state.label)) nonSatisfying.add(state.label);
+
         }
         return this.system.updateKinds(satisfying, nonSatisfying);
     }

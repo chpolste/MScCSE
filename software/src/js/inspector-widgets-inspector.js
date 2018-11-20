@@ -720,9 +720,6 @@ class AnalysisCtrl extends ObservableMixin<null> {
         // Hand over analysis results to system worker (triggers update of
         // system state kinds)
         }).then(results => {
-            if (!(results instanceof Map)) throw new Error(
-                "invalid analysis results (must be of type Map)"
-            );
             this.infoText = "processing results...";
             return this.proxy.processAnalysis(results);
         // Show information message

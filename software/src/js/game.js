@@ -115,7 +115,11 @@ export class ValidationError extends Error {}
 export type Analyser = TwoPlayerProbabilisticGame => AnalysisResults;
 // Each state has an object with results attached (these should be
 // JSON-compatible)
-export type AnalysisResults = Map<StateID, { [string]: mixed }>;
+export type AnalysisResults = {
+    winInit: Set<StateID>,
+    winInitCoop: Set<StateID>
+    // TODO: action/supoort-based refinement hints
+};
 
 // 2½-player game
 export class TwoPlayerProbabilisticGame {
@@ -141,35 +145,6 @@ export class TwoPlayerProbabilisticGame {
     // Convenient access to collection of player 1 and 2 states of the game
     get states(): Iterable<PState> {
         return iter.chain(this.p1States, this.p2States);
-    }
-
-    // Solve the game for adversarial player 2
-    get winningStates(): Set<PState> {
-        if (this._winningStates == null) {
-            this._winningStates = this._solve(pre1, pre2, pre3);
-        }
-        return this._winningStates;
-    }
-
-    // Solve the game for cooperative player 2
-    get winningStatesCoop(): Set<PState> {
-        if (this._winningStatesCoop == null) {
-            this._winningStatesCoop = this._solve(pre1Coop, pre2Coop, pre3Coop);
-        }
-        return this._winningStatesCoop;
-    }
-
-    analyse(analysers: Iterable<Analyser>): AnalysisResults {
-        const results = new Map();
-        // Apply each analyser to game
-        for (let analyse of analysers) {
-            // Extend results by results of analyser
-            for (let [label, dict] of analyse(this)) {
-                const result = results.get(label);
-                results.set(label, result == null ? dict : obj.merge(result, dict));
-            }
-        }
-        return results;
     }
 
     takeP1State(systemState: string, automatonState: string): P1State {
@@ -230,13 +205,23 @@ export class TwoPlayerProbabilisticGame {
         }
     }
 
+    // Solve the game for adversarial player 2
+    solution(): Set<PState> {
+        return this._solution(pre1, pre2, pre3);
+    }
+
+    // Solve the game for cooperative player 2
+    solutionCoop(): Set<PState> {
+        return this._solution(pre1Coop, pre2Coop, pre3Coop);
+    }
+
     // Generic game solver (works for adversarial and cooperative player 2,
     // depending on the predecessor functions). Fixed point algorithm with
     // cubic complexity. Solution is the set of states for which player 1 has
     // an almost-sure winning strategy.
     // TODO: add reference for algorithm
     // TODO: remove unneccesary set copies
-    _solve(pre1: Pre1Func, pre2: Pre2Func, pre3: Pre3Func): Set<PState> {
+    _solution(pre1: Pre1Func, pre2: Pre2Func, pre3: Pre3Func): Set<PState> {
         let oldX, oldY, oldZ;
         let newX = new Set(this.states);
         let newY = new Set();
@@ -260,6 +245,20 @@ export class TwoPlayerProbabilisticGame {
             newY = new Set();
         } while (!sets.areEqual(oldX, newX));
         return oldX;
+    }
+
+    analysis(): AnalysisResults {
+        const win = this.solution();
+        const winCoop = this.solutionCoop();
+        // Basic result plausibility check
+        if (!sets.isSubset(win, winCoop)) throw new Error(
+            "states " + Array.from(sets.difference(win, winCoop)).join(", ")
+            + " have a winning stategy but cannot be won cooperatively"
+        );
+        return {
+            winInit: sets.map(_ => _.systemState, sets.intersection(win, this.initialStates)),
+            winInitCoop: sets.map(_ => _.systemState,  sets.intersection(winCoop, this.initialStates))
+        };
     }
 
     // Construct synchronous product game from system abstraction-induced game
@@ -404,27 +403,6 @@ export class TwoPlayerProbabilisticGame {
         // Verify game integrity
         game.validate();
         return game;
-    }
-
-    // From which states can the objective be guaranteed by player
-    // 1 independent of the player 2 strategy almost-surely? From which is it
-    // impossible to guarantee almost-sure satisfyability? Which are left
-    // undecided (abstraction too coarse).
-    static analyseKind(game: TwoPlayerProbabilisticGame): AnalysisResults {
-        const win = game.winningStates;
-        const winCoop = game.winningStatesCoop;
-        if (!sets.isSubset(win, winCoop)) throw new Error(
-            "states " + Array.from(sets.difference(win, winCoop)).join(", ")
-            + " have a winning stategy but cannot be won cooperatively"
-        );
-        const results = new Map();
-        for (let state of game.initialStates) {
-            let kind = -1; // non-satisfying
-            if (winCoop.has(state)) kind++; // bump to undecided
-            if (win.has(state)) kind++; // bump to satisfying
-            results.set(state.systemState, { kind: kind });
-        }
-        return results;
     }
 
 }

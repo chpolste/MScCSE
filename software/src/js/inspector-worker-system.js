@@ -3,14 +3,14 @@
 
 import type { JSONConvexPolytope, JSONConvexPolytopeUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResults } from "./game.js";
-import type { PartitionMap } from "./refinement.js";
+import type { Refinery, PartitionMap } from "./refinement.js";
 import type { LSS, State, StateKind, Trace, JSONAbstractedLSS } from "./system.js";
 
 import { controller } from "./controller.js";
 import { union } from "./geometry.js";
-import { refinery, partitionMap } from "./refinement.js";
+import { Refineries, partitionMap } from "./refinement.js";
 import { AbstractedLSS } from "./system.js";
-import { iter, sets } from "./tools.js";
+import { iter, sets, obj } from "./tools.js";
 import { Communicator } from "./worker.js";
 
 
@@ -61,6 +61,7 @@ class SnapshotManager {
     _current: ?Snapshot;
     _system: ?AbstractedLSS;
     _analysis: ?AnalysisResults;
+    _refineries: { [string]: Refinery };
 
     constructor(): void {
         this._snapshots = new Map();
@@ -110,6 +111,7 @@ class SnapshotManager {
         this._snapshots.clear();
         this._system = system;
         this.take("Initial Problem");
+        this._setupRefineries();
     }
 
     // Snapshot management
@@ -145,6 +147,7 @@ class SnapshotManager {
         this._current = snapshot;
         this._system = AbstractedLSS.deserialize(snapshot.system);
         this._analysis = snapshot.analysis;
+        this._setupRefineries();
     }
 
     rename(id: number, name: string): void {
@@ -162,28 +165,30 @@ class SnapshotManager {
         // Update state kinds
         const satisfying = new Set();
         const nonSatisfying = new Set();
+        // Update system kinds
         for (let state of this.system.states.values()) {
             if (results.winInit.has(state.label)) satisfying.add(state.label);
             if (!results.winInitCoop.has(state.label)) nonSatisfying.add(state.label);
-
         }
-        return this.system.updateKinds(satisfying, nonSatisfying);
+        const updated = this.system.updateKinds(satisfying, nonSatisfying);
+        // Refinery setup is affected by analysis results and system, so both
+        // have to be updated earlier
+        this._setupRefineries();
+        return updated;
     }
 
-    refine(partitions: PartitionMap): Set<State> {
-        const refined = $.system.refine(partitions);
-        // TODO: invalidate analysis results for changed states/keep track of
-        // refined states
-        // - how to properly do this?
-        // - is this compatible with refinement of individual states? Should
-        //   the refineries be set up during processAnalysis and then be
-        //   reused so analysis state is preserved? The problem that needs to
-        //   be solved is e.g. in negative refinement, the "no" status of
-        //   states that have been refined should be kept stored or else
-        //   refinement of individual states yields only partial results.
-        // - should this be communicated to the refinement widget, so options
-        //   can be disabled?
-        return refined;
+    refine(steps: Iterable<string>, states: Iterable<State>): Set<State> {
+        const refineries = [];
+        for (let step of steps) {
+            const refinery = this._refineries[step];
+            if (refinery == null) throw new Error("Refinement step '" + step + "' not recognized");
+            refineries.push(refinery);
+        }
+        return $.system.refine(partitionMap(refineries, states));
+    }
+
+    _setupRefineries(results: ?AnalysisResults): void {
+        this._refineries = obj.map((key, Cls) => new Cls(this.system, this._analysis), Refineries);
     }
 
 
@@ -321,7 +326,7 @@ export type RefineRequest = [?string, string[]];
 export type RefineData = Set<string>;
 communicator.onRequest("refine", function (data: RefineRequest): RefineData {
     const [stateLabel, steps] = data;
-    const refineries = steps.map(_ => new refinery[_]($.system));
+    // Which states to refine?
     const states = [];
     if (stateLabel == null) {
         states.push(...iter.filter(_ => _.isUndecided, $.system.states.values()));
@@ -329,7 +334,8 @@ communicator.onRequest("refine", function (data: RefineRequest): RefineData {
         const state = $.system.getState(stateLabel);
         if (state.isUndecided) states.push(state);
     }
-    return sets.map(_ => _.label, $.refine(partitionMap(refineries, states)));
+    // Return set of states that were changed by refinement
+    return sets.map(_ => _.label, $.refine(steps, states));
 });
 
 

@@ -1,6 +1,7 @@
 // @flow
 "use strict";
 
+import type { AnalysisResults } from "./game.js";
 import type { ConvexPolytopeUnion } from "./geometry.js";
 import type { State, AbstractedLSS } from "./system.js";
 
@@ -19,7 +20,7 @@ export function partitionMap(steps: Refinery[], states: Iterable<State>): Partit
 
 // A Refinery partitions a (subset of a) state
 export interface Refinery {
-    constructor(AbstractedLSS): void;
+    constructor(AbstractedLSS, ?AnalysisResults): void;
     partition(State, ConvexPolytopeUnion): RefinementPartition;
 }
 
@@ -34,16 +35,22 @@ export type RefinementPartition = { done: ConvexPolytopeUnion, rest: ConvexPolyt
 // Remove Attractor of non-satisfying states
 class NegativeAttrRefinery implements Refinery {
 
-    +nonSatisfyingStates: State[];
+    +negStates: State[];
     +uus: ConvexPolytopeUnion;
 
-    constructor(system: AbstractedLSS): void {
-        this.nonSatisfyingStates = Array.from(system.states.values()).filter(s => s.isNonSatisfying);
+    constructor(system: AbstractedLSS, results: ?AnalysisResults): void {
+        if (results == null) {
+            this.negStates = [];
+        } else {
+            const winCoop = results.winCoop;
+            // TODO: make dynamics operators accept iterables in system
+            this.negStates = Array.from(system.states.values()).filter(_ => !winCoop.has(_.label));
+        }
         this.uus = system.lss.uus;
     }
 
     partition(state: State, rest: ConvexPolytopeUnion): RefinementPartition {
-        const attr = state.attr(this.uus, this.nonSatisfyingStates);
+        const attr = state.attr(this.uus, this.negStates);
         const done = union.simplify(union.intersect(attr, rest));
         const newRest = union.simplify(union.remove(rest, done));
         return { done: done, rest: newRest };
@@ -51,21 +58,34 @@ class NegativeAttrRefinery implements Refinery {
 
 }
 
+// Remove Attractor of non-satisfying states
 class PositivePreRRefinery implements Refinery {
 
-    constructor(system: AbstractedLSS): void {
-        // TODO
+    +posStates: State[];
+    +uus: ConvexPolytopeUnion;
+
+    constructor(system: AbstractedLSS, results: ?AnalysisResults): void {
+        if (results == null) {
+            this.posStates = [];
+        } else {
+            const win = results.win;
+            this.posStates = Array.from(system.states.values()).filter(_ => win.has(_.label));
+        }
+        this.uus = system.lss.uus;
     }
 
     partition(state: State, rest: ConvexPolytopeUnion): RefinementPartition {
-        return { done: [], rest: rest };
+        const prer = state.preR(this.uus, this.posStates);
+        const done = union.simplify(union.intersect(prer, rest));
+        const newRest = union.simplify(union.remove(rest, done));
+        return { done: done, rest: newRest };
     }
 
 }
 
 class PositiveAttrRRefinery implements Refinery {
 
-    constructor(system: AbstractedLSS): void {
+    constructor(system: AbstractedLSS, results: ?AnalysisResults): void {
         // TODO
     }
 
@@ -76,7 +96,7 @@ class PositiveAttrRRefinery implements Refinery {
 }
 
 // Collection of refineries for module export
-export const refinery = {
+export const Refineries = {
     NegativeAttr: NegativeAttrRefinery,
     PositivePreR: PositivePreRRefinery,
     PositiveAttrR: PositiveAttrRRefinery

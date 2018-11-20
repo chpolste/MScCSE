@@ -772,7 +772,7 @@ class RefinementCtrl {
         // Refinement step configurator
         this._steps = [
             this._newStep("Negative Attractor", "NegativeAttr"),
-            this._newStep("Positive Robust Predecessor (TODO)", "PositivePreR"),
+            this._newStep("Positive Robust Predecessor", "PositivePreR"),
             this._newStep("Positive Robust Attractors (TODO)", "PositiveAttrR")
         ];
         this.stepBox = dom.DIV({ "class": "refinement-steps" }, [

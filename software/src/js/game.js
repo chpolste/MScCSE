@@ -116,6 +116,8 @@ export type Analyser = TwoPlayerProbabilisticGame => AnalysisResults;
 // Each state has an object with results attached (these should be
 // JSON-compatible)
 export type AnalysisResults = {
+    win: Set<StateID>,
+    winCoop: Set<StateID>,
     winInit: Set<StateID>,
     winInitCoop: Set<StateID>
     // TODO: action/supoort-based refinement hints
@@ -248,6 +250,7 @@ export class TwoPlayerProbabilisticGame {
     }
 
     analysis(): AnalysisResults {
+        // TODO: filter out dead-end states
         const win = this.solution();
         const winCoop = this.solutionCoop();
         // Basic result plausibility check
@@ -256,6 +259,10 @@ export class TwoPlayerProbabilisticGame {
             + " have a winning stategy but cannot be won cooperatively"
         );
         return {
+            // All states
+            win: sets.map(_ => _.systemState, win),
+            winCoop: sets.map(_ => _.systemState, winCoop),
+            // Only initial states
             winInit: sets.map(_ => _.systemState, sets.intersection(win, this.initialStates)),
             winInitCoop: sets.map(_ => _.systemState,  sets.intersection(winCoop, this.initialStates))
         };

@@ -172,7 +172,7 @@ export class LSS {
     actionPolytope(x: ConvexPolytope, y: ConvexPolytope): ConvexPolytopeUnion {
         const Axpws = linalg.minkowski.axpy(this.A, x.vertices, this.ww.vertices);
         const poly = polytopeType(this.dim).hull(linalg.minkowski.xmy(y.vertices, Axpws));
-        return union.intersect([poly.applyRight(this.B)], this.uus);
+        return union.intersect(poly.applyRight(this.B).toUnion(), this.uus);
     }
 
     zNonZero(xs: ConvexPolytopeUnion): ConvexPolytopeUnion {
@@ -189,7 +189,7 @@ export class LSS {
         const system = new AbstractedLSS(this);
         // Initial abstraction into states is given by decomposition and
         // partition of outer region into convex polytopes
-        const outer = union.remove(this.oneStepReachable, [this.xx]);
+        const outer = union.remove(this.oneStepReachable, this.xx.toUnion());
         for (let polytope of outer) {
             system.newState(polytope, OUTER);
         }
@@ -201,7 +201,7 @@ export class LSS {
         // Split state space according to given predicates
         const partition = itemizedOperatorPartition(
             arr.zip2(predicateLabels, predicates),
-            ([label, predicate]) => [this.xx.intersect(predicate)]
+            ([label, predicate]) => this.xx.intersect(predicate).toUnion()
         );
         for (let part of partition) {
             if (part.polys.length > 1) throw new Error(
@@ -404,7 +404,7 @@ export class AbstractedLSS implements GameGraph {
         const refined = new Set();
         for (let [state, partition] of partitions.entries()) {
             // Validate that partition covers state polytope
-            if (!union.isSameAs([state.polytope], partition)) throw new Error(
+            if (!union.isSameAs(state.polytope.toUnion(), partition)) throw new Error(
                 "Faulty partition" // TODO
             );
             // If partition does not change state, keep it and continue
@@ -668,7 +668,7 @@ export class State {
         const post = this.post(us);
         const out = new Set();
         for (let state of this.system.states.values()) {
-            if (!union.isEmpty(union.intersect(post, [state.polytope]))) out.add(state);
+            if (!union.isEmpty(union.intersect(post, state.polytope.toUnion()))) out.add(state);
         }
         return out;
     }
@@ -687,7 +687,7 @@ export class State {
 
     // Partition the state using the given refinement steps.
     partition(steps: Refinery[]): ConvexPolytopeUnion {
-        let parts = { done: [], rest: [this.polytope] };
+        let parts = { done: [], rest: this.polytope.toUnion() };
         for (let step of steps) {
             const newParts = step.partition(this, parts.rest);
             parts.done.push(...newParts.done);
@@ -796,7 +796,7 @@ export class Action {
                         prePs.push(preP.applyRight(lss.A));
                     }
                 }
-                prePs = union.intersect(prePs, [this.origin.polytope]);
+                prePs = union.intersect(prePs, this.origin.polytope.toUnion());
                 return new ActionSupport(this, part.items, union.simplify(prePs));
             }).filter(_ => !union.isEmpty(_.origins));
             return this.supports;

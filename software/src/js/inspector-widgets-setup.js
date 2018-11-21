@@ -164,7 +164,7 @@ export class ProblemSetup extends ObservableMixin<null> {
     get lss(): LSS {
         return new LSS(
             this.equation.A.value, this.equation.B.value,
-            this.ss.value, this.rs.value, [this.cs.value]
+            this.ss.value, this.rs.value, this.cs.value.toUnion()
         );
     }
 
@@ -246,7 +246,7 @@ class SystemPreview {
             const lss = this.setup.lss;
             this.plot.projection = autoProjection(6/5, ...lss.extent);
             stateShapes.push({ kind: "polytope", vertices: lss.xx.vertices });
-            outerShapes.push(...union.remove(lss.oneStepReachable, [lss.xx]).map(
+            outerShapes.push(...union.remove(lss.oneStepReachable, lss.xx.toUnion()).map(
                 poly => ({ kind: "polytope", vertices: poly.vertices })
             ));
         // Form is not filled out sufficiently to preview a system

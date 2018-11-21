@@ -277,10 +277,10 @@ export type OperatorRequest = [string, string, JSONConvexPolytopeUnion];
 export type OperatorData = JSONConvexPolytopeUnion;
 const OPERATORS = {
     "post":  (state, us) => state.isOuter ? [] : state.post(us),
-    "pre":   (state, us) => $.lss.pre($.lss.xx, us, [state.polytope]),
-    "preR":  (state, us) => $.lss.preR($.lss.xx, us, [state.polytope]),
-    "attr":  (state, us) => $.lss.attr($.lss.xx, us, [state.polytope]),
-    "attrR": (state, us) => $.lss.attrR($.lss.xx, us, [state.polytope])
+    "pre":   (state, us) => $.lss.pre($.lss.xx, us, state.polytope.toUnion()),
+    "preR":  (state, us) => $.lss.preR($.lss.xx, us, state.polytope.toUnion()),
+    "attr":  (state, us) => $.lss.attr($.lss.xx, us, state.polytope.toUnion()),
+    "attrR": (state, us) => $.lss.attrR($.lss.xx, us, state.polytope.toUnion())
 };
 communicator.onRequest("getOperator", function (data: OperatorRequest): OperatorData {
     const [operator, stateLabel, control] = data;

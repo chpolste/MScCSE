@@ -345,7 +345,11 @@ export interface ConvexPolytope extends HalfspaceContainer{
     // Difference
     remove(...HalfspaceContainer[]): ConvexPolytopeUnion;
 
-    /* JSON-compatible serialization */
+    /* Data Transformation */
+
+    // Union with polytope as only member
+    toUnion(): ConvexPolytopeUnion;
+    // JSON-compatible serialization
     serialize(): JSONConvexPolytope;
 
     /* Internals */
@@ -549,7 +553,7 @@ class AbstractConvexPolytope implements ConvexPolytope {
     split(...halfspaces: Halfspace[]): ConvexPolytopeUnion {
         // Must test variadic arg for undefined (https://github.com/facebook/flow/issues/3648)
         if (halfspaces == null || halfspaces.length == 0) {
-            return [this];
+            return this.toUnion();
         }
         const rest = halfspaces.splice(1);
         const split1 = this.intersect(halfspaces[0]).split(...rest).filter(h => !h.isEmpty);
@@ -575,7 +579,7 @@ class AbstractConvexPolytope implements ConvexPolytope {
     // Implementation of the regiondiff algorithm by Baotić (2009).
     remove(...others: HalfspaceContainer[]): ConvexPolytopeUnion {
         if (others == null || others.length == 0) {
-            return [this];
+            return this.toUnion();
         }
         // Find a polytope in others that intersects and therefore requires
         // removal
@@ -583,7 +587,7 @@ class AbstractConvexPolytope implements ConvexPolytope {
         while (this.intersect(others[k]).isEmpty) {
             k++;
             if (k == others.length) {
-                return [this];
+                return this.toUnion();
             }
         }
         const region = [];
@@ -603,6 +607,10 @@ class AbstractConvexPolytope implements ConvexPolytope {
             poly = poly.intersect(halfspace);
         }
         return region;
+    }
+
+    toUnion(): ConvexPolytopeUnion {
+        return [this];
     }
 
     serialize(): JSONConvexPolytope {
@@ -1044,7 +1052,7 @@ export const union = {
         if (xs.length <= 1) {
             return xs;
         }
-        const hull = [union.hull(xs)];
+        const hull = union.hull(xs).toUnion();
         if (union.covers(xs, hull)) {
             return hull;
         }

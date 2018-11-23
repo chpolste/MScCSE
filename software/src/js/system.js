@@ -3,8 +3,8 @@
 
 import type { Controller } from "./controller.js";
 import type { GameGraph, JSONGameGraph } from "./game.js";
-import type { ConvexPolytope, ConvexPolytopeUnion,
-              JSONConvexPolytope, JSONConvexPolytopeUnion, JSONHalfspace } from "./geometry.js";
+import type { Polytope, ConvexPolytopeUnion,
+              JSONPolytope, JSONConvexPolytopeUnion, JSONHalfspace } from "./geometry.js";
 import type { Matrix, Vector } from "./linalg.js";
 import type { Refinery, PartitionMap } from "./refinement.js";
 
@@ -69,8 +69,8 @@ export function itemizedOperatorPartition<T>(items: Iterable<T>, operator: (T) =
 export type JSONLSS = {
     A: number[][], // matrix
     B: number[][], // matrix
-    stateSpace: JSONConvexPolytope,
-    randomSpace: JSONConvexPolytope,
+    stateSpace: JSONPolytope,
+    randomSpace: JSONPolytope,
     controlSpace: JSONConvexPolytopeUnion
 };
 
@@ -79,13 +79,13 @@ export class LSS {
     +dim: number;
     +A: Matrix;
     +B: Matrix;
-    +xx: ConvexPolytope;
+    +xx: Polytope;
     +xxExt: ConvexPolytopeUnion;
-    +ww: ConvexPolytope;
+    +ww: Polytope;
     +uus: ConvexPolytopeUnion;
     +oneStepReachable: ConvexPolytopeUnion;
 
-    constructor(A: Matrix, B: Matrix, stateSpace: ConvexPolytope, randomSpace: ConvexPolytope,
+    constructor(A: Matrix, B: Matrix, stateSpace: Polytope, randomSpace: Polytope,
                 controlSpace: ConvexPolytopeUnion): void {
         this.A = A;
         this.B = B;
@@ -116,7 +116,7 @@ export class LSS {
     }
 
     // Posterior: Post(x, {u0, ...})
-    post(x: ConvexPolytope, us: ConvexPolytopeUnion): ConvexPolytopeUnion {
+    post(x: Polytope, us: ConvexPolytopeUnion): ConvexPolytopeUnion {
         const xvs = x.vertices;
         const wvs = this.ww.vertices;
         const posts = [];
@@ -128,7 +128,7 @@ export class LSS {
     }
 
     // Predecessor: Pre(x, {u0, ...}, {y0, ...})
-    pre(x: ConvexPolytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
+    pre(x: Polytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
         const pres = [];
         for (let u of us) {
             const Bupws = linalg.minkowski.axpy(this.B, u.vertices, this.ww.vertices);
@@ -141,7 +141,7 @@ export class LSS {
     }
 
     // Robust Predecessor: PreR(x, {u0, ...}, {y0, ...})
-    preR(x: ConvexPolytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
+    preR(x: Polytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
         const pontrys = union.pontryagin(ys, this.ww).filter(_ => !_.isEmpty);
         if (union.isEmpty(pontrys)) {
             return [];
@@ -158,18 +158,18 @@ export class LSS {
     }
 
     // Attractor: Attr(x, {u0, ...}, {y0, ...})
-    attr(x: ConvexPolytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
+    attr(x: Polytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
         return x.remove(...this.preR(x, us, union.remove(this.xxExt, ys)));
     }
 
     // Robust Attractor: AttrR(x, {u0, ...}, {y0, ...})
-    attrR(x: ConvexPolytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
+    attrR(x: Polytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
         return x.remove(...this.pre(x, us, union.remove(this.xxExt, ys)));
     }
 
     // Action Polytope
     // TODO: accept a u that isn't the entire control space
-    actionPolytope(x: ConvexPolytope, y: ConvexPolytope): ConvexPolytopeUnion {
+    actionPolytope(x: Polytope, y: Polytope): ConvexPolytopeUnion {
         const Axpws = linalg.minkowski.axpy(this.A, x.vertices, this.ww.vertices);
         const poly = polytopeType(this.dim).hull(linalg.minkowski.xmy(y.vertices, Axpws));
         return union.intersect(poly.applyRight(this.B).toUnion(), this.uus);
@@ -325,7 +325,7 @@ export class AbstractedLSS implements GameGraph {
     }
 
     // Create a new state, with an automatically generated label
-    newState(polytope: ConvexPolytope, kind: StateKind, predicates?: Iterable<PredicateID>): State {
+    newState(polytope: Polytope, kind: StateKind, predicates?: Iterable<PredicateID>): State {
         const label = this.genLabel();
         const state = new State(this, label, polytope, kind, predicates);
         this.states.set(label, state);
@@ -576,7 +576,7 @@ export class AbstractedLSS implements GameGraph {
 // JSON-compatible serialization
 type JSONState = {
     label: string,
-    polytope: JSONConvexPolytope,
+    polytope: JSONPolytope,
     predicates: string[],
     kind: StateKind
 };
@@ -584,7 +584,7 @@ type JSONState = {
 export class State {
 
     +system: AbstractedLSS;
-    +polytope: ConvexPolytope;
+    +polytope: Polytope;
     +label: StateID;
     +predicates: Set<PredicateID>;
     +actions: Action[];
@@ -592,7 +592,7 @@ export class State {
     kind: StateKind;
     _reachable: Set<State>;
 
-    constructor(system: AbstractedLSS, label: StateID, polytope: ConvexPolytope, kind: StateKind,
+    constructor(system: AbstractedLSS, label: StateID, polytope: Polytope, kind: StateKind,
             predicates?: Iterable<PredicateID>): void {
         this.system = system;
         this.polytope = polytope;

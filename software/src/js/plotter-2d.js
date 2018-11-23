@@ -2,7 +2,7 @@
 "use strict";
 
 import type { FigureLayer, Shape } from "./figure.js";
-import type { JSONConvexPolytope, ConvexPolytope } from "./geometry.js";
+import type { JSONPolytope, Polytope } from "./geometry.js";
 import type { Input } from "./widgets-input.js";
 
 import * as dom from "./dom.js";
@@ -26,7 +26,7 @@ function longColor(color: string) {
 
 
 export type JSONPolygonItem = [
-    JSONConvexPolytope,
+    JSONPolytope,
     [boolean, string],
     [boolean, string],
     [boolean, string]
@@ -36,12 +36,12 @@ export type JSONPolygonItem = [
 class PolygonItem extends ObservableMixin<null> {
 
     +polygons: PolygonList;
-    +polygon: ConvexPolytope;
+    +polygon: Polytope;
     label: [boolean, string];
     fill: [boolean, string];
     stroke: [boolean, string];
 
-    constructor(polygons: PolygonList, polygon: ConvexPolytope, label: string): void {
+    constructor(polygons: PolygonList, polygon: Polytope, label: string): void {
         super();
         this.polygons = polygons;
         this.polygon = polygon;
@@ -144,7 +144,7 @@ class PolygonList extends ObservableMixin<null> {
     }
 
     // Insert a polygon at the top of the list
-    add(polygon: ConvexPolytope, name: string): void {
+    add(polygon: Polytope, name: string): void {
         const item = new PolygonItem(this, polygon, name);
         this.items.unshift(item);
         this.notify();
@@ -265,7 +265,7 @@ class PolygonInput {
 
 interface InputForm {
     +node: HTMLElement;
-    getPolygon(PolygonInput): [ConvexPolytope, string];
+    getPolygon(PolygonInput): [Polytope, string];
 }
 
 // Insert the polytope that is the hull of a set of points inserted by the user
@@ -277,7 +277,7 @@ class HullInputForm implements InputForm {
         this.node = dom.TEXTAREA({ rows: "6", cols: "70" }, []);
     }
 
-    getPolygon(input: PolygonInput): [ConvexPolytope, string] {
+    getPolygon(input: PolygonInput): [Polytope, string] {
         return [Polygon.hull(JSON.parse(this.node.value)), input.genName()];
     }
 }
@@ -297,7 +297,7 @@ class TransformationInputForm implements InputForm {
         this.node = dom.DIV({}, ["v' = ", this.matrix.node, "v + ", this.vector.node]);
     }
 
-    getPolygon(input: PolygonInput): [ConvexPolytope, string] {
+    getPolygon(input: PolygonInput): [Polytope, string] {
         const item = this.items.selection;
         if (item == null) throw new Error("No polygon selected");
         const matrix = this.matrix.value;

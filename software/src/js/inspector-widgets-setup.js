@@ -1,7 +1,7 @@
 // @flow
 "use strict";
 
-import type { ConvexPolytope } from "./geometry.js";
+import type { Polytope } from "./geometry.js";
 import type { Proposition, ObjectiveKind } from "./logic.js";
 import type { FigureLayer } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
@@ -89,9 +89,9 @@ export class ProblemSetup extends ObservableMixin<null> {
     +csDim: Input<number>;
     +equation: EvolutionEquationInput;
     +preview: SystemPreview;
-    +ss: Input<ConvexPolytope>;
-    +rs: Input<ConvexPolytope>;
-    +cs: Input<ConvexPolytope>;
+    +ss: Input<Polytope>;
+    +rs: Input<Polytope>;
+    +cs: Input<Polytope>;
     +predicates: Input<[Halfspace[], string[]]>;
     +objective: Input<Objective>;
     +callback: ProblemCallback;
@@ -331,7 +331,7 @@ class EvolutionEquationInput {
 // Input of a convex polytope in H-representation (predicates as linear
 // inequations) with a preview. Validation adapts to external dimensions
 // selection.
-class PolytopeInput extends ObservableMixin<null> implements Input<ConvexPolytope> {
+class PolytopeInput extends ObservableMixin<null> implements Input<Polytope> {
 
     +node: HTMLDivElement;
     +preview: AxesPlot;
@@ -362,7 +362,7 @@ class PolytopeInput extends ObservableMixin<null> implements Input<ConvexPolytop
         this.handleChange();
     }
 
-    get value(): ConvexPolytope {
+    get value(): Polytope {
         return polytopeType(this.variables.length).intersection(this.predicates.value);
     }
 

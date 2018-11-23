@@ -2,7 +2,7 @@
 "use strict";
 
 import type { FigureLayer } from "./figure.js";
-import type { Halfspace, ConvexPolytope } from "./geometry.js";
+import type { Halfspace, Polytope } from "./geometry.js";
 import type { Vector, Matrix } from "./linalg.js";
 import type { Input } from "./widgets-input.js";
 
@@ -77,7 +77,7 @@ class PolytopeViewer {
         ]);
     }
 
-    set polytope(poly: ConvexPolytope): void {
+    set polytope(poly: Polytope): void {
         this.input.value = JSON.stringify(poly.vertices);
         this.handleChange();
     }
@@ -193,14 +193,14 @@ class PolytopeForm extends ObservableMixin<null> {
         this.handleChange();
     }
     
-    get polytope(): ConvexPolytope {
+    get polytope(): Polytope {
         const input = JSON.parse(this.input.value);
         if (input.length === 0) throw new Error("polytope is empty");
         const dim = input[0].length;
         return polytopeType(dim).hull(input);
     }
 
-    set polytope(polytope: ?ConvexPolytope): void {
+    set polytope(polytope: ?Polytope): void {
         this.input.value = polytope != null ? JSON.stringify(polytope.vertices) : "";
         this.handleChange();
     }
@@ -244,7 +244,7 @@ class TransformationWidget {
 
     +input: PolytopeForm;
     +output: PolytopeForm;
-    +transformation: Input<(ConvexPolytope, any) => ConvexPolytope>;
+    +transformation: Input<(Polytope, any) => Polytope>;
     +transformationForm: HTMLParagraphElement;
     +matrix: HTMLTextAreaElement;
     +errorBox: HTMLDivElement;
@@ -300,7 +300,7 @@ class TransformationWidget {
 
 class MinkowskiPontryaginWidget {
 
-    +op: SelectInput<(ConvexPolytope, ConvexPolytope) => ConvexPolytope>;
+    +op: SelectInput<(Polytope, Polytope) => Polytope>;
     +arg1: PolytopeForm;
     +arg2: PolytopeForm;
     +result: PolytopeForm;
@@ -350,7 +350,7 @@ class OperatorsWidget extends ObservableMixin<null> {
     +matrixA: HTMLTextAreaElement;
     +matrixB: HTMLTextAreaElement;
     +inputs: { [string]: PolytopeForm };
-    +op: Input<(Matrix, Matrix) => ConvexPolytope>;
+    +op: Input<(Matrix, Matrix) => Polytope>;
     +node: HTMLDivElement;
 
     constructor(viewer: PolytopeViewer): void {
@@ -417,7 +417,7 @@ class OperatorsWidget extends ObservableMixin<null> {
 
     // TODO: use proper union-based operators from system
 
-    post(A: Matrix, B: Matrix): ConvexPolytope {
+    post(A: Matrix, B: Matrix): Polytope {
         const x = this.inputs.x.polytope;
         const u = this.inputs.u.polytope;
         const w = this.inputs.w.polytope;
@@ -426,7 +426,7 @@ class OperatorsWidget extends ObservableMixin<null> {
         );
     }
 
-    actionPolytope(A: Matrix, B: Matrix): ConvexPolytope {
+    actionPolytope(A: Matrix, B: Matrix): Polytope {
         const x = this.inputs.x.polytope;
         const y = this.inputs.y.polytope;
         const w = this.inputs.w.polytope;
@@ -435,7 +435,7 @@ class OperatorsWidget extends ObservableMixin<null> {
         ).applyRight(B);
     }
 
-    pre(A: Matrix, B: Matrix): ConvexPolytope {
+    pre(A: Matrix, B: Matrix): Polytope {
         const x = this.inputs.x.polytope;
         const u = this.inputs.u.polytope;
         const y = this.inputs.y.polytope;
@@ -446,7 +446,7 @@ class OperatorsWidget extends ObservableMixin<null> {
         ).applyRight(A).intersect(x);
     }
 
-    preR(A: Matrix, B: Matrix): ConvexPolytope {
+    preR(A: Matrix, B: Matrix): Polytope {
         const x = this.inputs.x.polytope;
         const u = this.inputs.u.polytope;
         const y = this.inputs.y.polytope;

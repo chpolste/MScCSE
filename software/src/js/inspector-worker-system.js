@@ -1,7 +1,7 @@
 // @flow
 "use strict";
 
-import type { JSONConvexPolytope, JSONConvexPolytopeUnion } from "./geometry.js";
+import type { JSONPolytope, JSONConvexPolytopeUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResults } from "./game.js";
 import type { Refinery, PartitionMap } from "./refinement.js";
 import type { LSS, State, StateKind, Trace, JSONAbstractedLSS } from "./system.js";
@@ -207,7 +207,7 @@ export type StateData = {
     kind: StateKind
 };
 export type StateDataPlus = StateData & {
-    polytope: JSONConvexPolytope,
+    polytope: JSONPolytope,
     centroid: number[],
     predicates: Set<string>,
     numberOfActions: number

@@ -214,6 +214,10 @@ export class Halfspace implements HalfspaceContainer {
         return Halfspace.normalized(normal, offset);
     }
 
+    static deserialize(json: JSONHalfspace): Halfspace {
+        return new Halfspace(json.normal, json.offset);
+    }
+
     // Empty "halfspace"
     get isInfeasible(): boolean {
         return this.offset === -Infinity;
@@ -260,10 +264,6 @@ export class Halfspace implements HalfspaceContainer {
         return { normal: this.normal, offset: this.offset };
     }
 
-    static deserialize(json: JSONHalfspace): Halfspace {
-        return new Halfspace(json.normal, json.offset);
-    }
-
 }
 
 
@@ -271,133 +271,59 @@ export class Halfspace implements HalfspaceContainer {
 
 /* Convex Polytopes */
 
-// Interface for convex polytopes of all dimensions
-export interface ConvexPolytope extends HalfspaceContainer{
+// Polytopic region
+export type Region = Polytope | PolytopeUnion;
 
-    /* Properties */
-
-    // Vertices in canonical order
-    +vertices: Vector[];
-    // Halfspaces in canonical order
-    +halfspaces: Halfspace[];
-    // All polytopes that are not full-dimensional are considered to be empty.
-    +isEmpty: boolean;
-    +volume: number;
-    +centroid: Vector;
-    // Axis-aligned minimum bounding box
-    +boundingBox: ConvexPolytope;
-    // Axis-aligned extent of the polytope
-    +extent: [number, number][];
-
-    /* Predicates */
-
-    // Polytope equality test
-    isSameAs(ConvexPolytope): boolean;
-    // Is the point inside the polytope?
-    contains(Vector): boolean;
-    // Do all points of the polytope fulfil the linear predicate?
-    fulfils(Halfspace): boolean;
-
-    /* Probability */
-
-    // A random point from inside the polytope, based on a uniform distribution
-    sample(): Vector;
-
-    /* Geometric transformations */
-
-    // Polytope translated by vector v
-    translate(Vector): ConvexPolytope;
-    // Reflection with respect to the origin
-    invert(): ConvexPolytope;
-    // Apply matrix from the left to every vertex
-    apply(Matrix): ConvexPolytope;
-    // Apply matrix from the right to every halfspace normal. For invertible
-    // matrices, applyRight is identical to calling apply with the inverse of
-    // the matrix.
-    applyRight(Matrix): ConvexPolytope;
-
-    /* Polytope-polytope operations */
-
-    // Minkowski sum as defined by Baotić (2009)
-    minkowski(ConvexPolytope): ConvexPolytope;
-    // Pontryagin difference as defined by Baotić (2009). Note that pontryagin
-    // is in general not the inverse of minkowski (e.g. consider the Pontryagin
-    // difference between a square and a triangle).
-    pontryagin(ConvexPolytope): ConvexPolytope;
-    // Split the convex polytope along the boundaries of the given halfspaces
-    // and return the partition.
-    split(...Halfspace[]): ConvexPolytopeUnion;
-    // Intersection
-    intersect(...HalfspaceContainer[]): ConvexPolytope;
-    // Difference
-    remove(...HalfspaceContainer[]): ConvexPolytopeUnion;
-
-    /* Data Transformation */
-
-    // Union with polytope as only member
-    toUnion(): ConvexPolytopeUnion;
-    // JSON-compatible serialization
-    serialize(): JSONConvexPolytope;
-
-    /* Internals */
-
-    // No processing of args in the constructor, therefore canonical form of
-    // vertices/halfspaces must be provided. Use the alternative static method
-    // constructors intersection, hull and empty to create convex polytopes
-    // from non-canonical input.
-    constructor(?Vector[], ?Halfspace[]): void;
-    // Derive H-representation from V-representation and store in _halfspaces
-    _HtoV(): void;
-    // Derive V-representation from H-representation and store in _vertices
-    _VtoH(): void;
-
-}
-
-export type JSONVertices = number[][];
-export type JSONConvexPolytope = { dim: number, vertices: JSONVertices };
+// Convex polytopes
+export type Polytope = Interval | Polygon;
 
 // Interface declaring the static methods of a convex polytope type
-interface ConvexPolytopeType {
+interface PolytopeType {
     // Return an empty polytope
-    empty(): ConvexPolytope;
+    empty(): Polytope;
     // Convex hull of a set of points
-    hull(Vector[]): ConvexPolytope;
+    hull(Vector[]): Polytope;
     // intersection takes any collection of halfspaces, noredund expects
     // halfspaces to be in proper order and without infeasible/trivial ones
-    intersection(Halfspace[]): ConvexPolytope;
-    noredund(Halfspace[]): ConvexPolytope;
+    intersection(Halfspace[]): Polytope;
+    noredund(Halfspace[]): Polytope;
     // JSON deserialization
-    deserialize(JSONVertices): ConvexPolytope;
+    deserialize(JSONVertices): Polytope;
 }
 
+// Mapping: dimension -> Polytope (required for polytope transformations that
+// result in a change of dimensionality).
+export function polytopeType(dim: number): PolytopeType {
+    if (dim === 1) return Interval;
+    else if (dim === 2) return Polygon;
+    else throw new NotImplementedError();
+}
 
-/* Abstract base class for convex polytopes 
+// JSON serializations
+export type JSONVertices = number[][];
+export type JSONPolytope = { dim: number, vertices: JSONVertices };
 
-Contains dimension-independent implementations. Contains stubs to implement the
-ConvexPolytope interface, so that `this` can be used inside methods without
-flow complaining (no other way to specify abstract methods). However, this
-means that flow will not detect missing methods in the subtypes.
 
-Specification by either halfspaces or vertices is sufficient, the other
-representation is computed (and cached) automatically by the getters (which
-depend on _VtoH and HtoV for conversion).
-*/
-
-class AbstractConvexPolytope implements ConvexPolytope {
+// Dimension-independent implementations
+class PolytopeMixin {
 
     _vertices: ?Vector[];
     _halfspaces: ?Halfspace[];
     +dim: number;
 
-    // Methods that have to be implemented by subtypes (abstract methods):
-    _VtoH() { throw new NotImplementedError() };
-    _HtoV() { throw new NotImplementedError() };
+    // Stubs for dimension-specific methods, so that `this` can be used inside
+    // methods without flow complaining (no abstract methods).
     get volume() { throw new NotImplementedError() };
     get centroid() { throw new NotImplementedError() };
+    toUnion() { throw new NotImplementedError() };
+    _VtoH() { throw new NotImplementedError() };
+    _HtoV() { throw new NotImplementedError() };
 
+    // Specification by either halfspaces or vertices is sufficient, the other
+    // representation is computed (and cached) automatically by the getters.
     constructor(vertices: ?Vector[], halfspaces: ?Halfspace[]): void {
-        if (this.constructor.name === "AbstractConvexPolytope") {
-            throw new TypeError("must not instanciate AbstractConvexPolytope");
+        if (this.constructor.name === "PolytopeMixin") {
+            throw new TypeError("must not instanciate PolytopeMixin");
         }
         this._vertices = vertices;
         this._halfspaces = halfspaces;
@@ -424,16 +350,19 @@ class AbstractConvexPolytope implements ConvexPolytope {
     }
 
     get isEmpty(): boolean {
+        // All polytopes that are not full-dimensional are considered to be empty.
         return (this._vertices != null && this._vertices.length <= this.dim)
             || (this._halfspaces != null && this._halfspaces.length <= this.dim)
             || Math.abs(this.volume) < TOL;
     }
 
-    get boundingBox(): ConvexPolytope {
+    // Axis-aligned minimum bounding box
+    get boundingBox(): Polytope {
         let bbox = cartesian(...this.extent);
         return polytopeType(this.dim).hull(bbox);
     }
 
+    // Axis-aligned extent
     get extent(): [number, number][] {
         let mins = new Array(this.dim);
         mins.fill(Infinity);
@@ -452,14 +381,15 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return arr.zip2(mins, maxs);
     }
 
-    // Test if two polytopes are identical by comparing vertices. Because of
-    // canonical ordering vertices can be directly compared in order.
-    isSameAs(other: ConvexPolytope): boolean {
+    // Polytope equality test
+    isSameAs(other: Polytope): boolean {
         let thisVertices = this.vertices;
         let otherVertices = other.vertices;
         if (this.dim !== other.dim || thisVertices.length !== otherVertices.length) {
             return false;
         }
+        // Test if two polytopes are identical by comparing vertices. Because
+        // of canonical ordering vertices can be directly compared in order.
         for (let i = 0; i < thisVertices.length; i++) {
             if (!linalg.areClose(thisVertices[i], otherVertices[i])) {
                 return false;
@@ -468,19 +398,21 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return true;
     }
 
+    // Does the given point lie inside the polytope?
     contains(p: Vector): boolean {
         linalg.assertEqualDims(this.dim, p.length);
         return iter.and(this.halfspaces.map(h => h.contains(p)));
     }
 
+    // Do all points of the polytope fulfil the linear predicate?
     fulfils(predicate: Halfspace): boolean {
         linalg.assertEqualDims(this.dim, predicate.dim);
         return iter.and(this.vertices.map(v => predicate.contains(v)));
     }
 
-    // Generic implementation is rejection based sampling
-    // TODO: this is not guaranteed to terminate
+    // A random point from inside the polytope, based on a uniform distribution
     sample(): Vector {
+        // Rejection based sampling should terminate eventually
         const extent = this.extent;
         let point;
         do {
@@ -489,7 +421,8 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return point;
     }
 
-    translate(v: Vector): ConvexPolytope {
+    // Polytope translated by vector v
+    translate(v: Vector): Polytope {
         // TODO: is hull really necessary? Translation should not change the
         // proper order of vertices...
         linalg.assertEqualDims(v.length, this.dim);
@@ -497,21 +430,27 @@ class AbstractConvexPolytope implements ConvexPolytope {
         //return polytopeType(this.dim).noredund(this.halfspaces.map(h => h.translate(v)));
     }
 
-    invert(): ConvexPolytope {
+    // Reflection with respect to the origin
+    invert(): Polytope {
         return polytopeType(this.dim).hull(this.vertices.map(v => v.map(x => -x)));
     }
 
-    apply(m: Matrix): ConvexPolytope {
+    // Apply matrix from the left to every vertex
+    apply(m: Matrix): Polytope {
         linalg.assertEqualDims(m[0].length, this.dim);
         return polytopeType(m.length).hull(this.vertices.map(v => linalg.apply(m, v)));
     }
 
-    applyRight(m: Matrix): ConvexPolytope {
+    // Apply matrix from the right to every halfspace normal. For invertible
+    // matrices, applyRight is identical to calling apply with the inverse of
+    // the matrix.
+    applyRight(m: Matrix): Polytope {
         linalg.assertEqualDims(m.length, this.dim);
         return polytopeType(m[0].length).intersection(this.halfspaces.map(h => h.applyRight(m)));
     }
 
-    minkowski(other: ConvexPolytope): ConvexPolytope {
+    // Minkowski sum as defined by Baotić (2009)
+    minkowski(other: Polytope): Polytope {
         linalg.assertEqualDims(this.dim, other.dim);
         let points = [];
         for (let v of this.vertices) {
@@ -522,7 +461,10 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return polytopeType(this.dim).hull(points);
     }
 
-    pontryagin(other: ConvexPolytope): ConvexPolytope {
+    // Pontryagin difference as defined by Baotić (2009). Note that pontryagin
+    // is in general not the inverse of minkowski (e.g. consider the Pontryagin
+    // difference between a square and a triangle).
+    pontryagin(other: Polytope): Polytope {
         linalg.assertEqualDims(this.dim, other.dim);
         const ws = other.invert().vertices;
         const halfspaces = [];
@@ -537,6 +479,8 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return polytopeType(this.dim).noredund(halfspaces);
     }
 
+    // Split the polytope along the boundaries of the given halfspaces and
+    // return the partition.
     split(...halfspaces: Halfspace[]): ConvexPolytopeUnion {
         // Must test variadic arg for undefined (https://github.com/facebook/flow/issues/3648)
         if (halfspaces == null || halfspaces.length == 0) {
@@ -550,7 +494,7 @@ class AbstractConvexPolytope implements ConvexPolytope {
 
     // Intersection of convex polytopes is trivial in H-representation: put all
     // halfspaces together and reduce to minimal (canonical) form.
-    intersect(...others: HalfspaceContainer[]): ConvexPolytope {
+    intersect(...others: HalfspaceContainer[]): Polytope {
         if (others == null || others.length == 0) {
             return polytopeType(this.dim).empty();
         }
@@ -596,21 +540,21 @@ class AbstractConvexPolytope implements ConvexPolytope {
         return region;
     }
 
-    toUnion(): ConvexPolytopeUnion {
-        return [this];
-    }
-
-    serialize(): JSONConvexPolytope {
+    serialize(): JSONPolytope {
         return { dim: this.dim, vertices: this.vertices };
     }
 
 }
 
+// Deserialization has to dispatch to implementations based on dimension.
+export function deserializePolytope(json: JSONPolytope): Polytope {
+    return polytopeType(json.dim).deserialize(json.vertices);
+}
 
 
-/* 1-dimensional convex polytope (interval) */
 
-export class Interval extends AbstractConvexPolytope implements ConvexPolytope {
+// One-dimensional convex polytope
+export class Interval extends PolytopeMixin implements HalfspaceContainer {
 
     constructor(vertices: ?Vector[], halfspaces: ?Halfspace[]): void {
         super(vertices, halfspaces);
@@ -695,6 +639,10 @@ export class Interval extends AbstractConvexPolytope implements ConvexPolytope {
         return this;
     }
 
+    toUnion(): ConvexPolytopeUnion {
+        return [this];
+    }
+
     _HtoV(): void {
         if (this._halfspaces == null) {
             throw new ValueError();
@@ -717,9 +665,8 @@ export class Interval extends AbstractConvexPolytope implements ConvexPolytope {
 
 
 
-/* 2-dimensional convex polytope (polygon) */
-
-export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
+// Two-dimensional convex polytope
+export class Polygon extends PolytopeMixin implements HalfspaceContainer {
     
     constructor(vertices: ?Vector[], halfspaces: ?Halfspace[]): void {
         super(vertices, halfspaces);
@@ -906,9 +853,13 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
         return [x / 6 / vol, y / 6 / vol];
     }
 
+    toUnion(): ConvexPolytopeUnion {
+        return [this];
+    }
+
     // Custom intersect implementation for 2D: make use of absolute canonical
     // ordering and use merge to achieve linear computational complexity
-    intersect(...others: HalfspaceContainer[]): ConvexPolytope {
+    intersect(...others: HalfspaceContainer[]): Polytope {
         if (others == null || others.length === 0) {
             return polytopeType(this.dim).empty();
         // Because HalfspaceContainers must maintain proper ordering of
@@ -958,32 +909,22 @@ export class Polygon extends AbstractConvexPolytope implements ConvexPolytope {
 }
 
 
-// Mapping: dimension -> ConvexPolytope type (required for polytope
-// transformations that result in a change of dimensionality). This list also
-// enforces that the types above fulfil the ConvexPolytopeType interface.
-const _PolytopeTypes: (?ConvexPolytopeType)[] = [null, Interval, Polygon];
 
-export function polytopeType(dim: number): ConvexPolytopeType {
-    const polytopeType = _PolytopeTypes[dim];
-    if (polytopeType == null) {
-        throw new NotImplementedError();
-    } else {
-        return polytopeType;
-    }
+export type JSONPolytopeUnion = JSONPolytope[];
+// TODO
+export class PolytopeUnion {
+
+    // TODO
+
 }
-
-export function deserializePolytope(json: JSONConvexPolytope): ConvexPolytope {
-    return polytopeType(json.dim).deserialize(json.vertices);
-}
-
 
 
 /* Union operations */
 
 // Unions of convex polytopes are represented by a list of polytopes instead of
 // a dedicated type.
-export type JSONConvexPolytopeUnion = JSONConvexPolytope[];
-export type ConvexPolytopeUnion = ConvexPolytope[];
+export type JSONConvexPolytopeUnion = JSONPolytope[];
+export type ConvexPolytopeUnion = Polytope[];
 
 export const union = {
 
@@ -1004,11 +945,11 @@ export const union = {
         });
     },
 
-    boundingBox(xs: ConvexPolytopeUnion): ConvexPolytope {
+    boundingBox(xs: ConvexPolytopeUnion): Polytope {
         return polytopeType(xs[0].dim).hull(cartesian(...union.extent(xs)));
     },
 
-    hull(xs: ConvexPolytopeUnion): ConvexPolytope {
+    hull(xs: ConvexPolytopeUnion): Polytope {
         if (union.isEmpty(xs)) {
             throw new ValueError("Union is empty, cannot determine dim");
         }
@@ -1081,7 +1022,7 @@ export const union = {
 
     // Minkowski sum can be distributed to each individual polytope of the
     // union, then remove the overlapping parts that occur multiple times.
-    minkowski(xs: ConvexPolytopeUnion, y: ConvexPolytope): ConvexPolytopeUnion {
+    minkowski(xs: ConvexPolytopeUnion, y: Polytope): ConvexPolytopeUnion {
         return union.disjunctify(xs.map(x => x.minkowski(y)));
     },
 
@@ -1089,7 +1030,7 @@ export const union = {
     // problem lies with shared sections of edges of neighbouring polytopes.
     // Instead, apply Minkowksi sum to the complement, what remains is the
     // Pontryagin difference of the union.
-    pontryagin(xs: ConvexPolytopeUnion, y: ConvexPolytope): ConvexPolytopeUnion {
+    pontryagin(xs: ConvexPolytopeUnion, y: Polytope): ConvexPolytopeUnion {
         // Since unbounded polygons are not representable by this library, use
         // bbox as a substitute for the complement
         const bbox = union.boundingBox(xs);
@@ -1100,11 +1041,11 @@ export const union = {
         return bbox.pontryagin(y).remove(...union.minkowski(complement, y.invert()));
     },
 
-    serialize(xs: ConvexPolytopeUnion): JSONConvexPolytope[] {
+    serialize(xs: ConvexPolytopeUnion): JSONPolytope[] {
         return xs.map(x => x.serialize());
     },
 
-    deserialize(json: JSONConvexPolytope[]): ConvexPolytopeUnion {
+    deserialize(json: JSONPolytope[]): ConvexPolytopeUnion {
         return json.map(deserializePolytope);
     }
 

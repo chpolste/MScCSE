@@ -210,7 +210,10 @@ export class LSS {
             system.newState(part.polys[0], UNDECIDED, part.items.map(_ => _[0]).filter(_ => _.length > 0));
         }
         // Add the part of the state space not covered by any predicate
-        const leftOverPoly = this.xx.intersect(...predicates.map(_ => _.flip()));
+        let leftOverPoly = this.xx;
+        for (let predicate of predicates) {
+            leftOverPoly = leftOverPoly.intersect(predicate.flip());
+        }
         if (!leftOverPoly.isEmpty) {
             system.newState(leftOverPoly, UNDECIDED, []);
         }

@@ -155,17 +155,11 @@ function hsieTerms(node: ASTNode, flip: boolean): { "coefficient": number, "vari
 
 /* Halfspaces */
 
-// Anything that contains halfspaces should provide this interface.
-export interface HalfspaceContainer {
-    +dim: number;
-    +halfspaces: Halfspace[]; // ordered (depends on dim) and non-redundant
-}
-
 export type JSONHalfspace = { normal: number[], offset: number };
 // A halfspace represented by the inequality: normal · x <= offset. Due to the
 // limitations of floating point arithmetic and using TOL for comparisons, no
 // distinction between < and <= is made.
-export class Halfspace implements HalfspaceContainer {
+export class Halfspace {
 
     +dim: number;
     +normal: Vector; // length 1
@@ -226,11 +220,6 @@ export class Halfspace implements HalfspaceContainer {
     // "Halfspace" is really the entire space it is embedded in
     get isTrivial(): boolean {
         return this.offset === Infinity;
-    }
-
-    // In order to fulfil the HalfspaceContainer interface (for convenience)
-    get halfspaces(): Halfspace[] {
-        return [this];
     }
 
     flip(): Halfspace {
@@ -494,21 +483,15 @@ class PolytopeMixin {
 
     // Intersection of convex polytopes is trivial in H-representation: put all
     // halfspaces together and reduce to minimal (canonical) form.
-    intersect(...others: HalfspaceContainer[]): Polytope {
-        if (others == null || others.length == 0) {
-            return polytopeType(this.dim).empty();
-        }
-        const halfspaces = this.halfspaces.slice();
-        for (let other of others) {
-            linalg.assertEqualDims(this.dim, other.dim);
-            halfspaces.push(...other.halfspaces);
-        }
-        return polytopeType(this.dim).intersection(halfspaces);
+    intersect(other: Halfspace|Polytope): Polytope {
+        linalg.assertEqualDims(this.dim, other.dim);
+        const hs = other instanceof Halfspace ? [other] : other.halfspaces;
+        return polytopeType(this.dim).intersection([...this.halfspaces, ...hs]);
     }
 
     // Set difference, yields a union of convex polytopes (in general).
     // Implementation of the regiondiff algorithm by Baotić (2009).
-    remove(...others: HalfspaceContainer[]): ConvexPolytopeUnion {
+    remove(...others: (Halfspace|Polytope)[]): ConvexPolytopeUnion {
         if (others == null || others.length == 0) {
             return this.toUnion();
         }
@@ -526,7 +509,8 @@ class PolytopeMixin {
         // Use the halfspaces of the polytope that is removed to cut the
         // remainder into convex polytopes, then continue removal recursively
         // with the remaining elements in other.
-        for (let halfspace of others[k].halfspaces) {
+        const hs = others[k] instanceof Halfspace ? [others[k]] : others[k].halfspaces;
+        for (let halfspace of hs) {
             const polyCandidate = poly.intersect(halfspace.flip());
             if (!polyCandidate.isEmpty) {
                 if (k < others.length - 1) {
@@ -554,7 +538,7 @@ export function deserializePolytope(json: JSONPolytope): Polytope {
 
 
 // One-dimensional convex polytope
-export class Interval extends PolytopeMixin implements HalfspaceContainer {
+export class Interval extends PolytopeMixin {
 
     constructor(vertices: ?Vector[], halfspaces: ?Halfspace[]): void {
         super(vertices, halfspaces);
@@ -666,7 +650,7 @@ export class Interval extends PolytopeMixin implements HalfspaceContainer {
 
 
 // Two-dimensional convex polytope
-export class Polygon extends PolytopeMixin implements HalfspaceContainer {
+export class Polygon extends PolytopeMixin {
     
     constructor(vertices: ?Vector[], halfspaces: ?Halfspace[]): void {
         super(vertices, halfspaces);
@@ -859,21 +843,13 @@ export class Polygon extends PolytopeMixin implements HalfspaceContainer {
 
     // Custom intersect implementation for 2D: make use of absolute canonical
     // ordering and use merge to achieve linear computational complexity
-    intersect(...others: HalfspaceContainer[]): Polytope {
-        if (others == null || others.length === 0) {
-            return polytopeType(this.dim).empty();
-        // Because HalfspaceContainers must maintain proper ordering of
-        // halfspaces, all that's necessary to produce a joint set of
-        // halfspaces with proper ordering is one merge step.
-        } else if (others.length === 1) {
-            linalg.assertEqualDims(this.dim, others[0].dim);
-            return polytopeType(this.dim).noredund(
-                arr.merge(halfspaceOrdering2D, this.halfspaces, others[0].halfspaces)
-            );
-        // TODO: implement n-way merge
-        } else {
-            return super.intersect(...others);
-        }
+    intersect(other: Halfspace|Polytope): Polytope {
+        linalg.assertEqualDims(this.dim, other.dim);
+        const hs = other instanceof Halfspace ? [other] : other.halfspaces;
+        // Because Polytopes maintain canonical ordering of halfspaces, all
+        // that's necessary to produce a joint set of halfspaces with canonical
+        // ordering is one merge step.
+        return polytopeType(this.dim).noredund(arr.merge(halfspaceOrdering2D, this.halfspaces, hs));
     }
 
     _HtoV(): void {

@@ -72,7 +72,7 @@ describe("Svoreňová et al. (2017): illustrative example system", function () {
         [geometry.Polygon.hull([[-1, -1], [-1, 1], [1, -1], [1, 1]])] // control space
     );
 
-    const sys = lss.decompose([geometry.HalfspaceInequality.parse("x > 2", "xy")]);
+    const sys = lss.decompose([geometry.Halfspace.parse("x > 2", "xy")]);
 
     it("has 6 states", function () {
         assert.equal(sys.states.size, 6);
@@ -116,10 +116,10 @@ describe("Svoreňová et al. (2017): double integrator system", function () {
     );
 
     const sys = lss.decompose([
-        geometry.HalfspaceInequality.parse("-1 < x", "xy"),
-        geometry.HalfspaceInequality.parse("x < 1", "xy"),
-        geometry.HalfspaceInequality.parse("-1 < y", "xy"),
-        geometry.HalfspaceInequality.parse("y < 1", "xy")
+        geometry.Halfspace.parse("-1 < x", "xy"),
+        geometry.Halfspace.parse("x < 1", "xy"),
+        geometry.Halfspace.parse("-1 < y", "xy"),
+        geometry.Halfspace.parse("y < 1", "xy")
     ]);
 
     it("has 13 states", function () {

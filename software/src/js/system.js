@@ -3,12 +3,12 @@
 
 import type { Controller } from "./controller.js";
 import type { GameGraph, JSONGameGraph } from "./game.js";
-import type { ConvexPolytope, ConvexPolytopeUnion, Halfspace,
+import type { ConvexPolytope, ConvexPolytopeUnion,
               JSONConvexPolytope, JSONConvexPolytopeUnion, JSONHalfspace } from "./geometry.js";
 import type { Matrix, Vector } from "./linalg.js";
 import type { Refinery, PartitionMap } from "./refinement.js";
 
-import { polytopeType, deserializePolytope, deserializeHalfspace, union } from "./geometry.js";
+import { polytopeType, deserializePolytope, Halfspace, union } from "./geometry.js";
 import * as linalg from "./linalg.js";
 import { iter, arr, sets, ValueError } from "./tools.js";
 
@@ -294,7 +294,7 @@ export class AbstractedLSS implements GameGraph {
         system.labelNum = json.labelNum;
         // Add predicates
         for (let label in json.predicates) {
-            system.predicates.set(label, deserializeHalfspace(json.predicates[label]));
+            system.predicates.set(label, Halfspace.deserialize(json.predicates[label]));
         }
         // Add states
         for (let jsonState of json.states) {

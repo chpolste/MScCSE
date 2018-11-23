@@ -1,7 +1,7 @@
 // @flow
 "use strict";
 
-import type { ConvexPolytope, Halfspace } from "./geometry.js";
+import type { ConvexPolytope } from "./geometry.js";
 import type { Proposition, ObjectiveKind } from "./logic.js";
 import type { FigureLayer } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
@@ -10,7 +10,7 @@ import type { Input } from "./widgets-input.js";
 import * as presets from "./presets.js";
 import * as dom from "./dom.js";
 import { iter, ObservableMixin } from "./tools.js";
-import { HalfspaceInequality, polytopeType, union } from "./geometry.js";
+import { Halfspace, polytopeType, union } from "./geometry.js";
 import { Objective, OnePairStreettAutomaton, AtomicProposition, parseProposition, traverseProposition } from "./logic.js";
 import { Figure, autoProjection } from "./figure.js";
 import { AxesPlot } from "./widgets-plot.js";
@@ -351,7 +351,7 @@ class PolytopeInput extends ObservableMixin<null> implements Input<ConvexPolytop
         });
         this.variables = VAR_NAMES.substring(0, this.dim.value)
         this.predicates = new MultiLineInput(
-            line => HalfspaceInequality.parse(line, this.variables),
+            line => Halfspace.parse(line, this.variables),
             [5, 25]
         );
         this.predicates.attach(() => this.handleChange());
@@ -457,7 +457,7 @@ class PredicatesInput extends ObservableMixin<null> implements Input<[Halfspace[
             "Invalid predicate specification '" + line.trim() + "'"
         );
         const name = match[1] == null ? "" : match[1];
-        const pred = HalfspaceInequality.parse(match[2], this.variables);
+        const pred = Halfspace.parse(match[2], this.variables);
         return [pred, name];
     }
 

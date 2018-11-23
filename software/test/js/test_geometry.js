@@ -8,10 +8,10 @@ let linalg = require("../../src/js/linalg.js");
 
 describe("geometry.HalfspaceIneqation.parse", function () {
 
-    let parse = geometry.HalfspaceInequality.parse;
+    let parse = geometry.Halfspace.parse;
 
     it("accepts 2D halfspace in various formats", function () {
-        let hs = geometry.HalfspaceInequality.normalized([1, 2], 1);
+        let hs = geometry.Halfspace.normalized([1, 2], 1);
         assert(hs.isSameAs(parse("x + 2y < 1", "xy")));
         assert(hs.isSameAs(parse("x + 2y <= 1", "xy")));
         assert(hs.isSameAs(parse("1 > x + 2y", "xy")));
@@ -50,12 +50,12 @@ describe("geometry.HalfspaceIneqation.parse", function () {
 });
 
 
-describe("geometry.HalfspaceInequality in 1 dimension", function () {
+describe("geometry.Halfspace in 1 dimension", function () {
     
-    let hs = new geometry.HalfspaceInequality([1], 0.5);
+    let hs = new geometry.Halfspace([1], 0.5);
 
     it("normalized", function () {
-        let hsn = geometry.HalfspaceInequality.normalized([2], 1);
+        let hsn = geometry.Halfspace.normalized([2], 1);
         assert.equal(hsn.dim, hs.dim);
         assert.equal(hsn.offset, hs.offset);
         assert.deepEqual(hsn.normal, hs.normal);
@@ -63,18 +63,18 @@ describe("geometry.HalfspaceInequality in 1 dimension", function () {
     });
 
     it("normalized breaks offset === 0 ties in favor of trivial", function () {
-        let h = geometry.HalfspaceInequality.normalized([0], 0);
+        let h = geometry.Halfspace.normalized([0], 0);
         assert(h.isTrivial);
     });
 
     it("isInfeasible", function () {
-        let h = geometry.HalfspaceInequality.normalized([0], -3);
+        let h = geometry.Halfspace.normalized([0], -3);
         assert(h.isInfeasible);
         assert(!hs.isInfeasible);
     });
 
     it("isTrivial", function () {
-        let h = geometry.HalfspaceInequality.normalized([0], 3);
+        let h = geometry.Halfspace.normalized([0], 3);
         assert(h.isTrivial);
         assert(!hs.isTrivial);
     });
@@ -154,15 +154,15 @@ describe("geometry.Interval", function () {
 
     it("noredund", function () {
         assert(poly.isSameAs(geometry.Interval.noredund(poly.halfspaces)));
-        let halfspaces = [new geometry.HalfspaceInequality([-1], 1),
-                          new geometry.HalfspaceInequality([-1], 1 + geometry.TOL/2),
-                          new geometry.HalfspaceInequality([-1], 4),
-                          new geometry.HalfspaceInequality([1], 1)];
+        let halfspaces = [new geometry.Halfspace([-1], 1),
+                          new geometry.Halfspace([-1], 1 + geometry.TOL/2),
+                          new geometry.Halfspace([-1], 4),
+                          new geometry.Halfspace([1], 1)];
         assert(poly.isSameAs(geometry.Interval.noredund(halfspaces)));
     });
 
     it("noredund yields empty for unbounded", function () {
-        let halfspaces = [new geometry.HalfspaceInequality([-1], 1)];
+        let halfspaces = [new geometry.Halfspace([-1], 1)];
         assert(geometry.Interval.noredund(halfspaces).isEmpty);
     });
 
@@ -285,7 +285,7 @@ describe("geometry.Interval", function () {
     });
 
     it("intersect with halfspace", function () {
-        let halfspace = new geometry.HalfspaceInequality([-1], 0.5);
+        let halfspace = new geometry.Halfspace([-1], 0.5);
         let poly2 = geometry.Interval.hull([[-0.5], [1]]);
         assert(poly.intersect(halfspace).isSameAs(poly2));
         let poly3 = geometry.Interval.hull([[-0.5], [-1]]);
@@ -328,7 +328,7 @@ describe("geometry.Interval", function () {
     it("split once", function () {
         let poly2 = geometry.Interval.hull([[0], [1]]);
         let poly3 = geometry.Interval.hull([[0], [-1]]);
-        let split = poly.split(new geometry.HalfspaceInequality([1], 0));
+        let split = poly.split(new geometry.Halfspace([1], 0));
         assert(split.length == 2);
         assert(split[0].isSameAs(poly2) || split[1].isSameAs(poly2));
         assert(split[0].isSameAs(poly3) || split[1].isSameAs(poly3));
@@ -336,8 +336,8 @@ describe("geometry.Interval", function () {
     });
 
     it("split twice", function () {
-        assert.equal(poly.split(new geometry.HalfspaceInequality([1], 0.4),
-                                new geometry.HalfspaceInequality([-1], 0.5)).length, 3);
+        assert.equal(poly.split(new geometry.Halfspace([1], 0.4),
+                                new geometry.Halfspace([-1], 0.5)).length, 3);
     });
 
 });
@@ -587,7 +587,7 @@ describe("geometry.Polygon with square", function () {
     it("split with vertical", function () {
         let poly2 = geometry.Polygon.hull([[0, 0], [0.5, 0], [0.5, 1], [0, 1]]);
         let poly3 = geometry.Polygon.hull([[0.5, 0], [1, 0], [1, 1], [0.5, 1]]);
-        let split = poly.split(new geometry.HalfspaceInequality([1, 0], 0.5));
+        let split = poly.split(new geometry.Halfspace([1, 0], 0.5));
         assert(split.length == 2);
         assert(split[0].isSameAs(poly2) || split[1].isSameAs(poly2));
         assert(split[0].isSameAs(poly3) || split[1].isSameAs(poly3));
@@ -595,14 +595,14 @@ describe("geometry.Polygon with square", function () {
     });
 
     it("split with two (almost) verticals", function () {
-        let split = poly.split(new geometry.HalfspaceInequality([1, -0.1], 0.5),
-                               new geometry.HalfspaceInequality([1, 0.1], 0.9));
+        let split = poly.split(new geometry.Halfspace([1, -0.1], 0.5),
+                               new geometry.Halfspace([1, 0.1], 0.9));
         assert(split.length == 3);
     });
 
     it("split with vertical and horizontal", function () {
-        assert.equal(poly.split(new geometry.HalfspaceInequality([0.1, 1], 0.4),
-                                new geometry.HalfspaceInequality([1, 0], 0.5)).length, 4);
+        assert.equal(poly.split(new geometry.Halfspace([0.1, 1], 0.4),
+                                new geometry.Halfspace([1, 0], 0.5)).length, 4);
     });
 
 });
@@ -695,14 +695,14 @@ describe("geometry problem cases", function () {
 
     it("Intersection with halfspace order float instability", function () {
         const innerHs1 = [
-             new geometry.HalfspaceInequality([ -0.5547001962252289, -0.8320502943378439 ], -3.5223462460302057),
-             new geometry.HalfspaceInequality([ 0.7071067811865472, 0.7071067811865479 ], 3.818376618407357),
-             new geometry.HalfspaceInequality([ 0, 1 ], 3)
+             new geometry.Halfspace([ -0.5547001962252289, -0.8320502943378439 ], -3.5223462460302057),
+             new geometry.Halfspace([ 0.7071067811865472, 0.7071067811865479 ], 3.818376618407357),
+             new geometry.Halfspace([ 0, 1 ], 3)
         ];
         const innerHs2 = [
-            new geometry.HalfspaceInequality([ -0.554700196225229, -0.8320502943378436 ], -3.5223462460302053),
-            new geometry.HalfspaceInequality([ 0.7071067811865475, 0.7071067811865475 ], 3.8183766184073566),
-            new geometry.HalfspaceInequality([ 0, 1 ], 3)
+            new geometry.Halfspace([ -0.554700196225229, -0.8320502943378436 ], -3.5223462460302053),
+            new geometry.Halfspace([ 0.7071067811865475, 0.7071067811865475 ], 3.8183766184073566),
+            new geometry.Halfspace([ 0, 1 ], 3)
         ];
         assert.equal(innerHs1.length, innerHs2.length);
         for (let i = 0; i < innerHs1.length; i++) {
@@ -711,22 +711,22 @@ describe("geometry problem cases", function () {
         }
 
         const outerHs1 = [
-            new geometry.HalfspaceInequality([ -0.7071067811865476, -0.7071067811865476 ], -3.2880465325174475),
-            new geometry.HalfspaceInequality([ -0.55470019622523, -0.8320502943378432 ], -2.2188007849009224),
-            new geometry.HalfspaceInequality([ 0, -1 ], 1.7000000000000017),
-            new geometry.HalfspaceInequality([ 1, -2.4671622769448e-16 ], 6.749999999999998),
-            new geometry.HalfspaceInequality([ 0.7071067811865498, 0.7071067811865451 ], 6.116473657263642),
-            new geometry.HalfspaceInequality([ 0.554700196225228, 0.8320502943378444 ], 5.436061923007241),
-            new geometry.HalfspaceInequality([ 0, 1 ], 3.5999999999999974)
+            new geometry.Halfspace([ -0.7071067811865476, -0.7071067811865476 ], -3.2880465325174475),
+            new geometry.Halfspace([ -0.55470019622523, -0.8320502943378432 ], -2.2188007849009224),
+            new geometry.Halfspace([ 0, -1 ], 1.7000000000000017),
+            new geometry.Halfspace([ 1, -2.4671622769448e-16 ], 6.749999999999998),
+            new geometry.Halfspace([ 0.7071067811865498, 0.7071067811865451 ], 6.116473657263642),
+            new geometry.Halfspace([ 0.554700196225228, 0.8320502943378444 ], 5.436061923007241),
+            new geometry.Halfspace([ 0, 1 ], 3.5999999999999974)
         ];
         const outerHs2 = [
-            new geometry.HalfspaceInequality([ -0.7071067811865475, -0.7071067811865475 ], -3.288046532517447),
-            new geometry.HalfspaceInequality([ -0.5547001962252296, -0.8320502943378435 ], -2.2188007849009197),
-            new geometry.HalfspaceInequality([ 0, -1 ], 1.6999999999999977),
-            new geometry.HalfspaceInequality([ 1, -1.5700924586837752e-16 ], 6.749999999999998),
-            new geometry.HalfspaceInequality([ 0.7071067811865475, 0.7071067811865475 ], 6.1164736572636285),
-            new geometry.HalfspaceInequality([ 0.5547001962252285, 0.8320502943378442 ], 5.436061923007242),
-            new geometry.HalfspaceInequality([ 0, 1 ], 3.599999999999997)
+            new geometry.Halfspace([ -0.7071067811865475, -0.7071067811865475 ], -3.288046532517447),
+            new geometry.Halfspace([ -0.5547001962252296, -0.8320502943378435 ], -2.2188007849009197),
+            new geometry.Halfspace([ 0, -1 ], 1.6999999999999977),
+            new geometry.Halfspace([ 1, -1.5700924586837752e-16 ], 6.749999999999998),
+            new geometry.Halfspace([ 0.7071067811865475, 0.7071067811865475 ], 6.1164736572636285),
+            new geometry.Halfspace([ 0.5547001962252285, 0.8320502943378442 ], 5.436061923007242),
+            new geometry.Halfspace([ 0, 1 ], 3.599999999999997)
         ];
         assert.equal(outerHs1.length, outerHs2.length);
         for (let i = 0; i < outerHs1.length; i++) {

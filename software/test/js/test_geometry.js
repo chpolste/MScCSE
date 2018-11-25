@@ -972,7 +972,18 @@ describe("geometry.Union", function () {
     });
 
     it("fulfils", function () {
-        // TODO
+        const p1hs = p1.halfspaces;
+        for (let h of p1hs) {
+            assert(p1.toUnion().fulfils(h));
+            assert(!p1.toUnion().fulfils(h.flip()));
+        }
+        const i3hs = i3.halfspaces;
+        for (let h of i3hs) {
+            assert(i1.toUnion().fulfils(h));
+            assert(!i1.toUnion().fulfils(h.flip()));
+            assert(i2.toUnion().fulfils(h));
+            assert(!i2.toUnion().fulfils(h.flip()));
+        }
     });
 
     it("sample", function () {
@@ -1008,30 +1019,55 @@ describe("geometry.Union", function () {
 
     it("pontryagin with one element yields same as polytope method", function () {
         const p3 = geometry.Polygon.hull([[0, 0], [0.1, 0.1], [0, 0.1], [0.1, 0]]);
-        let pont = Union.from([p1]).pontryagin(p3);
+        const pont = p1.toUnion().pontryagin(p3);
         assert(!pont.isEmpty);
         assert.equal(pont.polytopes.length, 1);
         assert(pont.isSameAs(p1.pontryagin(p3)));
     });
 
     it("intersect", function () {
-        // TODO
+        assert(p1.toUnion().intersect(p1).isSameAs(p1));
+        assert(i1.toUnion().intersect(i1).isSameAs(i1));
+        assert(i3.toUnion().intersect(i1).isSameAs(i1));
+        assert(Union.from([i1, i1, i2]).intersect(Union.from([i1, i1])).isSameAs(i1));
+        assert(Union.from([i1, i1, i2]).intersect(i1).isSameAs(i1));
+        assert(Union.from([i2, i3, i1]).intersect(i1).isSameAs(i1));
+        assert(Union.from([i2, i3]).intersect(i1).isSameAs(i1));
+        assert(p1.toUnion().intersect(p2.toUnion()).isEmpty);
+        assert(i1.toUnion().intersect(ie).isEmpty);
     });
 
     it("remove", function () {
-        // TODO
+        assert(p1.toUnion().remove(p1).isEmpty);
+        assert(p1.toUnion().remove(p1.toUnion()).isEmpty);
+        assert(p1.toUnion().remove(p2).isSameAs(p1));
+        assert(i1.toUnion().remove(i3).isEmpty);
+        assert(Union.from([i1, i2]).remove(i3).isEmpty);
+        assert(Union.from([i1, i1]).remove(i1).isEmpty);
+        assert(!Union.from([i1, i2]).remove(i1).isEmpty);
+        assert(i1.toUnion().remove(ie).isSameAs(i1));
     });
 
     it("union", function () {
-        // TODO
+        assert(p1.toUnion().union(p1).isSameAs(p1));
+        assert(p1.toUnion().union(p2.toUnion()).isSameAs(p2.union(p1)));
+        assert(Union.from([i1, i1]).union(i2).isSameAs(i3));
+        assert(Union.from([i1, i1]).union(i3).union(i1).isSameAs(i1.union(i2)));
     });
 
     it("hull", function () {
-        // TODO
+        assert(p1.toUnion().hull().isSameAs(p1));
+        assert(i1.toUnion().hull().isSameAs(i1));
+        assert(ie.toUnion().hull().isEmpty);
+        assert(Union.from([ie, i1, i2]).hull().isSameAs(i3));
     });
 
     it("disjunctify", function() {
-        // TODO
+        assert(p1.toUnion().disjunctify().isSameAs(p1));
+        assert(p1.toUnion().disjunctify().isDisjunct);
+        assert(Union.from([i1, i2]).disjunctify().isSameAs(i3));
+        assert(Union.from([i1, i2]).disjunctify().isSameAs(Union.from([i2, i1, i1])));
+        assert.equal(Union.from([i1, i1]).disjunctify().polytopes.length, 1);
     });
 
     it("simplify merges a union of intervals", function () {
@@ -1049,7 +1085,11 @@ describe("geometry.Union", function () {
     });
 
     it("toUnion", function() {
-        // TODO
+        assert(i1.toUnion() instanceof Union);
+        assert(p1.toUnion() instanceof Union);
+        assert(ie.toUnion() instanceof Union);
+        assert(pe.toUnion() instanceof Union);
+        assert(Union.from([i1, ie, i1, i3]).toUnion() instanceof Union);
     });
 
 

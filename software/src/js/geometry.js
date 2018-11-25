@@ -268,9 +268,11 @@ export type JSONPolytope = { dim: number, vertices: number[][] };
 // Dimension-independent implementations
 export class Polytope {
 
+    +dim: number;
+    // Lazyly evaluated properties
     _vertices: ?Vector[];
     _halfspaces: ?Halfspace[];
-    +dim: number;
+    _isEmpty: ?boolean;
 
     // Specification by either halfspaces or vertices is sufficient, the other
     // representation is computed (and cached) automatically by the getters.
@@ -280,6 +282,7 @@ export class Polytope {
         }
         this._vertices = vertices;
         this._halfspaces = halfspaces;
+        this._isEmpty = null;
     }
 
     // Get the subclass for a specific dimension of polytope
@@ -307,31 +310,34 @@ export class Polytope {
         throw new NotImplementedError();
     }
 
+    // Consistent iteration for polytopes of Region. Guarantees [] as a return
+    // value if region is empty.
+    get polytopes(): Polytope[] {
+        return this.isEmpty ? [] : [this];
+    }
+
     // Cached access to V-representation
     get vertices(): Vector[] {
-        if (this._vertices != null) {
-            return this._vertices;
-        } else {
-            this._HtoV();
-            return this.vertices;
-        }
+        if (this._vertices != null) return this._vertices;
+        this._HtoV();
+        return this.vertices;
     }
 
     // Cached access to H-representation
     get halfspaces(): Halfspace[] {
-        if (this._halfspaces != null) {
-            return this._halfspaces;
-        } else {
-            this._VtoH();
-            return this.halfspaces;
-        }
+        if (this._halfspaces != null) return this._halfspaces;
+        this._VtoH();
+        return this.halfspaces;
     }
 
+    // isEmpty test is cached
     get isEmpty(): boolean {
+        if (this._isEmpty != null) return this._isEmpty;
         // All polytopes that are not full-dimensional are considered to be empty.
-        return (this._vertices != null && this._vertices.length <= this.dim)
-            || (this._halfspaces != null && this._halfspaces.length <= this.dim)
-            || Math.abs(this.volume) < TOL;
+        this._isEmpty = (this._vertices != null && this._vertices.length <= this.dim)
+                || (this._halfspaces != null && this._halfspaces.length <= this.dim)
+                || this.volume < TOL;
+        return this._isEmpty;
     }
 
     get volume(): number { throw new NotImplementedError(); }
@@ -394,7 +400,6 @@ export class Polytope {
 
     // Does the polytope intersect the given region?
     intersects(other: Region): boolean {
-        if (this.isEmpty) return false;
         for (let p of other.polytopes) {
             if (!this.intersect(p).isEmpty) return true;
         }
@@ -558,7 +563,6 @@ export class Polytope {
     _HtoV() { throw new NotImplementedError() };
 
     // Compatibility with Union interface
-    get polytopes(): Polytope[] { return [this]; }
     get isDisjunct(): boolean { return true; }
     disjunctify(): Polytope { return this; }
     simplify(): Polytope { return this; }
@@ -918,12 +922,16 @@ export class Union {
 
     +dim: number;
     +polytopes: Polytope[];
-    +_isDisjunct: ?boolean; // yes, no, unknown
+    +isEmpty: boolean;
+    // Cached properties
+    _isDisjunct: ?boolean; // yes, no, unknown
 
     constructor(dim: number, polytopes: Polytope[], isDisjunct: ?boolean): void {
         this.dim = dim;
-        this.polytopes = polytopes;
-        this._isDisjunct = polytopes.length < 2 || isDisjunct;
+        // polytopes property guarantees [] value if region is empty
+        this.polytopes = polytopes.filter(_ => !_.isEmpty);
+        this.isEmpty = this.polytopes.length === 0;
+        this._isDisjunct = this.polytopes.length < 2 || isDisjunct;
     }
 
     static from(polytopes: Polytope[]): Union {
@@ -935,12 +943,12 @@ export class Union {
         return new Union(dim, polytopes, null);
     }
 
-    static deserialize(json: JSONUnion): Union {
-        return new Union(json.dim, json.polytopes.map(Polytope.deserialize), null);
+    static empty(dim: number): Union {
+        return new Union(dim, [], true);
     }
 
-    get isEmpty(): boolean {
-        return iter.and(this.polytopes.map(_ => _.isEmpty));
+    static deserialize(json: JSONUnion): Union {
+        return new Union(json.dim, json.polytopes.map(Polytope.deserialize), null);
     }
 
     get isDisjunct(): boolean {
@@ -982,7 +990,6 @@ export class Union {
     }
 
     contains(v: Vector): boolean {
-        if (this.isEmpty) return false;
         for (let p of this.polytopes) {
             if (p.contains(v)) return true;
         }
@@ -1078,12 +1085,12 @@ export class Union {
         // Sort by volume in ascending order and then take from the large end
         // first. This should favour the removal of small polytopes.
         const ps = this.polytopes.slice().sort((x, y) => x.volume - y.volume);
-        const out = new Union(this.dim, [], true);
+        const out = [];
         while (ps.length > 0) {
             const p = ps.pop();
-            out.polytopes.push(...p.remove(out).polytopes.filter(_ => !_.isEmpty));
+            out.push(...p.remove(new Union(this.dim, out, true)).polytopes);
         }
-        return out;
+        return new Union(this.dim, out, true);
     }
 
     simplify(): Region {

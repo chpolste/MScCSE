@@ -7,7 +7,7 @@ BABELIFY_FLAGS =
 BROWSERIFY_FLAGS = --debug
 BROWSERIFY = npx browserify $(BROWSERIFY_FLAGS) -t [ babelify $(BABELIFY_FLAGS) ]
 
-MOCHA_FLAGS = --compilers js:@babel/register --timeout 5000
+MOCHA_FLAGS = --require @babel/register --timeout 5000
 MOCHA = npx mocha $(MOCHA_FLAGS)
 
 UGLIFYCSS_FLAGS = 

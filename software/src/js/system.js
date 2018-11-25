@@ -692,15 +692,11 @@ export class State {
         let rest = this.polytope;
         for (let step of steps) {
             const newParts = step.partition(this, rest);
-            done.push(...newParts.done.polytopes.filter(_ => !_.isEmpty));
+            done.push(...newParts.done.polytopes);
             rest = newParts.rest;
             if (rest.isEmpty) break;
         }
-        if (done.length === 0) {
-            return rest;
-        } else {
-            return Union.from(done).union(rest);
-        }
+        return done.length === 0 ? rest : Union.from(done).union(rest);
     }
 
     // Clear action cache if a state in the given set is reachable from this

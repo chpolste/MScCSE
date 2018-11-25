@@ -5,7 +5,7 @@ import type { AnalysisResults } from "./game.js";
 import type { Region } from "./geometry.js";
 import type { State, AbstractedLSS } from "./system.js";
 
-import { Polytope } from "./geometry.js";
+import { Polytope, Union } from "./geometry.js";
 import { iter } from "./tools.js";
 
 
@@ -35,23 +35,22 @@ export type RefinementPartition = { done: Region, rest: Region };
 // Remove Attractor of non-satisfying states
 class NegativeAttrRefinery implements Refinery {
 
-    +negStates: State[];
-    +uus: Region;
+    +attr: Region;
 
     constructor(system: AbstractedLSS, results: ?AnalysisResults): void {
-        if (results == null) {
-            this.negStates = [];
+        const lss = system.lss;
+        const winCoop = results != null ? results.winCoop : new Set();
+        if (winCoop.size === 0) {
+            this.attr = Polytope.ofDim(lss.dim).empty();
         } else {
-            const winCoop = results.winCoop;
-            // TODO: make dynamics operators accept iterables in system
-            this.negStates = Array.from(system.states.values()).filter(_ => !winCoop.has(_.label));
+            const states = Array.from(system.states.values()).filter(_ => !winCoop.has(_.label));
+            const target = Union.from(states.map(_ => _.polytope)).simplify();
+            this.attr = lss.attr(lss.xx, lss.uus, target);
         }
-        this.uus = system.lss.uus;
     }
 
     partition(state: State, rest: Region): RefinementPartition {
-        const attr = state.attr(this.uus, this.negStates);
-        const done = attr.intersect(rest).simplify();
+        const done = this.attr.intersect(rest).simplify();
         const newRest = rest.remove(done).simplify();
         return { done: done, rest: newRest };
     }
@@ -61,22 +60,22 @@ class NegativeAttrRefinery implements Refinery {
 // Remove Attractor of non-satisfying states
 class PositivePreRRefinery implements Refinery {
 
-    +posStates: State[];
-    +uus: Region;
+    +preR: Region;
 
     constructor(system: AbstractedLSS, results: ?AnalysisResults): void {
-        if (results == null) {
-            this.posStates = [];
+        const lss = system.lss;
+        const win = results != null ? results.win : new Set();
+        if (win.size === 0) {
+            this.preR = Polytope.ofDim(lss.dim).empty();
         } else {
-            const win = results.win;
-            this.posStates = Array.from(system.states.values()).filter(_ => win.has(_.label));
+            const states = Array.from(system.states.values()).filter(_ => win.has(_.label));
+            const target = Union.from(states.map(_ => _.polytope)).simplify();
+            this.preR = lss.preR(lss.xx, lss.uus, target);
         }
-        this.uus = system.lss.uus;
     }
 
     partition(state: State, rest: Region): RefinementPartition {
-        const prer = state.preR(this.uus, this.posStates);
-        const done = prer.intersect(rest).simplify();
+        const done = this.preR.intersect(rest).simplify();
         const newRest = rest.remove(done).simplify();
         return { done: done, rest: newRest };
     }

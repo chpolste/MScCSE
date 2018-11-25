@@ -2,13 +2,12 @@
 "use strict";
 
 import type { FigureLayer } from "./figure.js";
-import type { Halfspace, Polytope } from "./geometry.js";
 import type { Vector, Matrix } from "./linalg.js";
 import type { Input } from "./widgets-input.js";
 
 import * as dom from "./dom.js";
 import { Figure, autoProjection } from "./figure.js";
-import { polytopeType } from "./geometry.js";
+import { Halfspace, Polytope } from "./geometry.js";
 import { minkowski, apply } from "./linalg.js";
 import { ObservableMixin, n2s } from "./tools.js";
 import { SelectInput, SelectableNodes, MatrixInput } from "./widgets-input.js";
@@ -86,7 +85,7 @@ class PolytopeViewer {
         try {
             const input = JSON.parse(this.input.value);
             const dim = input[0].length;
-            const poly = polytopeType(dim).hull(input);
+            const poly = Polytope.ofDim(dim).hull(input);
             if (poly.isEmpty) throw new Error("Polytope is empty");
             this.vertices.items = poly.vertices;
             this.halfspaces.items = poly.halfspaces;
@@ -197,7 +196,7 @@ class PolytopeForm extends ObservableMixin<null> {
         const input = JSON.parse(this.input.value);
         if (input.length === 0) throw new Error("polytope is empty");
         const dim = input[0].length;
-        return polytopeType(dim).hull(input);
+        return Polytope.ofDim(dim).hull(input);
     }
 
     set polytope(polytope: ?Polytope): void {
@@ -421,7 +420,7 @@ class OperatorsWidget extends ObservableMixin<null> {
         const x = this.inputs.x.polytope;
         const u = this.inputs.u.polytope;
         const w = this.inputs.w.polytope;
-        return polytopeType(x.dim).hull(
+        return Polytope.ofDim(x.dim).hull(
             minkowski.axpy(A, x.vertices, minkowski.axpy(B, u.vertices, w.vertices))
         );
     }
@@ -430,7 +429,7 @@ class OperatorsWidget extends ObservableMixin<null> {
         const x = this.inputs.x.polytope;
         const y = this.inputs.y.polytope;
         const w = this.inputs.w.polytope;
-        return polytopeType(x.dim).hull(
+        return Polytope.ofDim(x.dim).hull(
             minkowski.xmy(y.vertices, minkowski.axpy(A, x.vertices, w.vertices))
         ).applyRight(B);
     }
@@ -441,7 +440,7 @@ class OperatorsWidget extends ObservableMixin<null> {
         const y = this.inputs.y.polytope;
         const w = this.inputs.w.polytope;
         const Bus = u.vertices.map(_ => apply(B, _));
-        return polytopeType(x.dim).hull(
+        return Polytope.ofDim(x.dim).hull(
             minkowski.xmy(y.vertices, minkowski.axpy(B, u.vertices, w.vertices))
         ).applyRight(A).intersect(x);
     }
@@ -452,7 +451,7 @@ class OperatorsWidget extends ObservableMixin<null> {
         const y = this.inputs.y.polytope;
         const w = this.inputs.w.polytope;
         const Bus = u.vertices.map(_ => apply(B, _));
-        return polytopeType(x.dim).hull(
+        return Polytope.ofDim(x.dim).hull(
             minkowski.xmy(y.pontryagin(w).vertices, Bus)
         ).applyRight(A).intersect(x);
     }

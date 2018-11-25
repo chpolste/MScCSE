@@ -3,60 +3,58 @@
 
 import type { Controller } from "./controller.js";
 import type { GameGraph, JSONGameGraph } from "./game.js";
-import type { Polytope, ConvexPolytopeUnion,
-              JSONPolytope, JSONConvexPolytopeUnion, JSONHalfspace } from "./geometry.js";
+import type { JSONPolytope, JSONUnion, JSONHalfspace, Region } from "./geometry.js";
 import type { Matrix, Vector } from "./linalg.js";
 import type { Refinery, PartitionMap } from "./refinement.js";
 
-import { polytopeType, deserializePolytope, Halfspace, union } from "./geometry.js";
+import { Polytope, Halfspace, Union } from "./geometry.js";
 import * as linalg from "./linalg.js";
 import { iter, arr, sets, ValueError } from "./tools.js";
 
 
 // Partitioning that keeps track of items causing the partition. Used for
 // action and support computation as well as LSS decomposition.
-type ItemizedPart<T> = { polys: ConvexPolytopeUnion, items: T[] };
+type ItemizedPart<T> = { region: Region, items: T[] };
 // Partition the region of operator-transformed items based on the individual
 // operator(items[i]) results and associate the corresponding items with each
 // part (accumulating items when there is overlap).
-export function itemizedOperatorPartition<T>(items: Iterable<T>, operator: (T) => ConvexPolytopeUnion): ItemizedPart<T>[] {
-    let parts = [];
+export function itemizedOperatorPartition<T>(items: Iterable<T>, operator: (T) => Region): ItemizedPart<T>[] {
+    const parts = [];
     for (let item of items) {
         // Collect new parts in a separate array so they are not visited
         // immediately when looping over the existing parts
-        let newParts = [];
-        // Start with the set (points in space, represented as a union of
-        // convex polytopes) that is related to the current item
+        const newParts = [];
+        // Start with the set that is related to the current item
         let remaining = operator(item);
         // Refine existing parts according to the current item
         for (let part of parts) {
-            if (union.isEmpty(remaining)) {
+            if (remaining.isEmpty) {
                 break;
             }
-            let common = union.intersect(remaining, part.polys);
+            const common = remaining.intersect(part.region);
             // The subset that the current item and the existing part have in
             // common must be associated with the current item too
-            if (!union.isEmpty(common)) {
-                let notCommon = union.remove(part.polys, common);
+            if (!common.isEmpty) {
+                const notCommon = part.region.remove(common);
                 // If all of the part's set is associated with the current
                 // item, extend the association of the part, else split the set
                 // into a subset that is still exclusively associated with the
                 // part and a subset that is also associated with the current
                 // item (a new part)
-                if (union.isEmpty(notCommon)) {
+                if (notCommon.isEmpty) {
                     part.items.push(item);
                 } else {
-                    part.polys = notCommon;
-                    newParts.push({ polys: common, items: part.items.concat([item]) });
+                    part.region = notCommon;
+                    newParts.push({ region: common, items: part.items.concat([item]) });
                 }
                 // Remove the just processed subset of remaining
-                remaining = union.remove(remaining, common);
+                remaining = remaining.remove(common);
             }
         }
         // What is not common with the already existing parts is a new part
         // that is (for now) exclusively associated with the current item
-        if (!union.isEmpty(remaining)) {
-            newParts.push({ polys: remaining, items: [item] });
+        if (!remaining.isEmpty) {
+            newParts.push({ region: remaining, items: [item] });
         }
         parts.push(...newParts);
     }
@@ -71,7 +69,7 @@ export type JSONLSS = {
     B: number[][], // matrix
     stateSpace: JSONPolytope,
     randomSpace: JSONPolytope,
-    controlSpace: JSONConvexPolytopeUnion
+    controlSpace: JSONUnion
 };
 
 export class LSS {
@@ -80,13 +78,13 @@ export class LSS {
     +A: Matrix;
     +B: Matrix;
     +xx: Polytope;
-    +xxExt: ConvexPolytopeUnion;
+    +xxExt: Region;
     +ww: Polytope;
-    +uus: ConvexPolytopeUnion;
-    +oneStepReachable: ConvexPolytopeUnion;
+    +uus: Region;
+    +oneStepReachable: Region;
 
     constructor(A: Matrix, B: Matrix, stateSpace: Polytope, randomSpace: Polytope,
-                controlSpace: ConvexPolytopeUnion): void {
+                controlSpace: Region): void {
         this.A = A;
         this.B = B;
         this.xx = stateSpace;
@@ -94,21 +92,21 @@ export class LSS {
         this.uus = controlSpace;
         this.dim = stateSpace.dim;
         this.oneStepReachable = this.post(stateSpace, controlSpace);
-        this.xxExt = union.disjunctify([stateSpace, ...this.oneStepReachable]);
+        this.xxExt = stateSpace.union(this.oneStepReachable).disjunctify();
     }
 
     static deserialize(json: JSONLSS): LSS {
         return new LSS(
             json.A,
             json.B,
-            deserializePolytope(json.stateSpace),
-            deserializePolytope(json.randomSpace),
-            union.deserialize(json.controlSpace)
+            Polytope.deserialize(json.stateSpace),
+            Polytope.deserialize(json.randomSpace),
+            Union.deserialize(json.controlSpace)
         );
     }
 
     get extent(): [number, number][] {
-        return union.extent(this.xxExt);
+        return this.xxExt.extent;
     }
 
     eval(x: Vector, u: Vector, w: Vector): Vector {
@@ -116,72 +114,71 @@ export class LSS {
     }
 
     // Posterior: Post(x, {u0, ...})
-    post(x: Polytope, us: ConvexPolytopeUnion): ConvexPolytopeUnion {
+    post(x: Polytope, us: Region): Region {
         const xvs = x.vertices;
         const wvs = this.ww.vertices;
         const posts = [];
-        for (let u of us) {
+        for (let u of us.polytopes) {
             const Bupws = linalg.minkowski.axpy(this.B, u.vertices, wvs);
-            posts.push(polytopeType(this.dim).hull(linalg.minkowski.axpy(this.A, xvs, Bupws)));
+            posts.push(Polytope.ofDim(this.dim).hull(linalg.minkowski.axpy(this.A, xvs, Bupws)));
         }
-        return union.disjunctify(posts);
+        return Union.from(posts).disjunctify();
     }
 
     // Predecessor: Pre(x, {u0, ...}, {y0, ...})
-    pre(x: Polytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
+    pre(x: Polytope, us: Region, ys: Region): Region {
         const pres = [];
-        for (let u of us) {
+        for (let u of us.polytopes) {
             const Bupws = linalg.minkowski.axpy(this.B, u.vertices, this.ww.vertices);
-            for (let y of ys) {
-                const pre = polytopeType(this.dim).hull(linalg.minkowski.xmy(y.vertices, Bupws));
+            for (let y of ys.polytopes) {
+                const pre = Polytope.ofDim(this.dim).hull(linalg.minkowski.xmy(y.vertices, Bupws));
                 pres.push(x.intersect(pre.applyRight(this.A)));
             }
         }
-        return union.disjunctify(pres);
+        return Union.from(pres).disjunctify();
     }
 
     // Robust Predecessor: PreR(x, {u0, ...}, {y0, ...})
-    preR(x: Polytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        const pontrys = union.pontryagin(ys, this.ww).filter(_ => !_.isEmpty);
-        if (union.isEmpty(pontrys)) {
-            return [];
+    preR(x: Polytope, us: Region, ys: Region): Region {
+        const pontrys = ys.pontryagin(this.ww);
+        if (pontrys.isEmpty) {
+            return Polytope.ofDim(x.dim).empty();
         }
         const prers = [];
-        for (let u of us) {
+        for (let u of us.polytopes) {
             const Bus = u.vertices.map(uv => linalg.apply(this.B, uv));
-            for (let pontry of pontrys) {
-                const poly = polytopeType(this.dim).hull(linalg.minkowski.xmy(pontry.vertices, Bus));
+            for (let pontry of pontrys.polytopes) {
+                const poly = Polytope.ofDim(this.dim).hull(linalg.minkowski.xmy(pontry.vertices, Bus));
                 prers.push(x.intersect(poly.applyRight(this.A)));
             }
         }
-        return union.disjunctify(prers);
+        return Union.from(prers).disjunctify();
     }
 
     // Attractor: Attr(x, {u0, ...}, {y0, ...})
-    attr(x: Polytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        return x.remove(...this.preR(x, us, union.remove(this.xxExt, ys)));
+    attr(x: Polytope, us: Region, ys: Region): Region {
+        return x.remove(this.preR(x, us, this.xxExt.remove(ys)));
     }
 
     // Robust Attractor: AttrR(x, {u0, ...}, {y0, ...})
-    attrR(x: Polytope, us: ConvexPolytopeUnion, ys: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        return x.remove(...this.pre(x, us, union.remove(this.xxExt, ys)));
+    attrR(x: Polytope, us: Region, ys: Region): Region {
+        return x.remove(this.pre(x, us, this.xxExt.remove(ys)));
     }
 
     // Action Polytope
     // TODO: accept a u that isn't the entire control space
-    actionPolytope(x: Polytope, y: Polytope): ConvexPolytopeUnion {
+    actionPolytope(x: Polytope, y: Polytope): Region {
         const Axpws = linalg.minkowski.axpy(this.A, x.vertices, this.ww.vertices);
-        const poly = polytopeType(this.dim).hull(linalg.minkowski.xmy(y.vertices, Axpws));
-        return union.intersect(poly.applyRight(this.B).toUnion(), this.uus);
+        const poly = Polytope.ofDim(this.dim).hull(linalg.minkowski.xmy(y.vertices, Axpws));
+        return poly.applyRight(this.B).intersect(this.uus);
     }
 
-    zNonZero(xs: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        const wwi = this.ww.invert();
-        return union.disjunctify(xs.map(_ => _.minkowski(wwi)));
+    zNonZero(xs: Region): Region {
+        return xs.minkowski(this.ww.invert()).disjunctify();
     }
 
-    zOne(xs: ConvexPolytopeUnion): ConvexPolytopeUnion {
-        return union.pontryagin(xs, this.ww);
+    zOne(xs: Region): Region {
+        return xs.pontryagin(this.ww);
     }
 
     // Split state space with linear predicates to create an AbstractedLSS
@@ -189,8 +186,8 @@ export class LSS {
         const system = new AbstractedLSS(this);
         // Initial abstraction into states is given by decomposition and
         // partition of outer region into convex polytopes
-        const outer = union.remove(this.oneStepReachable, this.xx.toUnion());
-        for (let polytope of outer) {
+        const outer = this.oneStepReachable.remove(this.xx);
+        for (let polytope of outer.polytopes) {
             system.newState(polytope, OUTER);
         }
         // Collect named predicates
@@ -201,18 +198,18 @@ export class LSS {
         // Split state space according to given predicates
         const partition = itemizedOperatorPartition(
             arr.zip2(predicateLabels, predicates),
-            ([label, predicate]) => this.xx.intersect(predicate).toUnion()
+            ([label, predicate]) => this.xx.split(predicate)[0]
         );
         for (let part of partition) {
-            if (part.polys.length > 1) throw new Error(
+            if (part.region instanceof Union) throw new Error(
                 "State space was not split properly by linear predicates"
             );
-            system.newState(part.polys[0], UNDECIDED, part.items.map(_ => _[0]).filter(_ => _.length > 0));
+            system.newState(part.region, UNDECIDED, part.items.map(_ => _[0]).filter(_ => _.length > 0));
         }
         // Add the part of the state space not covered by any predicate
         let leftOverPoly = this.xx;
         for (let predicate of predicates) {
-            leftOverPoly = leftOverPoly.intersect(predicate.flip());
+            leftOverPoly = leftOverPoly.split(predicate)[1];
         }
         if (!leftOverPoly.isEmpty) {
             system.newState(leftOverPoly, UNDECIDED, []);
@@ -227,7 +224,7 @@ export class LSS {
             B: this.B,
             stateSpace: this.xx.serialize(),
             randomSpace: this.ww.serialize(),
-            controlSpace: union.serialize(this.uus)
+            controlSpace: this.uus.toUnion().serialize()
         };
     }
 
@@ -301,7 +298,7 @@ export class AbstractedLSS implements GameGraph {
         }
         // Add states
         for (let jsonState of json.states) {
-            const polytope = deserializePolytope(jsonState.polytope);
+            const polytope = Polytope.deserialize(jsonState.polytope);
             const state = new State(system, jsonState.label, polytope, jsonState.kind, jsonState.predicates);
             system.states.set(state.label, state);
         }
@@ -407,14 +404,15 @@ export class AbstractedLSS implements GameGraph {
         const refined = new Set();
         for (let [state, partition] of partitions.entries()) {
             // Validate that partition covers state polytope
-            if (!union.isSameAs(state.polytope.toUnion(), partition)) throw new Error(
+            // TODO: test disjunctness
+            if (!state.polytope.isSameAs(partition)) throw new Error(
                 "Faulty partition" // TODO
             );
             // If partition does not change state, keep it and continue
-            if (partition.length === 1) continue;
+            if (partition.polytopes.length === 1) continue;
             // Create new states for partition elements with same properties as
             // original state
-            for (let poly of partition) {
+            for (let poly of partition.polytopes) {
                 this.newState(poly, state.kind, state.predicates);
             }
             // Remove the original state
@@ -454,36 +452,36 @@ export class AbstractedLSS implements GameGraph {
 
     /* Convenience wrappers for polytopic operators */
 
-    post(x: State, us: ConvexPolytopeUnion): ConvexPolytopeUnion {
+    post(x: State, us: Region): Region {
         return this.lss.post(x.polytope, us);
     }
 
-    pre(x: State, us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
-        return this.lss.pre(x.polytope, us, ys.map(y => y.polytope));
+    pre(x: State, us: Region, ys: State[]): Region {
+        return this.lss.pre(x.polytope, us, Union.from(ys.map(y => y.polytope)));
     }
 
-    preR(x: State, us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
-        return this.lss.preR(x.polytope, us, ys.map(y => y.polytope));
+    preR(x: State, us: Region, ys: State[]): Region {
+        return this.lss.preR(x.polytope, us, Union.from(ys.map(y => y.polytope)));
     }
 
-    attr(x: State, us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
-        return this.lss.attr(x.polytope, us, ys.map(y => y.polytope));
+    attr(x: State, us: Region, ys: State[]): Region {
+        return this.lss.attr(x.polytope, us, Union.from(ys.map(y => y.polytope)));
     }
 
-    attrR(x: State, us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
-        return this.lss.attrR(x.polytope, us, ys.map(y => y.polytope));
+    attrR(x: State, us: Region, ys: State[]): Region {
+        return this.lss.attrR(x.polytope, us, Union.from(ys.map(y => y.polytope)));
     }
 
-    actionPolytope(x: State, y: State): ConvexPolytopeUnion {
+    actionPolytope(x: State, y: State): Region {
         return this.lss.actionPolytope(x.polytope, y.polytope);
     }
 
-    zNonZero(xs: State[]): ConvexPolytopeUnion {
-        return this.lss.zNonZero(xs.map(x => x.polytope));
+    zNonZero(xs: State[]): Region {
+        return this.lss.zNonZero(Union.from(xs.map(x => x.polytope)));
     }
 
-    zOne(xs: State[]): ConvexPolytopeUnion {
-        return this.lss.zOne(xs.map(x => x.polytope));
+    zOne(xs: State[]): Region {
+        return this.lss.zOne(Union.from(xs.map(x => x.polytope)));
     }
 
     /* GameGraph Interface */
@@ -607,7 +605,7 @@ export class State {
     }
 
     static deserialize(json: JSONState, system: AbstractedLSS): State {
-        const polytope = deserializePolytope(json.polytope);
+        const polytope = Polytope.deserialize(json.polytope);
         return new State(system, json.label, polytope, json.kind, json.predicates);
     }
 
@@ -619,7 +617,7 @@ export class State {
             const op = target => this.actionPolytope(target);
             this._reachable = this.oneStepReachable(this.system.lss.uus);
             this._actions = itemizedOperatorPartition(this._reachable, op).map(
-                part => new Action(this, part.items, union.simplify(part.polys))
+                part => new Action(this, part.items, part.region.simplify())
             );
             return this.actions;
         }
@@ -645,61 +643,64 @@ export class State {
 
     /* Convenience wrappers for polytopic operators */
 
-    post(us: ConvexPolytopeUnion): ConvexPolytopeUnion {
+    post(us: Region): Region {
         return this.system.post(this, us);
     }
 
-    pre(us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
+    pre(us: Region, ys: State[]): Region {
         return this.system.pre(this, us, ys);
     }
     
-    preR(us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
+    preR(us: Region, ys: State[]): Region {
         return this.system.preR(this, us, ys);
     } 
     
-    attr(us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
+    attr(us: Region, ys: State[]): Region {
         return this.system.attr(this, us, ys);
     }
     
-    attrR(us: ConvexPolytopeUnion, ys: State[]): ConvexPolytopeUnion {
+    attrR(us: Region, ys: State[]): Region {
         return this.system.attrR(this, us, ys);
     }
 
     // Always use this function, never use _reachable. It exists only for
     // resetActions and is generally NOT the current one-step reachable set.
-    oneStepReachable(us: ConvexPolytopeUnion): Set<State> {
+    oneStepReachable(us: Region): Set<State> {
         const post = this.post(us);
         const out = new Set();
         for (let state of this.system.states.values()) {
-            if (!union.isEmpty(union.intersect(post, state.polytope.toUnion()))) out.add(state);
+            if (!post.intersect(state.polytope).isEmpty) out.add(state);
         }
         return out;
     }
 
-    actionPolytope(y: State): ConvexPolytopeUnion {
+    actionPolytope(y: State): Region {
         return this.system.actionPolytope(this, y);
     }
 
-    zNonZero(): ConvexPolytopeUnion {
+    zNonZero(): Region {
         return this.system.zNonZero([this]);
     }
     
-    zOne(): ConvexPolytopeUnion {
+    zOne(): Region {
         return this.system.zOne([this]);
     }
 
     // Partition the state using the given refinement steps.
-    partition(steps: Refinery[]): ConvexPolytopeUnion {
-        let parts = { done: [], rest: this.polytope.toUnion() };
+    partition(steps: Refinery[]): Region {
+        let done = [];
+        let rest = this.polytope;
         for (let step of steps) {
-            const newParts = step.partition(this, parts.rest);
-            parts.done.push(...newParts.done);
-            parts.rest = newParts.rest;
-            if (union.isEmpty(parts.rest)) {
-                break;
-            }
+            const newParts = step.partition(this, rest);
+            done.push(...newParts.done.polytopes.filter(_ => !_.isEmpty));
+            rest = newParts.rest;
+            if (rest.isEmpty) break;
         }
-        return [].concat(parts.done, parts.rest);
+        if (done.length === 0) {
+            return rest;
+        } else {
+            return Union.from(done).union(rest);
+        }
     }
 
     // Clear action cache if a state in the given set is reachable from this
@@ -750,7 +751,7 @@ export class State {
 // JSON-compatible serialization
 type JSONAction = {
     targets: string[],
-    controls: JSONConvexPolytopeUnion,
+    controls: JSONUnion,
     supports: JSONActionSupport[] | null
 };
 
@@ -758,11 +759,11 @@ export class Action {
 
     +origin: State;
     +targets: State[]; // use Set<State> instead?
-    +controls: ConvexPolytopeUnion;
+    +controls: Region;
     +supports: ActionSupport[];
     _supports: ?ActionSupport[];
 
-    constructor(origin: State, targets: State[], controls: ConvexPolytopeUnion): void {
+    constructor(origin: State, targets: State[], controls: Region): void {
         this.origin = origin;
         this.targets = targets;
         this.controls = controls;
@@ -771,7 +772,7 @@ export class Action {
 
     static deserialize(json: JSONAction, origin: State): Action {
         const targets = json.targets.map(_ => origin.system.getState(_));
-        const action = new Action(origin, targets, union.deserialize(json.controls));
+        const action = new Action(origin, targets, Union.deserialize(json.controls));
         if (json.supports != null) {
             action._supports = json.supports.map(_ => ActionSupport.deserialize(_, action));
         }
@@ -785,23 +786,25 @@ export class Action {
         } else {
             const lss = this.origin.system.lss;
             const zNonZeros = itemizedOperatorPartition(this.targets, _ => _.zNonZero());
-            const zOnes = lss.zOne(this.targets.map(_ => _.polytope));
+            const zOnes = lss.zOne(Union.from(this.targets.map(_ => _.polytope)));
             this._supports = zNonZeros.map(part => {
                 // Remove outer zNonZeros
-                const zs = union.intersect(part.polys, zOnes);
-                let prePs = [];
-                for (let u of this.controls) {
+                const zs = part.region.intersect(zOnes).polytopes;
+                const prePs = [];
+                for (let u of this.controls.polytopes) {
                     const Bus = u.vertices.map(_ => linalg.apply(lss.B, _));
                     for (let z of zs) {
                         // Subtract Bu with Minkowski
-                        const preP = polytopeType(lss.dim).hull(linalg.minkowski.xmy(z.vertices, Bus));
+                        const preP = Polytope.ofDim(lss.dim).hull(linalg.minkowski.xmy(z.vertices, Bus));
                         // Apply A from right
                         prePs.push(preP.applyRight(lss.A));
                     }
                 }
-                prePs = union.intersect(prePs, this.origin.polytope.toUnion());
-                return new ActionSupport(this, part.items, union.simplify(prePs));
-            }).filter(_ => !union.isEmpty(_.origins));
+                const preP = prePs.length === 0 ? Polytope.ofDim(lss.dim).empty() : Union.from(prePs);
+                return new ActionSupport(
+                    this, part.items, preP.intersect(this.origin.polytope).simplify()
+                );
+            }).filter(_ => !_.origins.isEmpty);
             return this.supports;
         }
     }
@@ -810,7 +813,7 @@ export class Action {
     serialize(): JSONAction {
         return {
             targets: this.targets.map(_ => _.label),
-            controls: union.serialize(this.controls),
+            controls: this.controls.toUnion().serialize(),
             supports: this.supports.map(_ => _.serialize())
         };
     }
@@ -823,16 +826,16 @@ export class Action {
 // JSON-compatible serialization
 type JSONActionSupport = {
     targets: string[],
-    origins: JSONConvexPolytopeUnion
+    origins: JSONUnion
 };
 
 export class ActionSupport {
 
     +action: Action;
     +targets: State[]; // use Set<State> instead?
-    +origins: ConvexPolytopeUnion;
+    +origins: Region;
 
-    constructor(action: Action, targets: State[], origins: ConvexPolytopeUnion): void {
+    constructor(action: Action, targets: State[], origins: Region): void {
         this.action = action;
         this.targets = targets;
         this.origins = origins;
@@ -840,14 +843,14 @@ export class ActionSupport {
 
     static deserialize(json: JSONActionSupport, action: Action): ActionSupport {
         const targets = json.targets.map(x => action.origin.system.getState(x));
-        return new ActionSupport(action, targets, union.deserialize(json.origins));
+        return new ActionSupport(action, targets, Union.deserialize(json.origins));
     }
 
     // JSON-compatible serialization
     serialize(): JSONActionSupport {
         return {
             targets: this.targets.map(x => x.label),
-            origins: this.origins.map(x => x.serialize())
+            origins: this.origins.toUnion().serialize()
         };
     }
 

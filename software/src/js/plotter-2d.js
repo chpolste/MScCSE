@@ -2,12 +2,12 @@
 "use strict";
 
 import type { FigureLayer, Shape } from "./figure.js";
-import type { JSONPolytope, Polytope } from "./geometry.js";
+import type { JSONPolytope } from "./geometry.js";
 import type { Input } from "./widgets-input.js";
 
 import * as dom from "./dom.js";
 import { Figure, autoProjection } from "./figure.js";
-import { deserializePolytope, Polygon, union } from "./geometry.js";
+import { Polytope, Polygon, Union } from "./geometry.js";
 import { ObservableMixin, n2s } from "./tools.js";
 import { LineInput, SelectInput, SelectableNodes, MatrixInput } from "./widgets-input.js";
 import { ShapePlot, InteractivePlot } from "./widgets-plot.js";
@@ -95,7 +95,7 @@ class PolygonItem extends ObservableMixin<null> {
 
     static deserialize(data: JSONPolygonItem, polygons: PolygonList): PolygonItem {
         const [poly, label, fill, stroke] = data;
-        const item = new PolygonItem(polygons, deserializePolytope(poly), "");
+        const item = new PolygonItem(polygons, Polygon.deserialize(poly), "");
         fill[1] = longColor(fill[1]);
         stroke[1] = longColor(stroke[1]);
         item.label = label;
@@ -140,7 +140,7 @@ class PolygonList extends ObservableMixin<null> {
     }
 
     get extent(): Range[] {
-        return this.items.length > 0 ? union.extent(this.items.map(_ => _.polygon)) : [];
+        return this.items.length > 0 ? Union.from(this.items.map(_ => _.polygon)).extent : [];
     }
 
     // Insert a polygon at the top of the list

@@ -254,12 +254,6 @@ describe("geometry.Interval", function () {
         assert(poly.isSameAs(poly.intersect(poly)));
     });
 
-    it("intersect with flipped halfspaces yields empty", function () {
-        for (let halfspace of poly.halfspaces) {
-            assert(poly.intersect(halfspace.flip()).isEmpty);
-        }
-    });
-
     it("intersect yields empty", function () {
         let poly2 = geometry.Interval.hull([[5], [24]]);
         assert(poly.intersect(poly2).isEmpty);
@@ -284,60 +278,61 @@ describe("geometry.Interval", function () {
         assert(poly2.intersect(poly).isSameAs(poly));
     });
 
-    it("intersect with halfspace", function () {
-        let halfspace = new geometry.Halfspace([-1], 0.5);
-        let poly2 = geometry.Interval.hull([[-0.5], [1]]);
-        assert(poly.intersect(halfspace).isSameAs(poly2));
-        let poly3 = geometry.Interval.hull([[-0.5], [-1]]);
-        assert(poly.intersect(halfspace.flip()).isSameAs(poly3));
-    });
-
     it("remove self yields empty", function () {
         let diff = poly.remove(poly);
-        assert(diff.length == 0, diff.length + " polys returned instead of 0.");
+        assert(diff.isEmpty);
+        assert.equal(diff.polytopes.length, 0);
     });
 
     it("remove with overlap", function () {
         let poly2 = poly.translate([1.8]);
         let poly3 = poly.translate([-1.7]);
         let diff0 = geometry.Interval.hull([[-0.7], [0.8]]);
-        let diff = poly.remove(poly2, poly3);
-        assert(diff.length == 1, diff.length + " polys returned instead of 1.");
-        assert(diff0.isSameAs(diff[0]));
-        assert(diff[0].isSameAs(diff0));
+        let diff = poly.remove(geometry.Union.from([poly2, poly3]));
+        assert(!diff.isEmpty);
+        assert.equal(diff.polytopes.length, 1);
+        assert(diff.isSameAs(diff0));
+        assert(diff0.isSameAs(diff));
     });
 
     it("remove without intersection", function () {
         let poly2 = geometry.Interval.hull([[5], [10]]);
         let diff = poly.remove(poly2);
-        assert(diff.length == 1, diff.length + " polys returned instead of 1.");
-        assert(diff[0].isSameAs(poly));
-        assert(poly.isSameAs(diff[0]));
+        assert(!diff.isEmpty);
+        assert.equal(diff.polytopes.length, 1);
+        assert(diff.isSameAs(poly));
         diff = poly2.remove(poly);
-        assert(diff.length == 1, diff.length + " polys returned instead of 1.");
-        assert(diff[0].isSameAs(poly2));
-        assert(poly2.isSameAs(diff[0]));
+        assert(!diff.isEmpty);
+        assert.equal(diff.polytopes.length, 1);
+        assert(diff.isSameAs(poly2));
+        assert(poly2.isSameAs(diff));
     });
 
     it("remove middle", function () {
         let poly2 = geometry.Interval.hull([[-0.5], [0.5]]);
         let diff = poly.remove(poly2);
-        assert(diff.length >= 2, diff.length + " polys returned instead of 2.");
+        assert(!diff.isEmpty);
+        assert.equal(diff.polytopes.length, 2);
     });
 
     it("split once", function () {
         let poly2 = geometry.Interval.hull([[0], [1]]);
         let poly3 = geometry.Interval.hull([[0], [-1]]);
-        let split = poly.split(new geometry.Halfspace([1], 0));
-        assert(split.length == 2);
-        assert(split[0].isSameAs(poly2) || split[1].isSameAs(poly2));
-        assert(split[0].isSameAs(poly3) || split[1].isSameAs(poly3));
-        assert(!split[0].isSameAs(split[1]));
+        let [part1, part2] = poly.split(new geometry.Halfspace([1], 0));
+        assert(part1.isSameAs(poly2) || part2.isSameAs(poly2));
+        assert(part1.isSameAs(poly3) || part2.isSameAs(poly3));
+        assert(!part1.isSameAs(part2));
     });
 
-    it("split twice", function () {
-        assert.equal(poly.split(new geometry.Halfspace([1], 0.4),
-                                new geometry.Halfspace([-1], 0.5)).length, 3);
+    it("split with own halfspaces yields self and empty", function () {
+        for (let halfspace of poly.halfspaces) {
+            const [p1, p2] = poly.split(halfspace);
+            assert(p1.isSameAs(poly));
+            assert(p2.isEmpty);
+            const [p3, p4] = poly.split(halfspace.flip());
+            assert(p3.isEmpty);
+            assert(p4.isSameAs(poly));
+        }
     });
 
 });
@@ -490,12 +485,6 @@ describe("geometry.Polygon with square", function () {
         assert(poly.isSameAs(poly.intersect(poly)));
     });
 
-    it("intersect with flipped halfplanes yields empty", function () {
-        for (let halfplane of poly.halfspaces) {
-            assert(poly.intersect(halfplane.flip()).isEmpty);
-        }
-    });
-
     it("intersect yields empty", function () {
         let poly2 = geometry.Polygon.hull([[-2, -2], [-1, -2], [-2, -1]]);
         assert(poly.intersect(poly2).isEmpty);
@@ -535,82 +524,90 @@ describe("geometry.Polygon with square", function () {
 
     it("remove self yields empty", function () {
         let diff = poly.remove(poly);
-        assert(diff.length == 0, diff.length + " polys returned instead of 0.");
+        assert(diff.isEmpty);
     });
 
     it("remove with tall extension", function () {
         let poly2 = geometry.Polygon.hull([[0, 0], [1, 0], [1, 2], [0, 2]]);
         let diff0 = geometry.Polygon.hull([[0, 1], [1, 1], [1, 2], [0, 2]]);
         let diff = poly2.remove(poly);
-        assert(diff.length == 1, diff.length + " polys returned instead of 1.");
-        assert(diff0.isSameAs(diff[0]));
-        assert(diff[0].isSameAs(diff0));
+        assert(!diff.isEmpty);
+        assert.equal(diff.polytopes.length, 1);
+        assert(diff0.isSameAs(diff));
+        assert(diff.isSameAs(diff0));
     });
 
     it("remove with wide extension", function () {
         let poly2 = geometry.Polygon.hull([[0, 0], [2, 0], [2, 1], [0, 1]]);
         let diff0 = geometry.Polygon.hull([[1, 0], [2, 0], [2, 1], [1, 1]]);
         let diff = poly2.remove(poly);
-        assert(diff.length == 1, diff.length + " polys returned instead of 1.");
-        assert(diff0.isSameAs(diff[0]));
-        assert(diff[0].isSameAs(diff0));
+        assert(!diff.isEmpty);
+        assert.equal(diff.polytopes.length, 1);
+        assert(diff0.isSameAs(diff));
+        assert(diff.isSameAs(diff0));
     });
 
     it("remove with overlap", function () {
         let poly2 = poly.translate([0.8, 0]);
         let poly3 = poly.translate([0, 0.8]);
         let diff0 = geometry.Polygon.hull([[0, 0], [0.8, 0], [0.8, 0.8], [0, 0.8]]);
-        let diff = poly.remove(poly2, poly3);
-        assert(diff.length == 1, diff.length + " polys returned instead of 1.");
-        assert(diff0.isSameAs(diff[0]));
-        assert(diff[0].isSameAs(diff0));
+        let diff = poly.remove(geometry.Union.from([poly2, poly3]));
+        assert(!diff.isEmpty);
+        assert.equal(diff.polytopes.length, 1);
+        assert(diff0.isSameAs(diff));
+        assert(diff.isSameAs(diff0));
     });
 
     it("remove without intersection", function () {
         let poly2 = geometry.Polygon.hull([[1, 1], [2, 1], [1, 2]]);
         let diff = poly.remove(poly2);
-        assert(diff.length == 1, diff.length + " polys returned instead of 1.");
-        assert(diff[0].isSameAs(poly));
-        assert(poly.isSameAs(diff[0]));
+        assert(!diff.isEmpty);
+        assert.equal(diff.polytopes.length, 1);
+        assert(diff.isSameAs(poly));
+        assert(poly.isSameAs(diff));
+        // other way around
         diff = poly2.remove(poly);
-        assert(diff.length == 1, diff.length + " polys returned instead of 1.");
-        assert(diff[0].isSameAs(poly2));
-        assert(poly2.isSameAs(diff[0]));
+        assert(!diff.isEmpty);
+        assert.equal(diff.polytopes.length, 1);
+        assert(!diff.isSameAs(poly));
+        assert(!poly.isSameAs(diff));
+        assert(diff.isSameAs(poly2));
+        assert(poly2.isSameAs(diff));
     });
 
     it("remove middle", function () {
         let poly2 = geometry.Polygon.hull([[0.2, -1], [0.6, 0], [0.5, 3]]);
         let diff = poly.remove(poly2);
-        assert(diff.length >= 2, diff.length + " polys returned instead of 2.");
+        assert(!diff.isEmpty);
+        assert(diff.polytopes.length >= 2);
     });
 
     it("split with vertical", function () {
         let poly2 = geometry.Polygon.hull([[0, 0], [0.5, 0], [0.5, 1], [0, 1]]);
         let poly3 = geometry.Polygon.hull([[0.5, 0], [1, 0], [1, 1], [0.5, 1]]);
-        let split = poly.split(new geometry.Halfspace([1, 0], 0.5));
-        assert(split.length == 2);
-        assert(split[0].isSameAs(poly2) || split[1].isSameAs(poly2));
-        assert(split[0].isSameAs(poly3) || split[1].isSameAs(poly3));
-        assert(!split[0].isSameAs(split[1]));
+        let [part1, part2] = poly.split(new geometry.Halfspace([1, 0], 0.5));
+        assert(part1.isSameAs(poly2) || part2.isSameAs(poly2));
+        assert(part1.isSameAs(poly3) || part2.isSameAs(poly3));
+        assert(!part1.isSameAs(part2));
     });
 
-    it("split with two (almost) verticals", function () {
-        let split = poly.split(new geometry.Halfspace([1, -0.1], 0.5),
-                               new geometry.Halfspace([1, 0.1], 0.9));
-        assert(split.length == 3);
+    it("split with own halfspaces yields self and empty", function () {
+        for (let halfspace of poly.halfspaces) {
+            const [p1, p2] = poly.split(halfspace);
+            assert(p1.isSameAs(poly));
+            assert(p2.isEmpty);
+            const [p3, p4] = poly.split(halfspace.flip());
+            assert(p3.isEmpty);
+            assert(p4.isSameAs(poly));
+        }
     });
 
-    it("split with vertical and horizontal", function () {
-        assert.equal(poly.split(new geometry.Halfspace([0.1, 1], 0.4),
-                                new geometry.Halfspace([1, 0], 0.5)).length, 4);
-    });
+    // TODO
 
 });
 
 
 describe("geometry problem cases", function () {
-
-    const union = geometry.union;
 
     it("Polygon remove inner with angle < 0 edge case", function () {
         let inner = geometry.Polygon.hull([[-1, -1], [1, -1], [5, 1], [-1, 4]]);
@@ -620,7 +617,7 @@ describe("geometry problem cases", function () {
         assert(!inner.intersect(outer).isEmpty);
         assert(!outer.intersect(inner).isEmpty);
         let diff = outer.remove(inner);
-        assert(diff.length > 0);
+        assert(!diff.isEmpty);
     });
 
     // Due to the perturbations, the [-0.5, 0.7] points are close but not
@@ -649,7 +646,7 @@ describe("geometry problem cases", function () {
     // keep this test.
     it("Action support computation-like operations", function () {
         const state = geometry.Polygon.hull([[-1, 1], [-1, 0.5], [-0.5, 0.5], [-0.5, 1]]);
-        const supports = [
+        const supports = geometry.Union.from([
             [[-1, 0.6000000000000001], [-1, 0.5], [-0.8999999999999999, 0.5]] ,
             [[-1, 0.8000000000000002], [-1, 0.7000000000000001], [-0.8, 0.7000000000000001], [-0.9000000000000001, 0.8000000000000003]] ,
             [[-1, 0.9], [-1, 0.8000000000000002], [-0.9000000000000001, 0.8000000000000003]] ,
@@ -663,33 +660,36 @@ describe("geometry problem cases", function () {
             [[-0.6, 1], [-0.5, 0.9], [-0.5, 1]] ,
             [[-0.6000000000000001, 0.7000000000000001], [-0.5, 0.6000000000000001], [-0.5, 0.7000000000000001]] ,
             [[-0.7000000000000002, 0.8000000000000003], [-0.6000000000000001, 0.7000000000000001], [-0.5, 0.7000000000000001], [-0.5, 0.8000000000000002]]
-        ].map(vs => geometry.Polygon.hull(vs));
+        ].map(vs => geometry.Polygon.hull(vs)));
         // Union of supports is state
-        const diff = state.remove(...supports);
-        assert(union.isEmpty(diff));
-        assert(union.isSameAs(union.simplify(supports), [state]));
+        const diff = state.remove(supports);
+        assert(diff.isEmpty);
+        assert(state.isSameAs(supports));
+        assert(supports.isSameAs(state));
+        assert(supports.simplify().isSameAs(supports));
+        assert(supports.simplify().isSameAs(state));
         // This was the precise predecessor
-        const prer = [
+        const prer = geometry.Union.from([
             [[-1, 1], [-1, 0.5], [-0.5, 0.5], [-0.5, 0.7000000000000001], [-0.8, 1]] ,
             [[-0.8, 1], [-0.6000000000000002, 0.8000000000000003], [-0.5, 0.8000000000000002], [-0.5, 1]] ,
             [[-0.6000000000000002, 0.8000000000000003], [-0.5, 0.7000000000000001], [-0.5, 0.8000000000000002]]
-        ].map(vs => geometry.Polygon.hull(vs));
+        ].map(vs => geometry.Polygon.hull(vs)));
         // ... which also should be the same as the state
-        assert(union.isEmpty(state.remove(...prer)));
-        assert(union.isSameAs([state], prer));
+        assert(state.remove(prer).isEmpty);
+        assert(state.isSameAs(prer));
         // Now reproduce the calculation of supports: intersect each support
         // polytope with the PreR. Since PreR = state = support union, this
         // should be a geometric identity operation. This failed for the last
         // polytope due to a bug in Polygon.hull which is used by simplify.
-        for (let poly of supports) {
-            const inter1 = union.intersect(prer, [poly]);
-            const inter2 = union.intersect([poly], prer);
-            assert(union.isSameAs([poly], inter1));
-            assert(union.isSameAs([poly], inter2));
-            assert(union.isSameAs(inter1, union.simplify(inter1)));
-            assert(union.isSameAs(inter2, union.simplify(inter2)));
-            assert(union.isSameAs([poly], union.simplify(inter1)));
-            assert(union.isSameAs([poly], union.simplify(inter2)));
+        for (let poly of supports.polytopes) {
+            const inter1 = prer.intersect(poly);
+            const inter2 = poly.intersect(prer);
+            assert(poly.isSameAs(inter1));
+            assert(poly.isSameAs(inter2));
+            assert(inter1.isSameAs(inter1.simplify()));
+            assert(inter2.isSameAs(inter2.simplify()));
+            assert(poly.isSameAs(inter1.simplify()));
+            assert(poly.isSameAs(inter2.simplify()));
         }
     });
 
@@ -782,66 +782,276 @@ describe("geometry problem cases", function () {
         assert.equal(poly.vertices.length, poly2.vertices.length);
     });
 
+    it("Polygon.hull removes straight sections", function () {
+        const vs = [ [ -1, 1 ], [ -1, 0.5 ], [ -0.5, 0.5 ], [ -0.5, 1 ] ];
+        const ws = [ [ -1.0000000000000002, 0.7000000000000001 ], [ -1, 0.5 ], [ -0.5, 0.5 ], [ -0.5, 1 ], [ -1, 1 ] ];
+        const vPoly = geometry.Polygon.hull(vs);
+        const wPoly = geometry.Polygon.hull(ws);
+        assert(vPoly.isSameAs(wPoly));
+        assert(wPoly.isSameAs(vPoly));
+    });
+
+    it("Polygon.hull works for Kettner et al. edge case", function () {
+        // Taken from: https://github.com/mikolalysenko/robust-arithmetic-notes
+        const vs = [ [24.00000000000005, 24.000000000000053],
+            [54.85, 6],
+            [24.000000000000068, 24.000000000000071],
+            [54.850000000000357, 61.000000000000121],
+            [24, 6],
+            [6, 6]
+        ];
+        const vPoly = geometry.Polygon.hull(vs);
+        assert(!vPoly.isEmpty);
+        assert.equal(vPoly.vertices.length, 3);
+    });
+
 });
 
 
-describe("geometry.union", function () {
+describe("geometry.Union", function () {
 
-    const union = geometry.union;
+    const Interval = geometry.Interval;
+    const Polygon = geometry.Polygon;
+    const Union = geometry.Union;
 
-    let poly1 = geometry.Polygon.hull([[0, 0], [1, 0], [0, 1]]);
-    let poly2 = geometry.Polygon.hull([[2, 0], [2, 1], [1, 0], [0, 1]]);
-    let interval = geometry.Interval.hull([[0], [1], [-3]]);
+    const i1 = Interval.hull([[0], [1], [-3]]);
+    const i2 = Interval.hull([[0], [3]]);
+    const i3 = Interval.hull([[-3], [3]]);
+    const ie = Interval.empty();
 
-    it("isEmpty", function () {
-        let empty = geometry.Polygon.empty();
-        assert(union.isEmpty([]));
-        assert(union.isEmpty([empty]));
-        assert(union.isEmpty([empty, empty, empty]));
-        assert(!union.isEmpty([poly1]));
-        assert(!union.isEmpty([empty, empty, poly1, empty]));
+    const p1 = Polygon.hull([[0, 0], [1, 0], [0, 1]]);
+    const p2 = Polygon.hull([[2, 0], [2, 1], [1, 0], [0, 1]]);
+    const pe = Polygon.empty();
+
+    it("Union.from only accepts polygons of same dimension", function () {
+        assert(!Union.from([p1]).isEmpty);
+        assert(!Union.from([p1, p2]).isEmpty);
+        assert(!Union.from([i1, i2, i1]).isEmpty);
+        assert(!Union.from([p1, p2]).isEmpty);
+        assert.throws(() => Union.from([p1, i1]));
+        assert.throws(() => Union.from([p1, i2, p2]));
+        assert.throws(() => Union.from([pe, pe, ie]));
     });
 
-    it("extent", function () {
-        assert.deepEqual(union.extent([poly1]), [[0, 1], [0, 1]]);
-        assert.deepEqual(union.extent([poly2]), [[0, 2], [0, 1]]);
-        assert.deepEqual(union.extent([poly1, poly2]), [[0, 2], [0, 1]]);
-        assert.deepEqual(union.extent([poly2, poly1]), [[0, 2], [0, 1]]);
+    it("isEmpty", function () {
+        assert(Union.from([ie]).isEmpty);
+        assert(Union.from([pe]).isEmpty);
+        assert(Union.from([ie, ie]).isEmpty);
+        assert(Union.from([pe, pe, pe]).isEmpty);
+        assert(!Union.from([p1]).isEmpty);
+        assert(!Union.from([p1, pe]).isEmpty);
+        assert(!Union.from([ie, i1, ie, ie, i2]).isEmpty);
+    });
+
+    it("isDisjunct is true for single-member union", function () {
+        assert(ie.toUnion().isDisjunct);
+        assert(pe.toUnion().isDisjunct);
+        assert(i1.toUnion().isDisjunct);
+        assert(p2.toUnion().isDisjunct);
+        assert(Union.from([i1]).isDisjunct);
+        assert(Union.from([p2]).isDisjunct);
+    });
+    // TODO: more isDisjunct testing
+
+    it("volume of single-member union is same as member volume", function () {
+        assert.equal(ie.toUnion().volume, ie.volume);
+        assert.equal(i1.toUnion().volume, i1.volume);
+        assert.equal(pe.toUnion().volume, pe.volume);
+        assert.equal(p1.toUnion().volume, p1.volume);
     });
 
     it("boundingBox", function () {
-        let bbox = geometry.Polygon.hull([[0, 0], [2, 0], [0, 1], [2, 1]]);
-        assert(union.boundingBox([poly1, poly2]).isSameAs(bbox));
-        assert(union.boundingBox([poly2, poly1]).isSameAs(bbox));
-        assert.throws(() => union.boundingBox([poly1, interval]));
+        const bbox = geometry.Polygon.hull([[0, 0], [2, 0], [0, 1], [2, 1]]);
+        assert(Union.from([p1, p2]).boundingBox.isSameAs(bbox));
+        assert(Union.from([p2, p1]).boundingBox.isSameAs(bbox));
+    });
+
+    it("extent", function () {
+        assert.deepEqual(p1.toUnion().extent, [[0, 1], [0, 1]]);
+        assert.deepEqual(p2.toUnion().extent, [[0, 2], [0, 1]]);
+        assert.deepEqual(Union.from([p1, p2]).extent, [[0, 2], [0, 1]]);
+        assert.deepEqual(Union.from([p2, p1]).extent, [[0, 2], [0, 1]]);
+    });
+
+    it("isSameAs with single member", function () {
+        assert(i1.isSameAs(i1.toUnion()));
+        assert(p1.isSameAs(p1.toUnion()));
+        assert(i1.toUnion().isSameAs(i1));
+        assert(p1.toUnion().isSameAs(p1));
+        assert(i1.toUnion().isSameAs(i1.toUnion()));
+        assert(p1.toUnion().isSameAs(p1.toUnion()));
+        // TODO: neg
+    });
+
+    it("isSameAs with multiple members", function () {
+        assert(Union.from([i1, i2]).isSameAs(i3));
+        assert(Union.from([i2, i1]).isSameAs(i3));
+        assert(Union.from([i1, i2, i2]).isSameAs(i3));
+        assert(Union.from([i1, i1, i2]).isSameAs(i3));
+        assert(Union.from([i1, i2]).isSameAs(i3.toUnion()));
+        assert(Union.from([i1, i2]).isSameAs(Union.from([i1, i2])));
+        assert(Union.from([i1, i2]).isSameAs(Union.from([i2, i1])));
+        assert(Union.from([i1, i2]).isSameAs(Union.from([i2, i1, i1, i2])));
+        assert(!Union.from([i1, i2]).isSameAs(i1));
+        assert(!Union.from([i1, i2]).isSameAs(i2.toUnion()));
+    });
+
+    it("isSameAs with empty", function () {
+        assert(ie.toUnion().isSameAs(ie));
+        assert(ie.isSameAs(ie.toUnion()));
+        assert(ie.toUnion().isSameAs(ie.toUnion()));
+        assert(pe.toUnion().isSameAs(pe));
+        assert(pe.isSameAs(pe.toUnion()));
+        assert(pe.toUnion().isSameAs(pe.toUnion()));
+        assert(Union.from([ie, ie]).isSameAs(ie));
+        assert(Union.from([ie, ie]).isSameAs(ie.toUnion()));
+        assert(Union.from([ie, ie]).isSameAs(Union.from([ie, ie])));
+        assert(Union.from([ie, ie]).isSameAs(Union.from([ie, ie, ie])));
+    });
+
+    it("covers", function () {
+        assert(i3.toUnion().covers(i1));
+        assert(i3.toUnion().covers(i2));
+        assert(i3.toUnion().covers(i3));
+        assert(i3.toUnion().covers(i1.toUnion()));
+        assert(i3.toUnion().covers(i2.toUnion()));
+        assert(i3.toUnion().covers(i3.toUnion()));
+        assert(i3.toUnion().covers(Union.from([i1, i2])));
+        assert(i3.toUnion().covers(Union.from([i2, i1])));
+        assert(i3.toUnion().covers(Union.from([i2, i1, i1])));
+        assert(Union.from([i1, i2]).covers(i3));
+        assert(Union.from([i1, i2]).covers(Union.from([i1, i2])));
+        assert(Union.from([i1, i2]).covers(Union.from([i1, i2, i1])));
+        assert(Union.from([i1, i2]).covers(Union.from([i2, i2, i1])));
+        assert(!p1.toUnion().covers(p2));
+        assert(!p1.toUnion().covers(p2.toUnion()));
+    });
+
+    it("intersects", function () {
+        assert(i3.toUnion().intersects(i1));
+        assert(i3.toUnion().intersects(i2));
+        assert(i3.toUnion().intersects(i3));
+        assert(i3.toUnion().intersects(i1.toUnion()));
+        assert(i3.toUnion().intersects(i2.toUnion()));
+        assert(i3.toUnion().intersects(i3.toUnion()));
+        assert(i3.toUnion().intersects(Union.from([i1, i2])));
+        assert(i3.toUnion().intersects(Union.from([i2, i1])));
+        assert(i3.toUnion().intersects(Union.from([i2, i1, i1])));
+        assert(Union.from([i1, i2]).intersects(i3));
+        assert(Union.from([i1, i2]).intersects(Union.from([i1, i2])));
+        assert(Union.from([i1, i2]).intersects(Union.from([i1, i2, i1])));
+        assert(Union.from([i1, i2]).intersects(Union.from([i2, i2, i1])));
+        assert(!p1.toUnion().intersects(p2));
+        assert(!p1.toUnion().intersects(p2.toUnion()));
+    });
+
+    it("intersects with empty", function () {
+        assert(!pe.toUnion().intersects(pe));
+        assert(!pe.toUnion().intersects(pe.toUnion()));
+        assert(!pe.toUnion().intersects(p1));
+        assert(!pe.toUnion().intersects(p2));
+        assert(!pe.toUnion().intersects(p1.toUnion()));
+        assert(!pe.toUnion().intersects(p2.toUnion()));
+        assert(!pe.toUnion().intersects(Union.from([p1, p2])));
+        assert(!Union.from([pe, pe, pe]).intersects(Union.from([p1, p2])));
+    });
+
+    it("contains", function () {
+        assert(i3.toUnion().contains([-3]));
+        assert(i3.toUnion().contains([-1]));
+        assert(i3.toUnion().contains([0]));
+        assert(i3.toUnion().contains([3]));
+        assert(!i3.toUnion().contains([3.0001]));
+        assert(!i3.toUnion().contains([4]));
+        assert(Union.from([i1, i2]).toUnion().contains([-3]));
+        assert(Union.from([i1, i2]).toUnion().contains([-1]));
+        assert(Union.from([i1, i2]).toUnion().contains([0]));
+        assert(Union.from([i1, i2]).toUnion().contains([3]));
+        assert(Union.from([i1, i2, ie, i2]).toUnion().contains([0]));
+        assert(!pe.toUnion().contains([0, 0]));
+    });
+
+    it("fulfils", function () {
+        // TODO
+    });
+
+    it("sample", function () {
+        const u = Union.from([p1, p2]);
+        for (let i = 0; i < 1000; i++) {
+            assert(u.contains(u.sample()));
+        }
+    });
+
+    it("translate", function () {
+        assert(Union.from([i1, i2]).translate([2.3]).isSameAs(i3.translate([2.3])));
+    });
+
+    it("invert", function () {
+        assert(Union.from([i1, i2]).invert().isSameAs(i3.invert()));
+    });
+
+    it("apply", function () {
+        assert(Union.from([i1, i2]).apply([[2.3]]).isSameAs(i3.apply([[2.3]])));
+        assert(Union.from([i1, i2]).apply([[2.3], [-1]]).isSameAs(i3.apply([[2.3], [-1]])));
+    });
+
+    it("applyRight", function () {
+        assert(Union.from([i1, i2]).applyRight([[2.3]]).isSameAs(i3.applyRight([[2.3]])));
     });
 
     it("minkowski with one element yields same as polytope method", function () {
-        let mink = union.minkowski([poly1], poly1);
-        assert.equal(mink.length, 1);
-        assert(mink[0].isSameAs(poly1.minkowski(poly1)));
+        const mink = Union.from([p1]).minkowski(p1);
+        assert(!mink.isEmpty);
+        assert.equal(mink.polytopes.length, 1);
+        assert(mink.isSameAs(p1.minkowski(p1)));
     });
 
     it("pontryagin with one element yields same as polytope method", function () {
-        let poly3 = geometry.Polygon.hull([[0, 0], [0.1, 0.1], [0, 0.1], [0.1, 0]]);
-        let pont = union.pontryagin([poly1], poly3);
-        assert.equal(pont.length, 1);
-        assert(pont[0].isSameAs(poly1.pontryagin(poly3)));
+        const p3 = geometry.Polygon.hull([[0, 0], [0.1, 0.1], [0, 0.1], [0.1, 0]]);
+        let pont = Union.from([p1]).pontryagin(p3);
+        assert(!pont.isEmpty);
+        assert.equal(pont.polytopes.length, 1);
+        assert(pont.isSameAs(p1.pontryagin(p3)));
+    });
+
+    it("intersect", function () {
+        // TODO
+    });
+
+    it("remove", function () {
+        // TODO
+    });
+
+    it("union", function () {
+        // TODO
+    });
+
+    it("hull", function () {
+        // TODO
+    });
+
+    it("disjunctify", function() {
+        // TODO
     });
 
     it("simplify merges a union of intervals", function () {
         let i = geometry.Interval.hull([[0], [1]]);
         let ref = geometry.Interval.hull([[-1], [2]]);
-        let s1 = union.simplify([i, i.translate([1]), i.translate([-1])]);
-        let s2 = union.simplify([i.translate([1]), i, i.translate([-1])]);
-        let s3 = union.simplify([i.translate([1]), i.translate([-1]), i]);
-        assert.equal(s1.length, 1);
-        assert.equal(s2.length, 1);
-        assert.equal(s3.length, 1);
-        assert(s1[0].isSameAs(ref));
-        assert(s2[0].isSameAs(ref));
-        assert(s3[0].isSameAs(ref));
+        let s1 = Union.from([i, i.translate([1]), i.translate([-1])]).simplify();
+        let s2 = Union.from([i.translate([1]), i, i.translate([-1])]).simplify();
+        let s3 = Union.from([i.translate([1]), i.translate([-1]), i]).simplify();
+        assert.equal(s1.polytopes.length, 1);
+        assert.equal(s2.polytopes.length, 1);
+        assert.equal(s3.polytopes.length, 1);
+        assert(s1.isSameAs(ref));
+        assert(s2.isSameAs(ref));
+        assert(s3.isSameAs(ref));
     });
+
+    it("toUnion", function() {
+        // TODO
+    });
+
 
 });
 

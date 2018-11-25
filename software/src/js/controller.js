@@ -1,9 +1,10 @@
 // @flow
 "use strict";
 
-import type { ConvexPolytopeUnion } from "./geometry.js";
+import type { Region } from "./geometry.js";
 import type { Vector } from "./linalg.js";
 import type { AbstractedLSS } from "./system.js";
+
 
 // Controller instances keep their own memory
 export interface Controller {
@@ -14,14 +15,14 @@ export interface Controller {
 // Return a random control input at every step
 class RandomController implements Controller {
     
-    +uus: ConvexPolytopeUnion;
+    +uus: Region;
     
     constructor(system: AbstractedLSS): void {
         this.uus = system.lss.uus;
     }
 
     input(x: Vector): Vector {
-        return this.uus[0].sample();
+        return this.uus.sample();
     }
 
 }

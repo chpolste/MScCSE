@@ -1,7 +1,6 @@
 // @flow
 "use strict";
 
-import type { Polytope } from "./geometry.js";
 import type { Proposition, ObjectiveKind } from "./logic.js";
 import type { FigureLayer } from "./figure.js";
 import type { Plot } from "./widgets-plot.js";
@@ -10,7 +9,7 @@ import type { Input } from "./widgets-input.js";
 import * as presets from "./presets.js";
 import * as dom from "./dom.js";
 import { iter, ObservableMixin } from "./tools.js";
-import { Halfspace, polytopeType, union } from "./geometry.js";
+import { Halfspace, Polytope, Union } from "./geometry.js";
 import { Objective, OnePairStreettAutomaton, AtomicProposition, parseProposition, traverseProposition } from "./logic.js";
 import { Figure, autoProjection } from "./figure.js";
 import { AxesPlot } from "./widgets-plot.js";
@@ -246,7 +245,7 @@ class SystemPreview {
             const lss = this.setup.lss;
             this.plot.projection = autoProjection(6/5, ...lss.extent);
             stateShapes.push({ kind: "polytope", vertices: lss.xx.vertices });
-            outerShapes.push(...union.remove(lss.oneStepReachable, lss.xx.toUnion()).map(
+            outerShapes.push(...lss.oneStepReachable.remove(lss.xx).polytopes.map(
                 poly => ({ kind: "polytope", vertices: poly.vertices })
             ));
         // Form is not filled out sufficiently to preview a system
@@ -363,7 +362,7 @@ class PolytopeInput extends ObservableMixin<null> implements Input<Polytope> {
     }
 
     get value(): Polytope {
-        return polytopeType(this.variables.length).intersection(this.predicates.value);
+        return Polytope.ofDim(this.variables.length).intersection(this.predicates.value);
     }
 
     get text(): string {

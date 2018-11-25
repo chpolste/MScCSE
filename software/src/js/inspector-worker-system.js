@@ -1,13 +1,13 @@
 // @flow
 "use strict";
 
-import type { JSONPolytope, JSONConvexPolytopeUnion } from "./geometry.js";
+import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResults } from "./game.js";
 import type { Refinery, PartitionMap } from "./refinement.js";
 import type { LSS, State, StateKind, Trace, JSONAbstractedLSS } from "./system.js";
 
 import { controller } from "./controller.js";
-import { union } from "./geometry.js";
+import { Polytope, Union } from "./geometry.js";
 import { Refineries, partitionMap } from "./refinement.js";
 import { AbstractedLSS } from "./system.js";
 import { iter, sets, obj } from "./tools.js";
@@ -239,14 +239,14 @@ export type ActionRequest = string;
 export type ActionData = {
     origin: StateData,
     id: number,
-    controls: JSONConvexPolytopeUnion,
+    controls: JSONUnion,
     targets: StateData[]
 };
 communicator.onRequest("getActions", function (data: ActionRequest): ActionData[] {
     return $.system.getState(data).actions.map((action, id) => ({
         origin: stateDataOf(action.origin),
         id: id,
-        controls: union.serialize(action.controls),
+        controls: action.controls.toUnion().serialize(),
         targets: action.targets.map(stateDataOf)
     }));
 });
@@ -257,7 +257,7 @@ export type SupportRequest = [string, number];
 export type SupportData = {
     origin: StateData,
     id: number,
-    origins: JSONConvexPolytopeUnion,
+    origins: JSONUnion,
     targets: StateData[]
 };
 communicator.onRequest("getSupports", function (data: SupportRequest): SupportData[] {
@@ -266,27 +266,27 @@ communicator.onRequest("getSupports", function (data: SupportRequest): SupportDa
     return state.actions[actionId].supports.map((support, id) => ({
         origin: stateDataOf(state),
         id: id,
-        origins: union.serialize(support.origins),
+        origins: support.origins.toUnion().serialize(),
         targets: support.targets.map(stateDataOf)
     }));
 });
 
 
 // Operator of a state
-export type OperatorRequest = [string, string, JSONConvexPolytopeUnion];
-export type OperatorData = JSONConvexPolytopeUnion;
-const OPERATORS = {
-    "post":  (state, us) => state.isOuter ? [] : state.post(us),
-    "pre":   (state, us) => $.lss.pre($.lss.xx, us, state.polytope.toUnion()),
-    "preR":  (state, us) => $.lss.preR($.lss.xx, us, state.polytope.toUnion()),
-    "attr":  (state, us) => $.lss.attr($.lss.xx, us, state.polytope.toUnion()),
-    "attrR": (state, us) => $.lss.attrR($.lss.xx, us, state.polytope.toUnion())
+export type OperatorRequest = [string, string, JSONUnion];
+export type OperatorData = JSONUnion;
+const OPERATORS: { [string]: (State, Union) => Region } = {
+    "post":  (state, us) => state.isOuter ? Polytope.ofDim($.lss.dim).empty() : state.post(us),
+    "pre":   (state, us) => $.lss.pre($.lss.xx, us, state.polytope),
+    "preR":  (state, us) => $.lss.preR($.lss.xx, us, state.polytope),
+    "attr":  (state, us) => $.lss.attr($.lss.xx, us, state.polytope),
+    "attrR": (state, us) => $.lss.attrR($.lss.xx, us, state.polytope)
 };
 communicator.onRequest("getOperator", function (data: OperatorRequest): OperatorData {
     const [operator, stateLabel, control] = data;
     const state = $.system.getState(stateLabel);
-    const us = union.deserialize(control);
-    return union.serialize(OPERATORS[operator](state, us));
+    const us = Union.deserialize(control);
+    return OPERATORS[operator](state, us).toUnion().serialize(); // TODO: enforce Union
 });
 
 

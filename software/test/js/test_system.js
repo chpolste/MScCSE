@@ -9,16 +9,20 @@ let system = require("../../src/js/system.js");
 const imap = tools.iter.map;
 const ifilter = tools.iter.filter;
 const icount = tools.iter.count;
-
+const Union = geometry.Union;
 
 function actionPolytopesCoverControlSpace(sys) {
     return function () {
         for (let state of ifilter(s => !s.isOuter, sys.states.values())) {
-            let actionPolytopes = [];
+            const actionPolytopes = [];
             for (let action of state.actions) {
-                actionPolytopes.push(...action.controls);
+                actionPolytopes.push(...action.controls.polytopes);
             }
-            assert(geometry.union.isSameAs(actionPolytopes, sys.lss.uus));
+            assert(actionPolytopes.length > 0);
+            const actions = Union.from(actionPolytopes);
+            assert(!actions.isEmpty);
+            assert(actions.isSameAs(sys.lss.uus));
+            assert(sys.lss.uus.isSameAs(actions));
         }
     }
 }
@@ -29,7 +33,8 @@ function actionPolytopesDoNotOverlap(sys) {
             for (let action1 of state.actions) {
                 for (let action2 of state.actions) {
                     if (action1 === action2) continue;
-                    assert(!geometry.union.doIntersect(action1.controls, action2.controls));
+                    assert(!action1.controls.intersects(action2.controls));
+                    assert(!action2.controls.intersects(action1.controls));
                 }
             }
         }
@@ -42,21 +47,28 @@ function actionSupportsArePreP(sys) {
             for (let action of state.actions) {
                 const preR = sys.preR(action.origin, action.controls, action.targets);
                 // PreR has to cover the entire origin polytope
-                assert(geometry.union.isSameAs([state.polytope], preR));
+                assert(state.polytope.isSameAs(preR));
+                assert(preR.isSameAs(state.polytope));
                 const supportPolys = [];
                 for (let support of action.supports) {
-                    supportPolys.push(...support.origins);
+                    supportPolys.push(...support.origins.polytopes);
                     // Origin is subset of PreR
-                    assert(geometry.union.doIntersect(support.origins, preR));
-                    assert(!geometry.union.doIntersect(support.origins, state.polytope.remove(...preR)));
+                    assert(support.origins.intersects(preR));
+                    assert(preR.intersects(support.origins));
+                    assert(!support.origins.intersects(state.polytope.remove(preR)));
+                    assert(!state.polytope.remove(preR).intersects(support.origins));
                     // Every target is reachable
                     for (let target of support.targets) {
                         let pre = action.origin.pre(action.controls, [target]);
-                        assert(geometry.union.doIntersect(support.origins, pre));
+                        assert(support.origins.intersects(pre));
+                        assert(pre.intersects(support.origins));
                     }
                 }
                 // Supports have to cover entire origin polytope
-                assert(geometry.union.isSameAs([state.polytope], supportPolys));
+                assert(supportPolys.length > 0);
+                const support = Union.from(supportPolys);
+                assert(state.polytope.isSameAs(support));
+                assert(support.isSameAs(state.polytope));
             }
         }
     }
@@ -69,7 +81,7 @@ describe("Svoreňová et al. (2017): illustrative example system", function () {
         [[1, 0], [0, 1]], // B
         geometry.Polygon.hull([[0, 0], [4, 0], [4, 2], [0, 2]]), // state space
         geometry.Polygon.hull([[-0.1, -0.1], [-0.1, 0.1], [0.1, -0.1], [0.1, 0.1]]), // random space
-        [geometry.Polygon.hull([[-1, -1], [-1, 1], [1, -1], [1, 1]])] // control space
+        geometry.Polygon.hull([[-1, -1], [-1, 1], [1, -1], [1, 1]]).toUnion() // control space
     );
 
     const sys = lss.decompose([geometry.Halfspace.parse("x > 2", "xy")]);
@@ -112,7 +124,7 @@ describe("Svoreňová et al. (2017): double integrator system", function () {
         [[0.5], [1]], // B
         geometry.Polygon.hull([[-5, 3], [-5, -3], [5, 3], [5, -3]]), // state space
         geometry.Polygon.hull([[-0.1, -0.1], [-0.1, 0.1], [0.1, -0.1], [0.1, 0.1]]), // random space
-        [geometry.Interval.hull([[-1], [1]])] // control space
+        geometry.Interval.hull([[-1], [1]]) // control space
     );
 
     const sys = lss.decompose([

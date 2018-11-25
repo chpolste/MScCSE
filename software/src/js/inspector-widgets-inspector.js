@@ -3,7 +3,7 @@
 
 import type { FigureLayer, Shape } from "./figure.js";
 import type { AnalysisResults } from "./game.js";
-import type { JSONConvexPolytopeUnion, Halfspace } from "./geometry.js";
+import type { Halfspace, JSONUnion } from "./geometry.js";
 import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, TraceData,
               GameGraphData, ProcessAnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData,
               NameSnapshotData, SnapshotData } from "./inspector-worker-system.js";
@@ -16,7 +16,6 @@ import type { Input } from "./widgets-input.js";
 
 import * as dom from "./dom.js";
 import { Figure, autoProjection, Horizontal1D } from "./figure.js";
-import { union } from "./geometry.js";
 import * as linalg from "./linalg.js";
 import { Objective, stringifyProposition, texifyProposition } from "./logic.js";
 import { State } from "./system.js";
@@ -138,7 +137,7 @@ export class ProblemSummary {
 
     constructor(system: AbstractedLSS, objective: Objective): void {
         const csFig = new Figure();
-        csFig.newLayer({ stroke: "#000", fill: "#EEE" }).shapes = system.lss.uus.map(
+        csFig.newLayer({ stroke: "#000", fill: "#EEE" }).shapes = system.lss.uus.polytopes.map(
             u => ({ kind: "polytope", vertices: u.vertices })
         );
         const rsFig = new Figure();
@@ -149,7 +148,7 @@ export class ProblemSummary {
         ssFig.newLayer({ stroke: "#000", fill: "#EEE" }).shapes = [
             { kind: "polytope", vertices: system.lss.xx.vertices }
         ];
-        const cs = new AxesPlot([90, 90], csFig, autoProjection(1, ...union.extent(system.lss.uus)));
+        const cs = new AxesPlot([90, 90], csFig, autoProjection(1, ...system.lss.uus.extent));
         const rs = new AxesPlot([90, 90], rsFig, autoProjection(1, ...system.lss.ww.extent));
         const ss = new AxesPlot([90, 90], ssFig, autoProjection(1, ...system.lss.xx.extent));
         let formula = objective.kind.formula;
@@ -249,7 +248,7 @@ export class SystemInspector extends ObservableMixin<null> {
             "A": JSON.stringify(system.lss.A),
             "B": JSON.stringify(system.lss.B),
             "X": JSON.stringify(system.lss.xx.vertices),
-            "U": JSON.stringify(system.lss.uus[0].vertices),
+            "U": JSON.stringify(system.lss.uus.polytopes[0].vertices),
             "Y": "",
             "W": JSON.stringify(system.lss.ww.vertices)
         };
@@ -354,7 +353,7 @@ export class SystemInspector extends ObservableMixin<null> {
         return this.systemComm.request("getSupports", [state, action]);
     }
 
-    getOperator(op: string, state: StateID, us: JSONConvexPolytopeUnion): Promise<OperatorData> {
+    getOperator(op: string, state: StateID, us: JSONUnion): Promise<OperatorData> {
         return this.systemComm.request("getOperator", [op, state, us]);
     }
 
@@ -1191,7 +1190,7 @@ class AutomatonView {
 // - SpaceView
 // - SystemView
 
-type OperatorWrapper = (StateData, JSONConvexPolytopeUnion) => Promise<OperatorData>;
+type OperatorWrapper = (StateData, JSONUnion) => Promise<OperatorData>;
 // Settings panel for the main view.
 class Settings extends ObservableMixin<null> {
 
@@ -1281,8 +1280,8 @@ class SpaceView {
     drawSpaces(): void {
         const controlSpace = this.proxy.lss.uus;
         const randomSpace = this.proxy.lss.ww;
-        this.ctrlPlot.projection = autoProjection(3/2, ...union.extent(controlSpace));
-        this.ctrlLayers.poly.shapes = controlSpace.map(u => ({ kind: "polytope", vertices: u.vertices }));
+        this.ctrlPlot.projection = autoProjection(3/2, ...controlSpace.extent);
+        this.ctrlLayers.poly.shapes = controlSpace.polytopes.map(u => ({ kind: "polytope", vertices: u.vertices }));
         this.randPlot.projection = autoProjection(1, ...randomSpace.extent);
         this.randLayers.poly.shapes = [{ kind: "polytope", vertices: randomSpace.vertices }];
     }
@@ -1294,7 +1293,7 @@ class SpaceView {
         if (action == null) {
             this.ctrlLayers.action.shapes = [];
         } else {
-            this.ctrlLayers.action.shapes = action.controls.map(
+            this.ctrlLayers.action.shapes = action.controls.polytopes.map(
                 poly => ({ kind: "polytope", vertices: poly.vertices })
             );
         }
@@ -1434,9 +1433,9 @@ class SystemView {
             const action = this.actionView.hoverSelection == null
                          ? this.actionView.selection
                          : this.actionView.hoverSelection;
-            const control = action == null ? union.serialize(this.proxy.lss.uus) : action.controls;
+            const control = action == null ? this.proxy.lss.uus.toUnion().serialize() : action.controls;
             operator(state, control).then(data => {
-                const shapes = data.map(
+                const shapes = data.polytopes.map(
                     poly => ({ kind: "polytope", vertices: poly.vertices })
                 );
                 this.layers.highlight1.shapes = shapes;
@@ -1518,7 +1517,7 @@ class SystemView {
         if (support == null) {
             this.layers.support.shapes = [];
         } else {
-            this.layers.support.shapes = support.origins.map(
+            this.layers.support.shapes = support.origins.polytopes.map(
                 origin => ({ kind: "polytope", vertices: origin.vertices })
             );
         }

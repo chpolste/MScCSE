@@ -201,10 +201,10 @@ export class LSS {
             ([label, predicate]) => this.xx.split(predicate)[0]
         );
         for (let part of partition) {
-            if (part.region instanceof Union) throw new Error(
+            if (part.region.polytopes.length !== 1) throw new Error(
                 "State space was not split properly by linear predicates"
             );
-            system.newState(part.region, UNDECIDED, part.items.map(_ => _[0]).filter(_ => _.length > 0));
+            system.newState(part.region.polytopes[0], UNDECIDED, part.items.map(_ => _[0]).filter(_ => _.length > 0));
         }
         // Add the part of the state space not covered by any predicate
         let leftOverPoly = this.xx;

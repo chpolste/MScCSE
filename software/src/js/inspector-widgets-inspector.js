@@ -292,8 +292,8 @@ export class SystemInspector extends ObservableMixin<null> {
                 dom.H3({}, ["Snapshots", dom.infoBox("info-snapshots")]),
                 snapshotCtrl.node
             ],
-            "Control": [
-                dom.H3({}, ["Objective Automaton", dom.infoBox("info-automaton")]),
+            "Objective": [
+                dom.H3({}, ["Automaton", dom.infoBox("info-automaton")]),
                 automatonView.node,
                 dom.H3({}, ["Trace Sample", dom.infoBox("info-trace")]),
                 traceView.node
@@ -304,7 +304,7 @@ export class SystemInspector extends ObservableMixin<null> {
                 dom.H3({}, ["Error Message"]),
                 this._log
             ]
-        }, "Game");
+        }, "System");
 
         this.node = dom.DIV({ "class": "inspector" }, [
             dom.DIV({ "class": "left" }, [
@@ -499,7 +499,7 @@ class StateView extends ObservableMixin<null> {
         return this._selection;
     }
 
-    select(state: ?StateDataPlus): void {
+    set selection(state: ?StateDataPlus): void {
         const selection = this._selection;
         if (selection != null && state != null && state.label === selection.label) {
             this._selection = null;
@@ -1130,42 +1130,46 @@ class TraceView extends ObservableMixin<null> {
 }
 
 
-class AutomatonView {
+class AutomatonView extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
     +traceView: TraceView;
-    +transitions: Map<string, Map<string, Shape>>;
-    +transitionsLayer: FigureLayer;
+    +shapes: AutomatonShapeCollection;
+    +layers: { [string]: FigureLayer };
+    _selection: string; // Automaton state label
 
     constructor(proxy: SystemInspector, traceView: TraceView): void {
+        super();
         this.traceView = traceView;
         const objective = proxy.objective;
+        // Select initial state at first
+        this._selection = objective.automaton.initialState.label;
         // Automaton visualization
         const fig = new Figure();
-        const shapes = objective.toShapes();
-        // Plot automaton states
-        const states = fig.newLayer({ "fill": "none", "stroke": "#000", "stroke-width": "1.5" });
-        states.shapes = shapes.states.values();
-        // State and transition labels are offset by 4px to achieve vertical
-        // centering
-        const stateLabels = fig.newLayer({
-            "font-family": "DejaVu Sans, sans-serif", "font-size": "10pt",
-            "text-anchor": "middle", "transform": "translate(0 4)"
-        });
-        stateLabels.shapes = shapes.stateLabels;
-        const transitionLabels = fig.newLayer({
-            "font-family": "serif", "font-size": "10pt",
-            "transform": "translate(0 4)"
-        });
-        transitionLabels.shapes = shapes.transitionLabels;
-        // Transitions are draw dynamically
-        this.transitionsLayer = fig.newLayer({ "fill": "#000", "stroke": "#000", "stroke-width": "2" });
-        this.transitions = shapes.transitions;
+        this.shapes = objective.toShapes();
+        this.layers = {
+            // State and transition labels are offset by 4px to achieve
+            // vertical centering
+            transitionLabels: fig.newLayer({
+                "font-family": "serif", "font-size": "10pt", "transform": "translate(0 4)"
+            }),
+            stateLabels: fig.newLayer({
+                "font-family": "DejaVu Sans, sans-serif", "font-size": "10pt",
+                "text-anchor": "middle", "transform": "translate(0 4)"
+            }),
+            transitions: fig.newLayer({
+                "fill": "#000", "stroke": "#000", "stroke-width": "2"
+            }),
+            states: fig.newLayer({
+                "fill": "#FFF", "fill-opacity": "0", "stroke": "#000", "stroke-width": "1.5"
+            })
+        };
+        this.drawStates();
         this.drawTransitions();
         // Observe trace highlight and highlight transition in automaton plot
         this.traceView.attach(() => this.drawTransitions());
         // Setup plot area
-        const extent = shapes.extent;
+        const extent = this.shapes.extent;
         if (extent == null) throw new Error("No automaton plot extent given by objective");
         const proj = autoProjection(2, ...extent);
         const plot = new ShapePlot([510, 255], fig, proj, false);
@@ -1177,18 +1181,49 @@ class AutomatonView {
         ]);
     }
 
+    get selection(): string {
+        return this._selection;
+    }
+
+    set selection(q: string): void {
+        this._selection = q;
+        this.drawStates();
+        this.notify();
+    }
+
+    drawStates(): void {
+        const ss = [];
+        const ls = [];
+        for (let [state, [s, l]] of this.shapes.states) {
+            s = obj.clone(s);
+            s.events = { "click": () => { this.selection = state; } };
+            if (state === this._selection) {
+                s.style = { "stroke": COLORS.selection };
+                l = obj.clone(l);
+                l.style = { "fill": COLORS.selection };
+            }
+            ss.push(s);
+            ls.push(l);
+        }
+        this.layers.states.shapes = ss;
+        this.layers.stateLabels.shapes = ls;
+    }
+
     drawTransitions(): void {
         const marked = this.traceView.marked;
         if (marked != null) {
             // TODO
         }
         const ts = [];
-        for (let [origin, transitions] of this.transitions) {
-            for (let [target, shape] of transitions) {
-                ts.push(shape);
+        const ls = [];
+        for (let [origin, transitions] of this.shapes.transitions) {
+            for (let [target, [t, l]] of transitions) {
+                ts.push(t);
+                ls.push(l);
             }
         }
-        this.transitionsLayer.shapes = ts;
+        this.layers.transitions.shapes = ts;
+        this.layers.transitionLabels.shapes = ls;
     }
 
 }
@@ -1423,7 +1458,9 @@ class SystemView {
             this.layers.interaction.shapes = data.map(state => ({
                 kind: "polytope", vertices: state.polytope.vertices,
                 events: {
-                    click: () => this.stateView.select(state)
+                    click: () => {
+                        this.stateView.selection = state;
+                    }
                 }
             }));
             this.drawKind();

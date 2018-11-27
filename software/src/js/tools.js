@@ -247,6 +247,10 @@ export const obj = {
             }, kvs);
         }
         return out;
+    },
+
+    clone: function <A>(kvs: A): A {
+        return Object.assign({}, kvs);
     }
 
 };

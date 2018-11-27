@@ -287,10 +287,8 @@ with a propositional formula.
 */
 
 export type AutomatonShapeCollection = {
-    states: Map<string, Shape>,
-    stateLabels: Shape[],
-    transitions: Map<string, Map<string, Shape>>,
-    transitionLabels: Shape[],
+    states: Map<string, [Shape, Shape]>, // symbol, label
+    transitions: Map<string, Map<string, [Shape, Shape]>>, // arrow, label
     extent?: [number, number][]
 };
 
@@ -339,23 +337,19 @@ export class OnePairStreettAutomaton {
     // their labels. The organization enables finding specific
     // transitions/states later so they can be highlighted.
     toShapes(placement: AutomatonPlacement, propositions?: null): AutomatonShapeCollection {
-        // States
+        // States and state labels
         const ss = new Map();
-        // State labels
-        const sls = [];
-        // Transitions
+        // Transitions and transition labels
         const tss = new Map();
-        // Transition labels
-        const tls = [];
-
+        // Convert each state and its transition to shapes
         for (let origin of this.states.values()) {
             // State with acceptance set membership and its label
             const [x, y, loopAngle] = placement[origin.label];
-            ss.set(origin.label, {
-                kind: "state", coords: [x, y],
-                member: (this.acceptanceSetE.has(origin) ? "E" : "") + (this.acceptanceSetF.has(origin) ? "F" : "")
-            });
-            sls.push({ kind: "label", coords: [x, y], text: origin.label });
+            const member = (this.acceptanceSetE.has(origin) ? "E" : "") + (this.acceptanceSetF.has(origin) ? "F" : "");
+            ss.set(origin.label, [
+                { kind: "state", coords: [x, y], member: member },
+                { kind: "label", coords: [x, y], text: origin.label }
+            ]);
             // Transitions are indexed by the target state label
             const ts = new Map();
             // Transitions with associated propositional formulas
@@ -364,32 +358,40 @@ export class OnePairStreettAutomaton {
                 const text = unicodeifyTransitionLabel(texifyProposition(proposition));
                 // Self-loop
                 if (origin.label === target.label) {
-                    ts.set(origin.label, { kind: "loop", coords: [x, y], angle: loopAngle });
-                    tls.push({ kind: "loopLabel", text: text, coords: [x, y], angle: loopAngle });
+                    ts.set(origin.label, [
+                        { kind: "loop", coords: [x, y], angle: loopAngle },
+                        { kind: "loopLabel", text: text, coords: [x, y], angle: loopAngle }
+                    ]);
                 // Other target
                 } else {
                     const [xx, yy, _] = placement[target.label];
-                    ts.set(target.label, { kind: "transition", origin: [x, y], target: [xx, yy] });
-                    tls.push({ kind: "transitionLabel", text: text, origin: [x, y], target: [xx, yy] });
+                    ts.set(target.label, [
+                        { kind: "transition", origin: [x, y], target: [xx, yy] },
+                        { kind: "transitionLabel", text: text, origin: [x, y], target: [xx, yy] }
+                    ]);
                 }
             }
             // Default transition: print asterisk symbol as label
             if (origin.defaultTarget != null) {
                 // Self-loop
                 if (origin.label === origin.defaultTarget.label) {
-                    ts.set(origin.label, { kind: "loop", coords: [x, y], angle: loopAngle });
-                    tls.push({ kind: "loopLabel", text: "∗", coords: [x, y], angle: loopAngle });
+                    ts.set(origin.label, [
+                        { kind: "loop", coords: [x, y], angle: loopAngle },
+                        { kind: "loopLabel", text: "∗", coords: [x, y], angle: loopAngle }
+                    ]);
                 // Other target
                 } else {
                     const [xx, yy, _] = placement[origin.defaultTarget.label];
-                    ts.set(origin.defaultTarget.label, { kind: "transition", origin: [x, y], target: [xx, yy] });
-                    tls.push({ kind: "transitionLabel", text: "∗", origin: [x, y], target: [xx, yy] });
+                    ts.set(origin.defaultTarget.label, [
+                        { kind: "transition", origin: [x, y], target: [xx, yy] },
+                        { kind: "transitionLabel", text: "∗", origin: [x, y], target: [xx, yy] }
+                    ]);
                 }
             }
             // Add collected transitions to state
             tss.set(origin.label, ts);
         }
-        return { states: ss, stateLabels: sls, transitions: tss, transitionLabels: tls };
+        return { states: ss, transitions: tss };
     }
 
     // Serialization to form "1|2|3|4", where

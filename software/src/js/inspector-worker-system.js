@@ -140,14 +140,6 @@ class SnapshotManager {
 
     processAnalysis(results: AnalysisResults): Set<State> {
         this._analysis = results;
-        // Update state kinds
-        const satisfying = new Set();
-        const nonSatisfying = new Set();
-        // Update system kinds
-        for (let [state, result] of results) {
-            if (result.win.has(result.init)) satisfying.add(state);
-            if (!result.winCoop.has(result.init)) nonSatisfying.add(state);
-        }
         const updated = new Set(); // TODO
         // Refinery setup is affected by analysis results and system, so both
         // have to be updated earlier

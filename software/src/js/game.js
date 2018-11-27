@@ -116,12 +116,12 @@ export class ValidationError extends Error {}
 export type AnalysisResults = Map<StateID, {
     // Initial automaton state
     init: string,
-    // For which automaton states can the game be won by player 1 alone in
-    // the system state?
-    win: Set<string>,
-    // For which automaton states can the game be won by players 1 and
-    // 2 cooperatively in the system state?
-    winCoop: Set<string>,
+    // For which automaton states can the game be won by player 1 alone?
+    yes: Set<string>,
+    // For which automaton states can the game be won by player 2 alone?
+    no: Set<string>,
+    // For which automaton states is there a cooperative strategy?
+    maybe: Set<string>,
     // For every automaton state: which is the next automaton state in the
     // system state after any action is taken?
     next: { [string]: string }
@@ -266,20 +266,26 @@ export class TwoPlayerProbabilisticGame {
         for (let state of this.initialStates) {
             results.set(state.systemState, {
                 init: state.automatonState,
-                win: new Set(),
-                winCoop: new Set(),
+                yes: new Set(),
+                no: new Set(),
+                maybe: new Set(),
                 next: {}
             });
         }
-        // States where player 1 can win even if player 2 plays as an adversary
-        for (let state of win) {
+        for (let state of this.p1States) {
+            // Ignore dead-end states
+            if (state.systemState === "") continue;
             const result = results.get(state.systemState);
-            if (result != null) result.win.add(state.automatonState);
-        }
-        // States where player 1 cannot win even with a cooperative player 2
-        for (let state of winCoop) {
-            const result = results.get(state.systemState);
-            if (result != null) result.winCoop.add(state.automatonState);
+            if (result == null) throw new Error(
+                "result mismatch for state (" + state.systemState + ", " + state.automatonState + ")"
+            );
+            // Player 1 cannot win
+            let category = result.no;
+            // Player 1 can win with a cooperative player 2
+            if (winCoop.has(state)) category = result.maybe;
+            // Player 1 can win even if player 2 plays as an adversary
+            if (win.has(state)) category = result.yes;
+            category.add(state.automatonState);
         }
         // TODO: fill next
         return results;
@@ -355,24 +361,32 @@ export class TwoPlayerProbabilisticGame {
             const xi = state.systemState;
             // Corresponding automaton state (label)
             const qi = state.automatonState;
-            // If a priority 1 state is reached in the co-safe interpretation,
-            // transition to the dedicated __SAT__ state which ensures that
-            // player 1 wins.
-            if (coSafeInterpretation && satEndP1 != null && priority0.has(qi)) {
-                const action = game.takeP2State(xi, 0, "__SAT__");
-                action.actions.push(new Set([satEndP1]));
-                state.actions.push(new Set([action]));
             // For every player 1 state (Xi, q), create actions to player
             // 2 states ((Xi, Uij), q') if automaton transitions from q to q'
             // under the predicates of Xi
-            } else if (state instanceof P1State) {
+            if (state instanceof P1State) {
                 // Set of linear predicates that are fulfiled by system state (labels)
                 const pis = sys.predicateLabelsOf(xi);
                 // Automaton transition that matches linear predicates
                 const qNext = automaton.takeState(qi).successor(valuationFor(pis));
+                // No legal automaton transition: don't add any actions, so
+                // state is connected to dead end later
+                if (qNext == null) {
+                    // ...
+                // If a priority 0 state would be reached in the co-safe
+                // interpretation, ensure that player 1 wins.
+                } else if (coSafeInterpretation && satEndP1 != null && priority0.has(qNext.label)) {
+                    // Side note: It would also be possible to transition
+                    // directly to satEndP2, but this way the next field of the
+                    // analysis results can be filled with less hassle
+                    const action = game.takeP2State(xi, 0, qNext.label);
+                    state.actions.push(new Set([action]));
+                    // Don't put the new player 2 action on queue but directly
+                    // connect to the __SAT__ player 1 state.
+                    action.actions.push(new Set([satEndP1]));
                 // Automaton transition exists, create game transition for
                 // every system action
-                if (qNext != null) {
+                } else {
                     for (let ui = 0; ui < sys.actionCountOf(xi); ui++) {
                         const action = game.takeP2State(xi, ui, qNext.label);
                         state.actions.push(new Set([action]))

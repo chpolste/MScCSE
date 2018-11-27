@@ -39,7 +39,7 @@ class NegativeAttrRefinery implements Refinery {
 
     constructor(system: AbstractedLSS, results: ?AnalysisResults): void {
         const lss = system.lss;
-        const winCoop = results != null ? results.winCoop : new Set();
+        const winCoop = new Set(); // TODO
         if (winCoop.size === 0) {
             this.attr = Polytope.ofDim(lss.dim).empty();
         } else {
@@ -64,7 +64,7 @@ class PositivePreRRefinery implements Refinery {
 
     constructor(system: AbstractedLSS, results: ?AnalysisResults): void {
         const lss = system.lss;
-        const win = results != null ? results.win : new Set();
+        const win = new Set(); // TODO
         if (win.size === 0) {
             this.preR = Polytope.ofDim(lss.dim).empty();
         } else {

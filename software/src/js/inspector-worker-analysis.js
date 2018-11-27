@@ -60,7 +60,7 @@ communicator.onRequest("analysis", function (data: AnalysisRequest): AnalysisDat
     const game = TwoPlayerProbabilisticGame.fromProduct(
         gameGraph, $automaton, $valuationFor, $coSafeInterpretation
     );
-    return game.analysis();
+    return game.analyse();
 });
 
 

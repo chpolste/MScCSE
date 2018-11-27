@@ -193,6 +193,10 @@ export const sets = {
     
     map: function <A,B>(fun: (A) => B, xs: Iterable<A>): Set<B> {
         return new Set(iter.map(fun, xs));
+    },
+
+    filter: function <A>(fun: (A) => boolean, xs: Iterable<A>): Set<A> {
+        return new Set(iter.filter(fun, xs));
     }
 
 };

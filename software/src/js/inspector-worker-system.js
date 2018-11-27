@@ -166,9 +166,9 @@ class SnapshotManager {
         const satisfying = new Set();
         const nonSatisfying = new Set();
         // Update system kinds
-        for (let state of this.system.states.values()) {
-            if (results.winInit.has(state.label)) satisfying.add(state.label);
-            if (!results.winInitCoop.has(state.label)) nonSatisfying.add(state.label);
+        for (let [state, result] of results) {
+            if (result.win.has(result.init)) satisfying.add(state);
+            if (!result.winCoop.has(result.init)) nonSatisfying.add(state);
         }
         const updated = this.system.updateKinds(satisfying, nonSatisfying);
         // Refinery setup is affected by analysis results and system, so both

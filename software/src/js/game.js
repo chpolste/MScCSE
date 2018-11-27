@@ -111,17 +111,21 @@ const DEFAULT_PRIORITY = 2;
 // Thrown if game validation fails
 export class ValidationError extends Error {}
 
-// Game analysis after solution
-export type Analyser = TwoPlayerProbabilisticGame => AnalysisResults;
 // Each state has an object with results attached (these should be
 // JSON-compatible)
-export type AnalysisResults = {
-    win: Set<StateID>,
-    winCoop: Set<StateID>,
-    winInit: Set<StateID>,
-    winInitCoop: Set<StateID>
-    // TODO: action/supoort-based refinement hints
-};
+export type AnalysisResults = Map<StateID, {
+    // Initial automaton state
+    init: string,
+    // For which automaton states can the game be won by player 1 alone in
+    // the system state?
+    win: Set<string>,
+    // For which automaton states can the game be won by players 1 and
+    // 2 cooperatively in the system state?
+    winCoop: Set<string>,
+    // For every automaton state: which is the next automaton state in the
+    // system state after any action is taken?
+    next: { [string]: string }
+}>;
 
 // 2½-player game
 export class TwoPlayerProbabilisticGame {
@@ -208,13 +212,13 @@ export class TwoPlayerProbabilisticGame {
     }
 
     // Solve the game for adversarial player 2
-    solution(): Set<PState> {
-        return this._solution(pre1, pre2, pre3);
+    solve(): Set<PState> {
+        return this._solve(pre1, pre2, pre3);
     }
 
     // Solve the game for cooperative player 2
-    solutionCoop(): Set<PState> {
-        return this._solution(pre1Coop, pre2Coop, pre3Coop);
+    solveCoop(): Set<PState> {
+        return this._solve(pre1Coop, pre2Coop, pre3Coop);
     }
 
     // Generic game solver (works for adversarial and cooperative player 2,
@@ -223,7 +227,7 @@ export class TwoPlayerProbabilisticGame {
     // an almost-sure winning strategy.
     // TODO: add reference for algorithm
     // TODO: remove unneccesary set copies
-    _solution(pre1: Pre1Func, pre2: Pre2Func, pre3: Pre3Func): Set<PState> {
+    _solve(pre1: Pre1Func, pre2: Pre2Func, pre3: Pre3Func): Set<PState> {
         let oldX, oldY, oldZ;
         let newX = new Set(this.states);
         let newY = new Set();
@@ -249,23 +253,36 @@ export class TwoPlayerProbabilisticGame {
         return oldX;
     }
 
-    analysis(): AnalysisResults {
-        // TODO: filter out dead-end states
-        const win = this.solution();
-        const winCoop = this.solutionCoop();
-        // Basic result plausibility check
+    analyse(): AnalysisResults {
+        // Solve game and check result for plausibility
+        const win = this.solve();
+        const winCoop = this.solveCoop();
         if (!sets.isSubset(win, winCoop)) throw new Error(
             "states " + Array.from(sets.difference(win, winCoop)).join(", ")
-            + " have a winning stategy but cannot be won cooperatively"
+            + " have a winning stategy but cannot be won cooperatively (contradiction)"
         );
-        return {
-            // All states
-            win: sets.map(_ => _.systemState, win),
-            winCoop: sets.map(_ => _.systemState, winCoop),
-            // Only initial states
-            winInit: sets.map(_ => _.systemState, sets.intersection(win, this.initialStates)),
-            winInitCoop: sets.map(_ => _.systemState,  sets.intersection(winCoop, this.initialStates))
-        };
+        const results = new Map();
+        // Initial states cover all system states
+        for (let state of this.initialStates) {
+            results.set(state.systemState, {
+                init: state.automatonState,
+                win: new Set(),
+                winCoop: new Set(),
+                next: {}
+            });
+        }
+        // States where player 1 can win even if player 2 plays as an adversary
+        for (let state of win) {
+            const result = results.get(state.systemState);
+            if (result != null) result.win.add(state.automatonState);
+        }
+        // States where player 1 cannot win even with a cooperative player 2
+        for (let state of winCoop) {
+            const result = results.get(state.systemState);
+            if (result != null) result.winCoop.add(state.automatonState);
+        }
+        // TODO: fill next
+        return results;
     }
 
     // Construct synchronous product game from system abstraction-induced game

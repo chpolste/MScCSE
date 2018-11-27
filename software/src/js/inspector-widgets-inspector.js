@@ -18,7 +18,6 @@ import * as dom from "./dom.js";
 import { Figure, autoProjection, Horizontal1D } from "./figure.js";
 import * as linalg from "./linalg.js";
 import { Objective, stringifyProposition, texifyProposition } from "./logic.js";
-import { State } from "./system.js";
 import { arr, obj, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
 import { CheckboxInput, SelectInput, SelectableNodes, inputTextRotation } from "./widgets-input.js";
 import { InteractivePlot, AxesPlot, ShapePlot } from "./widgets-plot.js";
@@ -51,25 +50,25 @@ export const TRACE_LENGTH = 35;
 // Highlight color corresponding to state kind
 function stateColor(state: StateData): string {
     let fill = COLORS.undecided;
-    if (State.isSatisfying(state)) {
-        fill = COLORS.satisfying;
-    } else if (State.isNonSatisfying(state)) {
-        fill = COLORS.nonSatisfying;
-    }
+    //if (State.isSatisfying(state)) {
+    //    fill = COLORS.satisfying;
+    //} else if (State.isNonSatisfying(state)) {
+    //    fill = COLORS.nonSatisfying;
+    //} TODO
     return fill;
 }
 
 // Display text corresponding to state kind
 function stateKindString(state: StateData): string {
-    if (State.isSatisfying(state)) {
-        return "satisfying";
-    } else if (State.isOuter(state)) {
-        return "outer";
-    } else if (State.isNonSatisfying(state)) {
-        return "non-satisfying";
-    } else {
+    //if (State.isSatisfying(state)) {
+    //    return "satisfying";
+    //} else if (State.isOuter(state)) {
+    //    return "outer";
+    //} else if (State.isNonSatisfying(state)) {
+    //    return "non-satisfying";
+    //} else {
         return "undecided";
-    }
+    //} TODO
 }
 
 // State label with applied style corresponding to state kind
@@ -77,10 +76,10 @@ function styledStateLabel(state: StateData, markSelected?: ?StateData): HTMLSpan
     let attributes = {};
     if (markSelected != null && markSelected.label === state.label) {
         attributes["class"] = "selected";
-    } else if (State.isSatisfying(state)) {
-        attributes["class"] = "satisfying";
-    } else if (State.isNonSatisfying(state)) {
-        attributes["class"] = "nonsatisfying";
+    //} else if (State.isSatisfying(state)) { TODO
+    //    attributes["class"] = "satisfying";
+    //} else if (State.isNonSatisfying(state)) {
+    //    attributes["class"] = "nonsatisfying";
     }
     return dom.SPAN(attributes, [dom.snLabel.toHTML(state.label)]);
 }
@@ -823,7 +822,7 @@ class RefinementCtrl {
 
     refineOne(): void {
         const state = this.stateView.selection;
-        if (state != null && State.isUndecided(state)) {
+        if (state != null) {
             this.refine(state);
         }
     }
@@ -832,7 +831,7 @@ class RefinementCtrl {
         const ready = this.analysisCtrl.ready;
         const state = this.stateView.selection;
         this.buttons["refineAll"].disabled = !ready;
-        this.buttons["refineOne"].disabled = !(ready && state != null && State.isUndecided(state));
+        this.buttons["refineOne"].disabled = !(ready && state != null);
     }
 
     _newStep(text: string, name: string): RefinementStep {

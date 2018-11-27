@@ -4,7 +4,7 @@
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResults } from "./game.js";
 import type { Refinery, PartitionMap } from "./refinement.js";
-import type { LSS, State, StateKind, Trace, JSONAbstractedLSS } from "./system.js";
+import type { LSS, State, Trace, JSONAbstractedLSS } from "./system.js";
 
 import { controller } from "./controller.js";
 import { Polytope, Union } from "./geometry.js";
@@ -16,28 +16,6 @@ import { Communicator } from "./worker.js";
 
 // https://github.com/facebook/flow/issues/3128
 declare var self: DedicatedWorkerGlobalScope;
-
-
-function volumeRatios(system: AbstractedLSS): { [string]: number } {
-    let volSat = 0;
-    let volUnd = 0;
-    let volNon = 0;
-    for (let state of system.states.values()) {
-        if (state.isSatisfying) {
-            volSat += state.polytope.volume;
-        } else if (state.isUndecided) {
-            volUnd += state.polytope.volume;
-        } else if (!state.isOuter) {
-            volNon += state.polytope.volume;
-        }
-    }
-    const volAll = volSat + volUnd + volNon;
-    return {
-        "satisfying": volSat / volAll,
-        "undecided": volUnd / volAll,
-        "non-satisfying": volNon / volAll
-    };
-}
 
 
 type Snapshot = {
@@ -121,7 +99,7 @@ class SnapshotManager {
             id: this._id++,
             name: name,
             states: this.system.states.size,
-            ratios: volumeRatios(this.system),
+            ratios: this._volumeRatios(),
             system: this.system.serialize(true), // include actions/supports
             analysis: this._analysis,
             parent: this._current,
@@ -170,7 +148,7 @@ class SnapshotManager {
             if (result.win.has(result.init)) satisfying.add(state);
             if (!result.winCoop.has(result.init)) nonSatisfying.add(state);
         }
-        const updated = this.system.updateKinds(satisfying, nonSatisfying);
+        const updated = new Set(); // TODO
         // Refinery setup is affected by analysis results and system, so both
         // have to be updated earlier
         this._setupRefineries();
@@ -184,13 +162,35 @@ class SnapshotManager {
             if (refinery == null) throw new Error("Refinement step '" + step + "' not recognized");
             refineries.push(refinery);
         }
-        return $.system.refine(partitionMap(refineries, states));
+        return this.system.refine(partitionMap(refineries, states));
     }
 
     _setupRefineries(results: ?AnalysisResults): void {
         this._refineries = obj.map((key, Cls) => new Cls(this.system, this._analysis), Refineries);
     }
 
+    // System status
+
+    _volumeRatios(): { [string]: number } {
+        let volSat = 0;
+        let volUnd = 0;
+        let volNon = 0;
+        for (let state of this.system.states.values()) {
+            if (false) {
+                volSat += state.polytope.volume;
+            } else if (true) {
+                volUnd += state.polytope.volume;
+            } else if (false) {
+                volNon += state.polytope.volume;
+            }
+        }
+        const volAll = volSat + volUnd + volNon;
+        return {
+            "satisfying": volSat / volAll,
+            "undecided": volUnd / volAll,
+            "non-satisfying": volNon / volAll
+        };
+    }
 
 }
 
@@ -203,8 +203,7 @@ const communicator = new Communicator("2W");
 export type StateRequest = string;
 export type StatesRequest = null;
 export type StateData = {
-    label: string,
-    kind: StateKind
+    label: string
 };
 export type StateDataPlus = StateData & {
     polytope: JSONPolytope,
@@ -220,7 +219,7 @@ communicator.onRequest("getStates", function (data: StatesRequest): StateDataPlu
 });
 
 function stateDataOf(state: State): StateData {
-    return { label: state.label, kind: state.kind };
+    return { label: state.label };
 }
 function stateDataPlusOf(state: State): StateDataPlus {
     return {
@@ -228,7 +227,6 @@ function stateDataPlusOf(state: State): StateDataPlus {
         polytope: state.polytope.serialize(),
         centroid: state.polytope.centroid,
         predicates: state.predicates,
-        kind: state.kind,
         numberOfActions: state.actions.length
     };
 }
@@ -316,7 +314,6 @@ communicator.onRequest("getGameGraph", function (data: GameGraphRequest): GameGr
 export type ProcessAnalysisRequest = AnalysisResults;
 export type ProcessAnalysisData = Set<string>;
 communicator.onRequest("processAnalysis", function (data: ProcessAnalysisRequest): ProcessAnalysisData {
-    // State kinds are updated during processing (system.updateKinds)
     return sets.map(_ => _.label, $.processAnalysis(data));
 });
 
@@ -329,10 +326,11 @@ communicator.onRequest("refine", function (data: RefineRequest): RefineData {
     // Which states to refine?
     const states = [];
     if (stateLabel == null) {
-        states.push(...iter.filter(_ => _.isUndecided, $.system.states.values()));
+        states.push(...$.system.states.values()); // TODO: only choose undecided states
     } else {
         const state = $.system.getState(stateLabel);
-        if (state.isUndecided) states.push(state);
+        // TODO verify that state is undecided for any automaton state
+        states.push(state);
     }
     // Return set of states that were changed by refinement
     return sets.map(_ => _.label, $.refine(steps, states));

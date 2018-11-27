@@ -90,14 +90,6 @@ describe("Svoreňová et al. (2017): illustrative example system", function () {
         assert.equal(sys.states.size, 6);
     });
 
-    it("has 0 satisfying states", function () {
-        assert.equal(icount(ifilter(s => s.isSatisfying, sys.states.values())), 0);
-    });
-
-    it("has 2 undecided states", function () {
-        assert.equal(icount(ifilter(s => s.isUndecided, sys.states.values())), 2);
-    });
-
     it("has 18 actions", function () {
         let n = 0;
         for (let s of sys.states.values()) {
@@ -106,8 +98,13 @@ describe("Svoreňová et al. (2017): illustrative example system", function () {
         assert.equal(n, 18);
     });
 
-    it("outside states have no actions", function () {
-        imap(s => assert.equal(s.actions.length, 0), ifilter(s => s.isOuter, sys.states.values()));
+    it("outer states have no actions", function () {
+        for (let state of sys.states.values()) {
+            if (!state.polytope.intersects(sys.lss.xx)) {
+                assert(state.isOuter);
+                assert.equal(state.actions.length, 0);
+            }
+        }
     });
 
     it("union of action polytopes of each state is entire control space", actionPolytopesCoverControlSpace(sys));
@@ -138,14 +135,6 @@ describe("Svoreňová et al. (2017): double integrator system", function () {
         assert.equal(sys.states.size, 13);
     });
 
-    it("has 0 satisfying states", function () {
-        assert.equal(icount(ifilter(s => s.isSatisfying, sys.states.values())), 0);
-    });
-
-    it("has 9 undecided states", function () {
-        assert.equal(icount(ifilter(s => s.isUndecided, sys.states.values())), 9);
-    });
-
     it("has 27 actions", function () {
         let n = 0;
         for (let s of sys.states.values()) {
@@ -154,8 +143,13 @@ describe("Svoreňová et al. (2017): double integrator system", function () {
         assert.equal(n, 27);
     });
 
-    it("outside states have no actions", function () {
-        imap(s => assert.equal(s.actions.length, 0), ifilter(s => s.isOuter, sys.states.values()));
+    it("outer states have no actions", function () {
+        for (let state of sys.states.values()) {
+            if (!state.polytope.intersects(sys.lss.xx)) {
+                assert(state.isOuter);
+                assert.equal(state.actions.length, 0);
+            }
+        }
     });
 
     it("union of action polytopes of each state is entire control space", actionPolytopesCoverControlSpace(sys));

@@ -188,7 +188,7 @@ export class LSS {
         // partition of outer region into convex polytopes
         const outer = this.oneStepReachable.remove(this.xx);
         for (let polytope of outer.polytopes) {
-            system.newState(polytope, OUTER);
+            system.newState(polytope, true);
         }
         // Collect named predicates
         predicateLabels = predicateLabels == null ? predicates.map(_ => "") : predicateLabels;
@@ -204,7 +204,7 @@ export class LSS {
             if (part.region.polytopes.length !== 1) throw new Error(
                 "State space was not split properly by linear predicates"
             );
-            system.newState(part.region.polytopes[0], UNDECIDED, part.items.map(_ => _[0]).filter(_ => _.length > 0));
+            system.newState(part.region.polytopes[0], false, part.items.map(_ => _[0]).filter(_ => _.length > 0));
         }
         // Add the part of the state space not covered by any predicate
         let leftOverPoly = this.xx;
@@ -212,7 +212,7 @@ export class LSS {
             leftOverPoly = leftOverPoly.split(predicate)[1];
         }
         if (!leftOverPoly.isEmpty) {
-            system.newState(leftOverPoly, UNDECIDED, []);
+            system.newState(leftOverPoly, false, []);
         }
         return system;
     }
@@ -232,16 +232,6 @@ export class LSS {
 
 
 /* LSS with state space abstraction */
-
-// State status coded as integer:
-export type StateKind = -10 | -1 | 0 | 1;
-// < 0: non-satisfying
-// = 0: undecided
-// > 0: satisfying
-const OUTER = -10;
-const NONSATISFYING = -1;
-const UNDECIDED = 0;
-const SATISFYING = 1;
 
 // Type aliases for identifier types
 export type StateID = string;
@@ -298,8 +288,7 @@ export class AbstractedLSS implements GameGraph {
         }
         // Add states
         for (let jsonState of json.states) {
-            const polytope = Polytope.deserialize(jsonState.polytope);
-            const state = new State(system, jsonState.label, polytope, jsonState.kind, jsonState.predicates);
+            const state = State.deserialize(jsonState, system);
             system.states.set(state.label, state);
         }
         // Actions are optional
@@ -325,9 +314,9 @@ export class AbstractedLSS implements GameGraph {
     }
 
     // Create a new state, with an automatically generated label
-    newState(polytope: Polytope, kind: StateKind, predicates?: Iterable<PredicateID>): State {
+    newState(polytope: Polytope, isOuter: boolean, predicates?: Iterable<PredicateID>): State {
         const label = this.genLabel();
-        const state = new State(this, label, polytope, kind, predicates);
+        const state = new State(this, label, polytope, isOuter, predicates);
         this.states.set(label, state);
         return state;
     }
@@ -368,36 +357,6 @@ export class AbstractedLSS implements GameGraph {
         return null;
     }
 
-    // Update the states according to the result of a game analysis. Returns
-    // those states whose kind was changed.
-    updateKinds(satisfying: Set<StateID>, nonSatisfying: Set<StateID>): Set<State> {
-        const updated = new Set();
-        for (let [label, state] of this.states.entries()) {
-            let wasUpdated = false;
-            if (satisfying.has(label)) {
-                if (state.isNonSatisfying) throw new Error(
-                    "Non-satisfying state '" + state.label + "' is updated to be satisfying, which should never happen."
-                );
-                wasUpdated = !state.isSatisfying;
-                state.kind = SATISFYING;
-            } else if (nonSatisfying.has(label)) {
-                if (state.isSatisfying) throw new Error(
-                    "Satisfying state '" + state.label + "' is updated to be non-satisfying, which should never happen."
-                );
-                wasUpdated = state.isUndecided;
-                state.kind = state.isOuter ? OUTER : NONSATISFYING;
-            } else {
-                if (!state.isUndecided) throw new Error(
-                    "Decided state '" + state.label + "' is updated to be undecided, which should never happen."
-                );
-            }
-            if (wasUpdated) {
-                updated.add(state);
-            }
-        }
-        return updated;
-    }
-
     // Refine states according to the given partitionings. Returns those states
     // which were refined.
     refine(partitions: PartitionMap): Set<State> {
@@ -413,7 +372,7 @@ export class AbstractedLSS implements GameGraph {
             // Create new states for partition elements with same properties as
             // original state
             for (let poly of partition.polytopes) {
-                this.newState(poly, state.kind, state.predicates);
+                this.newState(poly, state.isOuter, state.predicates);
             }
             // Remove the original state
             this.states.delete(state.label);
@@ -578,27 +537,26 @@ export class AbstractedLSS implements GameGraph {
 type JSONState = {
     label: string,
     polytope: JSONPolytope,
-    predicates: string[],
-    kind: StateKind
+    isOuter: boolean,
+    predicates: string[]
 };
 
 export class State {
 
     +system: AbstractedLSS;
-    +polytope: Polytope;
     +label: StateID;
+    +polytope: Polytope;
+    +isOuter: boolean;
     +predicates: Set<PredicateID>;
     +actions: Action[];
     _actions: ?Action[];
-    kind: StateKind;
     _reachable: Set<State>;
 
-    constructor(system: AbstractedLSS, label: StateID, polytope: Polytope, kind: StateKind,
-            predicates?: Iterable<PredicateID>): void {
+    constructor(system: AbstractedLSS, label: StateID, polytope: Polytope, isOuter: boolean, predicates?: Iterable<PredicateID>): void {
         this.system = system;
-        this.polytope = polytope;
         this.label = label;
-        this.kind = kind;
+        this.polytope = polytope;
+        this.isOuter = isOuter;
         this.predicates = new Set(predicates == null ? [] : predicates);
         this._actions = null;
         this.resetActions(); // initializes _actions and _reachable
@@ -606,7 +564,7 @@ export class State {
 
     static deserialize(json: JSONState, system: AbstractedLSS): State {
         const polytope = Polytope.deserialize(json.polytope);
-        return new State(system, json.label, polytope, json.kind, json.predicates);
+        return new State(system, json.label, polytope, json.isOuter, json.predicates);
     }
 
     // Lazy evaluation and memoization of actions
@@ -621,24 +579,6 @@ export class State {
             );
             return this.actions;
         }
-    }
-
-    /* State kind properties */
-
-    get isUndecided(): boolean {
-        return State.isUndecided(this);
-    }
-
-    get isSatisfying(): boolean {
-        return State.isSatisfying(this);
-    }
-
-    get isNonSatisfying(): boolean {
-        return State.isNonSatisfying(this);
-    }
-
-    get isOuter(): boolean {
-        return State.isOuter(this);
     }
 
     /* Convenience wrappers for polytopic operators */
@@ -705,7 +645,7 @@ export class State {
         // _reachable contains the last known set of action targets, if any
         // invalidated target is in there, the actions have to be reset.
         // The set _reachable will then be recomputed on demand in the actions
-        // getter. It is ok for _reachable to be empty is no actions have been
+        // getter. It is ok for _reachable to be empty if no actions have been
         // computed yet as there is nothing to reset in that case anyway.
         if (this._actions == null || targets == null || sets.doIntersect(this._reachable, targets)) {
             this._actions = this.isOuter ? [] : null; // Outer states have no actions
@@ -718,25 +658,9 @@ export class State {
         return {
             label: this.label,
             polytope: this.polytope.serialize(),
-            predicates: Array.from(this.predicates),
-            kind: this.kind
+            isOuter: this.isOuter,
+            predicates: Array.from(this.predicates)
         };
-    }
-
-    static isOuter(state: { kind: StateKind }) {
-        return state.kind === OUTER;
-    }
-
-    static isNonSatisfying(state: { kind: StateKind }) {
-        return state.kind < 0;
-    }
-
-    static isUndecided(state: { kind: StateKind }) {
-        return state.kind === UNDECIDED;
-    }
-
-    static isSatisfying(state: { kind: StateKind }) {
-        return state.kind > 0;
     }
 
 }

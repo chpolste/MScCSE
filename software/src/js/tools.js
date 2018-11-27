@@ -132,7 +132,7 @@ export const arr = {
     },
 
     // Put a delimiter between elements of an array
-    intersperse: function <T>(delim: T, items: T[]): T[] {
+    intersperse: function <T>(delim: T, items: Iterable<T>): T[] {
         const out = [];
         for (let item of items) {
             out.push(item);

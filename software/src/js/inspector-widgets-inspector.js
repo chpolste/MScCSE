@@ -2,7 +2,7 @@
 "use strict";
 
 import type { FigureLayer, Shape } from "./figure.js";
-import type { AnalysisResults } from "./game.js";
+import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
 import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, TraceData,
               GameGraphData, ProcessAnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData,
@@ -18,7 +18,7 @@ import * as dom from "./dom.js";
 import { Figure, autoProjection, Horizontal1D } from "./figure.js";
 import * as linalg from "./linalg.js";
 import { Objective, stringifyProposition, texifyProposition } from "./logic.js";
-import { arr, obj, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
+import { iter, arr, obj, sets, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
 import { CheckboxInput, SelectInput, SelectableNodes, inputTextRotation } from "./widgets-input.js";
 import { InteractivePlot, AxesPlot, ShapePlot } from "./widgets-plot.js";
 import { Communicator } from "./worker.js";
@@ -48,24 +48,27 @@ const MARKED_STEP_STYLE = { "stroke": "#C00", "fill": "#C00" };
 // Max number of steps when sampling
 export const TRACE_LENGTH = 35;
 
+function analysisKind(q: string, analysis: ?AnalysisResult): string {
+    // If no analysis results are available, everything is undecided
+    if (analysis == null || analysis.maybe.has(q)) {
+        return "maybe";
+    } else if (analysis.yes.has(q)) {
+        return "yes";
+    } else if (analysis.no.has(q)) {
+        return "no";
+    } else {
+        return "unreachable";
+    }
+}
+
 // Simple coloring of states
 function stateColorSimple(state: StateData): string {
     return state.isOuter ? COLORS.no : COLORS.maybe;
 }
 
 // State coloring according to analysis status
-function stateColor(state: StateData, wrtQ: string) {
-    const ana = state.analysis;
-    // If no analysis results are available, everything is undecided
-    if (ana == null || ana.maybe.has(wrtQ)) {
-        return COLORS.maybe;
-    } else if (ana.yes.has(wrtQ)) {
-        return COLORS.yes;
-    } else if (ana.no.has(wrtQ)) {
-        return COLORS.no;
-    } else {
-        return COLORS.unreachable;
-    }
+function stateColor(state: StateData, wrtQ: string): string {
+    return COLORS[analysisKind(wrtQ, state.analysis)];
 }
 
 // Display text corresponding to state kind
@@ -81,17 +84,22 @@ function stateKindString(state: StateData): string {
     //} TODO
 }
 
-// State label with applied style corresponding to state kind
-function styledStateLabel(state: StateData, markSelected?: ?StateData): HTMLSpanElement {
-    let attributes = {};
-    if (markSelected != null && markSelected.label === state.label) {
-        attributes["class"] = "selected";
-    //} else if (State.isSatisfying(state)) { TODO
-    //    attributes["class"] = "satisfying";
-    //} else if (State.isNonSatisfying(state)) {
-    //    attributes["class"] = "nonsatisfying";
+function stateLabel(state: StateData, mark?: ?StateData): HTMLSpanElement {
+    const out = dom.snLabel.toHTML(state.label);
+    if (mark != null && mark.label === state.label) {
+        out.className = "selected";
     }
-    return dom.SPAN(attributes, [dom.snLabel.toHTML(state.label)]);
+    return out;
+}
+
+function automatonLabel(label: string, ana?: ?AnalysisResult): HTMLSpanElement {
+    const out = dom.snLabel.toHTML(label);
+    out.className = analysisKind(label, ana);
+    return out;
+}
+
+function actionCount(): HTMLSpanElement {
+    throw new Error();
 }
 
 // String representation of halfspace inequation
@@ -114,10 +122,10 @@ function ineq2s(h: Halfspace): string {
 }
 
 // Predicate label with inequation as title text
-function styledPredicateLabel(label: string, halfspace: Halfspace): HTMLSpanElement {
-    const node = dom.snLabel.toHTML(label);
-    node.setAttribute("title", ineq2s(halfspace));
-    return node;
+function predicateLabel(label: string, halfspace: Halfspace): HTMLSpanElement {
+    const out = dom.snLabel.toHTML(label);
+    out.title = ineq2s(halfspace);
+    return out;
 }
 
 // Matrix display with KaTeX
@@ -233,18 +241,13 @@ export class SystemInspector extends ObservableMixin<null> {
 
         const settings = new Settings(this, keybindings);
         const analysisCtrl = new AnalysisCtrl(this, keybindings);
-        const stateView = new StateView(this);
+        const automatonView = new AutomatonView(this, keybindings);
+        const stateView = new StateView(this, automatonView);
         const actionView = new ActionView(this, stateView);
         const supportView = new ActionSupportView(this, actionView);
         const traceView = new TraceView(this, stateView, keybindings);
-        const automatonView = new AutomatonView(this, traceView);
         const systemView = new SystemView(
-            this,
-            settings,
-            stateView,
-            traceView,
-            actionView,
-            supportView
+            this, settings, stateView, actionView, supportView, automatonView, traceView
         );
         const refinementCtrl = new RefinementCtrl(this, analysisCtrl, stateView, keybindings);
         const spaceView = new SpaceView(this, traceView, actionView);
@@ -277,7 +280,7 @@ export class SystemInspector extends ObservableMixin<null> {
 
         this.tabs = new TabbedView({
             "Game": [
-                dom.H3({}, ["Selected State", dom.infoBox("info-state")]),
+                dom.H3({}, ["Selection", dom.infoBox("info-state")]),
                 stateView.node,
                 dom.H3({}, ["Actions", dom.infoBox("info-actions")]),
                 actionView.node,
@@ -471,27 +474,29 @@ class StateView extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
     +proxy: SystemInspector;
-    +summary: HTMLParagraphElement;
+    +automatonView: AutomatonView;
+    +lines: HTMLDivElement[];
     +predicates: SelectableNodes<string>;
     _selection: ?StateDataPlus;
 
-    constructor(proxy: SystemInspector): void {
+    constructor(proxy: SystemInspector, automatonView: AutomatonView): void {
         super();
-        this._selection = null;
         this.proxy = proxy;
-        this.proxy.attach(() => this.handleChange());
-
-        // Summary is filled with basic state information
-        this.summary = dom.P();
-        // Predicates that state fulfils
+        this.proxy.attach(() => this.refreshSelection());
+        this.automatonView = automatonView;
+        this.automatonView.attach(() => this.handleChange());
+        this.lines = [dom.DIV(), dom.DIV(), dom.DIV()];
         this.predicates = new SelectableNodes(
-            _ => styledPredicateLabel(_, this.proxy.getPredicate(_)), "-", ", "
+            _ => predicateLabel(_, this.proxy.getPredicate(_)), "-", ", "
         );
         this.predicates.node.className = "predicates";
         this.node = dom.DIV({ "class": "state-view" }, [
-            this.summary, this.predicates.node
+            dom.DIV({}, [dom.DIV({ "class": "label" }, ["State:"]), this.lines[0]]),
+            dom.DIV({}, [dom.DIV({ "class": "label" }, ["Actions:"]), this.lines[1]]),
+            dom.DIV({}, [dom.DIV({ "class": "label" }, ["Analysis:"]), this.lines[2]]),
+            dom.DIV({}, [dom.DIV({ "class": "label" }, ["Predicates:"]), this.predicates.node]),
         ]);
-
+        this._selection = null;
         this.handleChange();
     }
 
@@ -508,27 +513,59 @@ class StateView extends ObservableMixin<null> {
         }
         this.handleChange();
     }
-
-    handleChange() {
-        let state = this._selection;
+    
+    refreshSelection(): void {
+        const state = this._selection;
         if (state != null) {
-            // TODO: documentation
             this.proxy.getState(state.label).then(data => {
                 this._selection = data;
-                const actionCount = data.numberOfActions;
-                const actionText = actionCount === 1 ? " action" : " actions";
-                dom.replaceChildren(this.summary, [
-                    styledStateLabel(data, data),
-                    " (", stateKindString(data), ", ", String(actionCount), actionText, ")"
-                ]);
-                this.predicates.items = Array.from(data.predicates);
-                this.notify();
+                this.handleChange();
             }).catch(e => {
                 this._selection = null;
                 this.handleChange();
             });
+        }
+    }
+
+    handleChange() {
+        const state = this._selection;
+        if (state != null) {
+            const automatonState = this.automatonView.selection;
+            const analysis = state.analysis;
+            // Line 1: system and automaton labels
+            dom.replaceChildren(this.lines[0], [
+                stateLabel(state, state), ", ", automatonLabel(automatonState, analysis)
+            ]);
+            // Line 2: action and automaton transition
+            if (state.isOuter) {
+                dom.replaceChildren(this.lines[1], ["0 (outer state)"]);
+            } else if (analysisKind(automatonState, analysis) === "unreachable") {
+                dom.replaceChildren(this.lines[1], ["0 (state is unreachable)"]);
+            } else if (analysis != null) {
+                const next = analysis.next[automatonState];
+                if (next == null) throw new Error(
+                    "no next automaton state found for reachable state " + state.label // TODO: recover
+                );
+                dom.replaceChildren(this.lines[1], [
+                    state.numberOfActions.toString(), " (transition to ",
+                    automatonLabel(next, null), ")"
+                ]);
+            } else {
+                dom.replaceChildren(this.lines[1], [state.numberOfActions.toString()]);
+            }
+            // Line 3: analysis kinds
+            if (analysis == null) {
+                dom.replaceChildren(this.lines[2], ["?"]);
+            } else {
+                dom.replaceChildren(this.lines[2], arr.intersperse(
+                    ", ", iter.map(_ => automatonLabel(_, analysis), this.automatonView.allStates)
+                ));
+            };
+            // Line 4: linear predicates
+            this.predicates.items = Array.from(state.predicates);
+            this.notify();
         } else {
-            dom.replaceChildren(this.summary, ["no selection"]);
+            for (let line of this.lines) dom.replaceChildren(line, ["-"]);
             this.predicates.items = [];
             this.notify();
         }
@@ -567,9 +604,9 @@ class ActionView extends SelectableNodes<ActionData> {
 
     static asNode(action: ActionData): HTMLDivElement {
         return dom.DIV({}, [
-            styledStateLabel(action.origin, action.origin), " → {",
+            stateLabel(action.origin, action.origin), " → {",
             ...arr.intersperse(", ", action.targets.map(
-                target => styledStateLabel(target, action.origin)
+                target => stateLabel(target, action.origin)
             )),
             "}"
         ]);
@@ -613,7 +650,7 @@ class ActionSupportView extends SelectableNodes<SupportData> {
         return dom.DIV({}, [
             "{",
             ...arr.intersperse(", ", support.targets.map(
-                target => styledStateLabel(target, support.origin)
+                target => stateLabel(target, support.origin)
             )),
             "}"
         ]);
@@ -1133,17 +1170,16 @@ class TraceView extends ObservableMixin<null> {
 class AutomatonView extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
-    +traceView: TraceView;
     +shapes: AutomatonShapeCollection;
     +layers: { [string]: FigureLayer };
+    +allStates: Set<string>;
     _selection: string; // Automaton state label
 
-    constructor(proxy: SystemInspector, traceView: TraceView): void {
+    constructor(proxy: SystemInspector, keybindings: dom.Keybindings): void {
         super();
-        this.traceView = traceView;
         const objective = proxy.objective;
-        // Select initial state at first
-        this._selection = objective.automaton.initialState.label;
+        const init = objective.automaton.initialState.label;
+        this.allStates = sets.map(_ => _.label, objective.automaton.states.values());
         // Automaton visualization
         const fig = new Figure();
         this.shapes = objective.toShapes();
@@ -1164,21 +1200,22 @@ class AutomatonView extends ObservableMixin<null> {
                 "fill": "#FFF", "fill-opacity": "0", "stroke": "#000", "stroke-width": "1.5"
             })
         };
+        // Select initial state at first
+        this._selection = init;
         this.drawStates();
         this.drawTransitions();
-        // Observe trace highlight and highlight transition in automaton plot
-        this.traceView.attach(() => this.drawTransitions());
         // Setup plot area
         const extent = this.shapes.extent;
         if (extent == null) throw new Error("No automaton plot extent given by objective");
         const proj = autoProjection(2, ...extent);
         const plot = new ShapePlot([510, 255], fig, proj, false);
         // Additional textual information about automaton
-        const info = dom.P({}, ["initial state: ", dom.snLabel.toHTML(proxy.objective.automaton.initialState.label)]);
+        const info = dom.P({}, [dom.create("u", {}, ["I"]), "nitial state: ", dom.snLabel.toHTML(init)]);
 
         this.node = dom.DIV({}, [
             plot.node, info
         ]);
+        keybindings.bind("i", () => { this.selection = init; });
     }
 
     get selection(): string {
@@ -1210,10 +1247,6 @@ class AutomatonView extends ObservableMixin<null> {
     }
 
     drawTransitions(): void {
-        const marked = this.traceView.marked;
-        if (marked != null) {
-            // TODO
-        }
         const ts = [];
         const ls = [];
         for (let [origin, transitions] of this.shapes.transitions) {
@@ -1369,6 +1402,7 @@ class SpaceView {
 // StateView            → Selected state.
 // ActionView           → Selected action.
 // ActionSupportView    → Selected action support.
+// AutomatonView        → Analysis state kind.
 // TraceView            → Trace sample.
 class SystemView {
 
@@ -1378,6 +1412,7 @@ class SystemView {
     +traceView: TraceView;
     +actionView: ActionView;
     +supportView: ActionSupportView;
+    +automatonView: AutomatonView;
     +plot: InteractivePlot;
     +layers: { [string]: FigureLayer };
     // Data caches
@@ -1385,8 +1420,8 @@ class SystemView {
     _centroid: { [string]: Vector };
 
     constructor(proxy: SystemInspector, settings: Settings, stateView: StateView,
-                traceView: TraceView, actionView: ActionView,
-                supportView: ActionSupportView): void {
+                actionView: ActionView, supportView: ActionSupportView,
+                automatonView: AutomatonView, traceView: TraceView): void {
         this.proxy = proxy;
         this._data = null;
         this._centroid = {};
@@ -1398,6 +1433,9 @@ class SystemView {
         this.settings.toggleLabel.attach(() => this.drawLabels());
         this.settings.toggleVectorField.attach(() => this.drawVectorField());
         this.settings.highlight.attach(() => this.drawHighlight());
+
+        this.automatonView = automatonView;
+        this.automatonView.attach(() => this.drawKind());
 
         this.traceView = traceView;
         this.traceView.attach(() => this.drawTrace());
@@ -1508,7 +1546,10 @@ class SystemView {
 
     drawKind(): void {
         if (this._data != null) {
-            const color = this.settings.toggleKind.value ? (state) => stateColor(state, "q0") : stateColorSimple;
+            let color = stateColorSimple;
+            if (this.settings.toggleKind.value) {
+                color = (state) => stateColor(state, this.automatonView.selection);
+            }
             this.layers.kind.shapes = this._data.map(state => ({
                 kind: "polytope", vertices: state.polytope.vertices, style: { fill: color(state) }
             }));

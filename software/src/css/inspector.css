@@ -338,18 +338,36 @@ a:hover {
 span.selected {
     color: #069;
 }
-span.satisfying {
+span.yes {
     color: #093;
 }
-span.nonsatisfying {
+span.no {
     color: #666;
 }
+span.maybe {
+    color: #000;
+}
+span.unreachable {
+    color: #C99;
+}
 
-.state-view input.refine {
-    float: right;
+.state-view {
+    display: table;
+}
+.state-view > div {
+    display: table-row;
+    height: 1.4em;
+}
+.state-view > div > div {
+    display: table-cell;
+}
+.state-view .label {
+    text-align: right;
+    padding-right: 1em;
 }
 .state-view .predicates {
     cursor: default;
+    width: 100%;
 }
 .state-view .predicates > span:hover {
     padding: 2px;

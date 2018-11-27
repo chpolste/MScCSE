@@ -287,8 +287,15 @@ export class TwoPlayerProbabilisticGame {
             // Player 1 can win even if player 2 plays as an adversary
             if (win.has(state)) category = result.yes;
             category.add(state.automatonState);
+            // Next automaton state is unique
+            // TODO: this could use some more safety tests
+            const q = state.automatonState;
+            const action = state.actions[0];
+            const qNext = Array.from(action.values())[0].automatonState;
+            if (qNext !== "__END__" && qNext !== "__SAT__" && result.next[q] == null) {
+                result.next[q] = qNext;
+            }
         }
-        // TODO: fill next
         return results;
     }
 

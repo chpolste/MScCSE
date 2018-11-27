@@ -2,7 +2,7 @@
 "use strict";
 
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
-import type { JSONGameGraph, AnalysisResults } from "./game.js";
+import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
 import type { Refinery, PartitionMap } from "./refinement.js";
 import type { LSS, State, Trace, JSONAbstractedLSS } from "./system.js";
 
@@ -163,24 +163,40 @@ class SnapshotManager {
 
     // System status
 
+    getAnalysis(state: State): ?AnalysisResult {
+        if (this._analysis == null) return null;
+        const result = this._analysis.get(state.label);
+        // TODO: inherit results after refinement somehow
+        return result;
+    }
+
     _volumeRatios(): { [string]: number } {
-        let volSat = 0;
-        let volUnd = 0;
-        let volNon = 0;
+        let volYes = 0;
+        let volMaybe = 0;
+        let volNo = 0;
         for (let state of this.system.states.values()) {
-            if (false) {
-                volSat += state.polytope.volume;
-            } else if (true) {
-                volUnd += state.polytope.volume;
-            } else if (false) {
-                volNon += state.polytope.volume;
-            }
+            const result = this.getAnalysis(state);
+            // If no results are available yet, everything is undecided
+            if (result == null) {
+                return { yes: 0, no: 0, maybe: 1 };
+            // Outer states are ignored
+            } else if (state.isOuter) {
+                // ...
+            } else if (result.yes.has(result.init)) {
+                volYes += state.polytope.volume;
+            } else if (result.no.has(result.init)) {
+                volNo += state.polytope.volume;
+            } else if (result.maybe.has(result.init)) {
+                volMaybe += state.polytope.volume;
+            } else throw new Error(
+                "unreachable initial state " + state.label
+            );
         }
-        const volAll = volSat + volUnd + volNon;
+        const volAll = volYes + volMaybe + volNo;
         return {
-            "satisfying": volSat / volAll,
-            "undecided": volUnd / volAll,
-            "non-satisfying": volNon / volAll
+            yes: volYes / volAll,
+            no: volNo / volAll,
+            maybe: volMaybe / volAll
         };
     }
 
@@ -194,8 +210,15 @@ const communicator = new Communicator("2W");
 // States of the system
 export type StateRequest = string;
 export type StatesRequest = null;
+type StateAnalysis = {
+    yes: Set<string>,
+    no: Set<string>,
+    maybe: Set<string>
+};
 export type StateData = {
-    label: string
+    label: string,
+    isOuter: boolean,
+    analysis: ?AnalysisResult
 };
 export type StateDataPlus = StateData & {
     polytope: JSONPolytope,
@@ -211,11 +234,17 @@ communicator.onRequest("getStates", function (data: StatesRequest): StateDataPlu
 });
 
 function stateDataOf(state: State): StateData {
-    return { label: state.label };
+    return {
+        label: state.label,
+        isOuter: state.isOuter,
+        analysis: $.getAnalysis(state)
+    };
 }
 function stateDataPlusOf(state: State): StateDataPlus {
     return {
         label: state.label,
+        isOuter: state.isOuter,
+        analysis: $.getAnalysis(state),
         polytope: state.polytope.serialize(),
         centroid: state.polytope.centroid,
         predicates: state.predicates,

@@ -215,7 +215,7 @@ class SystemPreview {
         this.layers = {
             objective: fig.newLayer({ "stroke": COLORS.selection, "fill": COLORS.selection }),
             state:     fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill-opacity": "0" }),
-            outer:     fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": COLORS.nonSatisfying })
+            outer:     fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": COLORS.no })
         };
         this.drawSystem();
     }

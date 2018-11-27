@@ -317,10 +317,10 @@ a:hover {
     height: 7px;
     background-color: #FFF;
 }
-.percentage-bar .satisfying {
+.percentage-bar .yes {
     background-color: #093;
 }
-.percentage-bar .non-satisfying {
+.percentage-bar .no {
     background-color: #CCC;
 }
 

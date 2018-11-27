@@ -113,7 +113,8 @@ export class ValidationError extends Error {}
 
 // Each state has an object with results attached (these should be
 // JSON-compatible)
-export type AnalysisResults = Map<StateID, {
+export type AnalysisResults = Map<StateID, AnalysisResult>;
+export type AnalysisResult = {
     // Initial automaton state
     init: string,
     // For which automaton states can the game be won by player 1 alone?
@@ -125,7 +126,7 @@ export type AnalysisResults = Map<StateID, {
     // For every automaton state: which is the next automaton state in the
     // system state after any action is taken?
     next: { [string]: string }
-}>;
+};
 
 // 2½-player game
 export class TwoPlayerProbabilisticGame {

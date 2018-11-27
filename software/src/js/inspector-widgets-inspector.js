@@ -29,9 +29,10 @@ export const VAR_NAMES = "xy";
 
 // Visualization/highlight colors
 export const COLORS = {
-    satisfying: "#093",
-    nonSatisfying: "#CCC",
-    undecided: "#FFF",
+    yes: "#093",
+    no: "#CCC",
+    maybe: "#FFF",
+    unreachable: "#C99",
     selection: "#069",
     highlight: "#FC0",
     support: "#09C",
@@ -47,15 +48,24 @@ const MARKED_STEP_STYLE = { "stroke": "#C00", "fill": "#C00" };
 // Max number of steps when sampling
 export const TRACE_LENGTH = 35;
 
-// Highlight color corresponding to state kind
-function stateColor(state: StateData): string {
-    let fill = COLORS.undecided;
-    //if (State.isSatisfying(state)) {
-    //    fill = COLORS.satisfying;
-    //} else if (State.isNonSatisfying(state)) {
-    //    fill = COLORS.nonSatisfying;
-    //} TODO
-    return fill;
+// Simple coloring of states
+function stateColorSimple(state: StateData): string {
+    return state.isOuter ? COLORS.no : COLORS.maybe;
+}
+
+// State coloring according to analysis status
+function stateColor(state: StateData, wrtQ: string) {
+    const ana = state.analysis;
+    // If no analysis results are available, everything is undecided
+    if (ana == null || ana.maybe.has(wrtQ)) {
+        return COLORS.maybe;
+    } else if (ana.yes.has(wrtQ)) {
+        return COLORS.yes;
+    } else if (ana.no.has(wrtQ)) {
+        return COLORS.no;
+    } else {
+        return COLORS.unreachable;
+    }
 }
 
 // Display text corresponding to state kind
@@ -367,7 +377,8 @@ export class SystemInspector extends ObservableMixin<null> {
     processAnalysis(results: AnalysisResults): Promise<ProcessAnalysisData> {
         return this.systemComm.request("processAnalysis", results).then(data => {
             // Returned is the set of states that has changed kind
-            if (data.size > 0) this.notify();
+            //if (data.size > 0) this.notify();
+            this.notify(); // TODO
             return data;
         });
     }
@@ -1205,7 +1216,7 @@ class Settings extends ObservableMixin<null> {
         super();
         this.proxy = proxy;
 
-        this.toggleKind = new CheckboxInput(true);
+        this.toggleKind = new CheckboxInput(false);
         this.toggleLabel = new CheckboxInput(false);
         this.toggleVectorField = new CheckboxInput(false);
         this.highlight = new SelectInput({
@@ -1459,13 +1470,12 @@ class SystemView {
     }
 
     drawKind(): void {
-        let shapes = [];
-        if (this._data != null && this.settings.toggleKind.value) {
-            shapes = this._data.map(state => ({
-                kind: "polytope", vertices: state.polytope.vertices, style: { fill: stateColor(state) }
+        if (this._data != null) {
+            const color = this.settings.toggleKind.value ? (state) => stateColor(state, "q0") : stateColorSimple;
+            this.layers.kind.shapes = this._data.map(state => ({
+                kind: "polytope", vertices: state.polytope.vertices, style: { fill: color(state) }
             }));
         }
-        this.layers.kind.shapes = shapes;
     }
 
     drawLabels(): void {
@@ -1549,7 +1559,7 @@ class SystemView {
         const data: JSONPolygonItem[] = this._data.map(_ => [
             _.polytope,
             [this.settings.toggleLabel.value, _.label],
-            [this.settings.toggleKind.value, stateColor(_)],
+            [this.settings.toggleKind.value, stateColorSimple(_)], // TODO: analysis coloring
             [true, "#000000"]
         ]);
         return window.btoa(JSON.stringify(data));

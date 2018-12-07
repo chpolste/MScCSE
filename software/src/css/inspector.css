@@ -366,40 +366,41 @@ span.unreachable {
 }
 
 #action-view {
-    height: 200px;
-    overflow-y: scroll;
-    padding-right: 4px;
+    height: 550px;
+    overflow-y: auto;
 }
 #action-view > div {
-    display: block;
-}
-#action-view > div:hover {
-    cursor: pointer;
-    background-color: #EEE;
-}
-#action-view > div.selection {
-    background-color: #EEE;
-    border-right: 8px solid #000;
-}
-
-#support-view {
-    height: 200px;
-    overflow-y: scroll;
-    padding-right: 4px;
-}
-#support-view > div {
-    display: inline-block;
     border-right: 8px solid transparent;
+}
+#action-view .action {
+    cursor: pointer;
+}
+#action-view .action:hover {
+    background-color: #EEE;
+}
+#action-view .selection {
+    background-color: #EEE;
+    border-color: #000;
+    cursor: pointer;
+}
+#action-view #supports {
+    padding: 5px;
+    border-color: #000;
+    border-top: 1px solid #000;
+    border-bottom: 1px solid #000;
+    max-height: 200px;
+    overflow-y: auto;
+}
+#action-view #supports > div {
+    display: inline-block;
     padding-right: 2px;
     margin-right: 2px;
-    cursor: pointer;
+    border-right: 8px solid transparent;
+    cursor: default;
 }
-#support-view > div.selection {
+#action-view #supports > div:hover {
     background-color: #EEE;
     border-color: #09C;
-}
-#support-view > div:hover {
-    background-color: #EEE;
 }
 
 #trace-ctrl .right {

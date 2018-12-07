@@ -11,6 +11,7 @@ import type { Vector, Matrix } from "./linalg.js";
 import type { AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
+import type { Observer } from "./tools.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
 
@@ -244,10 +245,9 @@ export class SystemInspector extends ObservableMixin<null> {
         const automatonView = new AutomatonView(this, keybindings);
         const stateView = new StateView(this, automatonView);
         const actionView = new ActionView(this, stateView);
-        const supportView = new ActionSupportView(this, actionView);
         const traceView = new TraceView(this, stateView, keybindings);
         const systemView = new SystemView(
-            this, viewCtrl, stateView, actionView, supportView, automatonView, traceView
+            this, viewCtrl, stateView, actionView, automatonView, traceView
         );
         const refinementCtrl = new RefinementCtrl(this, analysisCtrl, stateView, keybindings);
         const spaceView = new SpaceView(this, traceView, actionView);
@@ -283,9 +283,7 @@ export class SystemInspector extends ObservableMixin<null> {
                 dom.H3({}, ["Selection", dom.infoBox("info-state")]),
                 stateView.node,
                 dom.H3({}, ["Actions", dom.infoBox("info-actions")]),
-                actionView.node,
-                dom.H3({}, ["Action Supports", dom.infoBox("info-supports")]),
-                supportView.node
+                actionView.node
             ],
             "System": [
                 dom.H3({}, ["System Analysis", dom.infoBox("info-analysis")]),
@@ -576,87 +574,133 @@ class StateView extends ObservableMixin<null> {
 
 // Lists actions available for the selected state and contains the currently
 // selected action. Observes StateView for the currently selected state.
-class ActionView extends SelectableNodes<ActionData> {
+class ActionView {
 
+    +node: HTMLDivElement;
     +proxy: SystemInspector;
     +stateView: StateView;
+    +_observers: [?string, Observer<null>][];
+    // Actions
+    _action: [?ActionData, ?ActionData];
+    _actions: ActionData[];
+    _actionNodes: Map<ActionData, HTMLDivElement>;
+    // Supports
+    _support: ?SupportData;
+    _supports: SupportData[];
+    _supportNode: HTMLDivElement;
 
     constructor(proxy: SystemInspector, stateView: StateView): void {
-        super(ActionView.asNode, "none");
-        this.node.id = "action-view";
         this.proxy = proxy;
         this.stateView = stateView;
         this.stateView.attach(() => this.handleChange());
+        this._observers = [];
+
+        this._action = [null, null];
+        this._actions = [];
+        this._actionNodes = new Map();
+
+        this._support = null;
+        this._supports = [];
+        this._supportNode = dom.DIV({ "id": "supports" });
+
+        this.node = dom.DIV({ "id": "action-view" });
+    }
+
+    get selection(): [?ActionData, ?SupportData] {
+        const [click, hover] = this._action;
+        return [hover != null ? hover : click, this._support];
+    }
+
+    attach(observer: Observer<null>, what?: string): void {
+        this._observers.push([what, observer]);
+    }
+
+    notify(what?: string): void {
+        for (let [crit, observer] of this._observers) {
+            if (what == null || what === crit) observer();
+        }
     }
 
     handleChange(): void {
         const state = this.stateView.selection;
         if (state != null) {
             this.proxy.getActions(state.label).then(actions => {
-                this.items = actions;
-            }).catch(e => {
-                this.proxy.logError(e);
-            });
+                this._actionNodes = new Map(
+                    actions.map(action => [action, this.actionToNode(action)])
+                );
+                dom.replaceChildren(this.node, this._actionNodes.values());
+            }).catch(e => this.proxy.logError(e));
         } else {
-            this.items = [];
+            dom.removeChildren(this.node);
         }
+        this._action = [null, null];
+        this._support = null;
+        this.notify();
     }
 
-    static asNode(action: ActionData): HTMLDivElement {
-        return dom.DIV({}, [
+    clickAction(action: ActionData): void {
+        const oldAction = this._action[0];
+        if (oldAction != null) {
+            const oldNode = this._actionNodes.get(oldAction);
+            if (oldNode != null) oldNode.className = "action";
+        }
+        if (action === this._action[0]) {
+            this._action[0] = null;
+            this.node.removeChild(this._supportNode);
+        } else {
+            this._action[0] = action;
+            const newNode = this._actionNodes.get(action);
+            if (newNode == null) throw new Error(); // TODO
+            newNode.className = "selection";
+            this.proxy.getSupports(action.origin.label, action.id).then(supports => {
+                dom.replaceChildren(this._supportNode, supports.map(
+                    support => this.supportToNode(support)
+                ));
+                dom.appendAfter(this.node, newNode, this._supportNode);
+            }).catch(e => this.proxy.logError(e));
+        }
+        this.notify("action");
+    }
+
+    hoverAction(action: ?ActionData): void {
+        this._action[1] = action;
+        this.notify("action");
+    }
+
+    hoverSupport(support: ?SupportData): void {
+        this._support = support;
+        this.notify("support");
+    }
+
+    actionToNode(action: ActionData): HTMLDivElement {
+        const node = dom.DIV({ "class": "action" }, [
             stateLabel(action.origin, action.origin), " → {",
             ...arr.intersperse(", ", action.targets.map(
                 target => stateLabel(target, action.origin)
             )),
             "}"
         ]);
+        node.addEventListener("click", () => this.clickAction(action));
+        node.addEventListener("mouseover", () => this.hoverAction(action));
+        node.addEventListener("mouseout", () => this.hoverAction(null));
+        return node;
     }
 
-}
-
-
-// Lists actions supports available for the selected action and contains the
-// currently selected action support. Observes ActionView for the currently
-// selected action.
-class ActionSupportView extends SelectableNodes<SupportData> {
-    
-    +proxy: SystemInspector;
-    +actionView: ActionView;
-
-    constructor(proxy: SystemInspector, actionView: ActionView): void {
-        super(ActionSupportView.asNode, "none");
-        this.node.id = "support-view";
-        this.proxy = proxy;
-        this.actionView = actionView;
-        this.actionView.attach(isClick => {
-            if (isClick) this.handleChange();
-        });
-    }
-
-    handleChange(): void {
-        const action = this.actionView.selection;
-        if (action != null) {
-            this.proxy.getSupports(action.origin.label, action.id).then(supports => {
-                this.items = supports;
-            }).catch(e => {
-                this.proxy.logError(e);
-            });
-        } else {
-            this.items = [];
-        }
-    }
-
-    static asNode(support: SupportData): HTMLDivElement {
-        return dom.DIV({}, [
+    supportToNode(support: SupportData): HTMLDivElement {
+        const node = dom.DIV({}, [
             "{",
             ...arr.intersperse(", ", support.targets.map(
                 target => stateLabel(target, support.origin)
             )),
             "}"
         ]);
+        node.addEventListener("mouseover", () => this.hoverSupport(support));
+        node.addEventListener("mouseout", () => this.hoverSupport(null));
+        return node;
     }
 
 }
+
 
 
 // Tab: System
@@ -1329,7 +1373,7 @@ class SpaceView {
         this.proxy = proxy;
         this.proxy.attach(() => this.drawSpaces());
         this.actionView = actionView;
-        this.actionView.attach(() => this.drawAction());
+        this.actionView.attach(() => this.drawAction(), "action");
         this.traceView = traceView;
         this.traceView.attach(() => this.drawTrace());
         // Control space figure
@@ -1363,9 +1407,7 @@ class SpaceView {
     }
 
     drawAction(): void {
-        const action = this.actionView.hoverSelection == null
-                     ? this.actionView.selection
-                     : this.actionView.hoverSelection;
+        const [action, _] = this.actionView.selection;
         if (action == null) {
             this.ctrlLayers.action.shapes = [];
         } else {
@@ -1399,7 +1441,6 @@ class SpaceView {
 // RefinementCtrl       → System refresh after refinement.
 // StateView            → Selected state.
 // ActionView           → Selected action.
-// ActionSupportView    → Selected action support.
 // AutomatonView        → Analysis state kind.
 // TraceView            → Trace sample.
 class SystemView {
@@ -1409,7 +1450,6 @@ class SystemView {
     +stateView: StateView;
     +traceView: TraceView;
     +actionView: ActionView;
-    +supportView: ActionSupportView;
     +automatonView: AutomatonView;
     +plot: InteractivePlot;
     +layers: { [string]: FigureLayer };
@@ -1418,8 +1458,7 @@ class SystemView {
     _centroid: { [string]: Vector };
 
     constructor(proxy: SystemInspector, viewCtrl: ViewCtrl, stateView: StateView,
-                actionView: ActionView, supportView: ActionSupportView,
-                automatonView: AutomatonView, traceView: TraceView): void {
+                actionView: ActionView, automatonView: AutomatonView, traceView: TraceView): void {
         this.proxy = proxy;
         this._data = null;
         this._centroid = {};
@@ -1444,13 +1483,10 @@ class SystemView {
             this.drawHighlight();
         });
         this.stateView.predicates.attach(() => this.drawPredicate());
+
         this.actionView = actionView;
-        this.actionView.attach(() => {
-            this.drawHighlight();
-            this.drawAction();
-        });
-        this.supportView = supportView;
-        this.supportView.attach(() => this.drawActionSupport());
+        this.actionView.attach(() => this.drawAction(), "action");
+        this.actionView.attach(() => this.drawSupport(), "support");
 
         const fig = new Figure();
         this.layers = {
@@ -1513,9 +1549,7 @@ class SystemView {
             this.layers.highlight1.shapes = [];
             this.layers.highlight2.shapes = [];
         } else {
-            const action = this.actionView.hoverSelection == null
-                         ? this.actionView.selection
-                         : this.actionView.hoverSelection;
+            const [action, _] = this.actionView.selection;
             const control = action == null ? this.proxy.lss.uus.toUnion().serialize() : action.controls;
             operator(state, control).then(data => {
                 const shapes = data.polytopes.map(
@@ -1574,16 +1608,12 @@ class SystemView {
     }
 
     drawAction(): void {
-        const action = this.actionView.hoverSelection == null
-                     ? this.actionView.selection
-                     : this.actionView.hoverSelection;
-        const support = this.supportView.hoverSelection == null
-                      ? this.supportView.selection
-                      : this.supportView.hoverSelection;
+        this.drawHighlight();
+        const [action, support] = this.actionView.selection;
         if (action == null) {
             this.layers.action.shapes = [];
         } else {
-            let polys = support != null && this.actionView.hoverSelection == null ? support.targets : action.targets;
+            const polys = support != null ? support.targets : action.targets;
             this.layers.action.shapes = polys.map(
                 target => ({
                     kind: "arrow",
@@ -1594,11 +1624,9 @@ class SystemView {
         }
     }
 
-    drawActionSupport(): void {
-        const support = this.supportView.hoverSelection == null
-                      ? this.supportView.selection
-                      : this.supportView.hoverSelection;
+    drawSupport(): void {
         this.drawAction();
+        const [action, support] = this.actionView.selection;
         if (support == null) {
             this.layers.support.shapes = [];
         } else {

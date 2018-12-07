@@ -172,7 +172,7 @@ export class ProblemSummary {
         for (let [symbol, prop] of objective.propositions) {
             formula = replaceAll(formula, symbol, "(" + texifyProposition(prop, dom.snLabel.toTeX) + ")");
         }
-        this.node = dom.DIV({ "class": "problem-summary" }, [
+        this.node = dom.DIV({ "id": "problem-summary" }, [
             dom.renderTeX("x_{t+1} = " + matrixToTeX(system.lss.A) + " x_t + " + matrixToTeX(system.lss.B) + " u_t + w_t", dom.P()),
             dom.DIV({ "class": "boxes" }, [
                 dom.DIV({}, [dom.H3({}, ["Control Space Polytope"]), cs.node]),
@@ -239,7 +239,7 @@ export class SystemInspector extends ObservableMixin<null> {
         this.objective = objective;
         this._system = system;
 
-        const settings = new Settings(this, keybindings);
+        const viewCtrl = new ViewCtrl(this, keybindings);
         const analysisCtrl = new AnalysisCtrl(this, keybindings);
         const automatonView = new AutomatonView(this, keybindings);
         const stateView = new StateView(this, automatonView);
@@ -247,7 +247,7 @@ export class SystemInspector extends ObservableMixin<null> {
         const supportView = new ActionSupportView(this, actionView);
         const traceView = new TraceView(this, stateView, keybindings);
         const systemView = new SystemView(
-            this, settings, stateView, actionView, supportView, automatonView, traceView
+            this, viewCtrl, stateView, actionView, supportView, automatonView, traceView
         );
         const refinementCtrl = new RefinementCtrl(this, analysisCtrl, stateView, keybindings);
         const spaceView = new SpaceView(this, traceView, actionView);
@@ -276,7 +276,7 @@ export class SystemInspector extends ObservableMixin<null> {
             dom.appendChildren(appLinks, [" :: ", plotterLink]);
         }
         // Debut: Message
-        this._log = dom.DIV({ "class": "log" }, ["-"]);
+        this._log = dom.DIV({ "id": "log-view" }, ["-"]);
 
         this.tabs = new TabbedView({
             "Game": [
@@ -296,8 +296,6 @@ export class SystemInspector extends ObservableMixin<null> {
                 snapshotCtrl.node
             ],
             "Objective": [
-                dom.H3({}, ["Automaton", dom.infoBox("info-automaton")]),
-                automatonView.node,
                 dom.H3({}, ["Trace Sample", dom.infoBox("info-trace")]),
                 traceView.node
             ],
@@ -309,17 +307,19 @@ export class SystemInspector extends ObservableMixin<null> {
             ]
         }, "System");
 
-        this.node = dom.DIV({ "class": "inspector" }, [
+        this.node = dom.DIV({ "id": "inspector" }, [
             dom.DIV({ "class": "left" }, [
                 systemView.node,
                 dom.DIV({"class": "cols"}, [
                     dom.DIV({ "class": "left" }, [
                         dom.H3({}, ["Control and Random Space", dom.infoBox("info-control")]),
                         spaceView.node,
+                        dom.H3({}, ["View Settings", dom.infoBox("info-settings")]),
+                        viewCtrl.node
                     ]),
                     dom.DIV({ "class": "right" }, [
-                        dom.H3({}, ["View Settings", dom.infoBox("info-settings")]),
-                        settings.node
+                        dom.H3({}, ["Objective Automaton", dom.infoBox("info-automaton")]),
+                        automatonView.node
                     ])
                 ])
             ]),
@@ -490,7 +490,7 @@ class StateView extends ObservableMixin<null> {
             _ => predicateLabel(_, this.proxy.getPredicate(_)), "-", ", "
         );
         this.predicates.node.className = "predicates";
-        this.node = dom.DIV({ "class": "state-view" }, [
+        this.node = dom.DIV({ "id": "state-view" }, [
             dom.DIV({}, [dom.DIV({ "class": "label" }, ["State:"]), this.lines[0]]),
             dom.DIV({}, [dom.DIV({ "class": "label" }, ["Actions:"]), this.lines[1]]),
             dom.DIV({}, [dom.DIV({ "class": "label" }, ["Analysis:"]), this.lines[2]]),
@@ -583,7 +583,7 @@ class ActionView extends SelectableNodes<ActionData> {
 
     constructor(proxy: SystemInspector, stateView: StateView): void {
         super(ActionView.asNode, "none");
-        this.node.className = "action-view";
+        this.node.id = "action-view";
         this.proxy = proxy;
         this.stateView = stateView;
         this.stateView.attach(() => this.handleChange());
@@ -625,7 +625,7 @@ class ActionSupportView extends SelectableNodes<SupportData> {
 
     constructor(proxy: SystemInspector, actionView: ActionView): void {
         super(ActionSupportView.asNode, "none");
-        this.node.className = "support-view";
+        this.node.id = "support-view";
         this.proxy = proxy;
         this.actionView = actionView;
         this.actionView.attach(isClick => {
@@ -680,7 +680,7 @@ class AnalysisCtrl extends ObservableMixin<null> {
         this.button = dom.BUTTON({}, [dom.create("u", {}, ["a"]), "nalyse"]);
         this.button.addEventListener("click", () => this.analyse());
         this.info = dom.SPAN();
-        this.node = dom.DIV({ "class": "analysis-control"}, [
+        this.node = dom.DIV({ "id": "analysis-ctrl"}, [
             dom.P({}, [this.button, " ", this.info])
         ]);
         keybindings.bind("a", () => this.analyse());
@@ -821,7 +821,7 @@ class RefinementCtrl {
             this._newStep("Positive Robust Predecessor", "PositivePreR"),
             this._newStep("Positive Robust Attractors (TODO)", "PositiveAttrR")
         ];
-        this.stepBox = dom.DIV({ "class": "refinement-steps" }, [
+        this.stepBox = dom.DIV({ "id": "refinement-ctrl" }, [
             dom.P({}, ["The following refinement steps are applied in order:"]),
             ...this._steps.map(_ => _.node)
         ]);
@@ -945,7 +945,7 @@ class SnapshotCtrl {
         this.forms.load.addEventListener("click", () => this.loadSnapshot());
         this.forms.rename.addEventListener("click", () => this.renameSnapshot());
         this.treeView = dom.DIV({ "class": "tree" });
-        this.node = dom.DIV({ "class": "snapshot-view"}, [
+        this.node = dom.DIV({ "id": "snapshot-ctrl"}, [
             dom.P({}, [
                 this.forms.take, " ", this.forms.name,
                 dom.DIV({ "class": "right" }, [this.forms.rename, " ", this.forms.load])
@@ -1046,7 +1046,6 @@ class SnapshotCtrl {
 
 // Tab: Control
 // - TraceView
-// - AutomatonView
 
 class TraceView extends ObservableMixin<null> {
 
@@ -1070,7 +1069,7 @@ class TraceView extends ObservableMixin<null> {
         this.arrowLayer = fig.newLayer({ "stroke": COLORS.trace, "stroke-width": "1.5", "fill": COLORS.trace });
         this.interactionLayer = fig.newLayer({ "stroke": "none", "fill": "#FFF", "fill-opacity": "0" });
         const proj = new Horizontal1D([-1, 0.01], [0, 1]);
-        const plot = new ShapePlot([510, 20], fig, proj, false);
+        const plot = new ShapePlot([480, 20], fig, proj, false);
 
         this.controller = new SelectInput({
             "Random": "Random"
@@ -1084,7 +1083,7 @@ class TraceView extends ObservableMixin<null> {
         ]);
         clearButton.addEventListener("click", () => this.clear());
 
-        this.node = dom.DIV({ "class": "trace-view" }, [
+        this.node = dom.DIV({ "id": "trace-ctrl" }, [
             dom.P({}, [
                 sampleButton, " ", clearButton,
                 dom.DIV({ "class": "right" }, [
@@ -1167,6 +1166,13 @@ class TraceView extends ObservableMixin<null> {
 }
 
 
+
+// Left column
+// - AutomatonView
+// - ViewCtrl
+// - SpaceView
+// - SystemView
+
 class AutomatonView extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
@@ -1207,14 +1213,12 @@ class AutomatonView extends ObservableMixin<null> {
         // Setup plot area
         const extent = this.shapes.extent;
         if (extent == null) throw new Error("No automaton plot extent given by objective");
-        const proj = autoProjection(2, ...extent);
-        const plot = new ShapePlot([510, 255], fig, proj, false);
+        const proj = autoProjection(3/2, ...extent);
+        const plot = new ShapePlot([330, 220], fig, proj, false);
         // Additional textual information about automaton
         const info = dom.P({}, [dom.create("u", {}, ["I"]), "nitial state: ", dom.snLabel.toHTML(init)]);
 
-        this.node = dom.DIV({}, [
-            plot.node, info
-        ]);
+        this.node = dom.DIV({}, [info, plot.node]);
         keybindings.bind("i", () => { this.selection = init; });
     }
 
@@ -1262,15 +1266,9 @@ class AutomatonView extends ObservableMixin<null> {
 }
 
 
-
-// Left column
-// - Settings
-// - SpaceView
-// - SystemView
-
 type OperatorWrapper = (StateData, JSONUnion) => Promise<OperatorData>;
 // Settings panel for the main view.
-class Settings extends ObservableMixin<null> {
+class ViewCtrl extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
     +proxy: SystemInspector;
@@ -1296,13 +1294,13 @@ class Settings extends ObservableMixin<null> {
             "Robust Attractor": (state, us) => proxy.getOperator("attrR", state.label, us)
         }, "None");
 
-        this.node = dom.DIV({ "class": "settings" }, [
+        this.node = dom.DIV({ "id": "view-ctrl" }, [
+            dom.P({ "class": "highlight" }, [
+                this.highlight.node, " ", dom.create("u", {}, ["h"]), "ighlight" 
+            ]),
             dom.LABEL({}, [this.toggleKind.node, "Analysis C", dom.create("u", {}, ["o"]), "lors"]),
             dom.LABEL({}, [this.toggleLabel.node, "State ", dom.create("u", {}, ["L"]), "abels"]),
-            dom.LABEL({}, [this.toggleVectorField.node, dom.create("u", {}, ["V"]), "ector Field"]),
-            dom.P({ "class": "highlight" }, [
-                dom.create("u", {}, ["H"]), "ighlight Operator:", this.highlight.node
-            ])
+            dom.LABEL({}, [this.toggleVectorField.node, dom.create("u", {}, ["V"]), "ector Field"])
         ]);
 
         keybindings.bind("o", inputTextRotation(this.toggleKind, ["t", "f"]));
@@ -1348,7 +1346,7 @@ class SpaceView {
             trace:  randFig.newLayer(MARKED_STEP_STYLE)
         };
         // Side-by-side plots
-        this.ctrlPlot = new AxesPlot([180, 120], ctrlFig, autoProjection(1));
+        this.ctrlPlot = new AxesPlot([120, 120], ctrlFig, autoProjection(1));
         this.randPlot = new AxesPlot([120, 120], randFig, autoProjection(1));
         this.node = dom.DIV({}, [this.ctrlPlot.node, this.randPlot.node]);
 
@@ -1358,7 +1356,7 @@ class SpaceView {
     drawSpaces(): void {
         const controlSpace = this.proxy.lss.uus;
         const randomSpace = this.proxy.lss.ww;
-        this.ctrlPlot.projection = autoProjection(3/2, ...controlSpace.extent);
+        this.ctrlPlot.projection = autoProjection(1, ...controlSpace.extent);
         this.ctrlLayers.poly.shapes = controlSpace.polytopes.map(u => ({ kind: "polytope", vertices: u.vertices }));
         this.randPlot.projection = autoProjection(1, ...randomSpace.extent);
         this.randLayers.poly.shapes = [{ kind: "polytope", vertices: randomSpace.vertices }];
@@ -1396,7 +1394,7 @@ class SpaceView {
 // states. Has layers for displaying state space subsets (polytopic operators,
 // action supports), state information (selection, labels, kinds), linear
 // predicates, traces, A-induced vector field. Observes:
-// SettingsCtrl         → Toggle labels, kinds, vector field. Select polytopic operator.
+// ViewCtrl             → Toggle labels, kinds, vector field. Select polytopic operator.
 // AnalysisCtrl         → Kind changes after analysis.
 // RefinementCtrl       → System refresh after refinement.
 // StateView            → Selected state.
@@ -1407,7 +1405,7 @@ class SpaceView {
 class SystemView {
 
     +proxy: SystemInspector;
-    +settings: Settings;
+    +viewCtrl: ViewCtrl;
     +stateView: StateView;
     +traceView: TraceView;
     +actionView: ActionView;
@@ -1419,7 +1417,7 @@ class SystemView {
     _data: ?StateDataPlus[];
     _centroid: { [string]: Vector };
 
-    constructor(proxy: SystemInspector, settings: Settings, stateView: StateView,
+    constructor(proxy: SystemInspector, viewCtrl: ViewCtrl, stateView: StateView,
                 actionView: ActionView, supportView: ActionSupportView,
                 automatonView: AutomatonView, traceView: TraceView): void {
         this.proxy = proxy;
@@ -1428,11 +1426,11 @@ class SystemView {
 
         proxy.attach(() => this.drawSystem());
 
-        this.settings = settings;
-        this.settings.toggleKind.attach(() => this.drawKind());
-        this.settings.toggleLabel.attach(() => this.drawLabels());
-        this.settings.toggleVectorField.attach(() => this.drawVectorField());
-        this.settings.highlight.attach(() => this.drawHighlight());
+        this.viewCtrl = viewCtrl;
+        this.viewCtrl.toggleKind.attach(() => this.drawKind());
+        this.viewCtrl.toggleLabel.attach(() => this.drawLabels());
+        this.viewCtrl.toggleVectorField.attach(() => this.drawVectorField());
+        this.viewCtrl.highlight.attach(() => this.drawHighlight());
 
         this.automatonView = automatonView;
         this.automatonView.attach(() => this.drawKind());
@@ -1468,7 +1466,7 @@ class SystemView {
             label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle", "transform": "translate(0 3)" }),
             interaction:    fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" })
         };
-        this.plot = new InteractivePlot([630, 525], fig, autoProjection(6/5, ...this.proxy.lss.extent));
+        this.plot = new InteractivePlot([660, 440], fig, autoProjection(3/2, ...this.proxy.lss.extent));
 
         this.drawVectorField();
     }
@@ -1509,7 +1507,7 @@ class SystemView {
     }
 
     drawHighlight(): void {
-        const operator = this.settings.highlight.value;
+        const operator = this.viewCtrl.highlight.value;
         const state = this.stateView.selection;
         if (operator == null || state == null) {
             this.layers.highlight1.shapes = [];
@@ -1534,7 +1532,7 @@ class SystemView {
 
     drawVectorField(): void {
         const shapes = [];
-        if (this.settings.toggleVectorField.value) {
+        if (this.viewCtrl.toggleVectorField.value) {
             shapes.push({
                 kind: "vectorField",
                 fun: x => linalg.apply(this.proxy.lss.A, x),
@@ -1547,7 +1545,7 @@ class SystemView {
     drawKind(): void {
         if (this._data != null) {
             let color = stateColorSimple;
-            if (this.settings.toggleKind.value) {
+            if (this.viewCtrl.toggleKind.value) {
                 color = (state) => stateColor(state, this.automatonView.selection);
             }
             this.layers.kind.shapes = this._data.map(state => ({
@@ -1558,7 +1556,7 @@ class SystemView {
 
     drawLabels(): void {
         let labels = [];
-        if (this._data != null && this.settings.toggleLabel.value) {
+        if (this._data != null && this.viewCtrl.toggleLabel.value) {
             labels = this._data.map(state => ({
                 kind: "label", coords: state.centroid, text: state.label
             }));
@@ -1636,8 +1634,8 @@ class SystemView {
         if (this._data == null) throw new Error("..."); // TODO
         const data: JSONPolygonItem[] = this._data.map(_ => [
             _.polytope,
-            [this.settings.toggleLabel.value, _.label],
-            [this.settings.toggleKind.value, stateColorSimple(_)], // TODO: analysis coloring
+            [this.viewCtrl.toggleLabel.value, _.label],
+            [this.viewCtrl.toggleKind.value, stateColorSimple(_)], // TODO: analysis coloring
             [true, "#000000"]
         ]);
         return window.btoa(JSON.stringify(data));

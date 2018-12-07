@@ -110,25 +110,20 @@ export class ProblemSetup extends ObservableMixin<null> {
         this.objective = new ObjectiveInput(this.predicates);
         this.preview = new SystemPreview(this, this.objective.terms);
 
-        const columns = dom.DIV({ "class": "inspector" }, [
+        const columns = dom.DIV({ "id": "inspector" }, [
             dom.DIV({ "class": "left" }, [
                 this.preview.node,
                 dom.H3({}, ["Objective", dom.infoBox("info-input-objective")]), this.objective.node
             ]),
             dom.DIV({ "class": "right" }, [
-                dom.DIV({"class": "cols"}, [
-                    dom.DIV({ "class": "left" }, [
-                        dom.H3({}, ["Control Space Polytope", dom.infoBox("info-input-control")]),
-                        this.cs.node,
-                        dom.H3({}, ["Random Space Polytope", dom.infoBox("info-input-random")]),
-                        this.rs.node,
-                        dom.H3({}, ["State Space Polytope", dom.infoBox("info-input-state")]),
-                        this.ss.node,
-                        dom.H3({}, ["Initial State Space Decomposition", dom.infoBox("info-input-predicates")]),
-                        this.predicates.node
-                    ]),
-                    dom.DIV({ "class": "right" }) // dummy column to fill space in layout
-                ])
+                dom.H3({}, ["Control Space Polytope", dom.infoBox("info-input-control")]),
+                this.cs.node,
+                dom.H3({}, ["Random Space Polytope", dom.infoBox("info-input-random")]),
+                this.rs.node,
+                dom.H3({}, ["State Space Polytope", dom.infoBox("info-input-state")]),
+                this.ss.node,
+                dom.H3({}, ["Initial State Space Decomposition", dom.infoBox("info-input-predicates")]),
+                this.predicates.node
             ])
         ]);
         const submit = dom.INPUT({"type": "submit", "value": "run inspector"});
@@ -197,6 +192,7 @@ export class ProblemSetup extends ObservableMixin<null> {
 
 class SystemPreview {
 
+    +node: HTMLDivElement;
     +setup: ProblemSetup;
     +terms: ObjectiveTermsInput;
     +plot: Plot;
@@ -211,17 +207,14 @@ class SystemPreview {
         this.terms.attach(() => this.drawObjectiveTerm());
         this._system = null;
         let fig = new Figure();
-        this.plot = new AxesPlot([630, 525], fig, autoProjection(6/5));
+        this.plot = new AxesPlot([660, 440], fig, autoProjection(3/2));
         this.layers = {
             objective: fig.newLayer({ "stroke": COLORS.selection, "fill": COLORS.selection }),
             state:     fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill-opacity": "0" }),
             outer:     fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": COLORS.no })
         };
+        this.node = dom.DIV({ "class": "plot" }, [this.plot.node]);
         this.drawSystem();
-    }
-
-    get node(): Element {
-        return this.plot.node;
     }
 
     drawSystem(): void {
@@ -232,7 +225,7 @@ class SystemPreview {
         // initial decomposition and mark outer states
         if (this.setup.systemIsValid) {
             const system = this.setup.system;
-            this.plot.projection = autoProjection(6/5, ...system.extent);
+            this.plot.projection = autoProjection(3/2, ...system.extent);
             for (let state of system.states.values()) {
                 (state.isOuter ? outerShapes : stateShapes).push({
                     kind: "polytope", vertices: state.polytope.vertices

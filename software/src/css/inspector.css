@@ -318,6 +318,13 @@ a:hover {
     background-color: #CCC;
 }
 
+#control-space-view {
+    display: inline-block;
+}
+
+#random-space-view {
+    display: inline-block;
+}
 
 #view-ctrl .highlight {
     margin: 8px 0 0 2px;

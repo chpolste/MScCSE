@@ -11,7 +11,6 @@ import type { Vector, Matrix } from "./linalg.js";
 import type { AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
-import type { Observer } from "./tools.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
 
@@ -28,12 +27,12 @@ import { Communicator } from "./worker.js";
 // Variable names for space dimensions
 export const VAR_NAMES = "xy";
 
-// Visualization/highlight colors
+// Visualization/highlight colors for areas
 export const COLORS = {
     yes: "#093",
     no: "#CCC",
     maybe: "#FFF",
-    unreachable: "#C99",
+    unreachable: "#C9C",
     selection: "#069",
     highlight: "#FC0",
     support: "#09C",
@@ -49,7 +48,8 @@ const MARKED_STEP_STYLE = { "stroke": "#C00", "fill": "#C00" };
 // Max number of steps when sampling
 export const TRACE_LENGTH = 35;
 
-function analysisKind(q: string, analysis: ?AnalysisResult): string {
+type _AnalysisKind = "maybe" | "yes" | "no" | "unreachable";
+function analysisKind(q: string, analysis: ?AnalysisResult): _AnalysisKind {
     // If no analysis results are available, everything is undecided
     if (analysis == null || analysis.maybe.has(q)) {
         return "maybe";
@@ -72,24 +72,9 @@ function stateColor(state: StateData, wrtQ: string): string {
     return COLORS[analysisKind(wrtQ, state.analysis)];
 }
 
-// Display text corresponding to state kind
-function stateKindString(state: StateData): string {
-    //if (State.isSatisfying(state)) {
-    //    return "satisfying";
-    //} else if (State.isOuter(state)) {
-    //    return "outer";
-    //} else if (State.isNonSatisfying(state)) {
-    //    return "non-satisfying";
-    //} else {
-        return "undecided";
-    //} TODO
-}
-
-function stateLabel(state: StateData, mark?: ?StateData): HTMLSpanElement {
+function stateLabel(state: StateData, wrtQ: ?string): HTMLSpanElement {
     const out = dom.snLabel.toHTML(state.label);
-    if (mark != null && mark.label === state.label) {
-        out.className = "selected";
-    }
+    if (wrtQ != null) out.className = analysisKind(wrtQ, state.analysis);
     return out;
 }
 
@@ -99,8 +84,8 @@ function automatonLabel(label: string, ana?: ?AnalysisResult): HTMLSpanElement {
     return out;
 }
 
-function actionCount(): HTMLSpanElement {
-    throw new Error();
+function qNext(x: StateData, q: string): ?string {
+    return x.analysis == null ? null : x.analysis.next[q];
 }
 
 // String representation of halfspace inequation
@@ -1067,7 +1052,7 @@ class StateView {
     constructor(model: SystemModel): void {
         this._model = model;
         this._model.attach((mc) => this.handleChange(mc));
-        this._lines = [dom.DIV(), dom.DIV(), dom.DIV()];
+        this._lines = [dom.DIV({ "class": "selection" }), dom.DIV(), dom.DIV()];
         this._predicates = new SelectableNodes(
             _ => predicateLabel(_, this._model.getPredicate(_)), "-", ", "
         );
@@ -1087,7 +1072,7 @@ class StateView {
             const analysis = x.analysis;
             // Line 1: system and automaton labels
             dom.replaceChildren(this._lines[0], [
-                stateLabel(x, x), ", ", automatonLabel(q, analysis)
+               dom.snLabel.toHTML(x.label), ", ", dom.snLabel.toHTML(q)
             ]);
             // Line 2: action and automaton transition
             if (x.isOuter) {
@@ -1095,7 +1080,7 @@ class StateView {
             } else if (analysisKind(q, analysis) === "unreachable") {
                 dom.replaceChildren(this._lines[1], ["0 (state is unreachable)"]);
             } else if (analysis != null) {
-                const next = analysis.next[q];
+                const next = qNext(x, q);
                 if (next == null) throw new Error(
                     "no next automaton state found for reachable state " + x.label // TODO: recover
                 );
@@ -1154,14 +1139,14 @@ class ActionViewCtrl {
         // TODO: this should be able to handle action changes that come from
         // somewhere other than itself
         if (mc === "state") {
-            const [x, _] = this._model.state;
-            if (x != null) {
+            const [x, q] = this._model.state;
+            if (x != null && analysisKind(q, x.analysis) !== "unreachable") {
                 this._model.getActions(x.label).then((actions) => {
                     this._actionNodes = new Map(actions.map(_ => [_, this.actionToNode(_)]));
                     dom.replaceChildren(this.node, this._actionNodes.values());
                 }).catch((e) => this._model.logError(e));
             } else {
-                dom.removeChildren(this.node);
+                dom.replaceChildren(this.node, ["-"]);
             }
             this._action = null;
             this._model.action = null;
@@ -1193,13 +1178,11 @@ class ActionViewCtrl {
     }
 
     actionToNode(action: ActionData): HTMLDivElement {
-        const node = dom.DIV({ "class": "action" }, [
-            stateLabel(action.origin, action.origin), " → {",
-            ...arr.intersperse(", ", action.targets.map(
-                target => stateLabel(target, action.origin)
-            )),
-            "}"
-        ]);
+        const [_, q] = this._model.state;
+        const next = qNext(action.origin, q);
+        const origin = stateLabel(action.origin, q);
+        const targets = arr.intersperse(", ", action.targets.map((target) => stateLabel(target, next)));
+        const node = dom.DIV({ "class": "action" }, [origin, " → {", ...targets, "}"]);
         node.addEventListener("click", () => this.clickAction(action));
         node.addEventListener("mouseover", () => {
             this._model.action = action;
@@ -1211,11 +1194,10 @@ class ActionViewCtrl {
     }
 
     supportToNode(support: SupportData): HTMLDivElement {
-        const node = dom.DIV({}, [
-            "{", ...arr.intersperse(", ", support.targets.map(
-                (target) => stateLabel(target, support.origin)
-            )), "}"
-        ]);
+        const [_, q] = this._model.state;
+        const next = qNext(support.origin, q);
+        const targets = arr.intersperse(", ", support.targets.map((target) => stateLabel(target, next)));
+        const node = dom.DIV({}, ["{", ...targets, "}"]);
         node.addEventListener("mouseover", () => {
             this._model.support = support;
         });

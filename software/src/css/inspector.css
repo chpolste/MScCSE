@@ -332,9 +332,6 @@ a:hover {
     border-left: 10px solid #FC0;
 }
 
-span.selected {
-    color: #069;
-}
 span.yes {
     color: #093;
 }
@@ -345,7 +342,7 @@ span.maybe {
     color: #000;
 }
 span.unreachable {
-    color: #C99;
+    color: #939;
 }
 
 #state-view {
@@ -370,6 +367,9 @@ span.unreachable {
     padding: 2px;
     margin: -2px;
     background-color: rgba(0, 0, 0 , 0.2);
+}
+#state-view .selection {
+    color: #069;
 }
 
 #action-view {

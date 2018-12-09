@@ -92,22 +92,46 @@ label {
     margin: 4px 0;
 }
 
+/* Form elements */
+textarea, button, input, select {
+    vertical-align: center;
+    display: inline-block;
+    border: 1px solid #BBB;
+    background-color: #DDD;
+    color: #000;
+}
 textarea {
     overflow-wrap: normal;
+    padding: 2px;
+}
+select {
+    height: 23px !important;
+}
+button, input[type=button], input[type=submit] {
+    height: 23px !important;
+    padding: 0 8px;
+}
+input[type=text] {
+    height: 21px !important;
+    padding: 0 4px;
 }
 textarea, input[type=text] {
     font-size: 12px;
     font-family: monospace;
+    background-color: #FFF;
 }
-
 input[type=checkbox], input[type=radio] {
-    display: inline-block;
     vertical-align: top;
     margin: 0 4px 0 0;
 }
-
-button {
-    display: inline-block;
+button:hover, button:focus, input:hover, input:focus, textarea:hover, textarea:focus, select:hover, select:focus {
+    border-color: #999;
+}
+button:disabled, input:disabled, textarea:disabled, select:disabled {
+    color: #666;
+}
+input:invalid, textarea:invalid {
+    border-color: #933;
 }
 
 /* https://stackoverflow.com/questions/1530685 */
@@ -177,8 +201,7 @@ a:hover {
 #inspector > .tabs > .bar {
     display: flex;
     flex-direction: row;
-    background-color: #EEE;
-    color: #333;
+    border: 1px solid #BBB;
 }
 #inspector > .tabs > .bar div {
     flex: 1 1 auto;
@@ -187,15 +210,14 @@ a:hover {
     cursor: pointer;
 }
 #inspector > .tabs > .bar div.selection {
-    background-color: #069;
-    color: #FFF;
+    background-color: #DDD;
 }
 #inspector > .tabs > .bar div.highlight {
-    background-color: #C00;
+    background-color: #933;
     color: #FFF;
 }
 #inspector > .tabs > .bar div:hover{
-    background-color: #CCC;
+    background-color: #EEE;
 }
 
 

@@ -218,12 +218,12 @@ type StateAnalysis = {
 export type StateData = {
     label: string,
     isOuter: boolean,
+    predicates: Set<string>,
     analysis: ?AnalysisResult
 };
 export type StateDataPlus = StateData & {
     polytope: JSONPolytope,
     centroid: number[],
-    predicates: Set<string>,
     numberOfActions: number
 };
 communicator.onRequest("getState", function (data: StateRequest): StateDataPlus {
@@ -237,6 +237,7 @@ function stateDataOf(state: State): StateData {
     return {
         label: state.label,
         isOuter: state.isOuter,
+        predicates: state.predicates,
         analysis: $.getAnalysis(state)
     };
 }

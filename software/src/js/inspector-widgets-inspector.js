@@ -8,7 +8,7 @@ import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, T
               GameGraphData, ProcessAnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData,
               NameSnapshotData, SnapshotData } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
-import type { AutomatonShapeCollection } from "./logic.js";
+import type { AutomatonStateLabel, AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
 import type { Plot } from "./widgets-plot.js";
@@ -32,7 +32,7 @@ export const COLORS = {
     yes: "#093",
     no: "#CCC",
     maybe: "#FFF",
-    unreachable: "#C9C",
+    unreachable: "#C99",
     selection: "#069",
     highlight: "#FC0",
     support: "#09C",
@@ -49,7 +49,7 @@ const MARKED_STEP_STYLE = { "stroke": "#C00", "fill": "#C00" };
 export const TRACE_LENGTH = 35;
 
 type _AnalysisKind = "maybe" | "yes" | "no" | "unreachable";
-function analysisKind(q: string, analysis: ?AnalysisResult): _AnalysisKind {
+function analysisKind(q: AutomatonStateLabel, analysis: ?AnalysisResult): _AnalysisKind {
     // If no analysis results are available, everything is undecided
     if (analysis == null || analysis.maybe.has(q)) {
         return "maybe";
@@ -68,24 +68,20 @@ function stateColorSimple(state: StateData): string {
 }
 
 // State coloring according to analysis status
-function stateColor(state: StateData, wrtQ: string): string {
+function stateColor(state: StateData, wrtQ: AutomatonStateLabel): string {
     return COLORS[analysisKind(wrtQ, state.analysis)];
 }
 
-function stateLabel(state: StateData, wrtQ: ?string): HTMLSpanElement {
+function stateLabel(state: StateData, wrtQ: ?AutomatonStateLabel): HTMLSpanElement {
     const out = dom.snLabel.toHTML(state.label);
     if (wrtQ != null) out.className = analysisKind(wrtQ, state.analysis);
     return out;
 }
 
-function automatonLabel(label: string, ana?: ?AnalysisResult): HTMLSpanElement {
+function automatonLabel(label: AutomatonStateLabel, ana?: ?AnalysisResult): HTMLSpanElement {
     const out = dom.snLabel.toHTML(label);
     out.className = analysisKind(label, ana);
     return out;
-}
-
-function qNext(x: StateData, q: string): ?string {
-    return x.analysis == null ? null : x.analysis.next[q];
 }
 
 // String representation of halfspace inequation
@@ -108,7 +104,7 @@ function ineq2s(h: Halfspace): string {
 }
 
 // Predicate label with inequation as title text
-function predicateLabel(label: string, halfspace: Halfspace): HTMLSpanElement {
+function predicateLabel(label: PredicateID, halfspace: Halfspace): HTMLSpanElement {
     const out = dom.snLabel.toHTML(label);
     out.title = ineq2s(halfspace);
     return out;
@@ -313,11 +309,11 @@ class SystemModel extends ObservableMixin<ModelChange> {
     +_comm: Communicator<Worker>;
     +log: Logger;
     +objective: Objective;
-    +qAll: Set<string>;
+    +qAll: Set<AutomatonStateLabel>;
     // Selections
     _system: AbstractedLSS;
     _xState: ?StateDataPlus;
-    _qState: string;
+    _qState: AutomatonStateLabel;
     _action: ?ActionData;
     _support: ?SupportData;
     _trace: ?TraceData;
@@ -366,7 +362,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
     // Getters and setters for selections
 
-    get state(): [?StateDataPlus, string] {
+    get state(): [?StateDataPlus, AutomatonStateLabel] {
         return [this._xState, this._qState];
     }
 
@@ -375,7 +371,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
         this.notify("state");
     }
 
-    set qState(q: string): void {
+    set qState(q: AutomatonStateLabel): void {
         this._qState = q;
         this.notify("state");
     }
@@ -425,7 +421,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
         }
     }
 
-    // Static system information
+    // System information convenience accessors
 
     get lss(): LSS {
         return this._system.lss;
@@ -433,6 +429,10 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
     getPredicate(label: PredicateID): Halfspace {
         return this._system.getPredicate(label);
+    }
+
+    transitionTo(x: StateData, q: AutomatonStateLabel) {
+        return this.objective.nextState(x.predicates, q);
     }
 
     // Worker request interface
@@ -945,7 +945,7 @@ class AutomatonViewCtrl {
 
     draw(): void {
         const [x, q] = this._model.state;
-        const next = (x != null && x.analysis != null) ? x.analysis.next[q] : null;
+        const next = x == null ? null : this._model.transitionTo(x, q);
         // States
         const ss = [];
         for (let [state, [s, l]] of this._shapes.states) {
@@ -1047,7 +1047,7 @@ class StateView {
     +node: HTMLDivElement;
     +_model: SystemModel;
     +_lines: HTMLDivElement[];
-    +_predicates: SelectableNodes<string>;
+    +_predicates: SelectableNodes<PredicateID>;
 
     constructor(model: SystemModel): void {
         this._model = model;
@@ -1078,18 +1078,12 @@ class StateView {
             if (x.isOuter) {
                 dom.replaceChildren(this._lines[1], ["0 (outer state)"]);
             } else if (analysisKind(q, analysis) === "unreachable") {
-                dom.replaceChildren(this._lines[1], ["0 (state is unreachable)"]);
-            } else if (analysis != null) {
-                const next = qNext(x, q);
-                if (next == null) throw new Error(
-                    "no next automaton state found for reachable state " + x.label // TODO: recover
-                );
+                dom.replaceChildren(this._lines[1], ["0 (unreachable state)"]);
+            } else {
                 dom.replaceChildren(this._lines[1], [
                     x.numberOfActions.toString(), " (transition to ",
-                    automatonLabel(next, null), ")"
+                    automatonLabel(this._model.transitionTo(x, q), null), ")"
                 ]);
-            } else {
-                dom.replaceChildren(this._lines[1], [x.numberOfActions.toString()]);
             }
             // Line 3: analysis kinds
             if (analysis == null) {
@@ -1179,7 +1173,7 @@ class ActionViewCtrl {
 
     actionToNode(action: ActionData): HTMLDivElement {
         const [_, q] = this._model.state;
-        const next = qNext(action.origin, q);
+        const next = this._model.transitionTo(action.origin, q);
         const origin = stateLabel(action.origin, q);
         const targets = arr.intersperse(", ", action.targets.map((target) => stateLabel(target, next)));
         const node = dom.DIV({ "class": "action" }, [origin, " → {", ...targets, "}"]);
@@ -1195,7 +1189,7 @@ class ActionViewCtrl {
 
     supportToNode(support: SupportData): HTMLDivElement {
         const [_, q] = this._model.state;
-        const next = qNext(support.origin, q);
+        const next = this._model.transitionTo(support.origin, q);
         const targets = arr.intersperse(", ", support.targets.map((target) => stateLabel(target, next)));
         const node = dom.DIV({}, ["{", ...targets, "}"]);
         node.addEventListener("mouseover", () => {

@@ -12,7 +12,7 @@ import { obj, iter, arr, sets, hashString, replaceAll } from "./tools.js";
 /* Objective specification
 
 Associates automaton variables with propositional formulas so they can be
-evaluated together.
+evaluated together and provides some convenience functionality.
 */
 
 type AutomatonPlacement = { [string]: [number, number, number] }; // x, y, loop angle
@@ -24,7 +24,6 @@ export type ObjectiveKind = {
     automatonPlacement: AutomatonPlacement
 };
 
-// Shape collection maps
 export class Objective {
     
     +kind: ObjectiveKind;
@@ -46,6 +45,46 @@ export class Objective {
         if (this.coSafeInterpretation && !this.automaton.isCoSafeCompatible) throw new Error(
             "Co-safe interpretation chosen, but automaton is not co-safe compatible"
         );
+    }
+
+    // TODO serialization for sending to analysis worker
+
+    getState(label: AutomatonStateLabel): State {
+        const state = this.automaton.states.get(label);
+        if (state == null) throw new Error(
+            "automaton state " + label + " does not exist"
+        );
+        return state;
+    }
+
+    getProposition(symbol: string): Proposition {
+        const formula = this.propositions.get(symbol);
+        if (formula == null) throw new Error(
+            "no formula for symbol " + symbol + " exists"
+        );
+        return formula;
+    }
+
+    valuationFor(predicates: Set<PredicateID>): Valuation {
+        return (atom) => {
+            const formula = this.getProposition(atom.symbol);
+            return formula.evalWith(_ => predicates.has(_.symbol));
+        };
+    }
+
+    nextState(predicates: Set<PredicateID>, label: AutomatonStateLabel): AutomatonStateLabel {
+        const state = this.getState(label);
+        const next = state.successor(this.valuationFor(predicates));
+        if (next == null) throw new Error(
+            "" // TODO
+        );
+        return next.label;
+    }
+
+    // Test for final (satisfying) states of co-safe objectives
+    isCoSafeFinal(label: AutomatonStateLabel): boolean {
+        const state = this.getState(label);
+        return this.coSafeInterpretation && state.isFinal && this.automaton.acceptanceSetF.has(state);
     }
 
     toShapes(): AutomatonShapeCollection {
@@ -294,7 +333,7 @@ export type AutomatonShapeCollection = {
 
 export class OnePairStreettAutomaton {
 
-    +states: Map<string, State>;
+    +states: Map<AutomatonStateLabel, State>;
     +acceptanceSetE: Set<State>;
     +acceptanceSetF: Set<State>;
     initialState: State;
@@ -320,11 +359,11 @@ export class OnePairStreettAutomaton {
             // E and F must together contain all states
             && sets.difference(this.states.values(), sets.union(E, F)).size === 0
             // All states in F can only have a self-loop without transition label
-            && iter.and(iter.map(_ => (_.transitions.size === 0 && _.defaultTarget === _), F))
+            && iter.and(iter.map(_ => _.isFinal, F))
         );
     }
 
-    takeState(label: string): State {
+    takeState(label: AutomatonStateLabel): State {
         let state = this.states.get(label);
         if (state == null) {
             state = new State(label);
@@ -478,19 +517,26 @@ export class OnePairStreettAutomaton {
 
 }
 
+export type AutomatonStateLabel = string;
+
 class State {
 
-    +label: string;
+    // TODO? reference to automaton
+    +label: AutomatonStateLabel;
     +transitions: Map<State, Proposition>;
     defaultTarget: ?State;
 
-    constructor(label: string): void {
+    constructor(label: AutomatonStateLabel): void {
         if (label.startsWith("__")) throw new Error(
             "automaton state labels starting with '__' are reserved"
         );
         this.label = label;
         this.transitions = new Map();
         this.defaultTarget = null;
+    }
+
+    get isFinal(): boolean {
+        return this.transitions.size === 0 && this.defaultTarget === this;
     }
 
     successor(valuation: Valuation): ?State {

@@ -135,18 +135,16 @@ export class TwoPlayerProbabilisticGame {
     +p2States: UniqueCollection<P2State>;
     +initialStates: Set<PState>;
     +priorityStates: [Set<PState>, Set<PState>, Set<PState>];
-    // Cache for game solutions
-    _winningStates: ?Set<PState>;
-    _winningStatesCoop: ?Set<PState>;
+    +coSafeInterpretation: boolean;
 
     // Empty game
-    constructor(): void {
+    constructor(coSafeInterpretation?: boolean): void {
         this.p1States = new UniqueCollection(P1State.hash, P1State.areEqual);
         this.p2States = new UniqueCollection(P2State.hash, P2State.areEqual);
         this.initialStates = new Set();
         this.priorityStates = [new Set(), new Set(), new Set()];
-        this._winningStates = null;
-        this._winningStatesCoop = null;
+        // Co-safe interpretation of objective is off by default
+        this.coSafeInterpretation = coSafeInterpretation != null && coSafeInterpretation;
     }
 
     // Convenient access to collection of player 1 and 2 states of the game
@@ -262,15 +260,30 @@ export class TwoPlayerProbabilisticGame {
             "states " + Array.from(sets.difference(win, winCoop)).join(", ")
             + " have a winning stategy but cannot be won cooperatively (contradiction)"
         );
+        // Post-processing when co-safe objective is chosen: make all states in
+        // final automaton states (objective fulfilled, priority 0) satisfying.
+        // They would be classed as unreachable otherwise since the __SAT__
+        // state captures all plays once the objective is reached.
+        const qSat = new Set();
+        if (this.coSafeInterpretation) {
+            for (let state of this.priorityStates[0]) {
+                if (state.automatonState !== "__SAT__") qSat.add(state.automatonState);
+            }
+        }
         const results = new Map();
         // Initial states cover all system states
         for (let state of this.initialStates) {
+            // Set self-loop transitions for co-safe satifying states
+            const next = {};
+            for (let q of qSat) next[q] = q;
+            // Initial result status: empty results except for co-safe
+            // post-processing
             results.set(state.systemState, {
                 init: state.automatonState,
-                yes: new Set(),
+                yes: new Set(qSat),
                 no: new Set(),
                 maybe: new Set(),
-                next: {}
+                next: next
             });
         }
         for (let state of this.p1States) {
@@ -313,7 +326,7 @@ export class TwoPlayerProbabilisticGame {
         const priority1 = new Set(iter.map(s => s.label, automaton.acceptanceSetE));
         const priority0 = new Set(iter.map(s => s.label, automaton.acceptanceSetF));
         // Output game
-        const game = new TwoPlayerProbabilisticGame();
+        const game = new TwoPlayerProbabilisticGame(coSafeInterpretation);
         // Game graph exploration queue
         const queue = [];
         // Keep track of player 1 states that have been enqueued already
@@ -338,8 +351,6 @@ export class TwoPlayerProbabilisticGame {
         deadEndP1.actions.push(new Set([deadEndP2]));
         deadEndP2.actions.push(new Set([deadEndP1]));
 
-        // Co-safe interpretation of automaton is off by default
-        coSafeInterpretation = coSafeInterpretation != null && coSafeInterpretation;
         // For co-safe interpretation add a priority 0 state that cannot be
         // left, therefore a win for player 1 is guaranteed. This state will be
         // put as only successor after all priority 0 states from the automaton
@@ -350,7 +361,7 @@ export class TwoPlayerProbabilisticGame {
         // plays, traces must not leave the state space).
         let satEndP1 = null;
         let satEndP2 = null;
-        if (coSafeInterpretation) {
+        if (game.coSafeInterpretation) {
             if (!automaton.isCoSafeCompatible) throw new Error(
                 "Co-safe interpretation selected, but the automaton is not co-safe compatible"
             );
@@ -383,13 +394,13 @@ export class TwoPlayerProbabilisticGame {
                     // ...
                 // If a priority 0 state would be reached in the co-safe
                 // interpretation, ensure that player 1 wins.
-                } else if (coSafeInterpretation && satEndP1 != null && priority0.has(qNext.label)) {
+                } else if (game.coSafeInterpretation && satEndP1 != null && priority0.has(qNext.label)) {
                     // Side note: It would also be possible to transition
                     // directly to satEndP2, but this way the next field of the
                     // analysis results can be filled with less hassle
                     const action = game.takeP2State(xi, 0, qNext.label);
                     state.actions.push(new Set([action]));
-                    // Don't put the new player 2 action on queue but directly
+                    // Don't put the new player 2 state on queue but directly
                     // connect to the __SAT__ player 1 state.
                     action.actions.push(new Set([satEndP1]));
                 // Automaton transition exists, create game transition for

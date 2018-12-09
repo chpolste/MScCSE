@@ -440,6 +440,8 @@ class ShapeGroup {
                         transform: "translate(" + toStr(x) + " " + toStr(y) + ") rotate(" + toStr(primitive.angle) + ")"
                     });
                     dom.setAttributes(line, style);
+                    // Never fill the area inside the loop, but do fill the triangle
+                    line.setAttribute("fill", "none");
                     dom.addEventListeners(line, events);
                     dom.setAttributes(triangle, style);
                     dom.addEventListeners(triangle, events);

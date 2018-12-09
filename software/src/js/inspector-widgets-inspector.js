@@ -349,6 +349,10 @@ class SystemModel extends ObservableMixin<ModelChange> {
             this._comm.onRequest("ready", (data) => {
                 this.notify("snapshot");
                 this.notify("system");
+                this.notify("state");
+                this.notify("action");
+                this.notify("support");
+                this.notify("trace");
             });
             const worker = new Worker("./js/inspector-worker-system.js");
             worker.onerror = () => {
@@ -933,11 +937,10 @@ class AutomatonViewCtrl {
                 "fill": "#000", "stroke": "#000", "stroke-width": "2"
             }),
             states: fig.newLayer({
-                "fill": "#FFF", "fill-opacity": "0", "stroke": "#000", "stroke-width": "1.5"
+                "fill": "#FFF", "fill-opacity": "0", "stroke": "#000", "stroke-width": "2"
             })
         };
-        this.drawStates();
-        this.drawTransitions();
+        this.drawLabels();
         // Setup plot area
         const extent = this._shapes.extent;
         if (extent == null) throw new Error("No automaton plot extent given by objective");
@@ -951,50 +954,51 @@ class AutomatonViewCtrl {
 
     handleChange(mc: ?ModelChange): void {
         if (mc === "state") {
-            this.drawStates();
-        } else if (mc === "system") {
-            // TODO
+            this.draw();
         }
     }
 
-    drawStates(): void {
-        const [_, q] = this._model.state;
+    draw(): void {
+        const [x, q] = this._model.state;
+        const next = (x != null && x.analysis != null) ? x.analysis.next[q] : null;
+        // States
         const ss = [];
-        const ls = [];
         for (let [state, [s, l]] of this._shapes.states) {
             s = obj.clone(s);
             s.events = { "click": () => { this._model.qState = state; } };
             if (state === q) {
                 s.style = { "stroke": COLORS.selection };
-                l = obj.clone(l);
-                l.style = { "fill": COLORS.selection };
             }
             ss.push(s);
-            ls.push(l);
         }
-        this._layers.states.shapes = ss;
-        this._layers.stateLabels.shapes = ls;
-    }
-
-    drawStateLabels(): void {
-        // TODO
-    }
-
-    drawTransitions(): void {
+        // Transitions
         const ts = [];
-        const ls = [];
         for (let [origin, transitions] of this._shapes.transitions) {
             for (let [target, [t, l]] of transitions) {
+                if (origin === q && target === next) {
+                    t = obj.clone(t);
+                    t.style = { "stroke": COLORS.selection, "fill": COLORS.selection };
+                }
                 ts.push(t);
-                ls.push(l);
             }
         }
+        this._layers.states.shapes = ss;
         this._layers.transitions.shapes = ts;
-        this._layers.transitionLabels.shapes = ls;
     }
 
-    drawTransitionLabels(): void {
-        // TODO
+    drawLabels(): void {
+        const ss = [];
+        for (let [_, l] of this._shapes.states.values()) {
+            ss.push(l);
+        }
+        this._layers.stateLabels.shapes = ss;
+        const ts = [];
+        for (let transitions of this._shapes.transitions.values()) {
+            for (let [_, l] of transitions.values()) {
+                ts.push(l);
+            }
+        }
+        this._layers.transitionLabels.shapes = ts;
     }
 
 }

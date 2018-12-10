@@ -250,6 +250,13 @@ describe("geometry.Interval", function () {
         assert(poly.pontryagin(pont).isSameAs(pont));
     });
 
+    it("shatter", function () {
+        const pieces = poly.shatter();
+        assert(pieces.polytopes.length > poly.polytopes.length);
+        assert(pieces.isSameAs(poly));
+        assert(pieces.isDisjunct);
+    });
+
     it("intersect with self is identity", function () {
         assert(poly.isSameAs(poly.intersect(poly)));
     });
@@ -479,6 +486,13 @@ describe("geometry.Polygon with square", function () {
         let pontTri = geometry.Polygon.hull([[0, 0], [0.5, 0], [0, 0.5]]);
         assert(poly.pontryagin(pont).isSameAs(pont));
         assert(poly.pontryagin(pontTri).isSameAs(pont));
+    });
+
+    it("shatter", function () {
+        const pieces = poly.shatter();
+        assert(pieces.polytopes.length > poly.polytopes.length);
+        assert(pieces.isSameAs(poly));
+        assert(pieces.isDisjunct);
     });
 
     it("intersect with self is identity", function () {
@@ -925,6 +939,14 @@ describe("geometry.Union", function () {
         assert(Union.from([i1, i2]).covers(Union.from([i2, i2, i1])));
         assert(!p1.toUnion().covers(p2));
         assert(!p1.toUnion().covers(p2.toUnion()));
+    });
+
+    it("shatter", function () {
+        const pu = Union.from([p1, p2, pe]);
+        const pieces = pu.shatter();
+        assert(pieces.polytopes.length > pu.polytopes.length);
+        assert(pieces.isSameAs(pu));
+        assert(pe.toUnion().shatter().isEmpty);
     });
 
     it("intersects", function () {

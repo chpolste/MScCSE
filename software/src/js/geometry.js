@@ -481,6 +481,8 @@ export class Polytope {
         return this.constructor.noredund(halfspaces);
     }
 
+    shatter() { throw new NotImplementedError() };
+
     // Split polytope with halfspace and return both parts
     split(h: Halfspace): [Polytope, Polytope] {
         const intersection = this.constructor.intersection;
@@ -652,6 +654,15 @@ export class Interval extends Polytope {
     // Every interval is its own bounding box.
     get boundingBox(): Interval {
         return this;
+    }
+
+    shatter(): Union {
+        const vertices = this.vertices;
+        const centroid = this.centroid;
+        return new Union(this.dim, [
+            Interval.hull([centroid, vertices[0]]),
+            Interval.hull([centroid, vertices[1]])
+        ], true);
     }
 
     _HtoV(): void {
@@ -871,6 +882,13 @@ export class Polygon extends Polytope {
         return [x / 6 / vol, y / 6 / vol];
     }
 
+    shatter(): Union {
+        const centroid = this.centroid;
+        return new Union(this.dim, arr.cyc2map(
+            (v, w) => Polygon.hull([centroid, v, w]), this.vertices
+        ), true);
+    }
+
     // Custom intersect implementation for 2D: make use of absolute canonical
     // ordering and use merge to achieve linear computational complexity
     _intersectPolytope<T: Polytope>(other: T): T {
@@ -1044,6 +1062,14 @@ export class Union {
         // Apply Pontryagin difference also to bbox or else edges in xs that
         // are shared with bbox are not properly handled.
         return bbox.pontryagin(other).remove(complement.minkowski(other.invert()));
+    }
+
+    shatter(): Union {
+        const pieces = [];
+        for (let x of this.polytopes) {
+            pieces.push(...x.shatter().polytopes);
+        }
+        return new Union(this.dim, pieces, this._isDisjunct);
     }
 
     intersect(other: Region): Region {

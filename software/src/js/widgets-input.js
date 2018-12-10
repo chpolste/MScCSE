@@ -6,7 +6,7 @@ import type { Matrix } from "./linalg.js";
 import type { KeyCallback } from "./dom.js";
 
 import * as dom from "./dom.js";
-import { arr, ObservableMixin } from "./tools.js";
+import { obj, arr, ObservableMixin } from "./tools.js";
 
 
 export class ValidationError extends Error {};
@@ -38,12 +38,64 @@ export function inputTextRotation<T>(input: Input<T>, texts: string[]): KeyCallb
 }
 
 
+export class ClickCycler<T> extends ObservableMixin<null> implements Input<T> {
+
+    +node: HTMLSpanElement;
+    +isValid: boolean;
+    +_options: { [string]: T };
+    +_texts: string[];
+    _idx: number;
+
+    constructor(options: { [string]: T }, initialText?: string): void {
+        super();
+        this._options = options;
+        this._texts = obj.map2Array((k, _) => k, options);
+        if (this._texts.length < 1) throw new Error(
+            "no options to cycle through given"
+        );
+        this.isValid = true;
+        this.node = dom.SPAN({ "class": "click-cycler" });
+        this.node.addEventListener("click", () => {
+            this.text = this._next;
+        });
+        this.text = initialText != null ? initialText : this._texts[0];
+    }
+
+    get value(): T {
+        return this._options[this.text];
+    }
+
+    get text(): string {
+        return this._texts[this._idx];
+    }
+
+    set text(text: string): void {
+        const idx = this._texts.indexOf(text);
+        if (idx < 0) throw new Error(
+            "text '" + text + "' not in options"
+        );
+        this._idx = idx;
+        this.handleChange();
+    }
+
+    get _next(): string {
+        return this._texts[(this._idx + 1) % this._texts.length];
+    }
+
+    handleChange(): void {
+        dom.replaceChildren(this.node, [this.text]);
+        this.node.title = "click to switch to '" + this._next + "'";
+        this.notify();
+    }
+
+}
+
+
 // A one-line text input element
 export class LineInput<T> extends ObservableMixin<null> implements Input<T> {
 
     +node: HTMLInputElement;
     +parse: (txt: string) => T;
-    -size: number;
 
     constructor(parse: (txt: string) => T, size?: number, initialText?: string) {
         super();

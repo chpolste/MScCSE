@@ -24,6 +24,12 @@ export interface Refinery {
     partition(State, Region): RefinementPartition;
 }
 
+// ...
+export type RefineryActionPick = "best" | "random3";
+export type RefinerySettings = {
+    actionPick: RefineryActionPick
+};
+
 // After every refinement step, the partition is divided into "done" and "rest"
 // parts. The former will not be refined further by subsequent refinement
 // steps, while the latter might be.

@@ -133,6 +133,9 @@ button:disabled, input:disabled, textarea:disabled, select:disabled {
 input:invalid, textarea:invalid {
     border-color: #933;
 }
+.click-cycler {
+    cursor: pointer;
+}
 
 /* https://stackoverflow.com/questions/1530685 */
 sub {
@@ -436,30 +439,17 @@ span.unreachable {
     float: right;
 }
 
-#refinement-ctrl {
-    margin-top: 15px;
+.refinement-step {
+    padding: 3px 0;
 }
-#refinement-ctrl > div {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    padding: 1px 0 1px 2px;
+.refinement-step .name {
+    margin: 0;
+    padding: 0 0 2px 0;
+    cursor: default;
 }
-#refinement-ctrl > div:hover {
-    background-color: #EEE;
-}
-#refinement-ctrl > div > div {
-    display: flex;
-}
-#refinement-ctrl > div .step-toggle {
-    flex: 0 0 auto;
-}
-#refinement-ctrl > div .step-text {
-    flex: 1 1 auto;
-}
-#refinement-ctrl > div .step-move button {
-    margin-left: 2px;
-    padding: 0 2px;
+.refinement-step .info {
+    font-size: 0.8em;
+    color: #333;
 }
 
 #snapshot-ctrl .right {

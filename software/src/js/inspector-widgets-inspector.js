@@ -10,6 +10,7 @@ import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, T
 import type { Vector, Matrix } from "./linalg.js";
 import type { AutomatonStateLabel, AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
+import type { RefinerySettings, RefineryActionPick } from "./refinement.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
@@ -19,7 +20,7 @@ import { Figure, autoProjection, Horizontal1D } from "./figure.js";
 import * as linalg from "./linalg.js";
 import { Objective, stringifyProposition, texifyProposition } from "./logic.js";
 import { iter, arr, obj, sets, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
-import { CheckboxInput, SelectInput, SelectableNodes, inputTextRotation } from "./widgets-input.js";
+import { CheckboxInput, SelectInput, SelectableNodes, ClickCycler, inputTextRotation } from "./widgets-input.js";
 import { InteractivePlot, AxesPlot, ShapePlot } from "./widgets-plot.js";
 import { Communicator } from "./worker.js";
 
@@ -1331,65 +1332,59 @@ class AnalysisCtrl {
 }
 
 
-type RefinementStep = {
-    +node: HTMLDivElement,
-    +toggle: HTMLInputElement,
-    +text: string,
-    +name: string
-};
 // Refinement controls. Observes analysis widget to block operations while
 // analysis is carried out.
 class RefinementCtrl {
 
     +node: HTMLDivElement;
     +_model: SystemModel;
+    +_refine: HTMLButtonElement;
     +_info: HTMLSpanElement;
-    +_buttons: { [string]: HTMLButtonElement };
     +_steps: RefinementStep[];
     +_stepBox: HTMLDivElement;
     
     constructor(model: SystemModel, keys: dom.Keybindings): void {
         this._model = model;
         this._model.attach((mc) => this.handleChange(mc));
-        // Information display
-        this._info = dom.SPAN();
-        // Refinement step configurator
+        // ...
+        this._refine = dom.BUTTON({}, [dom.create("u", {}, ["r"]), "efine"]);
+        this._refine.addEventListener("click", () => this.refine());
+        this._refine.disabled = true;
+        /* ...
+        */
+        // ...
+        this._info = dom.SPAN({}, ["analyse first"]); // TODO
+        // ...
         this._steps = [
-            this._newStep("Negative Attractor", "NegativeAttr"),
-            this._newStep("Positive Robust Predecessor", "PositivePreR"),
-            this._newStep("Positive Robust Attractors (TODO)", "PositiveAttrR")
+            new RefinementStep("Negative Attractor"),
+            new RefinementStep("Positive Robust Predecessor"),
+            new RefinementStep("Positive Robust Attractor")
         ];
-        this._stepBox = dom.DIV({ "id": "refinement-ctrl" }, [
-            dom.P({}, ["The following refinement steps are applied in order:"]),
-            ...this._steps.map(_ => _.node)
-        ]);
-        // Interface
-        this._buttons = {
-            refineAll: dom.BUTTON({}, [dom.create("u", {}, ["r"]), "efine all"]),
-            refineOne: dom.BUTTON({}, ["r", dom.create("u", {}, ["e"]), "fine selection"])
-        };
-        this._buttons.refineAll.addEventListener("click", () => this.refineAll());
-        this._buttons.refineOne.addEventListener("click", () => this.refineOne());
+        // ...
+        this._stepBox = dom.DIV({ "id": "refinement-ctrl" }, this._steps.map(_ => _.node));
         this.node = dom.DIV({}, [
-            dom.P({}, [this._buttons.refineAll, " ", this._buttons.refineOne, " ", this._info]),
+            dom.P({}, [this._refine, " ", this._info]),
             this._stepBox
         ]);
         // Keyboard Shortcuts
-        keys.bind("r", () => this.refineAll());
-        keys.bind("e", () => this.refineOne());
+        keys.bind("r", () => this.refine());
     }
 
     get steps(): string[] {
-        return this._steps.filter(_ => _.toggle.checked).map(_ => _.name);
+        return this._steps.filter(_ => _.isEnabled).map(_ => _.name);
     }
 
     set infoText(text: string): void {
         dom.replaceChildren(this._info, [text]);
     }
 
-    refine(which: ?StateData): void {
-        const state = which == null ? null : which.label;
-        this._model.refine(state, this.steps).then((data) => {
+    handleChange(mc: ?ModelChange): void {
+        if (mc !== "state") return;
+        const [x, _] = this._model.state;
+    }
+
+    refine(): void {
+        this._model.refine(null, this.steps).then((data) => {
             this.infoText = "Refined " + data.size + (data.size === 1 ? " state." : " states.");
         }).catch(e => {
             // TODO catch analysis busy error
@@ -1397,56 +1392,45 @@ class RefinementCtrl {
         });
     }
 
-    refineAll(): void {
-        this.refine(null);
+}
+
+
+class RefinementStep {
+
+    +node: HTMLDivElement;
+    +name: string;
+    +_info: HTMLDivElement;
+    +_toggle: Input<boolean>;
+    +_actionPick: Input<RefineryActionPick>;
+    _expanded: boolean;
+
+    constructor(name: string): void {
+        this.name = name;
+        this._toggle = new CheckboxInput(false);
+        this._toggle.attach(() => this.handleChange());
+        this._actionPick = new ClickCycler({
+            "estimate best action": "best",
+            "3 random actions": "random3"
+        }, "estimate best action");
+        this._info = dom.DIV({ "class": "info" });
+        this.node = dom.DIV({ "class": "refinement-step" }, [
+            dom.LABEL({ "class": "name" }, [this._toggle.node, name]), this._info
+        ]);
+        this.handleChange();
     }
 
-    refineOne(): void {
-        const [x, _] = this._model.state;
-        if (x != null) {
-            this.refine(x);
-        }
+    get isEnabled(): boolean {
+        return this._toggle.value;
     }
 
-    handleChange(mc: ?ModelChange): void {
-        if (mc !== "state") return;
-        const [x, _] = this._model.state;
-        this._buttons["refineOne"].disabled = (x == null);
+    get settings(): RefinerySettings {
+        return { actionPick: this._actionPick.value };
     }
 
-    _newStep(text: string, name: string): RefinementStep {
-        const toggle = dom.INPUT({ "type": "checkbox" });
-        const up = dom.BUTTON({}, ["▲"]);
-        up.addEventListener("click", () => {
-            const i = this._steps.indexOf(step);
-            if (i > 0) {
-                const other = this._steps[i - 1];
-                this._stepBox.insertBefore(step.node, other.node);
-                this._steps[i - 1] = step;
-                this._steps[i] = other;
-            }
-        });
-        const down = dom.BUTTON({}, ["▼"]);
-        down.addEventListener("click", () => {
-            const i = this._steps.indexOf(step);
-            if (i < this._steps.length - 1) {
-                const other = this._steps[i + 1];
-                this._stepBox.insertBefore(other.node, step.node);
-                this._steps[i + 1] = step;
-                this._steps[i] = other;
-            }
-        });
-        const step = {
-            node: dom.DIV({}, [
-                dom.DIV({ "class": "step-toggle" }, [toggle]),
-                dom.DIV({ "class": "step-text" }, [text]),
-                dom.DIV({ "class": "step-move" }, [up, down])
-            ]),
-            toggle: toggle,
-            text: text,
-            name: name
-        };
-        return step;
+    handleChange(): void {
+        dom.replaceChildren(this._info, [
+            (this._toggle.value ? "" : " disabled :: "), this._actionPick.node
+        ]);
     }
 
 }

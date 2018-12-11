@@ -10,15 +10,6 @@ import { Polytope, Union } from "./geometry.js";
 import { iter, NotImplementedError } from "./tools.js";
 
 
-// Associate a partition to states (input to AbstractedLSS.refine)
-export type PartitionMap = Map<State, Region>;
-
-// Create a PartitionMap for the states when applying the refinement steps
-export function partitionMap(steps: Refinery[], states: Iterable<State>): PartitionMap {
-    // TODO for each qi... (combine this with AbstractedLSS.partition)
-    return new Map(iter.map(state => [state, state.partition(steps)], states));
-}
-
 // After every refinement step, the partition is divided into "done" and "rest"
 // parts. The former will not be refined further by subsequent refinement
 // steps, while the latter might be.
@@ -46,6 +37,35 @@ export class Refinery {
         this._settings = settings;
     }
 
+    // Partition the system state x in automaton states qs using the given
+    // refinement steps
+    static execute(steps: Refinery[], x: State, qs: AutomatonStateLabel[]): Region {
+        let rest = x.polytope;
+        // Apply all refinement steps for every given automaton state
+        for (let q of qs) {
+            let done = Union.empty(rest.dim);
+            for (let step of steps) {
+                const partition = step.partition(x, q, rest);
+                done = partition.done.union(done);
+                rest = partition.rest;
+                if (rest.isEmpty) break;
+            }
+            // Reset rest to entire polytope as parts marked as done in some
+            // automaton state will generally not also be done in another
+            rest = rest.union(done);
+        }
+        return rest;
+    }
+
+    // Collection of refineries for module export
+    static builtIns(): { [string]: Class<Refinery> } {
+        return {
+            "Negative Attractor": NegativeAttrRefinery,
+            "Positive Robust Predecessor": PositivePreRRefinery,
+            "Positive Robust Attractor": PositiveAttrRRefinery
+        };
+    }
+
     _pickActions(x: State, q: AutomatonStateLabel): Action[] {
         const actions = [];
         // Estimate best action
@@ -63,15 +83,6 @@ export class Refinery {
         throw new NotImplementedError();
     }
 
-    // Collection of refineries for module export
-    static builtIn(): { [string]: Class<Refinery> } {
-        return {
-            NegativeAttr: NegativeAttrRefinery,
-            PositivePreR: PositivePreRRefinery,
-            PositiveAttrR: PositiveAttrRRefinery
-        };
-    }
-
 }
 
 
@@ -80,26 +91,41 @@ export class Refinery {
 // Remove Attractor of non-satisfying states
 class NegativeAttrRefinery extends Refinery {
 
-    +attr: Region;
+    +attr: Map<AutomatonStateLabel,Region>;
 
     constructor(system: AbstractedLSS, objective: Objective,
                 results: AnalysisResults, settings: RefinerySettings): void {
         super(system, objective, results, settings);
+        // Precompute attractors of "no" states for every
+        this.attr = new Map();
         const lss = system.lss;
-        const winCoop = new Set(); // TODO
-        if (winCoop.size === 0) {
-            this.attr = Polytope.ofDim(lss.dim).empty();
-        } else {
-            const states = Array.from(system.states.values()).filter(_ => !winCoop.has(_.label));
-            const target = Union.from(states.map(_ => _.polytope)).simplify();
-            this.attr = lss.attr(lss.xx, lss.uus, target);
+        for (let q of objective.allStates) {
+            const xNo = [];
+            for (let x of system.states.values()) {
+                const result = results.get(x.label);
+                if (result == null) throw new Error("NAR1"); // TODO
+                if (result.no.has(q)) {
+                    xNo.push(x.polytope);
+                }
+            }
+            const target = xNo.length > 0 ? Union.from(xNo).simplify() : Polytope.ofDim(lss.dim).empty();
+            this.attr.set(q, lss.attr(lss.xx, lss.uus, target));
         }
     }
 
     partition(x: State, q: AutomatonStateLabel, rest: Region): RefinementPartition {
-        const done = this.attr.intersect(rest).simplify();
-        const newRest = rest.remove(done).simplify();
-        return { done: done, rest: newRest };
+        const result = this._results.get(x.label);
+        if (result == null) {
+            throw new Error("NAR3");
+        } else if (result.maybe.has(q)) {
+            const attr = this.attr.get(q);
+            if (attr == null) throw new Error("NAR2"); // TODO
+            const done = attr.intersect(rest).simplify();
+            const newRest = rest.remove(done).simplify();
+            return { done: done, rest: newRest };
+        } else {
+            return { done: rest, rest: Polytope.ofDim(rest.dim).empty() };
+        }
     }
 
 }

@@ -3,12 +3,13 @@
 
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
-import type { PartitionMap } from "./refinement.js";
+import type { JSONObjective } from "./logic.js";
 import type { LSS, State, Trace, JSONAbstractedLSS } from "./system.js";
 
 import { controller } from "./controller.js";
 import { Polytope, Union } from "./geometry.js";
-import { Refinery, partitionMap } from "./refinement.js";
+import { Objective } from "./logic.js";
+import { Refinery } from "./refinement.js";
 import { AbstractedLSS } from "./system.js";
 import { iter, sets, obj } from "./tools.js";
 import { Communicator } from "./worker.js";
@@ -39,7 +40,7 @@ class SnapshotManager {
     _current: ?Snapshot;
     _system: ?AbstractedLSS;
     _analysis: ?AnalysisResults;
-    _refineries: { [string]: Refinery };
+    _objective: ?Objective;
 
     constructor(): void {
         this._snapshots = new Map();
@@ -50,7 +51,23 @@ class SnapshotManager {
         this._analysis = null;
     }
 
+    // Startup (has to be called before instance can be used)
+
+    initialize(system: AbstractedLSS, objective: Objective): void {
+        this._snapshots.clear();
+        this._system = system;
+        this._objective = objective;
+        this.take("Initial Problem");
+    }
+
     // Basic accessors
+
+    get objective(): Objective {
+        if (this._objective == null) throw new Error(
+            "system worker is not initialized yet (objective is not set)"
+        );
+        return this._objective;
+    }
 
     get system(): AbstractedLSS {
         if (this._system == null) throw new Error(
@@ -61,6 +78,10 @@ class SnapshotManager {
 
     get lss(): LSS {
         return this.system.lss;
+    }
+
+    get analysis(): ?AnalysisResults {
+        return this._analysis;
     }
 
     // Transferable tree representation for widget-display
@@ -81,15 +102,6 @@ class SnapshotManager {
             children: sets.map(_ => this._treeify(_), node.children),
             isCurrent: node === this._current
         };
-    }
-
-    // Startup (has to be called before instance can be used)
-
-    initialize(system: AbstractedLSS): void {
-        this._snapshots.clear();
-        this._system = system;
-        this.take("Initial Problem");
-        this._setupRefineries();
     }
 
     // Snapshot management
@@ -125,7 +137,6 @@ class SnapshotManager {
         this._current = snapshot;
         this._system = AbstractedLSS.deserialize(snapshot.system);
         this._analysis = snapshot.analysis;
-        this._setupRefineries();
     }
 
     rename(id: number, name: string): void {
@@ -143,24 +154,25 @@ class SnapshotManager {
         const updated = new Set(); // TODO
         // Refinery setup is affected by analysis results and system, so both
         // have to be updated earlier
-        this._setupRefineries();
         return updated;
     }
 
-    refine(steps: Iterable<string>, states: Iterable<State>): Set<State> {
-        const refineries = [];
-        for (let step of steps) {
-            const refinery = this._refineries[step];
-            if (refinery == null) throw new Error("Refinement step '" + step + "' not recognized");
-            refineries.push(refinery);
+    refine(refineries: string[]): Set<State> {
+        const analysis = this.analysis;
+        if (analysis == null) throw new Error("need to analyse before refinement"); // TODO
+        // Setup refinement steps
+        const Clss = Refinery.builtIns();
+        const steps = refineries.map((name) => {
+            const Cls = Clss[name];
+            if (Cls == null) throw new Error("Refinement step '" + name + "' not recognized");
+            return new Cls(this.system, this.objective, analysis, { actionPick: "best" }); // TODO
+        })
+        // Partition states
+        const partitions = new Map();
+        for (let state of this.system.states.values()) {
+            partitions.set(state, Refinery.execute(steps, state, ["q0"])); // TODO automaton state selection
         }
-        return this.system.refine(partitionMap(refineries, states));
-    }
-
-    _setupRefineries(results: ?AnalysisResults): void {
-        // TODO: needs access to analysis results and objective
-        //this._refineries = obj.map((key, Cls) => new Cls(this.system, this._analysis), Refinery.builtIn());
-        this._refineries = {};
+        return this.system.refine(partitions);
     }
 
     // System status
@@ -343,21 +355,11 @@ communicator.onRequest("processAnalysis", function (data: ProcessAnalysisRequest
 
 
 // Refine the system
-export type RefineRequest = [?string, string[]];
+export type RefineRequest = string[]; // TODO: settings
 export type RefineData = Set<string>;
 communicator.onRequest("refine", function (data: RefineRequest): RefineData {
-    const [stateLabel, steps] = data;
-    // Which states to refine?
-    const states = [];
-    if (stateLabel == null) {
-        states.push(...$.system.states.values()); // TODO: only choose undecided states
-    } else {
-        const state = $.system.getState(stateLabel);
-        // TODO verify that state is undecided for any automaton state
-        states.push(state);
-    }
     // Return set of states that were changed by refinement
-    return sets.map(_ => _.label, $.refine(steps, states));
+    return sets.map(_ => _.label, $.refine(data));
 });
 
 
@@ -402,8 +404,9 @@ communicator.host = self;
 
 
 // Initialize
-communicator.request("init", null).then(function (data: JSONAbstractedLSS) {
-    $.initialize(AbstractedLSS.deserialize(data));
+communicator.request("init", null).then(function (data: [JSONAbstractedLSS, JSONObjective]) {
+    const [system, objective] = data;
+    $.initialize(AbstractedLSS.deserialize(system), Objective.deserialize(objective));
     return communicator.request("ready", null);
 });
 

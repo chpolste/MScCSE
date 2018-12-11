@@ -5,7 +5,6 @@ import type { Controller } from "./controller.js";
 import type { GameGraph, JSONGameGraph } from "./game.js";
 import type { JSONPolytope, JSONUnion, JSONHalfspace, Region } from "./geometry.js";
 import type { Matrix, Vector } from "./linalg.js";
-import type { Refinery, PartitionMap } from "./refinement.js";
 
 import { Polytope, Halfspace, Union } from "./geometry.js";
 import * as linalg from "./linalg.js";
@@ -359,7 +358,7 @@ export class AbstractedLSS implements GameGraph {
 
     // Refine states according to the given partitionings. Returns those states
     // which were refined.
-    refine(partitions: PartitionMap): Set<State> {
+    refine(partitions: Map<State, Region>): Set<State> {
         const refined = new Set();
         for (let [state, partition] of partitions.entries()) {
             // Validate that partition covers state polytope
@@ -624,19 +623,6 @@ export class State {
     
     zOne(): Region {
         return this.system.zOne([this]);
-    }
-
-    // Partition the state using the given refinement steps.
-    partition(steps: Refinery[]): Region {
-        let done = [];
-        let rest = this.polytope;
-        for (let step of steps) {
-            const newParts = step.partition(this, "q0", rest); // TODO: move this to refinement.js
-            done.push(...newParts.done.polytopes);
-            rest = newParts.rest;
-            if (rest.isEmpty) break;
-        }
-        return done.length === 0 ? rest : Union.from(done).union(rest);
     }
 
     // Clear action cache if a state in the given set is reachable from this

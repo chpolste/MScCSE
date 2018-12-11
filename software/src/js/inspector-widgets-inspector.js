@@ -310,7 +310,6 @@ class SystemModel extends ObservableMixin<ModelChange> {
     +_comm: Communicator<Worker>;
     +log: Logger;
     +objective: Objective;
-    +qAll: Set<AutomatonStateLabel>;
     // Selections
     _system: AbstractedLSS;
     _xState: ?StateDataPlus;
@@ -327,7 +326,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
         // Setup dedicated worker for system tasks
         try {
             this._comm = new Communicator("ISYS");
-            this._comm.onRequest("init", (data) => system.serialize());
+            this._comm.onRequest("init", (data) => [system.serialize(), objective.serialize()]);
             this._comm.onRequest("ready", (data) => {
                 this.notify("snapshot");
                 this.notify("system");
@@ -352,7 +351,6 @@ class SystemModel extends ObservableMixin<ModelChange> {
         }
         // Static system information
         this.objective = objective;
-        this.qAll = sets.map(_ => _.label, objective.automaton.states.values());
         // Initialize selections
         this._xState = null;
         this._qState = objective.automaton.initialState.label;
@@ -428,6 +426,10 @@ class SystemModel extends ObservableMixin<ModelChange> {
         return this._system.lss;
     }
 
+    get qAll(): Set<AutomatonStateLabel> {
+        return this.objective.allStates;
+    }
+
     getPredicate(label: PredicateID): Halfspace {
         return this._system.getPredicate(label);
     }
@@ -478,9 +480,9 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
-    refine(state: ?StateID, steps: string[]): Promise<RefineData> {
+    refine(steps: string[]): Promise<RefineData> {
         const [xOld, _] = this.state;
-        return this._comm.request("refine", [state, steps]).then((data) => {
+        return this._comm.request("refine", steps).then((data) => {
             if (data.size > 0) {
                 this.notify("system");
                 this.refreshState(xOld);
@@ -1329,21 +1331,14 @@ class RefinementCtrl {
     constructor(model: SystemModel, keys: dom.Keybindings): void {
         this._model = model;
         this._model.attach((mc) => this.handleChange(mc));
-        // ...
         this._refine = dom.BUTTON({}, [dom.create("u", {}, ["r"]), "efine"]);
         this._refine.addEventListener("click", () => this.refine());
-        this._refine.disabled = true;
-        /* ...
-        */
-        // ...
-        this._info = dom.SPAN({}, ["analyse first"]); // TODO
-        // ...
+        this._info = dom.SPAN({}, []);
         this._steps = [
-            new RefinementStep("Negative Attractor"),
-            new RefinementStep("Positive Robust Predecessor"),
-            new RefinementStep("Positive Robust Attractor")
+            new RefinementStep("Negative Attractor", false),
+            new RefinementStep("Positive Robust Predecessor", false),
+            new RefinementStep("Positive Robust Attractor", true)
         ];
-        // ...
         this._stepBox = dom.DIV({ "id": "refinement-ctrl" }, this._steps.map(_ => _.node));
         this.node = dom.DIV({}, [
             dom.P({}, [this._refine, " ", this._info]),
@@ -1367,7 +1362,7 @@ class RefinementCtrl {
     }
 
     refine(): void {
-        this._model.refine(null, this.steps).then((data) => {
+        this._model.refine(this.steps).then((data) => {
             this.infoText = "Refined " + data.size + (data.size === 1 ? " state." : " states.");
         }).catch(e => {
             // TODO catch analysis busy error
@@ -1385,9 +1380,10 @@ class RefinementStep {
     +_info: HTMLDivElement;
     +_toggle: Input<boolean>;
     +_actionPick: Input<RefineryActionPick>;
+    +_showActionPick: boolean
     _expanded: boolean;
 
-    constructor(name: string): void {
+    constructor(name: string, showActionPick: boolean): void {
         this.name = name;
         this._toggle = new CheckboxInput(false);
         this._toggle.attach(() => this.handleChange());
@@ -1395,6 +1391,7 @@ class RefinementStep {
             "estimate best action": "best",
             "3 random actions": "random3"
         }, "estimate best action");
+        this._showActionPick = showActionPick;
         this._info = dom.DIV({ "class": "info" });
         this.node = dom.DIV({ "class": "refinement-step" }, [
             dom.LABEL({ "class": "name" }, [this._toggle.node, name]), this._info
@@ -1411,9 +1408,10 @@ class RefinementStep {
     }
 
     handleChange(): void {
-        dom.replaceChildren(this._info, [
-            (this._toggle.value ? "" : " disabled :: "), this._actionPick.node
-        ]);
+        const nodes = [];
+        if (!this._toggle.value) nodes.push("disabled");
+        if (this._showActionPick) nodes.push(this._actionPick.node);
+        dom.replaceChildren(this._info, arr.intersperse(" :: ", nodes));
     }
 
 }

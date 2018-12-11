@@ -34,6 +34,8 @@ export class Objective {
     
     +kind: ObjectiveKind;
     +automaton: OnePairStreettAutomaton;
+    // Convenient access to all automaton states by label
+    +allStates: Set<AutomatonStateLabel>;
     // Mapping of automaton transition label variables to propositions over
     // linear predicates of system
     +propositions: Map<string, Proposition>;
@@ -47,6 +49,7 @@ export class Objective {
         );
         this.propositions = new Map(arr.zip2(kind.variables, terms));
         this.automaton = OnePairStreettAutomaton.parse(kind.automaton);
+        this.allStates = sets.map(_ => _.label, this.automaton.states.values());
         // Co-safe interpretation of automaton is disabled by default
         this.coSafeInterpretation = coSafeInterpretation != null && coSafeInterpretation;
         if (this.coSafeInterpretation && !this.automaton.isCoSafeCompatible) throw new Error(

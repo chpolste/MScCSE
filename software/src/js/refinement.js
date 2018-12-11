@@ -1,7 +1,7 @@
 // @flow
 "use strict";
 
-import type { AnalysisResults } from "./game.js";
+import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Region } from "./geometry.js";
 import type { Objective, AutomatonStateLabel } from "./logic.js";
 import type { AbstractedLSS, State, Action } from "./system.js";
@@ -46,8 +46,12 @@ export class Refinery {
             let done = Union.empty(rest.dim);
             for (let step of steps) {
                 const partition = step.partition(x, q, rest);
+                // null-return: refinery does not want to partition the state
+                if (partition == null) continue;
+                // Collect parts
                 done = partition.done.union(done);
                 rest = partition.rest;
+                // Nothing left to refine?
                 if (rest.isEmpty) break;
             }
             // Reset rest to entire polytope as parts marked as done in some
@@ -78,8 +82,20 @@ export class Refinery {
         return actions;
     }
 
+    // Convenience accessors
+
+    _getResult(x: State): AnalysisResult {
+        const result = this._results.get(x.label);
+        if (result == null) throw new Error("TODO477"); // TODO
+        return result;
+    }
+    
+    _qNext(x: State, q: AutomatonStateLabel): ?AutomatonStateLabel {
+        return this._objective.nextState(x.predicates, q);
+    }
+
     // Implement in subclass
-    partition(x: State, q: AutomatonStateLabel, rest: Region): RefinementPartition {
+    partition(x: State, q: AutomatonStateLabel, rest: Region): ?RefinementPartition {
         throw new NotImplementedError();
     }
 
@@ -91,20 +107,18 @@ export class Refinery {
 // Remove Attractor of non-satisfying states
 class NegativeAttrRefinery extends Refinery {
 
-    +attr: Map<AutomatonStateLabel,Region>;
+    +attr: Map<AutomatonStateLabel, Region>;
 
     constructor(system: AbstractedLSS, objective: Objective,
                 results: AnalysisResults, settings: RefinerySettings): void {
         super(system, objective, results, settings);
-        // Precompute attractors of "no" states for every
+        // Precompute attractor of "no" states for every q
         this.attr = new Map();
         const lss = system.lss;
         for (let q of objective.allStates) {
             const xNo = [];
             for (let x of system.states.values()) {
-                const result = results.get(x.label);
-                if (result == null) throw new Error("NAR1"); // TODO
-                if (result.no.has(q)) {
+                if (this._getResult(x).no.has(q)) {
                     xNo.push(x.polytope);
                 }
             }
@@ -113,19 +127,19 @@ class NegativeAttrRefinery extends Refinery {
         }
     }
 
-    partition(x: State, q: AutomatonStateLabel, rest: Region): RefinementPartition {
-        const result = this._results.get(x.label);
-        if (result == null) {
-            throw new Error("NAR3");
-        } else if (result.maybe.has(q)) {
-            const attr = this.attr.get(q);
-            if (attr == null) throw new Error("NAR2"); // TODO
-            const done = attr.intersect(rest).simplify();
-            const newRest = rest.remove(done).simplify();
-            return { done: done, rest: newRest };
-        } else {
-            return { done: rest, rest: Polytope.ofDim(rest.dim).empty() };
-        }
+    partition(x: State, q: AutomatonStateLabel, rest: Region): ?RefinementPartition {
+        // Only refine maybe states
+        if (!this._getResult(x).maybe.has(q)) return null;
+        // Refine wrt to next automaton state
+        const qNext = this._qNext(x, q);
+        if (qNext == null) return null;
+        // Cut attractor of "no" region out of state
+        const attr = this.attr.get(qNext);
+        if (attr == null) throw new Error("NAR2"); // TODO
+        const done = attr.intersect(rest).simplify();
+        const newRest = rest.remove(done).simplify();
+        // Progress guarantee, don't refine the attr further
+        return { done: done, rest: newRest };
     }
 
 }
@@ -133,30 +147,44 @@ class NegativeAttrRefinery extends Refinery {
 // Remove Attractor of non-satisfying states
 class PositivePreRRefinery extends Refinery {
 
-    +preR: Region;
+    +preR: Map<AutomatonStateLabel, Region>;
 
     constructor(system: AbstractedLSS, objective: Objective,
                 results: AnalysisResults, settings: RefinerySettings): void {
         super(system, objective, results, settings);
+        // Precompute robust predecessor of "yes" states for every q
+        this.preR = new Map();
         const lss = system.lss;
-        const win = new Set(); // TODO
-        if (win.size === 0) {
-            this.preR = Polytope.ofDim(lss.dim).empty();
-        } else {
-            const states = Array.from(system.states.values()).filter(_ => win.has(_.label));
-            const target = Union.from(states.map(_ => _.polytope)).simplify();
-            this.preR = lss.preR(lss.xx, lss.uus, target);
+        for (let q of objective.allStates) {
+            const xYes = [];
+            for (let x of system.states.values()) {
+                if (this._getResult(x).yes.has(q)) {
+                    xYes.push(x.polytope);
+                }
+            }
+            const target = xYes.length > 0 ? Union.from(xYes).simplify() : Polytope.ofDim(lss.dim).empty();
+            this.preR.set(q, lss.preR(lss.xx, lss.uus, target));
         }
     }
 
-    partition(x: State, q: AutomatonStateLabel, rest: Region): RefinementPartition {
-        const done = this.preR.intersect(rest).simplify();
+    partition(x: State, q: AutomatonStateLabel, rest: Region): ?RefinementPartition {
+        // Only refine maybe states
+        if (!this._getResult(x).maybe.has(q)) return null;
+        // Refine wrt to next automaton state
+        const qNext = this._qNext(x, q);
+        if (qNext == null) return null;
+        // Cut robust predecessor of "yes" region out of state
+        const preR = this.preR.get(qNext);
+        if (preR == null) throw new Error("NAR2"); // TODO
+        const done = preR.intersect(rest).simplify();
         const newRest = rest.remove(done).simplify();
-        return { done: done, rest: newRest };
+        // No progress guarantee, everything can be refined further
+        return { done: Polytope.ofDim(rest.dim).empty(), rest: done.union(newRest) };
     }
 
 }
 
+// ...
 class PositiveAttrRRefinery extends Refinery {
 
     // TODO

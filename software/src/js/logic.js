@@ -290,9 +290,9 @@ export function texifyProposition(prop: Proposition, symbolTransform?: (string) 
     // Unary operator: always use parentheses if argument is more complex than
     // atomic proposition (easier to read)
     if (op.associativity === 0) {
-        const arg = prop.args[0]
+        const arg = prop.args[0];
         if (arg instanceof AtomicProposition) {
-            out = op.tex + " " + arg.symbol;
+            out = op.tex + " " + symbolTransform(arg.symbol);
         } else {
             out = op.tex + " (" + texifyProposition(arg, symbolTransform) + ")";
         }

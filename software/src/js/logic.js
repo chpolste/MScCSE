@@ -74,6 +74,8 @@ export class Objective {
         return formula;
     }
 
+    // Take a set of predicate labels and return a valuation that can be used
+    // to evaluate a propositional formula from an automaton transition
     valuationFor(predicates: Set<PredicateID>): Valuation {
         return (atom) => {
             const formula = this.getProposition(atom.symbol);

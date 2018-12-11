@@ -3,7 +3,7 @@
 
 import type { StateID, ActionID, SupportID, PredicateID } from "./system.js";
 
-import * as logic from "./logic.js";
+import { Objective } from "./logic.js";
 import { iter, sets, obj, hashString, UniqueCollection } from "./tools.js";
 
 
@@ -97,9 +97,6 @@ often is even.
 
 export type Priority = 0 | 1 | 2;
 export type PState = P1State | P2State;
-// Take a set of predicate labels and return a valuation that can be used to
-// evaluate a propositional formula from an automaton transition.
-export type ValuationFactory = (Set<PredicateID>) => logic.Valuation;
 
 // Priority value for all newly created states. Can be changed later using the
 // setPriority method of game (not set directly on states, as these are not
@@ -298,20 +295,17 @@ export class TwoPlayerProbabilisticGame {
     }
 
     // Construct synchronous product game from system abstraction-induced game
-    // graph and one-pair Streett automaton. valuationFor connects the
-    // propositional formulas behind automaton transitions with satisfying
-    // system states.
+    // graph and one-pair Streett objective.
     // Dead-end states of the game graph and game graph transitions without
     // matching automaton transitions are connected to dead-end states,
-    // depending on the coSafeInterpretation setting.
-    static fromProduct(sys: GameGraph, automaton: logic.OnePairStreettAutomaton,
-            valuationFor: ValuationFactory, coSafeInterpretation?: boolean): TwoPlayerProbabilisticGame {
+    // depending on the coSafeInterpretation setting of the objective.
+    static fromProduct(sys: GameGraph, objective: Objective): TwoPlayerProbabilisticGame {
         // Cache sets of labels priority 0 and 1 states (used for co-safe
         // interpretation and priority assignment)
-        const priority1 = new Set(iter.map(s => s.label, automaton.acceptanceSetE));
-        const priority0 = new Set(iter.map(s => s.label, automaton.acceptanceSetF));
+        const priority1 = new Set(iter.map(s => s.label, objective.automaton.acceptanceSetE));
+        const priority0 = new Set(iter.map(s => s.label, objective.automaton.acceptanceSetF));
         // Output game
-        const game = new TwoPlayerProbabilisticGame(coSafeInterpretation);
+        const game = new TwoPlayerProbabilisticGame(objective.coSafeInterpretation);
         // Game graph exploration queue
         const queue = [];
         // Keep track of player 1 states that have been enqueued already
@@ -320,7 +314,7 @@ export class TwoPlayerProbabilisticGame {
         // state (g, q0), where q0 is the initial state of the automaton. These
         // states initialize the exploration queue and are also the initial
         // states of the game product.
-        const q0 = automaton.initialState;
+        const q0 = objective.automaton.initialState;
         for (let label of sys.stateLabels) {
             const state = game.takeP1State(label, q0.label);
             queue.push(state);
@@ -347,9 +341,6 @@ export class TwoPlayerProbabilisticGame {
         let satEndP1 = null;
         let satEndP2 = null;
         if (game.coSafeInterpretation) {
-            if (!automaton.isCoSafeCompatible) throw new Error(
-                "Co-safe interpretation selected, but the automaton is not co-safe compatible"
-            );
             satEndP1 = game.takeP1State("", "__SAT__");
             satEndP2 = game.takeP2State("", 0, "__SAT__");
             satEndP1.actions.push(new Set([satEndP2]));
@@ -372,7 +363,7 @@ export class TwoPlayerProbabilisticGame {
                 // Set of linear predicates that are fulfiled by system state (labels)
                 const pis = sys.predicateLabelsOf(xi);
                 // Automaton transition that matches linear predicates
-                const qNext = automaton.takeState(qi).successor(valuationFor(pis));
+                const qNext = objective.automaton.takeState(qi).successor(objective.valuationFor(pis));
                 // No legal automaton transition: don't add any actions, so
                 // state is connected to dead end later
                 if (qNext == null) {

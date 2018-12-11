@@ -1237,22 +1237,9 @@ class AnalysisCtrl {
         try {
             // Associcate a communicator for message exchange
             const comm = new Communicator("IANA");
-            // Worker will request objective automaton
-            comm.onRequest("automaton", data => {
-                return this.objective.automaton.stringify();
-            });
-            // Worker will request co-safe interpretation of objective
-            comm.onRequest("coSafeInterpretation", data => {
-                return this.objective.coSafeInterpretation;
-            });
-            // Worker will request alphabetMap (connects the automaton transition
-            // labels with the linear predicates of the system)
-            comm.onRequest("alphabetMap", data => {
-                const alphabetMap = {};
-                for (let [label, prop] of this.objective.propositions.entries()) {
-                    alphabetMap[label] = prop.stringify();
-                }
-                return alphabetMap;
+            // Worker will request objective
+            comm.onRequest("objective", (data) => {
+                return this._model.objective.serialize();
             });
             // Worker will tell when ready
             comm.onRequest("ready", (msg) => {
@@ -1275,10 +1262,6 @@ class AnalysisCtrl {
             }
             throw e;
         }
-    }
-
-    get objective(): Objective {
-        return this._model.objective;
     }
 
     get ready(): boolean {

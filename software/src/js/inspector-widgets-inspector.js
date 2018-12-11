@@ -434,7 +434,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
         return this._system.getPredicate(label);
     }
 
-    transitionTo(x: StateData, q: AutomatonStateLabel) {
+    transitionTo(x: StateData, q: AutomatonStateLabel): ?AutomatonStateLabel {
         return this.objective.nextState(x.predicates, q);
     }
 
@@ -1078,14 +1078,16 @@ class StateView {
                dom.snLabel.toHTML(x.label), ", ", dom.snLabel.toHTML(q)
             ]);
             // Line 2: action and automaton transition
+            const qNext = this._model.transitionTo(x, q);
             if (x.isOuter) {
                 dom.replaceChildren(this._lines[1], ["0 (outer state)"]);
             } else if (analysisKind(q, analysis) === "unreachable") {
                 dom.replaceChildren(this._lines[1], ["0 (unreachable state)"]);
+            } else if (qNext == null) {
+                dom.replaceChildren(this._lines[1], ["0 (dead end state)"]);
             } else {
                 dom.replaceChildren(this._lines[1], [
-                    x.numberOfActions.toString(), " (transition to ",
-                    automatonLabel(this._model.transitionTo(x, q), null), ")"
+                    x.numberOfActions.toString(), " (transition to ", automatonLabel(qNext, null), ")"
                 ]);
             }
             // Line 3: analysis kinds
@@ -1137,7 +1139,8 @@ class ActionViewCtrl {
         // somewhere other than itself
         if (mc === "state") {
             const [x, q] = this._model.state;
-            if (x != null && analysisKind(q, x.analysis) !== "unreachable") {
+            if (x != null && this._model.transitionTo(x, q) != null
+                          && analysisKind(q, x.analysis) !== "unreachable") {
                 this._model.getActions(x.label).then((actions) => {
                     this._actionNodes = new Map(actions.map(_ => [_, this.actionToNode(_)]));
                     dom.replaceChildren(this.node, this._actionNodes.values());

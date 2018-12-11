@@ -86,13 +86,10 @@ export class Objective {
         };
     }
 
-    nextState(predicates: Set<PredicateID>, label: AutomatonStateLabel): AutomatonStateLabel {
+    nextState(predicates: Set<PredicateID>, label: AutomatonStateLabel): ?AutomatonStateLabel {
         const state = this.getState(label);
         const next = state.successor(this.valuationFor(predicates));
-        if (next == null) throw new Error(
-            "cannot determine successor automaton state of '" + label + "' for given predicates"
-        );
-        return next.label;
+        return next == null ? null : next.label;
     }
 
     // Test for final (satisfying) states of co-safe objectives

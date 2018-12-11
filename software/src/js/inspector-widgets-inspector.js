@@ -18,7 +18,7 @@ import type { Input } from "./widgets-input.js";
 import * as dom from "./dom.js";
 import { Figure, autoProjection, Horizontal1D } from "./figure.js";
 import * as linalg from "./linalg.js";
-import { Objective, stringifyProposition, texifyProposition } from "./logic.js";
+import { Objective, texifyProposition } from "./logic.js";
 import { iter, arr, obj, sets, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
 import { CheckboxInput, SelectInput, SelectableNodes, ClickCycler, inputTextRotation } from "./widgets-input.js";
 import { InteractivePlot, AxesPlot, ShapePlot } from "./widgets-plot.js";
@@ -1250,7 +1250,7 @@ class AnalysisCtrl {
             comm.onRequest("alphabetMap", data => {
                 const alphabetMap = {};
                 for (let [label, prop] of this.objective.propositions.entries()) {
-                    alphabetMap[label] = stringifyProposition(prop);
+                    alphabetMap[label] = prop.stringify();
                 }
                 return alphabetMap;
             });

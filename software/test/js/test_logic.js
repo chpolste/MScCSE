@@ -9,11 +9,11 @@ const presets = require("../../src/js/presets.js");
 
 describe("logic: Propositional Logic", function () {
     
-    it("parseProposition-stringifyProposition is identity", function () {
+    it("parseProposition-Proposition.stringify is identity", function () {
         const pro1 = logic.parseProposition("a | b & !c");
-        const str1 = logic.stringifyProposition(pro1);
+        const str1 = pro1.stringify();
         const pro2 = logic.parseProposition(str1);
-        const str2 = logic.stringifyProposition(pro2);
+        const str2 = pro2.stringify();
         assert.equal(str1, str2);
     });
 

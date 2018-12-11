@@ -115,7 +115,7 @@ export class Objective {
     serialize(): JSONObjective {
         return {
             kind: this.kind,
-            terms: this.kind.variables.map(_ => stringifyProposition(this.getProposition(_))),
+            terms: this.kind.variables.map(_ => this.getProposition(_).stringify()),
             coSafeInterpretation: this.coSafeInterpretation
         };
     }
@@ -145,7 +145,7 @@ export class AtomicProposition {
         return valuate(this);
     }
 
-    toString(): string {
+    stringify(): string {
         return this.symbol;
     }
 
@@ -163,6 +163,10 @@ export class Negation {
         return !this.args[0].evalWith(valuate);
     }
 
+    stringify(): string {
+        return "(!" + this.args[0].stringify() + ")";
+    }
+
 }
 
 export class Conjunction {
@@ -175,6 +179,10 @@ export class Conjunction {
 
     evalWith(valuate: Valuation): boolean {
         return this.args[0].evalWith(valuate) && this.args[1].evalWith(valuate);
+    }
+
+    stringify(): string {
+        return "(" + this.args[0].stringify() + " & " + this.args[1].stringify() + ")";
     }
 
 }
@@ -191,6 +199,10 @@ export class Disjunction {
         return this.args[0].evalWith(valuate) || this.args[1].evalWith(valuate);
     }
 
+    stringify(): string {
+        return "(" + this.args[0].stringify() + " | " + this.args[1].stringify() + ")";
+    }
+
 }
 
 export class Implication {
@@ -203,6 +215,10 @@ export class Implication {
 
     evalWith(valuate: Valuation): boolean {
         return !this.args[0].evalWith(valuate) || this.args[1].evalWith(valuate);
+    }
+
+    stringify(): string {
+        return "(" + this.args[0].stringify() + " -> " + this.args[1].stringify() + ")";
     }
 
 }
@@ -253,17 +269,6 @@ function asProposition(node: ASTNode): Proposition {
 // All-in-one parser for Propostions
 export function parseProposition(text: string): Proposition {
     return asProposition(parsePropositionAST(text));
-}
-
-// Serialization: print proposition as string that can be parsed again. This is
-// not a pretty printer.
-export function stringifyProposition(prop: Proposition): string {
-    if (prop instanceof AtomicProposition) {
-        return prop.symbol;
-    }
-    const op = getOpOf(prop);
-    const args = prop.args.map(stringifyProposition);
-    return "(" + (args.length === 1 ? op.op + args[0] : args.join(" " + op.op + " ")) + ")";
 }
 
 // TeX representation of propositional formula that takes associativity and
@@ -461,10 +466,9 @@ export class OnePairStreettAutomaton {
         const acceptF = [];
         for (let state of this.states.values()) {
             for (let [target, formula] of state.transitions) {
-                // stringifyProposition adds outer parentheses for anything
+                // Proposition.stringify adds outer parentheses for anything
                 // more complex than an atomic proposition
-                const proposition = stringifyProposition(formula);
-                transitions.push(state.label + ">" + proposition + ">" + target.label);
+                transitions.push(state.label + ">" + formula.stringify() + ">" + target.label);
             }
             if (state.defaultTarget != null) {
                 transitions.push(state.label + ">>" + state.defaultTarget.label);

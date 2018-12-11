@@ -24,11 +24,18 @@ export type ObjectiveKind = {
     automatonPlacement: AutomatonPlacement
 };
 
+export type JSONObjective = {
+    kind: ObjectiveKind,
+    terms: string[],
+    coSafeInterpretation: boolean
+};
+
 export class Objective {
     
     +kind: ObjectiveKind;
     +automaton: OnePairStreettAutomaton;
-    // Mapping of automaton variables to propositions
+    // Mapping of automaton transition label variables to propositions over
+    // linear predicates of system
     +propositions: Map<string, Proposition>;
     // Interpret objective as co-safe (fulfillable in finite time)
     +coSafeInterpretation: boolean;
@@ -47,7 +54,9 @@ export class Objective {
         );
     }
 
-    // TODO serialization for sending to analysis worker
+    static deserialize(json: JSONObjective): Objective {
+        return new Objective(json.kind, json.terms.map(parseProposition), json.coSafeInterpretation);
+    }
 
     getState(label: AutomatonStateLabel): State {
         const state = this.automaton.states.get(label);
@@ -76,7 +85,7 @@ export class Objective {
         const state = this.getState(label);
         const next = state.successor(this.valuationFor(predicates));
         if (next == null) throw new Error(
-            "" // TODO
+            "cannot determine successor automaton state of '" + label + "' for given predicates"
         );
         return next.label;
     }
@@ -101,6 +110,14 @@ export class Objective {
         }
         shapes.extent = [[xmin - 0.1, xmax + 0.1], [ymin - 0.1, ymax + 0.1]];
         return shapes;
+    }
+
+    serialize(): JSONObjective {
+        return {
+            kind: this.kind,
+            terms: this.kind.variables.map(_ => stringifyProposition(this.getProposition(_))),
+            coSafeInterpretation: this.coSafeInterpretation
+        };
     }
 
 }

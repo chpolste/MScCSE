@@ -631,7 +631,7 @@ export class State {
         let done = [];
         let rest = this.polytope;
         for (let step of steps) {
-            const newParts = step.partition(this, rest);
+            const newParts = step.partition(this, "q0", rest); // TODO: move this to refinement.js
             done.push(...newParts.done.polytopes);
             rest = newParts.rest;
             if (rest.isEmpty) break;

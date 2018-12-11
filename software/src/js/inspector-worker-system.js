@@ -3,12 +3,12 @@
 
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
-import type { Refinery, PartitionMap } from "./refinement.js";
+import type { PartitionMap } from "./refinement.js";
 import type { LSS, State, Trace, JSONAbstractedLSS } from "./system.js";
 
 import { controller } from "./controller.js";
 import { Polytope, Union } from "./geometry.js";
-import { Refineries, partitionMap } from "./refinement.js";
+import { Refinery, partitionMap } from "./refinement.js";
 import { AbstractedLSS } from "./system.js";
 import { iter, sets, obj } from "./tools.js";
 import { Communicator } from "./worker.js";
@@ -158,7 +158,9 @@ class SnapshotManager {
     }
 
     _setupRefineries(results: ?AnalysisResults): void {
-        this._refineries = obj.map((key, Cls) => new Cls(this.system, this._analysis), Refineries);
+        // TODO: needs access to analysis results and objective
+        //this._refineries = obj.map((key, Cls) => new Cls(this.system, this._analysis), Refinery.builtIn());
+        this._refineries = {};
     }
 
     // System status

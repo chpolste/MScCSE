@@ -564,7 +564,7 @@ class ObjectiveTermsInput extends ObservableMixin<null> implements Input<Proposi
     }
 
     get isValid(): boolean {
-        return iter.and(this.inputs.map(_ => _.isValid));
+        return iter.every(this.inputs.map(_ => _.isValid));
     }
 
     setPreviewTerm(which: number): void {

@@ -359,7 +359,7 @@ export class OnePairStreettAutomaton {
             // E and F must together contain all states
             && sets.difference(this.states.values(), sets.union(E, F)).size === 0
             // All states in F can only have a self-loop without transition label
-            && iter.and(iter.map(_ => _.isFinal, F))
+            && iter.every(iter.map(_ => _.isFinal, F))
         );
     }
 

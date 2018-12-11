@@ -24,20 +24,20 @@ describe("tools.arr", function () {
     const dbl = x => x * 2;
     const gt0 = x => x > 0;
 
-    it("or", function () {
-        assert(iter.or([true, true]));
-        assert(iter.or([false, true, false]));
-        assert(iter.or([true, false, false]));
-        assert(!iter.or([]));
-        assert(!iter.or([false, false, false]));
+    it("some", function () {
+        assert(iter.some([true, true]));
+        assert(iter.some([false, true, false]));
+        assert(iter.some([true, false, false]));
+        assert(!iter.some([]));
+        assert(!iter.some([false, false, false]));
     });
 
-    it("and", function () {
-        assert(iter.and([]));
-        assert(iter.and([true, true]));
-        assert(iter.and([true, true, true]));
-        assert(!iter.and([false, true, false]));
-        assert(!iter.and([true, false, false]));
+    it("every", function () {
+        assert(iter.every([]));
+        assert(iter.every([true, true]));
+        assert(iter.every([true, true, true]));
+        assert(!iter.every([false, true, false]));
+        assert(!iter.every([true, false, false]));
     });
 
     it("count", function () {

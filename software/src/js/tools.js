@@ -17,14 +17,14 @@ export function xor(p: boolean, q: boolean): boolean {
 /* Functional Helpers for Iterables */
 export const iter = {
 
-    or: function (xs: Iterable<boolean>): boolean {
+    some: function (xs: Iterable<boolean>): boolean {
         for (let x of xs) {
             if (x) return true;
         }
         return false;
     },
 
-    and: function (xs: Iterable<boolean>): boolean {
+    every: function (xs: Iterable<boolean>): boolean {
         for (let x of xs) {
             if (!x) return false;
         }

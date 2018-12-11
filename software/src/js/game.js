@@ -550,8 +550,8 @@ type Pre3Func = (Set<PState>, Set<PState>, Set<PState>, Set<PState>) => Set<PSta
 function _preTest(cond: PreCondition): PreTest {
     return function (state: PState): boolean {
         return state instanceof P1State
-             ? iter.or(state.actions.map(cond))
-             : iter.and(state.actions.map(cond));
+             ? iter.some(state.actions.map(cond))
+             : iter.every(state.actions.map(cond));
     }
 }
 
@@ -575,7 +575,7 @@ function pre3(S: Set<PState>, Z: Set<PState>, X: Set<PState>, Y: Set<PState>): S
 // condition
 function _preTestCoop(cond: PreCondition): PreTest {
     return function (state: PState): boolean {
-        return iter.or(state.actions.map(cond));
+        return iter.some(state.actions.map(cond));
     }
 }
 

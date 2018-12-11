@@ -395,7 +395,7 @@ export class Polytope {
     // Does the given point lie inside the polytope?
     contains(p: Vector): boolean {
         linalg.assertEqualDims(this.dim, p.length);
-        return iter.and(this.halfspaces.map(h => h.contains(p)));
+        return iter.every(this.halfspaces.map(h => h.contains(p)));
     }
 
     // Does the polytope intersect the given region?
@@ -409,7 +409,7 @@ export class Polytope {
     // Do all points of the polytope fulfil the linear predicate?
     fulfils(predicate: Halfspace): boolean {
         linalg.assertEqualDims(this.dim, predicate.dim);
-        return iter.and(this.vertices.map(v => predicate.contains(v)));
+        return iter.every(this.vertices.map(v => predicate.contains(v)));
     }
 
     // A random point from inside the polytope, based on a uniform distribution
@@ -1015,7 +1015,7 @@ export class Union {
     }
 
     fulfils(h: Halfspace): boolean {
-        return iter.and(this.polytopes.map(_ => _.fulfils(h)));
+        return iter.every(this.polytopes.map(_ => _.fulfils(h)));
     }
 
     sample(): Vector {

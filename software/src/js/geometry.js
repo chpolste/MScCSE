@@ -1096,7 +1096,8 @@ export class Union {
     }
 
     union(other: Region): Union {
-        return Union.from([...this.polytopes, ...other.polytopes]);
+        linalg.assertEqualDims(this.dim, other.dim);
+        return new Union(this.dim, [...this.polytopes, ...other.polytopes], null);
     }
 
     hull(): Polytope {

@@ -356,28 +356,29 @@ export class AbstractedLSS implements GameGraph {
         return null;
     }
 
-    // Refine states according to the given partitionings. Returns those states
-    // which were refined.
-    refine(partitions: Map<State, Region>): Set<State> {
-        const refined = new Set();
-        for (let [state, partition] of partitions.entries()) {
+    // Refine states according to the given partitionings. Returns mapping of
+    // old refined states to sets of new states that were substituted
+    refine(partitions: Map<State, Region>): Map<State, Set<State>> {
+        const refined = new Map();
+        for (let [state, partition] of partitions) {
             // Validate that partition covers state polytope
             // TODO: test disjunctness
             if (!state.polytope.isSameAs(partition)) throw new Error(
-                "Faulty partition" // TODO
+                "Partition for state " + state.label + " does not cover the entire state"
             );
             // If partition does not change state, keep it and continue
             if (partition.polytopes.length === 1) continue;
             // Create new states for partition elements with same properties as
             // original state
+            const newStates = new Set();
             for (let poly of partition.polytopes) {
-                this.newState(poly, state.isOuter, state.predicates);
+                newStates.add(this.newState(poly, state.isOuter, state.predicates));
             }
+            refined.set(state, newStates);
             // Remove the original state
             this.states.delete(state.label);
-            refined.add(state);
         }
-        this.resetActions(refined);
+        this.resetActions(new Set(refined.keys()));
         return refined;
     }
 

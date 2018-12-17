@@ -107,7 +107,7 @@ class SnapshotManager {
 
     // Snapshot management
 
-    take(name: string): void { // TODO: analysis results
+    take(name: string): void {
         const snapshot = {
             id: this._id++,
             name: name,
@@ -179,7 +179,22 @@ class SnapshotManager {
         for (let state of this.system.states.values()) {
             partitions.set(state, Refinery.execute(steps, state, ["q0"])); // TODO automaton state selection
         }
-        return this.system.refine(partitions);
+        // Apply partitioning to system (in-place)
+        const refinementMap = this.system.refine(partitions);
+        // Update analysis results (use results of old state for their new
+        // states that were generated in the refinement
+        const updatedAnalysis = new Map(analysis);
+        for (let [xOld, xNews] of refinementMap) {
+            const result = this.getAnalysis(xOld);
+            if (result != null) {
+                for (let xNew of xNews) {
+                    updatedAnalysis.set(xNew.label, result);
+                }
+            }
+            updatedAnalysis.delete(xOld.label);
+        }
+        this._analysis = updatedAnalysis;
+        return new Set(refinementMap.keys());
     }
 
     // System status

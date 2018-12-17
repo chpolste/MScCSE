@@ -4,6 +4,7 @@
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
 import type { JSONObjective } from "./logic.js";
+import type { RefinerySettings } from "./refinement.js";
 import type { LSS, State, Trace, JSONAbstractedLSS } from "./system.js";
 
 import { controller } from "./controller.js";
@@ -157,16 +158,22 @@ class SnapshotManager {
         return updated;
     }
 
-    refine(refineries: string[]): Set<State> {
+    refine(refineries: RefineRequest[]): Set<State> {
         const analysis = this.analysis;
-        if (analysis == null) throw new Error("need to analyse before refinement"); // TODO
+        if (analysis == null) throw new Error(
+            "Refinement requires an analysed system"
+        );
         // Setup refinement steps
         const Clss = Refinery.builtIns();
-        const steps = refineries.map((name) => {
+        const steps = [];
+        for (let [name, settings] of refineries) {
             const Cls = Clss[name];
-            if (Cls == null) throw new Error("Refinement step '" + name + "' not recognized");
-            return new Cls(this.system, this.objective, analysis, { actionPick: "best" }); // TODO
-        })
+            if (Cls == null) throw new Error(
+                "Refinement step '" + name + "' does not match any of the built-in refinement methods"
+            );
+            steps.push(new Cls(this.system, this.objective, analysis, settings));
+
+        }
         // Partition states
         const partitions = new Map();
         for (let state of this.system.states.values()) {
@@ -355,9 +362,9 @@ communicator.onRequest("processAnalysis", function (data: ProcessAnalysisRequest
 
 
 // Refine the system
-export type RefineRequest = string[]; // TODO: settings
+export type RefineRequest = [string, RefinerySettings];
 export type RefineData = Set<string>;
-communicator.onRequest("refine", function (data: RefineRequest): RefineData {
+communicator.onRequest("refine", function (data: RefineRequest[]): RefineData {
     // Return set of states that were changed by refinement
     return sets.map(_ => _.label, $.refine(data));
 });

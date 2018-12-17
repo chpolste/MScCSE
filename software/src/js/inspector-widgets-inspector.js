@@ -5,8 +5,9 @@ import type { FigureLayer, Shape } from "./figure.js";
 import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
 import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, TraceData,
-              GameGraphData, ProcessAnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData,
-              NameSnapshotData, SnapshotData } from "./inspector-worker-system.js";
+              GameGraphData, ProcessAnalysisData, RefineRequest, RefineData,
+              TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
+              SnapshotData } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
 import type { AutomatonStateLabel, AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
@@ -480,7 +481,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
-    refine(steps: string[]): Promise<RefineData> {
+    refine(steps: RefineRequest[]): Promise<RefineData> {
         const [xOld, _] = this.state;
         return this._comm.request("refine", steps).then((data) => {
             if (data.size > 0) {
@@ -1351,8 +1352,8 @@ class RefinementCtrl {
         keys.bind("r", () => this.refine());
     }
 
-    get steps(): string[] {
-        return this._steps.filter(_ => _.isEnabled).map(_ => _.name);
+    get steps(): RefineRequest[] {
+        return this._steps.filter(_ => _.isEnabled).map(_ => [_.name, _.settings]);
     }
 
     set infoText(text: string): void {
@@ -1392,7 +1393,7 @@ class RefinementStep {
         this._toggle.attach(() => this.handleChange());
         this._actionPick = new ClickCycler({
             "estimate best action": "best",
-            "3 random actions": "random3"
+            "random action": "random"
         }, "estimate best action");
         this._showActionPick = showActionPick;
         this._info = dom.DIV({ "class": "info" });

@@ -16,7 +16,7 @@ import { iter, NotImplementedError } from "./tools.js";
 export type RefinementPartition = { done: Region, rest: Region };
 
 // ...
-export type RefineryActionPick = "best" | "random3";
+export type RefineryActionPick = "best" | "random";
 export type RefinerySettings = {
     actionPick: RefineryActionPick
 };
@@ -70,24 +70,60 @@ export class Refinery {
         };
     }
 
-    _pickActions(x: State, q: AutomatonStateLabel): Action[] {
-        const actions = [];
-        // Estimate best action
-        if (this._settings.actionPick === "best") {
-            // TODO
-        // 3 randomly chosen actions
+    // TODO: description
+    _pickAction(x: State, qNext: AutomatonStateLabel): ?Action {
+        const actions = x.actions;
+        // Nothing to pick if state has no actions
+        if (actions.length === 0) {
+            return null;
+        // Estimate best action by looking at the overlap of each action's
+        // posterior with yes/maybe/no states.
+        } else if (this._settings.actionPick === "best") {
+            const regionPos = this._getStateRegion("yes", qNext);
+            const regionNeg = this._getStateRegion("no", qNext);
+            let best = null;
+            let bestVal = -Infinity;
+            for (let action of actions) {
+                const post = x.post(action.controls);
+                const postVol = post.volume;
+                const ratioPos = regionPos.intersect(post).volume / postVol;
+                const ratioNeg = regionNeg.intersect(post).volume / postVol;
+                const ratioMaybe = 1 - ratioPos - ratioNeg;
+                const val = 10 * ratioPos + ratioMaybe - ratioNeg; // TODO: find good coefficients
+                if (val > bestVal) {
+                    best = action;
+                    bestVal = val;
+                }
+            }
+            return best;
+        // Randomly chosen action
         } else {
-            // TODO
+            return actions[Math.floor(Math.random() * actions.length)];
         }
-        return actions;
     }
 
     // Convenience accessors
+
+    _getStates(which: "yes"|"no"|"maybe", q: AutomatonStateLabel): Iterable<State> {
+        return iter.filter((state) => this._getResult(state)[which].has(q), this._system.states.values());
+    }
+
+    _getStateRegion(which: "yes"|"no"|"maybe", q: AutomatonStateLabel): Region {
+        const polys = [];
+        for (let x of this._getStates(which, q)) {
+            polys.push(x.polytope);
+        }
+        return polys.length === 0 ? this._getEmpty() : Union.from(polys);
+    }
 
     _getResult(x: State): AnalysisResult {
         const result = this._results.get(x.label);
         if (result == null) throw new Error("TODO477"); // TODO
         return result;
+    }
+
+    _getEmpty(): Region {
+        return Polytope.ofDim(this._system.lss.dim).empty();
     }
     
     _qNext(x: State, q: AutomatonStateLabel): ?AutomatonStateLabel {
@@ -116,13 +152,7 @@ class NegativeAttrRefinery extends Refinery {
         this.attr = new Map();
         const lss = system.lss;
         for (let q of objective.allStates) {
-            const xNo = [];
-            for (let x of system.states.values()) {
-                if (this._getResult(x).no.has(q)) {
-                    xNo.push(x.polytope);
-                }
-            }
-            const target = xNo.length > 0 ? Union.from(xNo).simplify() : Polytope.ofDim(lss.dim).empty();
+            const target = this._getStateRegion("no", q).simplify();
             this.attr.set(q, lss.attr(lss.xx, lss.uus, target));
         }
     }
@@ -137,9 +167,9 @@ class NegativeAttrRefinery extends Refinery {
         const attr = this.attr.get(qNext);
         if (attr == null) throw new Error("NAR2"); // TODO
         const done = attr.intersect(rest).simplify();
-        const newRest = rest.remove(done).simplify();
+        rest = rest.remove(done).simplify();
         // Progress guarantee, don't refine the attr further
-        return { done: done, rest: newRest };
+        return { done: done, rest: rest };
     }
 
 }
@@ -156,13 +186,7 @@ class PositivePreRRefinery extends Refinery {
         this.preR = new Map();
         const lss = system.lss;
         for (let q of objective.allStates) {
-            const xYes = [];
-            for (let x of system.states.values()) {
-                if (this._getResult(x).yes.has(q)) {
-                    xYes.push(x.polytope);
-                }
-            }
-            const target = xYes.length > 0 ? Union.from(xYes).simplify() : Polytope.ofDim(lss.dim).empty();
+            const target = this._getStateRegion("yes", q).simplify();
             this.preR.set(q, lss.preR(lss.xx, lss.uus, target));
         }
     }
@@ -177,9 +201,9 @@ class PositivePreRRefinery extends Refinery {
         const preR = this.preR.get(qNext);
         if (preR == null) throw new Error("NAR2"); // TODO
         const done = preR.intersect(rest).simplify();
-        const newRest = rest.remove(done).simplify();
+        rest = rest.remove(done).simplify();
         // No progress guarantee, everything can be refined further
-        return { done: Polytope.ofDim(rest.dim).empty(), rest: done.union(newRest) };
+        return { done: this._getEmpty(), rest: done.union(rest) };
     }
 
 }
@@ -187,10 +211,36 @@ class PositivePreRRefinery extends Refinery {
 // ...
 class PositiveAttrRRefinery extends Refinery {
 
-    // TODO
+    +yes: Map<AutomatonStateLabel, State[]>;
 
-    partition(x: State, q: AutomatonStateLabel, rest: Region): RefinementPartition {
-        return { done: Polytope.ofDim(rest.dim).empty(), rest: rest };
+    constructor(system: AbstractedLSS, objective: Objective,
+                results: AnalysisResults, settings: RefinerySettings): void {
+        super(system, objective, results, settings);
+        // Precompute robust predecessor of "yes" states for every q
+        this.yes = new Map();
+        for (let q of objective.allStates) {
+            this.yes.set(q, Array.from(this._getStates("yes", q)));
+        }
+    }
+
+    partition(x: State, q: AutomatonStateLabel, rest: Region): ?RefinementPartition {
+        // Only refine maybe states
+        if (!this._getResult(x).maybe.has(q)) return null;
+        // Refine wrt to next automaton state
+        const qNext = this._qNext(x, q);
+        if (qNext == null) return null;
+        // ...
+        const action = this._pickAction(x, qNext);
+        if (action == null) return null;
+        // ...
+        const xYes = this.yes.get(qNext);
+        if (xYes == null || xYes.length === 0) return null;
+        // ...
+        const u = action.controls.shatter().polytopes[0]; // TODO: pick best u
+        const done = x.attrR(u, xYes).intersect(rest).simplify();
+        rest = rest.remove(done);
+        // Progress guarantee, don't refine the AttrR further
+        return { done: done, rest: rest };
     }
 
 }

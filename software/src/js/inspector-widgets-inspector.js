@@ -249,10 +249,10 @@ export class SystemInspector {
                 dom.H3({}, ["Snapshots", dom.infoBox("info-snapshots")]),
                 snapshotViewCtrl.node
             ],
-            "Objective": [
-                dom.H3({}, ["Trace Sample", dom.infoBox("info-trace")]),
-                traceViewCtrl.node
-            ],
+            //"Objective": [
+                //dom.H3({}, ["Trace Sample", dom.infoBox("info-trace")]),
+                //traceViewCtrl.node
+            //],
             "Debug": [
                 dom.H3({}, ["Connectivity"]),
                 appLinks,
@@ -260,6 +260,7 @@ export class SystemInspector {
                 log.node
             ]
         }, "System");
+        log.attach(() => this.tabs.highlight("Debug"));
 
         this.node = dom.DIV({ "id": "inspector" }, [
             dom.DIV({ "class": "left" }, [
@@ -284,16 +285,18 @@ export class SystemInspector {
 }
 
 
-class Logger {
+class Logger extends ObservableMixin<null> {
 
     +node: HTMLDivElement;
 
     constructor(): void {
+        super();
         this.node = dom.DIV({ "id": "log-view" }, ["-"]);
     }
 
     log(text: string): void {
         dom.replaceChildren(this.node, [text]);
+        this.notify();
     }
 
     logError(e: { name: string, message: string }): void {
@@ -360,6 +363,28 @@ class SystemModel extends ObservableMixin<ModelChange> {
         this._trace = null;
     }
 
+    notify(e?: ModelChange): void {
+        // System change needs to be propagated to state, action and support
+        // selection
+        if (e === "system") {
+            const [xOld, _] = this.state;
+            if (xOld != null) {
+                // Re-select the given state if it still exists, drop action
+                // and support selection (TODO)
+                this.getState(xOld.label).then((data) => {
+                    this.xState = data;
+                    this.action = null;
+                    this.support = null;
+                }).catch((e) => {
+                    this.xState = null;
+                    this.action = null;
+                    this.support = null;
+                });
+            }
+        }
+        super.notify(e);
+    }
+
     // Getters and setters for selections
 
     get state(): [?StateDataPlus, AutomatonStateLabel] {
@@ -401,24 +426,6 @@ class SystemModel extends ObservableMixin<ModelChange> {
     set trace(t: ?TraceData): void {
         this._trace = t;
         this.notify("trace");
-    }
-
-    // State information can change even though the state selection does not
-    // change. Use this function to refresh information and notify observers
-    refreshState(state: ?StateData): void {
-        if (state != null) {
-            // Re-select the given state if it still exists, drop action and
-            // support selection (TODO)
-            this.getState(state.label).then((data) => {
-                this.xState = data;
-                this.action = null;
-                this.support = null;
-            }).catch((e) => {
-                this.xState = null;
-                this.action = null;
-                this.support = null;
-            });
-        }
     }
 
     // System information convenience accessors
@@ -470,23 +477,19 @@ class SystemModel extends ObservableMixin<ModelChange> {
     }
 
     processAnalysis(results: AnalysisResults): Promise<ProcessAnalysisData> {
-        const [xOld, _] = this.state;
         return this._comm.request("processAnalysis", results).then((data) => {
             // Returns the set of states that changed kind
             //if (data.size > 0) { TODO
                 this.notify("system");
-                this.refreshState(xOld);
             //}
             return data;
         });
     }
 
     refine(steps: RefineRequest[]): Promise<RefineData> {
-        const [xOld, _] = this.state;
         return this._comm.request("refine", steps).then((data) => {
             if (data.size > 0) {
                 this.notify("system");
-                this.refreshState(xOld);
             }
             return data;
         });
@@ -611,7 +614,6 @@ class SystemViewCtrl {
             }).catch((e) => this._model.logError(e));
         } else if (mc === "state") {
             this.drawState();
-            this.drawAnalysis();
         } else if (mc === "action") {
             this.drawAction();
         } else if (mc === "support") {
@@ -681,6 +683,8 @@ class SystemViewCtrl {
             const action = this._model.action;
             const control = (action == null) ? this._model.lss.uus.toUnion().serialize() : action.controls;
             this._operator(this._model, x, control).then((data) => {
+                // Only update if state has not changed since
+                if (this._model.state[0] !== x) return;
                 const shapes = data.polytopes.map(
                     (poly) => ({ kind: "polytope", vertices: poly.vertices })
                 );
@@ -1140,9 +1144,12 @@ class ActionViewCtrl {
         // somewhere other than itself
         if (mc === "state") {
             const [x, q] = this._model.state;
+            console.log("ActionViewCtrl.handleChange", this._model.state);
             if (x != null && this._model.transitionTo(x, q) != null
                           && analysisKind(q, x.analysis) !== "unreachable") {
                 this._model.getActions(x.label).then((actions) => {
+                    // Only update if state has not changed since
+                    if (this._model.state[0] !== x) return;
                     this._actionNodes = new Map(actions.map(_ => [_, this.actionToNode(_)]));
                     dom.replaceChildren(this.node, this._actionNodes.values());
                 }).catch((e) => this._model.logError(e));

@@ -124,6 +124,22 @@ export function appendAfter(parent: Element, before: Element, after: Element): v
 }
 
 
+/* Mouse event helper */
+
+// Test if related target of event is a child element of the given node. Use to
+// discard mouseover/mouseout events that are triggered by moving over a nested
+// element.
+export function fromChildElement(node: Element, e: MouseEvent): boolean {
+    let tgt = e.relatedTarget;
+    if (tgt instanceof Node) {
+        while (tgt != null && tgt !== node) {
+            tgt = tgt.parentNode;
+        }
+    }
+    return tgt === node;
+}
+
+
 /* Global Document State Management */
 
 export function setCursor(cursor: string): void {

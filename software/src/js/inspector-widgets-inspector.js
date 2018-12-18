@@ -614,6 +614,7 @@ class SystemViewCtrl {
             }).catch((e) => this._model.logError(e));
         } else if (mc === "state") {
             this.drawState();
+            this.drawAnalysis();
         } else if (mc === "action") {
             this.drawAction();
         } else if (mc === "support") {
@@ -1144,7 +1145,6 @@ class ActionViewCtrl {
         // somewhere other than itself
         if (mc === "state") {
             const [x, q] = this._model.state;
-            console.log("ActionViewCtrl.handleChange", this._model.state);
             if (x != null && this._model.transitionTo(x, q) != null
                           && analysisKind(q, x.analysis) !== "unreachable") {
                 this._model.getActions(x.label).then((actions) => {
@@ -1192,10 +1192,12 @@ class ActionViewCtrl {
         const targets = arr.intersperse(", ", action.targets.map((target) => stateLabel(target, next)));
         const node = dom.DIV({ "class": "action" }, [origin, " → {", ...targets, "}"]);
         node.addEventListener("click", () => this.clickAction(action));
-        node.addEventListener("mouseover", () => {
+        node.addEventListener("mouseover", (e: MouseEvent) => {
+            if (dom.fromChildElement(node, e)) return;
             this._model.action = action;
         });
-        node.addEventListener("mouseout", () => {
+        node.addEventListener("mouseout", (e: MouseEvent) => {
+            if (dom.fromChildElement(node, e)) return;
             this._model.action = this._action;
         });
         return node;
@@ -1206,10 +1208,12 @@ class ActionViewCtrl {
         const next = this._model.transitionTo(support.origin, q);
         const targets = arr.intersperse(", ", support.targets.map((target) => stateLabel(target, next)));
         const node = dom.DIV({}, ["{", ...targets, "}"]);
-        node.addEventListener("mouseover", () => {
+        node.addEventListener("mouseover", (e: MouseEvent) => {
+            if (dom.fromChildElement(node, e)) return;
             this._model.support = support;
         });
-        node.addEventListener("mouseout", () => {
+        node.addEventListener("mouseout", (e: MouseEvent) => {
+            if (dom.fromChildElement(node, e)) return;
             this._model.support = null;
         });
         return node;

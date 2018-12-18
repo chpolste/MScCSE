@@ -406,6 +406,8 @@ span.unreachable {
 }
 #action-view .action {
     cursor: pointer;
+    text-indent: -2em;
+    padding-left: 2em;
 }
 #action-view .action:hover {
     background-color: #EEE;
@@ -414,6 +416,8 @@ span.unreachable {
     background-color: #EEE;
     border-color: #000;
     cursor: pointer;
+    text-indent: -2em;
+    padding-left: 2em;
 }
 #action-view #supports {
     padding: 5px;

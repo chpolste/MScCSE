@@ -208,7 +208,7 @@ class PositivePreRRefinery extends Refinery {
 
 }
 
-// ...
+// Case 1 of the Positive AttrR refinement from Svorenova et al. (2017)
 class PositiveAttrRRefinery extends Refinery {
 
     +yes: Map<AutomatonStateLabel, State[]>;
@@ -229,16 +229,26 @@ class PositiveAttrRRefinery extends Refinery {
         // Refine wrt to next automaton state
         const qNext = this._qNext(x, q);
         if (qNext == null) return null;
-        // ...
-        const action = this._pickAction(x, qNext);
-        if (action == null) return null;
-        // ...
         const xYes = this.yes.get(qNext);
         if (xYes == null || xYes.length === 0) return null;
-        // ...
-        const u = action.controls.shatter().polytopes[0]; // TODO: pick best u
-        const done = x.attrR(u, xYes).intersect(rest).simplify();
-        rest = rest.remove(done);
+        // Obtain an action for refining with
+        const action = this._pickAction(x, qNext);
+        if (action == null) return null;
+        // Subdivide action polytope into smaller parts and find best part to
+        // refine with (largest AttrR)
+        let done = null;
+        let doneVol = -Infinity;
+        for (let u of action.controls.shatter().polytopes) {
+            const attrR = x.attrR(u, xYes).intersect(rest);
+            const vol = attrR.volume;
+            if (doneVol < vol) {
+                done = attrR;
+                doneVol = vol;
+            }
+        }
+        if (done == null) return null;
+        done = done.simplify();
+        rest = rest.remove(done).simplify();
         // Progress guarantee, don't refine the AttrR further
         return { done: done, rest: rest };
     }

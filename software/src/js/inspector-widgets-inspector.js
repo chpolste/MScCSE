@@ -5,7 +5,7 @@ import type { FigureLayer, Shape } from "./figure.js";
 import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
 import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, TraceData,
-              GameGraphData, ProcessAnalysisData, RefineRequest, RefineData,
+              GameGraphData, ProcessAnalysisData, RefineRequestStep, RefineData,
               TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
               SnapshotData } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
@@ -486,8 +486,8 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
-    refine(steps: RefineRequest[]): Promise<RefineData> {
-        return this._comm.request("refine", steps).then((data) => {
+    refine(qs: AutomatonStateLabel[], steps: RefineRequestStep[]): Promise<RefineData> {
+        return this._comm.request("refine", [qs, steps]).then((data) => {
             if (data.size > 0) {
                 this.notify("system");
             }
@@ -1340,6 +1340,7 @@ class RefinementCtrl {
     +_model: SystemModel;
     +_refine: HTMLButtonElement;
     +_info: HTMLSpanElement;
+    +_qs: Map<AutomatonStateLabel, HTMLInputElement>;
     +_steps: RefinementStep[];
     +_stepBox: HTMLDivElement;
     
@@ -1349,22 +1350,37 @@ class RefinementCtrl {
         this._refine = dom.BUTTON({}, [dom.create("u", {}, ["r"]), "efine"]);
         this._refine.addEventListener("click", () => this.refine());
         this._info = dom.SPAN({}, []);
+        this._qs = new Map();
+        for (let q of this._model.qAll) {
+            const checkbox = dom.INPUT({ "type": "checkbox" });
+            checkbox.checked = true;
+            this._qs.set(q, checkbox);
+        }
         this._steps = [
             new RefinementStep("Negative Attractor", false),
             new RefinementStep("Positive Robust Predecessor", false),
             new RefinementStep("Positive Robust Attractor", true)
         ];
-        this._stepBox = dom.DIV({ "id": "refinement-ctrl" }, this._steps.map(_ => _.node));
+        this._stepBox = dom.DIV({}, this._steps.map(_ => _.node));
         this.node = dom.DIV({}, [
-            dom.P({}, [this._refine, " ", this._info]),
+            //dom.P({}, [ this._info]), TODO: move to debug log, create proper notification system
+            dom.P({ "id": "refinement-ctrl" }, [this._refine, " ", ...iter.map(([q, box]) => dom.LABEL({}, [box, automatonLabel(q)]), this._qs)]),
             this._stepBox
         ]);
         // Keyboard Shortcuts
         keys.bind("r", () => this.refine());
     }
 
-    get steps(): RefineRequest[] {
+    get steps(): RefineRequestStep[] {
         return this._steps.filter(_ => _.isEnabled).map(_ => [_.name, _.settings]);
+    }
+
+    get qs(): AutomatonStateLabel[] {
+        const qs = [];
+        for (let [q, box] of this._qs) {
+            if (box.checked) qs.push(q);
+        }
+        return qs;
     }
 
     set infoText(text: string): void {
@@ -1377,7 +1393,7 @@ class RefinementCtrl {
     }
 
     refine(): void {
-        this._model.refine(this.steps).then((data) => {
+        this._model.refine(this.qs, this.steps).then((data) => {
             this.infoText = "Refined " + data.size + (data.size === 1 ? " state." : " states.");
         }).catch(e => {
             // TODO catch analysis busy error

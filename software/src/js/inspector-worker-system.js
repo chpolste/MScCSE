@@ -3,7 +3,7 @@
 
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
-import type { JSONObjective } from "./logic.js";
+import type { JSONObjective, AutomatonStateLabel } from "./logic.js";
 import type { RefinerySettings } from "./refinement.js";
 import type { LSS, State, Trace, JSONAbstractedLSS } from "./system.js";
 
@@ -158,7 +158,7 @@ class SnapshotManager {
         return updated;
     }
 
-    refine(refineries: RefineRequest[]): Set<State> {
+    refine(qs: AutomatonStateLabel[], refineries: RefineRequestStep[]): Set<State> {
         const analysis = this.analysis;
         if (analysis == null) throw new Error(
             "Refinement requires an analysed system"
@@ -177,7 +177,7 @@ class SnapshotManager {
         // Partition states
         const partitions = new Map();
         for (let state of this.system.states.values()) {
-            partitions.set(state, Refinery.execute(steps, state, ["q0"])); // TODO automaton state selection
+            partitions.set(state, Refinery.execute(steps, state, qs));
         }
         // Apply partitioning to system (in-place)
         const refinementMap = this.system.refine(partitions);
@@ -377,11 +377,13 @@ communicator.onRequest("processAnalysis", function (data: ProcessAnalysisRequest
 
 
 // Refine the system
-export type RefineRequest = [string, RefinerySettings];
+export type RefineRequest = [AutomatonStateLabel[], RefineRequestStep[]];
+export type RefineRequestStep = [string, RefinerySettings];
 export type RefineData = Set<string>;
-communicator.onRequest("refine", function (data: RefineRequest[]): RefineData {
+communicator.onRequest("refine", function (data: RefineRequest): RefineData {
+    const [qs, refineries] = data;
     // Return set of states that were changed by refinement
-    return sets.map(_ => _.label, $.refine(data));
+    return sets.map(_ => _.label, $.refine(qs, refineries));
 });
 
 

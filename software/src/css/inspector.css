@@ -443,6 +443,15 @@ span.unreachable {
     float: right;
 }
 
+#refinement-qs {
+    margin-bottom: 10px;
+    border-bottom: 1px solid #CCC;
+}
+#refinement-ctrl > label {
+    display: inline-block;
+    margin: 0 4px;
+}
+
 .refinement-step {
     padding: 3px 0;
 }

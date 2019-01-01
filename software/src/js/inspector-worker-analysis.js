@@ -27,7 +27,7 @@ type AnalysisData = AnalysisResults;
 // Receive the transition system induced by the abstracted LSS and create and
 // solve the product-game of the transition system with the objective
 // automaton. Return the analysis result to the inspector.
-communicator.onRequest("analysis", function (data: AnalysisRequest): AnalysisData {
+communicator.onRequest("analyse", function (data: AnalysisRequest): AnalysisData {
     if ($objective == null) throw new Error(
         "cannot analyse game because objective is not set"
     );

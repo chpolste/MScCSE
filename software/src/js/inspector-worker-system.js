@@ -33,7 +33,7 @@ type Snapshot = {
 }
 
 
-class SnapshotManager {
+class SystemManager {
 
     _id: number;
     _snapshots: Map<number, Snapshot>;
@@ -87,7 +87,7 @@ class SnapshotManager {
 
     // Transferable tree representation for widget-display
 
-    get tree(): SnapshotData {
+    get snapshotTree(): SnapshotData {
         if (this._root == null) throw new Error(
             "system worker is not initialized yet (snapshot tree root is not set)"
         );
@@ -238,10 +238,14 @@ class SnapshotManager {
 
 }
 
-const $ = new SnapshotManager();
+
+// Global state encapsulated in SystemManager class, instantiated once here and
+// initialized later
+const $ = new SystemManager();
 
 
-const communicator = new Communicator("2W");
+// Communication with host (inspector application)
+const inspector = new Communicator("2W");
 
 // States of the system
 export type StateRequest = string;
@@ -262,10 +266,10 @@ export type StateDataPlus = StateData & {
     centroid: number[],
     numberOfActions: number
 };
-communicator.onRequest("getState", function (data: StateRequest): StateDataPlus {
+inspector.onRequest("getState", function (data: StateRequest): StateDataPlus {
     return stateDataPlusOf($.system.getState(data));
 });
-communicator.onRequest("getStates", function (data: StatesRequest): StateDataPlus[] {
+inspector.onRequest("getStates", function (data: StatesRequest): StateDataPlus[] {
     return Array.from(iter.map(stateDataPlusOf, $.system.states.values()));
 });
 
@@ -298,7 +302,7 @@ export type ActionData = {
     controls: JSONUnion,
     targets: StateData[]
 };
-communicator.onRequest("getActions", function (data: ActionRequest): ActionData[] {
+inspector.onRequest("getActions", function (data: ActionRequest): ActionData[] {
     return $.system.getState(data).actions.map((action, id) => ({
         origin: stateDataOf(action.origin),
         id: id,
@@ -316,7 +320,7 @@ export type SupportData = {
     origins: JSONUnion,
     targets: StateData[]
 };
-communicator.onRequest("getSupports", function (data: SupportRequest): SupportData[] {
+inspector.onRequest("getSupports", function (data: SupportRequest): SupportData[] {
     const [stateLabel, actionId] = data;
     const state = $.system.getState(stateLabel);
     return state.actions[actionId].supports.map((support, id) => ({
@@ -338,7 +342,7 @@ const OPERATORS: { [string]: (State, Union) => Region } = {
     "attr":  (state, us) => $.lss.attr($.lss.xx, us, state.polytope),
     "attrR": (state, us) => $.lss.attrR($.lss.xx, us, state.polytope)
 };
-communicator.onRequest("getOperator", function (data: OperatorRequest): OperatorData {
+inspector.onRequest("getOperator", function (data: OperatorRequest): OperatorData {
     const [operator, stateLabel, control] = data;
     const state = $.system.getState(stateLabel);
     const us = Union.deserialize(control);
@@ -349,7 +353,7 @@ communicator.onRequest("getOperator", function (data: OperatorRequest): Operator
 // Trace through a system
 export type TraceRequest = [string|null, string, number];
 export type TraceData = Trace;
-communicator.onRequest("sampleTrace", function (data: TraceRequest): TraceData {
+inspector.onRequest("sampleTrace", function (data: TraceRequest): TraceData {
     const [sourceLabel, controllerName, maxSteps] = data;
     const srcPoly = sourceLabel == null ? $.lss.xx : $.system.getState(sourceLabel).polytope;
     const Strategy = controller[controllerName];
@@ -360,19 +364,20 @@ communicator.onRequest("sampleTrace", function (data: TraceRequest): TraceData {
 });
 
 
-// Game abstraction for analysis of the system wrt the objective
-export type GameGraphRequest = null;
-export type GameGraphData = JSONGameGraph;
-communicator.onRequest("getGameGraph", function (data: GameGraphRequest): GameGraphData {
-    return $.system.serializeGameGraph();
-});
-
-
-// 
-export type ProcessAnalysisRequest = AnalysisResults;
-export type ProcessAnalysisData = Set<string>;
-communicator.onRequest("processAnalysis", function (data: ProcessAnalysisRequest): ProcessAnalysisData {
-    return sets.map(_ => _.label, $.processAnalysis(data));
+// Analyse the system
+export type AnalysisRequest = null;
+export type AnalysisData = null;
+inspector.onRequest("analyse", function (data: AnalysisRequest): AnalysisData {
+    const gameGraph = $.system.serializeGameGraph();
+    // TODO: stop all changes to the system until analysis has finished
+    analyser.request("analyse", gameGraph).then(function (data) {
+        $.processAnalysis(data);
+        // TODO: allow changes to the system again
+        return inspector.request("ready", null);
+    });
+    // Return early, to signal that game graph has been built and analysis is
+    // running. Final update is then pushed to host in a separate request.
+    return null;
 });
 
 
@@ -380,7 +385,7 @@ communicator.onRequest("processAnalysis", function (data: ProcessAnalysisRequest
 export type RefineRequest = [AutomatonStateLabel[], RefineRequestStep[]];
 export type RefineRequestStep = [string, RefinerySettings];
 export type RefineData = Set<string>;
-communicator.onRequest("refine", function (data: RefineRequest): RefineData {
+inspector.onRequest("refine", function (data: RefineRequest): RefineData {
     const [qs, refineries] = data;
     // Return set of states that were changed by refinement
     return sets.map(_ => _.label, $.refine(qs, refineries));
@@ -396,41 +401,63 @@ export type SnapshotData = {
     children: Set<SnapshotData>,
     isCurrent: boolean
 };
-communicator.onRequest("getSnapshots", function (data: SnapshotsRequest): SnapshotData {
-    return $.tree;
+inspector.onRequest("getSnapshots", function (data: SnapshotsRequest): SnapshotData {
+    return $.snapshotTree;
 });
 
 export type TakeSnapshotRequest = string;
 export type TakeSnapshotData = null;
-communicator.onRequest("takeSnapshot", function (data: TakeSnapshotRequest): TakeSnapshotData {
+inspector.onRequest("takeSnapshot", function (data: TakeSnapshotRequest): TakeSnapshotData {
     $.take(data);
     return null;
 });
 
 export type LoadSnapshotRequest = number;
 export type LoadSnapshotData = null;
-communicator.onRequest("loadSnapshot", function (data: LoadSnapshotRequest): LoadSnapshotData {
+inspector.onRequest("loadSnapshot", function (data: LoadSnapshotRequest): LoadSnapshotData {
     $.load(data);
     return null;
 });
 
 export type NameSnapshotRequest = [number, string];
 export type NameSnapshotData = null;
-communicator.onRequest("nameSnapshot", function (data: NameSnapshotRequest): NameSnapshotData {
+inspector.onRequest("nameSnapshot", function (data: NameSnapshotRequest): NameSnapshotData {
     $.rename(...data);
     return null;
 });
 
 
+
+// Additional worker for analysis, so system exploration stays responsive
+const analyser = new Communicator("ANA");
+
+// Analysis requires the objective once at startup
+analyser.onRequest("objective", function (data): JSONObjective {
+    return $.objective.serialize();
+});
+
+// When this and the analysis worker are both ready, signal readyness to the
+// host application
+analyser.onRequest("ready", function (data) {
+    inspector.request("ready", null);
+    return null;
+});
+
+
+
 // Because https://github.com/facebook/flow/pull/6100 is not merged yet:
 // $FlowFixMe
-communicator.host = self;
-
+inspector.host = self;
 
 // Initialize
-communicator.request("init", null).then(function (data: [JSONAbstractedLSS, JSONObjective]) {
+inspector.request("init", null).then(function (data: [JSONAbstractedLSS, JSONObjective]) {
     const [system, objective] = data;
+    // Initialize the global state manager
     $.initialize(AbstractedLSS.deserialize(system), Objective.deserialize(objective));
-    return communicator.request("ready", null);
+    // Start the analysis worker
+    analyser.host = new Worker("./inspector-worker-analysis.js");
+    // When the analysis worker is ready, it will send the ready signal to the
+    // host application
+    return null;
 });
 

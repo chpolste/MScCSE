@@ -5,9 +5,8 @@ import type { FigureLayer, Shape } from "./figure.js";
 import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
 import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, TraceData,
-              GameGraphData, ProcessAnalysisData, RefineRequestStep, RefineData,
-              TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
-              SnapshotData } from "./inspector-worker-system.js";
+              AnalysisData, RefineRequestStep, RefineData, TakeSnapshotData,
+              LoadSnapshotData, NameSnapshotData, SnapshotData } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
 import type { AutomatonStateLabel, AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
@@ -331,6 +330,8 @@ class SystemModel extends ObservableMixin<ModelChange> {
         try {
             this._comm = new Communicator("ISYS");
             this._comm.onRequest("init", (data) => [system.serialize(), objective.serialize()]);
+            // The worker signals "ready" every time the system is unlocked for
+            // changes (at startup and after analysis)
             this._comm.onRequest("ready", (data) => {
                 this.notify("snapshot");
                 this.notify("system");
@@ -468,22 +469,12 @@ class SystemModel extends ObservableMixin<ModelChange> {
         return this._comm.request("getOperator", [op, state, us]);
     }
 
-    getGameGraph(): Promise<GameGraphData> {
-        return this._comm.request("getGameGraph", null);
-    }
-
     sampleTrace(state: ?StateID, controller: string, maxSteps: number): Promise<TraceData> {
         return this._comm.request("sampleTrace", [state, controller, maxSteps]);
     }
 
-    processAnalysis(results: AnalysisResults): Promise<ProcessAnalysisData> {
-        return this._comm.request("processAnalysis", results).then((data) => {
-            // Returns the set of states that changed kind
-            //if (data.size > 0) { TODO
-                this.notify("system");
-            //}
-            return data;
-        });
+    analyse(): Promise<AnalysisData> {
+        return this._comm.request("analyse", null);
     }
 
     refine(qs: AutomatonStateLabel[], steps: RefineRequestStep[]): Promise<RefineData> {
@@ -1234,8 +1225,6 @@ class AnalysisCtrl {
     +_model: SystemModel;
     +_button: HTMLButtonElement;
     +_info: HTMLSpanElement;
-    _comm: ?Communicator<Worker>;
-    _ready: boolean;
 
     constructor(model: SystemModel, keys: dom.Keybindings): void {
         this._model = model;
@@ -1247,47 +1236,7 @@ class AnalysisCtrl {
             dom.P({}, [this._button, " ", this._info])
         ]);
         keys.bind("a", () => this.analyse());
-        // Create and setup the worker (separate worker for analysis, so system
-        // exploration stays responsive)
-        this.ready = false;
         this.infoText = "initializing...";
-        try {
-            // Associcate a communicator for message exchange
-            const comm = new Communicator("IANA");
-            // Worker will request objective
-            comm.onRequest("objective", (data) => {
-                return this._model.objective.serialize();
-            });
-            // Worker will tell when ready
-            comm.onRequest("ready", (msg) => {
-                this._comm = comm;
-                this.infoText = "Web Worker ready.";
-                this.ready = true;
-            });
-            const worker = new Worker("./js/inspector-worker-analysis.js");
-            worker.onerror = () => {
-                this.infoText = "startup error"
-                this._model.logError({ name: "WorkerError", message: "unable to start analysis web worker" });
-            };
-            // Start communicator
-            comm.host = worker;
-        } catch (e) {
-            // Chrome does not allow Web Workers for local resources
-            if (e.name === "SecurityError") {
-                this.infoText = "error: unable to start web worker for analysis"
-                return;
-            }
-            throw e;
-        }
-    }
-
-    get ready(): boolean {
-        return this._ready;
-    }
-
-    set ready(ready: boolean): void {
-        this._ready = ready;
-        this._button.disabled = !ready;
     }
 
     set infoText(text: string): void {
@@ -1295,37 +1244,14 @@ class AnalysisCtrl {
     }
 
     analyse(): void {
-        if (!this.ready) {
-            return;
-        }
-        this.ready = false;
         this.infoText = "constructing game abstraction...";
         let startTime = performance.now();
         // Redirect game graph to analysis worker and wait for results
-        this._model.getGameGraph().then((gameGraph) => {
+        this._model.analyse().then((data) => {
             this.infoText = "analysing...";
-            if (this._comm == null) throw new Error(
-                "worker not available, game analysis not possible"
-             );
-            return this._comm.request("analysis", gameGraph);
-        // Hand over analysis results to system worker (triggers update of
-        // system state kinds)
-        }).then((results) => {
-            this.infoText = "processing results...";
-            return this._model.processAnalysis(results);
-        // Show information message
-        }).then((updated) => {
-            const s = updated.size;
-            const elapsed = performance.now() - startTime;
-            this.infoText = "Updated " + s + (s === 1 ? " state" : " states") + " after " + t2s(elapsed) + ".";
-            this.ready = true;
         }).catch(err => {
-            this.infoText = "analysis error";
+            this.infoText = "error during construction of game abstraction";
             this._model.logError(err);
-            // Even though it is probably not a good idea to continue once an
-            // analysis error has occured, the user could still resume from
-            // a previous snapshot
-            this.ready = true;
         });
     }
 

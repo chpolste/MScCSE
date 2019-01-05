@@ -1225,9 +1225,12 @@ class AnalysisCtrl {
     +_model: SystemModel;
     +_button: HTMLButtonElement;
     +_info: HTMLSpanElement;
+    _infoText: string;
+    _startTime: ?DOMHighResTimeStamp;
 
     constructor(model: SystemModel, keys: dom.Keybindings): void {
         this._model = model;
+        this._model.attach((mc) => this.handleModelChange(mc));
         // Control elements, information display, keybindings
         this._button = dom.BUTTON({}, [dom.create("u", {}, ["a"]), "nalyse"]);
         this._button.addEventListener("click", () => this.analyse());
@@ -1236,23 +1239,53 @@ class AnalysisCtrl {
             dom.P({}, [this._button, " ", this._info])
         ]);
         keys.bind("a", () => this.analyse());
-        this.infoText = "initializing...";
+        this._infoText = "";
+        this._startTime = null;
+        // ...
+        window.setInterval(() => this.handleChange(), 333);
+        this.handleChange();
     }
 
     set infoText(text: string): void {
-        dom.replaceChildren(this._info, [text]);
+        this._infoText = text;
+        this.handleChange();
     }
 
     analyse(): void {
-        this.infoText = "constructing game abstraction...";
-        let startTime = performance.now();
+        this.infoText = "game abstraction...";
+        this._startTime = performance.now();
         // Redirect game graph to analysis worker and wait for results
         this._model.analyse().then((data) => {
-            this.infoText = "analysing...";
+            const start = this._startTime;
+            const elapsed = (start != null) ? performance.now() - start : 0; // TODO start == null should be some kind of error
+            this.infoText = "game abstraction (" + t2s(elapsed) + "), analysis...";
+            // Restart the clock for timing the analysis
+            this._startTime = performance.now();
         }).catch(err => {
+            this._startTime = null;
             this.infoText = "error during construction of game abstraction";
             this._model.logError(err);
         });
+    }
+
+    handleChange(): void {
+        const text = [this._infoText];
+        const start = this._startTime;
+        if (start != null) {
+            const elapsed = performance.now() - start;
+            text.push(" (" + t2s(performance.now() - start) + ")");
+        }
+        dom.replaceChildren(this._info, text);
+    }
+
+    handleModelChange(mc: ?ModelChange): void {
+        const start = this._startTime;
+        if (mc !== "system" || start == null) return;
+        // First system change after game construction can only be end of
+        // analysis (TODO)
+        const elapsed = performance.now() - start;
+        this._startTime = null;
+        this.infoText = this._infoText.slice(0, -3) + " (" + t2s(elapsed) + ").";
     }
 
 }

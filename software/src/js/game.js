@@ -321,32 +321,37 @@ export class TwoPlayerProbabilisticGame {
             enqueued.add(state);
             game.initialStates.add(state);
         }
-
-        // Dead-end state for non-existing automata transitions and system
-        // states without actions.
+        // Dead-end state as a successor for states with non-existing automata
+        // transitions, system states without actions and state for which
+        // a player 2 win can be determined without analysis. Both states will
+        // have priority 1 assigned later.
         const deadEndP1 = game.takeP1State("", "__END__");
         const deadEndP2 = game.takeP2State("", 0, "__END__");
         // Connect state only to itself
         deadEndP1.actions.push(new Set([deadEndP2]));
         deadEndP2.actions.push(new Set([deadEndP1]));
-
-        // For co-safe interpretation add a priority 0 state that cannot be
-        // left, therefore a win for player 1 is guaranteed. This state will be
-        // put as only successor after all priority 0 states from the automaton
-        // (so even if the trace leaves the state space afterwards, the game is
-        // still won by player 1). The co-safe compatibility test of the
-        // automaton ensures that leads to the desired game. This state is not
-        // used for the regular interpretation of the automaton (infinite
-        // plays, traces must not leave the state space).
-        let satEndP1 = null;
-        let satEndP2 = null;
+        // Dead-end state as a successor for states where a co-safe objective
+        // has been fulfilled and states for which a player 1 win can be
+        // determined without analysis. Both states will have priority
+        // 0 assigned later.
+        const satEndP1 = game.takeP1State("", "__SAT__");
+        const satEndP2 = game.takeP2State("", 0, "__SAT__");
+        // Connect state only to itself
+        satEndP1.actions.push(new Set([satEndP2]));
+        satEndP2.actions.push(new Set([satEndP1]));
+        // For co-safe interpretation add all possible combinations of system
+        // states and final (=priority 0) automaton states. This is not
+        // necessary for a correct analysis but leads to nicer analysis results
+        // where these states are classified as satisfying instead of
+        // non-reachable.
         if (game.coSafeInterpretation) {
-            satEndP1 = game.takeP1State("", "__SAT__");
-            satEndP2 = game.takeP2State("", 0, "__SAT__");
-            satEndP1.actions.push(new Set([satEndP2]));
-            satEndP2.actions.push(new Set([satEndP1]));
+            for (let xi of sys.stateLabels) {
+                for (let qi of priority0) {
+                    const state = game.takeP1State(xi, qi);
+                    state.actions.push(new Set([satEndP2]));
+                }
+            }
         }
-
         // Explore reachable states from initial states and create their
         // associated actions.
         while (queue.length > 0) {
@@ -363,22 +368,23 @@ export class TwoPlayerProbabilisticGame {
                 // Set of linear predicates that are fulfiled by system state (labels)
                 const pis = sys.predicateLabelsOf(xi);
                 // Automaton transition that matches linear predicates
-                const qNext = objective.automaton.takeState(qi).successor(objective.valuationFor(pis));
+                const qNext = objective.automaton.takeState(qi).successor(objective.valuationFor(pis)); // TODO
                 // No legal automaton transition: don't add any actions, so
                 // state is connected to dead end later
                 if (qNext == null) {
-                    // ...
+                    continue;
                 // If a priority 0 state would be reached in the co-safe
-                // interpretation, ensure that player 1 wins.
-                } else if (game.coSafeInterpretation && satEndP1 != null && priority0.has(qNext.label)) {
-                    // Side note: It would also be possible to transition
-                    // directly to satEndP2, but this way the next field of the
-                    // analysis results can be filled with less hassle
-                    const action = game.takeP2State(xi, 0, qNext.label);
-                    state.actions.push(new Set([action]));
-                    // Don't put the new player 2 state on queue but directly
-                    // connect to the __SAT__ player 1 state.
-                    action.actions.push(new Set([satEndP1]));
+                // interpretation, ensure that player 1 wins immediately (so
+                // even if the trace leaves the state space afterwards, the
+                // game is still won by player 1). The co-safe compatibility
+                // test of the automaton ensures that this procedure leads
+                // to the desired game. Do not do this for the regular
+                // interpretation of the automaton (infinite plays, traces must
+                // not leave the state space).
+                // TODO: also do this for already satisfying states
+                } else if (game.coSafeInterpretation && priority0.has(qNext.label)) {
+                    // Transition directly to satEndP2
+                    state.actions.push(new Set([satEndP2]));
                 // Automaton transition exists, create game transition for
                 // every system action
                 } else {
@@ -422,7 +428,7 @@ export class TwoPlayerProbabilisticGame {
             game.setPriority(state, 2);
             // States from difference of automaton acceptance sets E \ F have
             // priority 0. Dead end states also have priority 1 so only player
-            // 2 can win in there
+            // 2 can win.
             if (priority1.has(state.automatonState) || state === deadEndP1 || state === deadEndP2) {
                 game.setPriority(state, 1);
             }

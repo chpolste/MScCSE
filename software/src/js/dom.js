@@ -90,20 +90,17 @@ export function appendChildren(parentNode: Element, children: Iterable<ElementCh
 }
 
 // Replace all children of a node with the given new ones
-// TODO: the code could be nicer...
 export function replaceChildren<T: ElementChild>(parentNode: Element, childNodes: Iterable<T>): void {
-    // Get static list of current nodes (a node might appear in both the
-    // current and new children.
-    let oldNodes = Array.from(parentNode.childNodes);
-    const nOld = oldNodes.length;
     let i = 0;
     for (let childNode of childNodes) {
+        const oldNode = parentNode.childNodes[i];
+        const newNode = nodeify(childNode);
         // Replace until old nodes run out
-        if (i < nOld) {
-            parentNode.replaceChild(nodeify(childNode), oldNodes[i]);
+        if (oldNode != null) {
+            parentNode.replaceChild(newNode, oldNode);
         // Add additional new nodes
         } else {
-            parentNode.appendChild(nodeify(childNode));
+            parentNode.appendChild(newNode);
         }
         i++;
     }

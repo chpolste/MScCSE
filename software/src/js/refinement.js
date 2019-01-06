@@ -17,8 +17,10 @@ export type RefinementPartition = { done: Region, rest: Region };
 
 // ...
 export type RefineryActionPick = "best" | "random";
+export type RefinerySimplification = "none" | "convexify";
 export type RefinerySettings = {
-    actionPick: RefineryActionPick
+    actionPick: RefineryActionPick,
+    simplification: RefinerySimplification
 };
 
 
@@ -68,6 +70,16 @@ export class Refinery {
             "Positive Robust Predecessor": PositivePreRRefinery,
             "Positive Robust Attractor": PositiveAttrRRefinery
         };
+    }
+
+    // TODO: turn this into a more general "approximation" setting even if it
+    // has to be implemented individually by each refinery
+    _simplify(region: Region, rest: Region): Region {
+        if (this._settings.simplification === "convexify") {
+            return region.hull().intersect(rest).simplify();
+        } else {
+            return region.simplify();
+        }
     }
 
     // TODO: description
@@ -247,7 +259,7 @@ class PositiveAttrRRefinery extends Refinery {
             }
         }
         if (done == null) return null;
-        done = done.simplify();
+        done = this._simplify(done, rest);//done.simplify(); TODO
         rest = rest.remove(done).simplify();
         // Progress guarantee, don't refine the AttrR further
         return { done: done, rest: rest };

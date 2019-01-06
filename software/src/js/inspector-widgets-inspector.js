@@ -10,7 +10,7 @@ import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, T
 import type { Vector, Matrix } from "./linalg.js";
 import type { AutomatonStateLabel, AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
-import type { RefinerySettings, RefineryActionPick } from "./refinement.js";
+import type { RefinerySettings, RefineryActionPick, RefinerySimplification } from "./refinement.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
@@ -1374,6 +1374,7 @@ class RefinementStep {
     +name: string;
     +_info: HTMLDivElement;
     +_toggle: Input<boolean>;
+    +_simplification: Input<RefinerySimplification>;
     +_actionPick: Input<RefineryActionPick>;
     +_showActionPick: boolean
     _expanded: boolean;
@@ -1382,6 +1383,10 @@ class RefinementStep {
         this.name = name;
         this._toggle = new CheckboxInput(false);
         this._toggle.attach(() => this.handleChange());
+        this._simplification = new ClickCycler({
+            "no simplification": "none",
+            "convexify": "convexify"
+        }, "no simplification");
         this._actionPick = new ClickCycler({
             "estimate best action": "best",
             "random action": "random"
@@ -1399,13 +1404,17 @@ class RefinementStep {
     }
 
     get settings(): RefinerySettings {
-        return { actionPick: this._actionPick.value };
+        return {
+            actionPick: this._actionPick.value,
+            simplification: this._simplification.value
+        };
     }
 
     handleChange(): void {
         const nodes = [];
         if (!this._toggle.value) nodes.push("disabled");
         if (this._showActionPick) nodes.push(this._actionPick.node);
+        nodes.push(this._simplification.node);
         dom.replaceChildren(this._info, arr.intersperse(" :: ", nodes));
     }
 

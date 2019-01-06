@@ -496,6 +496,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
     loadSnapshot(id: number): Promise<LoadSnapshotData> {
         return this._comm.request("loadSnapshot", id).then((data) => {
             this.notify("snapshot");
+            this.notify("init");
             this.refreshSelection();
             return data;
         });

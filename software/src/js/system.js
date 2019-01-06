@@ -252,7 +252,6 @@ export type JSONAbstractedLSS = {
     lss: JSONLSS,
     predicates: { [string]: JSONHalfspace },
     states: JSONState[],
-    actions: { [string]: JSONAction[] } | null,
     labelNum: number
 };
 
@@ -289,20 +288,6 @@ export class AbstractedLSS implements GameGraph {
         for (let jsonState of json.states) {
             const state = State.deserialize(jsonState, system);
             system.states.set(state.label, state);
-        }
-        // Actions are optional
-        const jsonActions = json.actions;
-        if (jsonActions != null) {
-            for (let label in jsonActions) {
-                const state = system.getState(label);
-                state._actions = jsonActions[label].map(_ => Action.deserialize(_, state));
-                // Restore the internal _reachable set
-                const reachable = new Set();
-                for (let action of state._actions) {
-                    action.targets.forEach(_ => reachable.add(_));
-                }
-                state._reachable = reachable;
-            }
         }
         return system;
     }
@@ -513,28 +498,16 @@ export class AbstractedLSS implements GameGraph {
     }
 
     // JSON-compatible serialization for saving/loading
-    serialize(includeActions?: boolean): JSONAbstractedLSS {
+    serialize(includeGraph?: boolean): JSONAbstractedLSS {
         // Predicates
         const predicates = {};
-        for (let [label, predicate] of this.predicates.entries()) {
+        for (let [label, predicate] of this.predicates) {
             predicates[label] = predicate.serialize();
-        }
-        // Actions are only included if requested
-        let actions = null;
-        if (includeActions != null && includeActions) {
-            actions = {};
-            for (let [label, state] of this.states.entries()) {
-                // Don't evaluate actions if not cached
-                if (state._actions != null) {
-                    actions[label] = state.actions.map(_ => _.serialize());
-                }
-            }
         }
         return {
             lss: this.lss.serialize(),
             predicates: predicates,
-            states: Array.from(iter.map(_ => _.serialize(), this.states.values())),
-            actions: actions,
+            states: Array.from(iter.map(_ => _.serialize(includeGraph), this.states.values())),
             labelNum: this.labelNum
         }
     }
@@ -549,7 +522,8 @@ type JSONState = {
     label: string,
     polytope: JSONPolytope,
     isOuter: boolean,
-    predicates: string[]
+    predicates: string[],
+    actions: JSONAction[] | null;
 };
 
 export class State {
@@ -575,7 +549,20 @@ export class State {
 
     static deserialize(json: JSONState, system: AbstractedLSS): State {
         const polytope = Polytope.deserialize(json.polytope);
-        return new State(system, json.label, polytope, json.isOuter, json.predicates);
+        const state = new State(system, json.label, polytope, json.isOuter, json.predicates);
+        // Restore actions if they are included in serialization
+        if (json.actions != null) {
+            state._actions = json.actions.map(_ => Action.deserialize(_, state));
+            // Restore the internal _reachable set
+            const reachable = new Set();
+            for (let action of state._actions) {
+                for (let target of action.targets) {
+                    reachable.add(target);
+                }
+            }
+            state._reachable = reachable;
+        }
+        return state;
     }
 
     // Lazy evaluation and memoization of actions
@@ -652,12 +639,18 @@ export class State {
     }
 
     // JSON-compatible serialization
-    serialize(): JSONState {
+    serialize(includeGraph?: boolean): JSONState {
+        let actions = null;
+        // Only include actions if they have been evaluated already
+        if (includeGraph != null && includeGraph && this._actions != null) {
+            actions = this._actions.map(_ => _.serialize(includeGraph));
+        }
         return {
             label: this.label,
             polytope: this.polytope.serialize(),
             isOuter: this.isOuter,
-            predicates: Array.from(this.predicates)
+            predicates: Array.from(this.predicates),
+            actions: actions
         };
     }
 
@@ -728,11 +721,16 @@ export class Action {
     }
 
     // JSON-compatible serialization
-    serialize(): JSONAction {
+    serialize(includeGraph?: boolean): JSONAction {
+        let supports = null;
+        // Only include supports if they have been evaluated already
+        if (includeGraph != null && includeGraph && this._supports != null) {
+            supports = this._supports.map(_ => _.serialize());
+        }
         return {
             targets: this.targets.map(_ => _.label),
             controls: this.controls.toUnion().serialize(),
-            supports: this.supports.map(_ => _.serialize())
+            supports: supports
         };
     }
 

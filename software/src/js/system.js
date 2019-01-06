@@ -2,7 +2,7 @@
 "use strict";
 
 import type { Controller } from "./controller.js";
-import type { GameGraph, JSONGameGraph } from "./game.js";
+import type { GameGraph, JSONGameGraph, AnalysisResults } from "./game.js";
 import type { JSONPolytope, JSONUnion, JSONHalfspace, Region } from "./geometry.js";
 import type { Matrix, Vector } from "./linalg.js";
 
@@ -483,19 +483,30 @@ export class AbstractedLSS implements GameGraph {
 
     /* Serialization */
 
-    // JSON-compatible serialization for game analysis
-    serializeGameGraph(): JSONGameGraph {
+    // JSON-compatible serialization for game analysis. If previous analysis
+    // results are supplied, a simplified game graph will be constructed
+    // without actions for already decided states. The same analysis results
+    // must then be given to the game-automaton product construction as well or
+    // the resulting product game will most likely be wrong.
+    serializeGameGraph(analysis?: ?AnalysisResults): JSONGameGraph {
         const states = {};
-        for (let state of this.states.values()) {
-            states[state.label] = {
-                predicates: Array.from(state.predicates),
-                actions: state.actions.map(
+        for (let [label, state] of this.states) {
+            const result = analysis == null ? null : analysis.get(label);
+            let actions = [];
+            // Actions and supports only have to be evaluated if the state is
+            // not fully decided yet.
+            if (result == null || result.maybe.size !== 0) {
+                actions = state.actions.map(
                     action => action.supports.map(
                         support => support.targets.map(
                             target => target.label
                         )
                     )
-                )
+                );
+            }
+            states[label] = {
+                predicates: Array.from(state.predicates),
+                actions: actions
             };
         }
         return states;

@@ -296,10 +296,11 @@ export class TwoPlayerProbabilisticGame {
 
     // Construct synchronous product game from system abstraction-induced game
     // graph and one-pair Streett objective.
-    // Dead-end states of the game graph and game graph transitions without
-    // matching automaton transitions are connected to dead-end states,
-    // depending on the coSafeInterpretation setting of the objective.
-    static fromProduct(sys: GameGraph, objective: Objective): TwoPlayerProbabilisticGame {
+    // The product game will inlude some additional dead-end states that are
+    // used to ensure desired behaviour (non-existing automaton transitions,
+    // co-safe objectives) and for simplification (skip re-analysis of already
+    // decided states, when previous analysis results are supplied).
+    static fromProduct(sys: GameGraph, objective: Objective, analysis?: ?AnalysisResults): TwoPlayerProbabilisticGame {
         // Cache sets of labels priority 0 and 1 states (used for co-safe
         // interpretation and priority assignment)
         const priority1 = new Set(iter.map(s => s.label, objective.automaton.acceptanceSetE));
@@ -368,10 +369,12 @@ export class TwoPlayerProbabilisticGame {
                 // Set of linear predicates that are fulfiled by system state (labels)
                 const pis = sys.predicateLabelsOf(xi);
                 // Automaton transition that matches linear predicates
-                const qNext = objective.automaton.takeState(qi).successor(objective.valuationFor(pis)); // TODO
+                const qiNext = objective.nextState(pis, qi);
+                // Analysis result, if available
+                const result = analysis == null ? null : analysis.get(xi);
                 // No legal automaton transition: don't add any actions, so
                 // state is connected to dead end later
-                if (qNext == null) {
+                if (qiNext == null) {
                     continue;
                 // If a priority 0 state would be reached in the co-safe
                 // interpretation, ensure that player 1 wins immediately (so
@@ -381,20 +384,32 @@ export class TwoPlayerProbabilisticGame {
                 // to the desired game. Do not do this for the regular
                 // interpretation of the automaton (infinite plays, traces must
                 // not leave the state space).
-                // TODO: also do this for already satisfying states
-                } else if (game.coSafeInterpretation && priority0.has(qNext.label)) {
-                    // Transition directly to satEndP2
+                } else if (game.coSafeInterpretation && priority0.has(qiNext)) {
                     state.actions.push(new Set([satEndP2]));
+                // If a state is already known to be satisfying, no need to
+                // analyse it again, directly connect to satEndP2 so player 1
+                // wins immediately
+                } else if (result != null && result.yes.has(qi)) {
+                    state.actions.push(new Set([satEndP2]));
+                // If a state is already known to be non-satisfying, no need to
+                // analyse it again, directly connect to deadEndP2 so player 2
+                // wins immediately
+                } else if (result != null && result.no.has(qi)) {
+                    state.actions.push(new Set([deadEndP2]));
                 // Automaton transition exists, create game transition for
                 // every system action
                 } else {
                     for (let ui = 0; ui < sys.actionCountOf(xi); ui++) {
-                        const action = game.takeP2State(xi, ui, qNext.label);
+                        const action = game.takeP2State(xi, ui, qiNext);
                         state.actions.push(new Set([action]))
                         queue.push(action);
                     }
+                    // TODO possible optimization: if there is an action that
+                    // only leads to good states (use analysis results), there
+                    // is no need to evaluate supports as player 1 can pick
+                    // this action to win immediately.
                 }
-                // No action or qNext == null: connect via player 2 action to
+                // No action or qiNext == null: connect via player 2 action to
                 // common dead-end state
                 if (state.actions.length === 0) {
                     const action = game.takeP2State(xi, 0, "");

@@ -22,7 +22,7 @@ let $objective: ?Objective = null;
 
 const communicator = new Communicator("1W");
 
-type AnalysisRequest = JSONGameGraph;
+type AnalysisRequest = [JSONGameGraph, ?AnalysisResults];
 type AnalysisData = AnalysisResults;
 // Receive the transition system induced by the abstracted LSS and create and
 // solve the product-game of the transition system with the objective
@@ -31,8 +31,9 @@ communicator.onRequest("analyse", function (data: AnalysisRequest): AnalysisData
     if ($objective == null) throw new Error(
         "cannot analyse game because objective is not set"
     );
-    const gameGraph = new MappedJSONGameGraph(data);
-    const game = TwoPlayerProbabilisticGame.fromProduct(gameGraph, $objective);
+    const [graph, analysis] = data;
+    const gameGraph = new MappedJSONGameGraph(graph);
+    const game = TwoPlayerProbabilisticGame.fromProduct(gameGraph, $objective, analysis);
     return game.analyse();
 });
 

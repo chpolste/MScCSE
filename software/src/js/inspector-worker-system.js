@@ -378,10 +378,13 @@ export type AnalysisRequest = null;
 export type AnalysisData = null;
 inspector.onRequest("analyse", function (data: AnalysisRequest): AnalysisData {
     if ($.locked) throw new Error("system is locked, cannot analyse");
-    const gameGraph = $.system.serializeGameGraph();
+    // Use analysis results to simplify the game graph
+    const analysis = $.analysis;
+    const gameGraph = $.system.serializeGameGraph(analysis);
     // Prevent changes to the system until analysis has finished
     $.locked = true;
-    analyser.request("analyse", gameGraph).then(function (data) {
+    // Also give previous analysis results to new analysis
+    analyser.request("analyse", [gameGraph, analysis]).then(function (data) {
         $.processAnalysis(data);
         // Unlock system after analysis
         $.locked = false;

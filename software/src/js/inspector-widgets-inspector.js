@@ -63,11 +63,6 @@ function analysisKind(q: AutomatonStateLabel, analysis: ?AnalysisResult): _Analy
     }
 }
 
-// Simple coloring of states
-function stateColorSimple(state: StateData): string {
-    return state.isOuter ? COLORS.no : COLORS.maybe;
-}
-
 // State coloring according to analysis status
 function stateColor(state: StateData, wrtQ: AutomatonStateLabel): string {
     return COLORS[analysisKind(wrtQ, state.analysis)];
@@ -531,7 +526,6 @@ class SystemViewCtrl {
     +_plot: InteractivePlot;
     +_layers: { [string]: FigureLayer };
     // View settings
-    _showAnalysis: boolean;
     _showLabels: boolean;
     _showVectors: boolean;
     _operator: ?OperatorWrapper;
@@ -543,7 +537,6 @@ class SystemViewCtrl {
         this._model = model;
         this._model.attach((mc) => this.handleChange(mc));
         // View settings
-        this._showAnalysis = false;
         this._showLabels = false;
         this._showVectors = false;
         this._operator = null;
@@ -567,11 +560,6 @@ class SystemViewCtrl {
     }
 
     // View settings setters
-
-    set showAnalysis(show: boolean): void {
-        this._showAnalysis = show;
-        this.drawAnalysis();
-    }
 
     set showLabels(show: boolean): void {
         this._showLabels = show;
@@ -691,11 +679,10 @@ class SystemViewCtrl {
     drawAnalysis(): void {
         if (this._data != null) {
             const [_, q] = this._model.state;
-            const color = this._showAnalysis ? (state) => stateColor(state, q) : stateColorSimple;
             this._layers.kind.shapes = this._data.map((state) => ({
                 kind: "polytope",
                 vertices: state.polytope.vertices,
-                style: { fill: color(state) }
+                style: { fill: stateColor(state, q) }
             }));
         }
     }
@@ -778,10 +765,6 @@ class SystemViewCtrlCtrl {
             systemViewCtrl.operator = operator.value;
         });
         // View configuration
-        const analysis = new CheckboxInput(false);
-        analysis.attach(() => {
-            systemViewCtrl.showAnalysis = analysis.value;
-        });
         const labels = new CheckboxInput(false);
         labels.attach(() => {
             systemViewCtrl.showLabels = labels.value;
@@ -795,12 +778,10 @@ class SystemViewCtrlCtrl {
             dom.P({ "class": "highlight" }, [
                 operator.node, " ", dom.create("u", {}, ["h"]), "ighlight" 
             ]),
-            dom.LABEL({}, [analysis.node, "Analysis C", dom.create("u", {}, ["o"]), "lors"]),
             dom.LABEL({}, [labels.node, "State ", dom.create("u", {}, ["L"]), "abels"]),
             dom.LABEL({}, [vectors.node, dom.create("u", {}, ["V"]), "ector Field"])
         ]);
         // Keybindings
-        keys.bind("o", inputTextRotation(analysis, ["t", "f"]));
         keys.bind("l", inputTextRotation(labels, ["t", "f"]));
         keys.bind("v", inputTextRotation(vectors, ["t", "f"]));
         keys.bind("h", inputTextRotation(operator, [

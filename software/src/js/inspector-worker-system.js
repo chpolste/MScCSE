@@ -42,6 +42,7 @@ class SystemManager {
     _system: ?AbstractedLSS;
     _analysis: ?AnalysisResults;
     _objective: ?Objective;
+    locked: boolean;
 
     constructor(): void {
         this._snapshots = new Map();
@@ -50,15 +51,18 @@ class SystemManager {
         this._current = null;
         this._system = null;
         this._analysis = null;
+        // System is locked until initialized
+        this.locked = true;
     }
 
     // Startup (has to be called before instance can be used)
 
     initialize(system: AbstractedLSS, objective: Objective): void {
+        this.locked = false;
         this._snapshots.clear();
         this._system = system;
         this._objective = objective;
-        this.take("Initial Problem");
+        this.takeSnapshot("Initial Problem");
     }
 
     // Basic accessors
@@ -107,7 +111,7 @@ class SystemManager {
 
     // Snapshot management
 
-    take(name: string): void {
+    takeSnapshot(name: string): void {
         const snapshot = {
             id: this._id++,
             name: name,
@@ -130,7 +134,10 @@ class SystemManager {
         this._current = snapshot;
     }
 
-    load(id: number): void {
+    loadSnapshot(id: number): void {
+        if (this.locked) throw new Error(
+            "system is locked, cannot apply changes"
+        );
         const snapshot = this._snapshots.get(id);
         if (snapshot == null) throw new Error(
             "Snapshot with id " + id + "does not exist"
@@ -140,7 +147,7 @@ class SystemManager {
         this._analysis = snapshot.analysis;
     }
 
-    rename(id: number, name: string): void {
+    nameSnapshot(id: number, name: string): void {
         const snapshot = this._snapshots.get(id);
         if (snapshot == null) throw new Error(
             "Snapshot with id " + id + "does not exist"
@@ -159,6 +166,9 @@ class SystemManager {
     }
 
     refine(qs: AutomatonStateLabel[], refineries: RefineRequestStep[]): Set<State> {
+        if (this.locked) throw new Error(
+            "system is locked, cannot refine"
+        );
         const analysis = this.analysis;
         if (analysis == null) throw new Error(
             "Refinement requires an analysed system"
@@ -202,7 +212,6 @@ class SystemManager {
     getAnalysis(state: State): ?AnalysisResult {
         if (this._analysis == null) return null;
         const result = this._analysis.get(state.label);
-        // TODO: inherit results after refinement somehow
         return result;
     }
 
@@ -346,7 +355,7 @@ inspector.onRequest("getOperator", function (data: OperatorRequest): OperatorDat
     const [operator, stateLabel, control] = data;
     const state = $.system.getState(stateLabel);
     const us = Union.deserialize(control);
-    return OPERATORS[operator](state, us).toUnion().serialize(); // TODO: enforce Union
+    return OPERATORS[operator](state, us).toUnion().serialize();
 });
 
 
@@ -368,11 +377,15 @@ inspector.onRequest("sampleTrace", function (data: TraceRequest): TraceData {
 export type AnalysisRequest = null;
 export type AnalysisData = null;
 inspector.onRequest("analyse", function (data: AnalysisRequest): AnalysisData {
+    if ($.locked) throw new Error("system is locked, cannot analyse");
     const gameGraph = $.system.serializeGameGraph();
-    // TODO: stop all changes to the system until analysis has finished
+    // Prevent changes to the system until analysis has finished
+    $.locked = true;
     analyser.request("analyse", gameGraph).then(function (data) {
         $.processAnalysis(data);
-        // TODO: allow changes to the system again
+        // Unlock system after analysis
+        $.locked = false;
+        // Send "ready" signal to inspector, signalling that system has changed
         return inspector.request("ready", null);
     });
     // Return early, to signal that game graph has been built and analysis is
@@ -408,21 +421,21 @@ inspector.onRequest("getSnapshots", function (data: SnapshotsRequest): SnapshotD
 export type TakeSnapshotRequest = string;
 export type TakeSnapshotData = null;
 inspector.onRequest("takeSnapshot", function (data: TakeSnapshotRequest): TakeSnapshotData {
-    $.take(data);
+    $.takeSnapshot(data);
     return null;
 });
 
 export type LoadSnapshotRequest = number;
 export type LoadSnapshotData = null;
 inspector.onRequest("loadSnapshot", function (data: LoadSnapshotRequest): LoadSnapshotData {
-    $.load(data);
+    $.loadSnapshot(data);
     return null;
 });
 
 export type NameSnapshotRequest = [number, string];
 export type NameSnapshotData = null;
 inspector.onRequest("nameSnapshot", function (data: NameSnapshotRequest): NameSnapshotData {
-    $.rename(...data);
+    $.nameSnapshot(...data);
     return null;
 });
 

@@ -1241,8 +1241,9 @@ class AnalysisCtrl {
         keys.bind("a", () => this.analyse());
         this._infoText = "";
         this._startTime = null;
-        // ...
+        // Progress clock updates
         window.setInterval(() => this.handleChange(), 333);
+        // Initialize
         this.handleChange();
     }
 
@@ -1252,6 +1253,10 @@ class AnalysisCtrl {
     }
 
     analyse(): void {
+        if (this._startTime != null) {
+            this._model.logError({ name: "BusyError", message: "analysis already in progress" });
+            return;
+        }
         this.infoText = "game abstraction...";
         this._startTime = performance.now();
         // Redirect game graph to analysis worker and wait for results
@@ -1263,7 +1268,7 @@ class AnalysisCtrl {
             this._startTime = performance.now();
         }).catch(err => {
             this._startTime = null;
-            this.infoText = "error during construction of game abstraction";
+            //this.infoText = "error during construction of game abstraction";
             this._model.logError(err);
         });
     }

@@ -389,7 +389,7 @@ inspector.onRequest("analyse", function (data: AnalysisRequest): AnalysisData {
         // Unlock system after analysis
         $.locked = false;
         // Send "ready" signal to inspector, signalling that system has changed
-        return inspector.request("ready", null);
+        return inspector.request("ready", "analysis");
     });
     // Return early, to signal that game graph has been built and analysis is
     // running. Final update is then pushed to host in a separate request.
@@ -455,7 +455,7 @@ analyser.onRequest("objective", function (data): JSONObjective {
 // When this and the analysis worker are both ready, signal readyness to the
 // host application
 analyser.onRequest("ready", function (data) {
-    inspector.request("ready", null);
+    inspector.request("ready", "init");
     return null;
 });
 

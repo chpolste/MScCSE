@@ -301,7 +301,7 @@ class Logger extends ObservableMixin<null> {
 }
 
 
-type ModelChange = "state" | "action" | "support" | "trace" | "system" | "snapshot"; 
+type ModelChange = "state" | "action" | "support" | "trace" | "init" | "analysis" | "refinement" | "snapshot"; 
 // System access, centralized selection storage and change notifications
 class SystemModel extends ObservableMixin<ModelChange> {
 
@@ -327,13 +327,17 @@ class SystemModel extends ObservableMixin<ModelChange> {
             this._comm.onRequest("init", (data) => [system.serialize(), objective.serialize()]);
             // The worker signals "ready" every time the system is unlocked for
             // changes (at startup and after analysis)
-            this._comm.onRequest("ready", (data) => {
+            this._comm.onRequest("ready", (data: string) => {
                 this.notify("snapshot");
-                this.notify("system");
                 this.notify("state");
                 this.notify("action");
                 this.notify("support");
                 this.notify("trace");
+                if (data === "init") this.notify("init");
+                if (data === "analysis") {
+                    this.notify("analysis");
+                    this.refreshSelection();
+                }
             });
             const worker = new Worker("./js/inspector-worker-system.js");
             worker.onerror = () => {
@@ -359,26 +363,22 @@ class SystemModel extends ObservableMixin<ModelChange> {
         this._trace = null;
     }
 
-    notify(e?: ModelChange): void {
-        // System change needs to be propagated to state, action and support
-        // selection
-        if (e === "system") {
-            const [xOld, _] = this.state;
-            if (xOld != null) {
-                // Re-select the given state if it still exists, drop action
-                // and support selection (TODO)
-                this.getState(xOld.label).then((data) => {
-                    this.xState = data;
-                    this.action = null;
-                    this.support = null;
-                }).catch((e) => {
-                    this.xState = null;
-                    this.action = null;
-                    this.support = null;
-                });
-            }
+    refreshSelection(): void {
+        const [xOld, _] = this.state;
+        if (xOld != null) {
+            // Re-select the given state if it still exists, drop action and
+            // support selection (TODO). System change needs to be propagated
+            // to state, action and support selection.
+            this.getState(xOld.label).then((data) => {
+                this.xState = data;
+                this.action = null;
+                this.support = null;
+            }).catch((e) => {
+                this.xState = null;
+                this.action = null;
+                this.support = null;
+            });
         }
-        super.notify(e);
     }
 
     // Getters and setters for selections
@@ -475,7 +475,8 @@ class SystemModel extends ObservableMixin<ModelChange> {
     refine(qs: AutomatonStateLabel[], steps: RefineRequestStep[]): Promise<RefineData> {
         return this._comm.request("refine", [qs, steps]).then((data) => {
             if (data.size > 0) {
-                this.notify("system");
+                this.notify("refinement");
+                this.refreshSelection();
             }
             return data;
         });
@@ -495,7 +496,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
     loadSnapshot(id: number): Promise<LoadSnapshotData> {
         return this._comm.request("loadSnapshot", id).then((data) => {
             this.notify("snapshot");
-            this.notify("system");
+            this.refreshSelection();
             return data;
         });
     }
@@ -578,7 +579,7 @@ class SystemViewCtrl {
 
     // Redraw elements when changes happen
     handleChange(mc: ?ModelChange): void {
-        if (mc === "system") {
+        if (mc === "init" || mc === "analysis" || mc === "refinement") {
             this._model.getStates().then((data) => {
                 this._data = data;
                 // Centroids are cached in a direct access data structure, as
@@ -1266,7 +1267,7 @@ class AnalysisCtrl {
 
     handleModelChange(mc: ?ModelChange): void {
         const start = this._startTime;
-        if (mc !== "system" || start == null) return;
+        if (mc !== "analysis" || start == null) return;
         // First system change after game construction can only be end of
         // analysis (TODO)
         const elapsed = performance.now() - start;

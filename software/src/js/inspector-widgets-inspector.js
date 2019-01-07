@@ -6,7 +6,8 @@ import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
 import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, TraceData,
               AnalysisData, RefineRequestStep, RefineData, TakeSnapshotData,
-              LoadSnapshotData, NameSnapshotData, SnapshotData } from "./inspector-worker-system.js";
+              LoadSnapshotData, NameSnapshotData, SnapshotData, SystemSummaryData
+            } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
 import type { AutomatonStateLabel, AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
@@ -112,13 +113,15 @@ function matrixToTeX(m: Matrix): string {
 }
 
 // Graphical depiction of analysis progress
-function percentageBar(ratios: { [string]: number }): HTMLDivElement {
+function percentageBar(xs: { [string]: number }, omit?: string[]): HTMLDivElement {
+    const total = iter.sum(obj.map2Array((_, x) => x, xs));
     const bar = dom.DIV({ "class": "percentage-bar" });
-    for (let name in ratios) {
+    for (let key in xs) {
+        const ratio = xs[key] / total;
         bar.appendChild(dom.DIV({
-            "class": name,
-            "title": (ratios[name] * 100).toFixed(1) + "% " + name,
-            "style": "flex-grow:" + ratios[name]
+            "class": key,
+            "title": (ratio * 100).toFixed(1) + "% " + key,
+            "style": "flex-grow:" + ratio
         }));
     }
     return bar;
@@ -199,6 +202,7 @@ export class SystemInspector {
         const stateView = new StateView(model);
         const actionViewCtrl = new ActionViewCtrl(model);
         // System
+        const systemSummaryView = new SystemSummaryView(model);
         const analysisCtrl = new AnalysisCtrl(model, keys);
         const refinementCtrl = new RefinementCtrl(model, keys);
         const snapshotViewCtrl = new SnapshotViewCtrl(model);
@@ -236,7 +240,8 @@ export class SystemInspector {
                 actionViewCtrl.node
             ],
             "System": [
-                dom.H3({}, ["System Analysis", dom.infoBox("info-analysis")]),
+                systemSummaryView.node,
+                dom.H3({}, ["Analysis", dom.infoBox("info-analysis")]),
                 analysisCtrl.node,
                 dom.H3({}, ["Abstraction Refinement", dom.infoBox("info-refinement")]),
                 refinementCtrl.node,
@@ -480,6 +485,10 @@ class SystemModel extends ObservableMixin<ModelChange> {
             }
             return data;
         });
+    }
+
+    getSystemSummary(): Promise<SystemSummaryData> {
+        return this._comm.request("getSystemSummary", null);
     }
 
     getSnapshots(): Promise<SnapshotData> {
@@ -1198,9 +1207,61 @@ class ActionViewCtrl {
 
 
 // Tab: System
+// - SystemSummaryView
 // - AnalysisCtrl
 // - RefinementCtrl
 // - SnapshotViewCtrl
+
+
+class SystemSummaryView {
+
+    +node: HTMLDivElement;
+    +_model: SystemModel;
+    _summary: ?SystemSummaryData;
+
+    constructor(model: SystemModel): void {
+        this._model = model;
+        this._model.attach((mc) => this.handleModelChange(mc));
+        this._summary = null;
+        this.node = dom.DIV({}, ["..."]);
+    }
+
+    handleChange() {
+        const [_, q] = this._model.state;
+        const summary = this._summary;
+        if (summary == null) return; // TODO
+        const stats = summary.get(q);
+        if (stats == null) return; // TODO
+        const count = stats.count;
+        const volume = stats.volume;
+        const totalCount = stats.count.yes + stats.count.no + stats.count.maybe + stats.count.unreachable;
+        const totalVolume = stats.volume.yes + stats.volume.no + stats.volume.maybe + stats.volume.unreachable;
+        dom.replaceChildren(this.node, [
+            dom.P({}, [
+                automatonLabel(q), " :: ",
+                dom.SPAN({ "class": "yes", "title": "yes" }, [stats.count.yes.toString()]), " + ",
+                dom.SPAN({ "class": "maybe", "title": "maybe" }, [stats.count.maybe.toString()]), " + ",
+                dom.SPAN({ "class": "no", "title": "no" }, [stats.count.no.toString()]), " + ",
+                dom.SPAN({ "class": "unreachable", "title": "unrechable" }, [stats.count.unreachable.toString()]), " = ",
+                totalCount + " states"
+            ]),
+            percentageBar(stats.volume)
+        ]);
+    }
+
+    handleModelChange(mc: ?ModelChange): void {
+        if (mc === "init" || mc === "analysis" || mc === "refinement") {
+            this._model.getSystemSummary().then((data) => {
+                this._summary = data;
+                this.handleChange();
+            });
+        } else if (mc == "state") {
+            this.handleChange();
+        }
+    }
+
+}
+
 
 class AnalysisCtrl {
 
@@ -1500,7 +1561,7 @@ class SnapshotViewCtrl {
                            + (snapshot.id === this._selection ? " selection" : "");
         const node = dom.DIV({ "class": cls }, [
             snapshot.name,
-            dom.SPAN({}, [snapshot.states + " states", percentageBar(snapshot.ratios)])
+            dom.SPAN({}, [snapshot.states + " states", percentageBar(snapshot.volumeStats)])
         ]);
         node.addEventListener("click", () => this._select(snapshot.id));
         nodes.push(node);

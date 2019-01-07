@@ -24,7 +24,7 @@ type Snapshot = {
     id: number,
     name: string,
     states: number,
-    ratios: { [string]: number },
+    volumeStats: SystemStats,
     system: JSONAbstractedLSS,
     analysis: ?AnalysisResults,
     // Tree structure
@@ -32,6 +32,12 @@ type Snapshot = {
     children: Set<Snapshot>
 }
 
+type SystemStats = {
+    yes: number,
+    no: number,
+    maybe: number,
+    unreachable: number
+}
 
 class SystemManager {
 
@@ -103,7 +109,7 @@ class SystemManager {
             id: node.id,
             name: node.name,
             states: node.states,
-            ratios: node.ratios,
+            volumeStats: node.volumeStats,
             children: sets.map(_ => this._treeify(_), node.children),
             isCurrent: node === this._current
         };
@@ -115,8 +121,8 @@ class SystemManager {
         const snapshot = {
             id: this._id++,
             name: name,
-            states: this.system.states.size,
-            ratios: this._volumeRatios(),
+            states: this.numberOfStates,
+            volumeStats: this.getVolumeStats(this.objective.automaton.initialState.label),
             system: this.system.serialize(true), // include actions/supports
             analysis: this._analysis,
             parent: this._current,
@@ -215,6 +221,47 @@ class SystemManager {
         return result;
     }
 
+    // Number of states excluding outer states
+    get numberOfStates(): number {
+        return iter.count(iter.filter(_ => !_.isOuter, this.system.states.values()));
+    }
+
+    getCountStats(q: AutomatonStateLabel): SystemStats {
+        return this._stats(q, _ => 1);
+    }
+
+    getVolumeStats(q: AutomatonStateLabel): SystemStats {
+        return this._stats(q, _ => _.polytope.volume);
+    }
+
+    _stats(q: AutomatonStateLabel, f: (State) => number): SystemStats {
+        let sYes     = 0;
+        let sMaybe   = 0;
+        let sNo      = 0;
+        let sUnreach = 0;
+        for (let state of this.system.states.values()) {
+            const result = this.getAnalysis(state);
+            if (state.isOuter) {
+                continue
+            } else if (result == null || result.maybe.has(q)) {
+                sMaybe += f(state);
+            } else if (result.yes.has(q)) {
+                sYes += f(state);
+            } else if (result.no.has(q)) {
+                sNo += f(state);
+            } else {
+                sUnreach += f(state);
+            }
+        }
+        return { 
+            yes: sYes,
+            no: sNo,
+            maybe: sMaybe,
+            unreachable: sUnreach
+        };
+    }
+
+    // TODO: rewrite with getSystemStats
     _volumeRatios(): { [string]: number } {
         let volYes = 0;
         let volMaybe = 0;
@@ -301,6 +348,17 @@ function stateDataPlusOf(state: State): StateDataPlus {
         numberOfActions: state.actions.length
     };
 }
+
+
+// System information summary
+export type SystemSummaryRequest = null;
+export type SystemSummaryData = Map<AutomatonStateLabel, { count: SystemStats, volume: SystemStats }>;
+inspector.onRequest("getSystemSummary", function (data: SystemSummaryRequest): SystemSummaryData {
+    return new Map(iter.map(
+        q => [q, { count: $.getCountStats(q), volume: $.getVolumeStats(q) }],
+        $.objective.allStates
+    ));
+});
 
 
 // Actions of a state
@@ -413,7 +471,7 @@ export type SnapshotData = {
     id: number,
     name: string,
     states: number,
-    ratios: { [string]: number },
+    volumeStats: SystemStats,
     children: Set<SnapshotData>,
     isCurrent: boolean
 };

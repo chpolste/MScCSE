@@ -205,6 +205,7 @@ a:hover {
     display: flex;
     flex-direction: row;
     border: 1px solid #BBB;
+    margin: 0 0 18px 0;
 }
 #inspector > .tabs > .bar div {
     flex: 1 1 auto;
@@ -341,6 +342,9 @@ a:hover {
 }
 .percentage-bar .no {
     background-color: #CCC;
+}
+.percentage-bar .unreachable {
+    background-color: #C99;
 }
 
 #control-space-view {

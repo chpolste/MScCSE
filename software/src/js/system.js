@@ -286,8 +286,15 @@ export class AbstractedLSS implements GameGraph {
         }
         // Add states
         for (let jsonState of json.states) {
-            const state = State.deserialize(jsonState, system);
+            // Don't restore actions, as not all states are restored yet and
+            // action targets may not be found
+            const state = State.deserialize(jsonState, system, false);
             system.states.set(state.label, state);
+        }
+        // All states have been restored, now add actions
+        for (let jsonState of json.states) {
+            const state = system.getState(jsonState.label);
+            state._restoreActions(jsonState.actions);
         }
         return system;
     }
@@ -547,22 +554,30 @@ export class State {
         this.resetActions(); // initializes _actions and _reachable
     }
 
-    static deserialize(json: JSONState, system: AbstractedLSS): State {
+    static deserialize(json: JSONState, system: AbstractedLSS, restoreActions?: boolean): State {
         const polytope = Polytope.deserialize(json.polytope);
         const state = new State(system, json.label, polytope, json.isOuter, json.predicates);
-        // Restore actions if they are included in serialization
-        if (json.actions != null) {
-            state._actions = json.actions.map(_ => Action.deserialize(_, state));
-            // Restore the internal _reachable set
-            const reachable = new Set();
-            for (let action of state._actions) {
-                for (let target of action.targets) {
-                    reachable.add(target);
-                }
-            }
-            state._reachable = reachable;
+        // If they are part of the backup and restoration is desired, restore
+        // actions. This will fail if the target states are not available in
+        // the system (yet). The deserialization of AbstractedLSS therefore
+        // omits this step and calls _restoreActions separately later.
+        if (restoreActions == null || restoreActions) {
+            state._restoreActions(json.actions);
         }
         return state;
+    }
+
+    _restoreActions(json: null|JSONAction[]): void {
+        if (json == null) return;
+        this._actions = json.map(_ => Action.deserialize(_, this));
+        // Restore the internal _reachable set
+        const reachable = new Set();
+        for (let action of this._actions) {
+            for (let target of action.targets) {
+                reachable.add(target);
+            }
+        }
+        this._reachable = reachable;
     }
 
     // Lazy evaluation and memoization of actions

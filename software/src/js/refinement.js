@@ -30,6 +30,8 @@ export class Refinery {
     +_objective: Objective;
     +_results: AnalysisResults;
     +_settings: RefinerySettings;
+    // Defaults for standard implementations of settings helpers
+    __pickActionBestParameters: [number, number, number];
 
     constructor(system: AbstractedLSS, objective: Objective,
                 results: AnalysisResults, settings: RefinerySettings): void {
@@ -37,6 +39,8 @@ export class Refinery {
         this._objective = objective;
         this._results = results;
         this._settings = settings;
+        // Best action pick weights. Order: [yes, no, maybe].
+        this.__pickActionBestParameters = [1, -1, 0];
     }
 
     // Partition the system state x in automaton states qs using the given
@@ -63,7 +67,7 @@ export class Refinery {
         return rest;
     }
 
-    // Collection of refineries for module export
+    // Collection of built-in refineries for module export
     static builtIns(): { [string]: Class<Refinery> } {
         return {
             "Negative Attractor": NegativeAttrRefinery,
@@ -82,36 +86,46 @@ export class Refinery {
         }
     }
 
-    // TODO: description
+    // Action pick helpers
+
+    // Select an action for a transition from system state x when transitioning
+    // to automaton state qNext according to the refinery settings
     _pickAction(x: State, qNext: AutomatonStateLabel): ?Action {
+        const pick = this._settings.actionPick;
         const actions = x.actions;
         // Nothing to pick if state has no actions
-        if (actions.length === 0) {
-            return null;
-        // Estimate best action by looking at the overlap of each action's
-        // posterior with yes/maybe/no states.
-        } else if (this._settings.actionPick === "best") {
-            const regionPos = this._getStateRegion("yes", qNext);
-            const regionNeg = this._getStateRegion("no", qNext);
-            let best = null;
-            let bestVal = -Infinity;
-            for (let action of actions) {
-                const post = x.post(action.controls);
-                const postVol = post.volume;
-                const ratioPos = regionPos.intersect(post).volume / postVol;
-                const ratioNeg = regionNeg.intersect(post).volume / postVol;
-                const ratioMaybe = 1 - ratioPos - ratioNeg;
-                const val = 10 * ratioPos + ratioMaybe - ratioNeg; // TODO: find good coefficients
-                if (val > bestVal) {
-                    best = action;
-                    bestVal = val;
-                }
+        if (actions.length === 0) return null;
+        // Best action estimate
+        if (pick === "best") return this.__pickActionBest(x, qNext);
+        // By default, choose action randomly
+        return actions[Math.floor(Math.random() * actions.length)];
+    }
+
+    // Default implementation for action pick setting "best". Estimate which
+    // action is "best" by looking at the overlap of each action's posterior
+    // with yes/maybe/no states. The overlap areas are combined into a score
+    // and the action with the highest score is returned. The weights used in
+    // the score calculation can be adjusted with __pickActionBestParameters.
+    __pickActionBest(x: State, qNext: AutomatonStateLabel): ?Action {
+        const [cYes, cNo, cMaybe] = this.__pickActionBestParameters;
+        const actions = x.actions;
+        const regionPos = this._getStateRegion("yes", qNext);
+        const regionNeg = this._getStateRegion("no", qNext);
+        let best = null;
+        let bestScore = -Infinity;
+        for (let action of actions) {
+            const post = x.post(action.controls);
+            const postVol = post.volume;
+            const ratioPos = regionPos.intersect(post).volume / postVol;
+            const ratioNeg = regionNeg.intersect(post).volume / postVol;
+            const ratioMaybe = 1 - ratioPos - ratioNeg;
+            const score = cYes * ratioPos + cNo * ratioNeg + cMaybe * ratioMaybe;
+            if (score > bestScore) {
+                best = action;
+                bestScore = score;
             }
-            return best;
-        // Randomly chosen action
-        } else {
-            return actions[Math.floor(Math.random() * actions.length)];
         }
+        return best;
     }
 
     // Convenience accessors
@@ -233,6 +247,8 @@ class PositiveAttrRRefinery extends Refinery {
         for (let q of objective.allStates) {
             this.yes.set(q, Array.from(this._getStates("yes", q)));
         }
+        // Look for most overlap with yes targets
+        this.__pickActionBestParameters = [10, -1, 1];
     }
 
     partition(x: State, q: AutomatonStateLabel, rest: Region): ?RefinementPartition {

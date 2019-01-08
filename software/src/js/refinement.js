@@ -17,10 +17,10 @@ export type RefinementPartition = { done: Region, rest: Region };
 
 // ...
 export type RefineryActionPick = "best" | "random";
-export type RefinerySimplification = "none" | "convexify";
+export type RefineryApproximation = "none" | "target" | "after";
 export type RefinerySettings = {
     actionPick: RefineryActionPick,
-    simplification: RefinerySimplification
+    approximation: RefineryApproximation
 };
 
 
@@ -29,18 +29,18 @@ export class Refinery {
     +_system: AbstractedLSS;
     +_objective: Objective;
     +_results: AnalysisResults;
-    +_settings: RefinerySettings;
+    +settings: RefinerySettings;
     // Defaults for standard implementations of settings helpers
-    __pickActionBestParameters: [number, number, number];
+    _pickActionBestParameters: [number, number, number];
 
     constructor(system: AbstractedLSS, objective: Objective,
                 results: AnalysisResults, settings: RefinerySettings): void {
         this._system = system;
         this._objective = objective;
         this._results = results;
-        this._settings = settings;
+        this.settings = settings;
         // Best action pick weights. Order: [yes, no, maybe].
-        this.__pickActionBestParameters = [1, -1, 0];
+        this._pickActionBestParameters = [1, -1, 0];
     }
 
     // Partition the system state x in automaton states qs using the given
@@ -76,27 +76,17 @@ export class Refinery {
         };
     }
 
-    // TODO: turn this into a more general "approximation" setting even if it
-    // has to be implemented individually by each refinery
-    _simplify(region: Region, rest: Region): Region {
-        if (this._settings.simplification === "convexify") {
-            return region.hull().intersect(rest).simplify();
-        } else {
-            return region.simplify();
-        }
-    }
-
     // Action pick helpers
 
     // Select an action for a transition from system state x when transitioning
     // to automaton state qNext according to the refinery settings
     _pickAction(x: State, qNext: AutomatonStateLabel): ?Action {
-        const pick = this._settings.actionPick;
+        const pick = this.settings.actionPick;
         const actions = x.actions;
         // Nothing to pick if state has no actions
         if (actions.length === 0) return null;
         // Best action estimate
-        if (pick === "best") return this.__pickActionBest(x, qNext);
+        if (pick === "best") return this._pickActionBest(x, qNext);
         // By default, choose action randomly
         return actions[Math.floor(Math.random() * actions.length)];
     }
@@ -106,8 +96,8 @@ export class Refinery {
     // with yes/maybe/no states. The overlap areas are combined into a score
     // and the action with the highest score is returned. The weights used in
     // the score calculation can be adjusted with __pickActionBestParameters.
-    __pickActionBest(x: State, qNext: AutomatonStateLabel): ?Action {
-        const [cYes, cNo, cMaybe] = this.__pickActionBestParameters;
+    _pickActionBest(x: State, qNext: AutomatonStateLabel): ?Action {
+        const [cYes, cNo, cMaybe] = this._pickActionBestParameters;
         const actions = x.actions;
         const regionPos = this._getStateRegion("yes", qNext);
         const regionNeg = this._getStateRegion("no", qNext);
@@ -126,6 +116,12 @@ export class Refinery {
             }
         }
         return best;
+    }
+
+    // Approximation helpers
+
+    _approximate(r: Region, what: RefineryApproximation): Region {
+        return (this.settings.approximation === what) ? r.hull() : r;
     }
 
     // Convenience accessors
@@ -178,8 +174,8 @@ class NegativeAttrRefinery extends Refinery {
         this.attr = new Map();
         const lss = system.lss;
         for (let q of objective.allStates) {
-            const target = this._getStateRegion("no", q).simplify();
-            this.attr.set(q, lss.attr(lss.xx, lss.uus, target));
+            const target = this._approximate(this._getStateRegion("no", q), "target");
+            this.attr.set(q, lss.attr(lss.xx, lss.uus, target).simplify());
         }
     }
 
@@ -192,7 +188,7 @@ class NegativeAttrRefinery extends Refinery {
         // Cut attractor of "no" region out of state
         const attr = this.attr.get(qNext);
         if (attr == null) throw new Error("NAR2"); // TODO
-        const done = attr.intersect(rest).simplify();
+        const done = this._approximate(attr, "after").intersect(rest).simplify();
         rest = rest.remove(done).simplify();
         // Progress guarantee, don't refine the attr further
         return { done: done, rest: rest };
@@ -212,8 +208,8 @@ class PositivePreRRefinery extends Refinery {
         this.preR = new Map();
         const lss = system.lss;
         for (let q of objective.allStates) {
-            const target = this._getStateRegion("yes", q).simplify();
-            this.preR.set(q, lss.preR(lss.xx, lss.uus, target));
+            const target = this._approximate(this._getStateRegion("yes", q), "target");
+            this.preR.set(q, lss.preR(lss.xx, lss.uus, target).simplify());
         }
     }
 
@@ -226,7 +222,7 @@ class PositivePreRRefinery extends Refinery {
         // Cut robust predecessor of "yes" region out of state
         const preR = this.preR.get(qNext);
         if (preR == null) throw new Error("NAR2"); // TODO
-        const done = preR.intersect(rest).simplify();
+        const done = this._approximate(preR, "after").intersect(rest).simplify();
         rest = rest.remove(done).simplify();
         // No progress guarantee, everything can be refined further
         return { done: this._getEmpty(), rest: done.union(rest) };
@@ -237,18 +233,19 @@ class PositivePreRRefinery extends Refinery {
 // Case 1 of the Positive AttrR refinement from Svorenova et al. (2017)
 class PositiveAttrRRefinery extends Refinery {
 
-    +yes: Map<AutomatonStateLabel, State[]>;
+    +yes: Map<AutomatonStateLabel, Region>;
 
     constructor(system: AbstractedLSS, objective: Objective,
                 results: AnalysisResults, settings: RefinerySettings): void {
         super(system, objective, results, settings);
-        // Precompute robust predecessor of "yes" states for every q
+        // Precompute target region ("yes" states) for every q
         this.yes = new Map();
         for (let q of objective.allStates) {
-            this.yes.set(q, Array.from(this._getStates("yes", q)));
+            const target = this._approximate(this._getStateRegion("yes", q), "target");
+            this.yes.set(q, target.simplify());
         }
         // Look for most overlap with yes targets
-        this.__pickActionBestParameters = [10, -1, 1];
+        this._pickActionBestParameters = [10, -1, 1];
     }
 
     partition(x: State, q: AutomatonStateLabel, rest: Region): ?RefinementPartition {
@@ -257,17 +254,19 @@ class PositiveAttrRRefinery extends Refinery {
         // Refine wrt to next automaton state
         const qNext = this._qNext(x, q);
         if (qNext == null) return null;
-        const xYes = this.yes.get(qNext);
-        if (xYes == null || xYes.length === 0) return null;
+        const target = this.yes.get(qNext);
+        if (target == null || target.isEmpty) return null;
         // Obtain an action for refining with
         const action = this._pickAction(x, qNext);
         if (action == null) return null;
+        const lss = this._system.lss;
         // Subdivide action polytope into smaller parts and find best part to
         // refine with (largest AttrR)
         let done = null;
         let doneVol = -Infinity;
         for (let u of action.controls.shatter().polytopes) {
-            const attrR = x.attrR(u, xYes).intersect(rest);
+            const attrR = lss.attrR(x.polytope, u, target).intersect(rest);
+            //const attrR = x.attrR(u, xYes).intersect(rest);
             const vol = attrR.volume;
             if (doneVol < vol) {
                 done = attrR;
@@ -275,7 +274,7 @@ class PositiveAttrRRefinery extends Refinery {
             }
         }
         if (done == null) return null;
-        done = this._simplify(done, rest);//done.simplify(); TODO
+        done = this._approximate(done, "after").simplify();
         rest = rest.remove(done).simplify();
         // Progress guarantee, don't refine the AttrR further
         return { done: done, rest: rest };

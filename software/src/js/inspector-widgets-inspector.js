@@ -306,7 +306,7 @@ class Logger extends ObservableMixin<null> {
 }
 
 
-type ModelChange = "state" | "action" | "support" | "trace" | "init" | "analysis" | "refinement" | "snapshot"; 
+type ModelChange = "state" | "action" | "support" | "trace" | "system" | "snapshot"; 
 // System access, centralized selection storage and change notifications
 class SystemModel extends ObservableMixin<ModelChange> {
 
@@ -330,19 +330,14 @@ class SystemModel extends ObservableMixin<ModelChange> {
         try {
             this._comm = new Communicator("ISYS");
             this._comm.onRequest("init", (data) => [system.serialize(), objective.serialize()]);
-            // The worker signals "ready" every time the system is unlocked for
-            // changes (at startup and after analysis)
-            this._comm.onRequest("ready", (data: string) => {
+            // The worker signals "ready" when everything is set up
+            this._comm.onRequest("ready", (data: null) => {
                 this.notify("snapshot");
                 this.notify("state");
                 this.notify("action");
                 this.notify("support");
                 this.notify("trace");
-                if (data === "init") this.notify("init");
-                if (data === "analysis") {
-                    this.notify("analysis");
-                    this.refreshSelection();
-                }
+                this.notify("system");
             });
             const worker = new Worker("./js/inspector-worker-system.js");
             worker.onerror = () => {
@@ -474,13 +469,17 @@ class SystemModel extends ObservableMixin<ModelChange> {
     }
 
     analyse(): Promise<AnalysisData> {
-        return this._comm.request("analyse", null);
+        return this._comm.request("analyse", null).then((data) => {
+            this.notify("system");
+            this.refreshSelection();
+            return data;
+        });
     }
 
     refine(qs: AutomatonStateLabel[], steps: RefineRequestStep[]): Promise<RefineData> {
         return this._comm.request("refine", [qs, steps]).then((data) => {
             if (data.size > 0) {
-                this.notify("refinement");
+                this.notify("system");
                 this.refreshSelection();
             }
             return data;
@@ -505,7 +504,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
     loadSnapshot(id: number): Promise<LoadSnapshotData> {
         return this._comm.request("loadSnapshot", id).then((data) => {
             this.notify("snapshot");
-            this.notify("init");
+            this.notify("system");
             this.refreshSelection();
             return data;
         });
@@ -589,7 +588,7 @@ class SystemViewCtrl {
 
     // Redraw elements when changes happen
     handleChange(mc: ?ModelChange): void {
-        if (mc === "init" || mc === "analysis" || mc === "refinement") {
+        if (mc === "system") {
             this._model.getStates().then((data) => {
                 this._data = data;
                 // Centroids are cached in a direct access data structure, as
@@ -1250,7 +1249,7 @@ class SystemSummaryView {
     }
 
     handleModelChange(mc: ?ModelChange): void {
-        if (mc === "init" || mc === "analysis" || mc === "refinement") {
+        if (mc === "system") {
             this._model.getSystemSummary().then((data) => {
                 this._summary = data;
                 this.handleChange();
@@ -1270,11 +1269,9 @@ class AnalysisCtrl {
     +_button: HTMLButtonElement;
     +_info: HTMLSpanElement;
     _infoText: string;
-    _startTime: ?DOMHighResTimeStamp;
 
     constructor(model: SystemModel, keys: dom.Keybindings): void {
         this._model = model;
-        this._model.attach((mc) => this.handleModelChange(mc));
         // Control elements, information display, keybindings
         this._button = dom.BUTTON({}, [dom.create("u", {}, ["a"]), "nalyse"]);
         this._button.addEventListener("click", () => this.analyse());
@@ -1284,9 +1281,6 @@ class AnalysisCtrl {
         ]);
         keys.bind("a", () => this.analyse());
         this._infoText = "";
-        this._startTime = null;
-        // Progress clock updates
-        window.setInterval(() => this.handleChange(), 333);
         // Initialize
         this.handleChange();
     }
@@ -1297,44 +1291,22 @@ class AnalysisCtrl {
     }
 
     analyse(): void {
-        if (this._startTime != null) {
-            this._model.logError({ name: "BusyError", message: "analysis already in progress" });
-            return;
-        }
-        this.infoText = "game abstraction...";
-        this._startTime = performance.now();
+        //if (this._startTime != null) { TODO
+            //this._model.logError({ name: "BusyError", message: "analysis already in progress" });
+            //return;
+        //}
+        this.infoText = "analysing...";
         // Redirect game graph to analysis worker and wait for results
-        this._model.analyse().then((data) => {
-            const start = this._startTime;
-            const elapsed = (start != null) ? performance.now() - start : 0; // TODO start == null should be some kind of error
-            this.infoText = "game abstraction (" + t2s(elapsed) + "), analysis...";
-            // Restart the clock for timing the analysis
-            this._startTime = performance.now();
+        this._model.analyse().then((data: AnalysisData) => {
+            this.infoText = "game abstraction (" + t2s(data.tGame) + "), analysis (" + t2s(data.tAnalysis) + ").";
         }).catch(err => {
-            this._startTime = null;
             //this.infoText = "error during construction of game abstraction";
             this._model.logError(err);
         });
     }
 
     handleChange(): void {
-        const text = [this._infoText];
-        const start = this._startTime;
-        if (start != null) {
-            const elapsed = performance.now() - start;
-            text.push(" (" + t2s(performance.now() - start) + ")");
-        }
-        dom.replaceChildren(this._info, text);
-    }
-
-    handleModelChange(mc: ?ModelChange): void {
-        const start = this._startTime;
-        if (mc !== "analysis" || start == null) return;
-        // First system change after game construction can only be end of
-        // analysis (TODO)
-        const elapsed = performance.now() - start;
-        this._startTime = null;
-        this.infoText = this._infoText.slice(0, -3) + " (" + t2s(elapsed) + ").";
+        dom.replaceChildren(this._info, [this._infoText]);
     }
 
 }

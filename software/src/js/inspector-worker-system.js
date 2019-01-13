@@ -8,6 +8,7 @@ import type { RefinerySettings } from "./refinement.js";
 import type { LSS, State, Trace, JSONAbstractedLSS } from "./system.js";
 
 import { controller } from "./controller.js";
+import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Polytope, Union } from "./geometry.js";
 import { Objective } from "./logic.js";
 import { Refinery } from "./refinement.js";
@@ -48,7 +49,6 @@ class SystemManager {
     _system: ?AbstractedLSS;
     _analysis: ?AnalysisResults;
     _objective: ?Objective;
-    locked: boolean;
 
     constructor(): void {
         this._snapshots = new Map();
@@ -57,14 +57,11 @@ class SystemManager {
         this._current = null;
         this._system = null;
         this._analysis = null;
-        // System is locked until initialized
-        this.locked = true;
     }
 
     // Startup (has to be called before instance can be used)
 
     initialize(system: AbstractedLSS, objective: Objective): void {
-        this.locked = false;
         this._snapshots.clear();
         this._system = system;
         this._objective = objective;
@@ -141,9 +138,6 @@ class SystemManager {
     }
 
     loadSnapshot(id: number): void {
-        if (this.locked) throw new Error(
-            "system is locked, cannot apply changes"
-        );
         const snapshot = this._snapshots.get(id);
         if (snapshot == null) throw new Error(
             "Snapshot with id " + id + "does not exist"
@@ -163,18 +157,21 @@ class SystemManager {
 
     // Wrapped system functionality (with additional housekeeping)
 
-    processAnalysis(results: AnalysisResults): Set<State> {
+    analyse(): AnalysisData {
+        const t0 = performance.now();
+        const game = TwoPlayerProbabilisticGame.fromProduct(this.system, this.objective, this.analysis);
+        const t1 = performance.now();
+        const results = game.analyse();
+        const t2 = performance.now();
+        // TODO: analysis statistics
         this._analysis = results;
-        const updated = new Set(); // TODO
-        // Refinery setup is affected by analysis results and system, so both
-        // have to be updated earlier
-        return updated;
+        return {
+            tGame: (t1 - t0),
+            tAnalysis: (t2 - t1)
+        };
     }
 
     refine(qs: AutomatonStateLabel[], refineries: RefineRequestStep[]): Set<State> {
-        if (this.locked) throw new Error(
-            "system is locked, cannot refine"
-        );
         const analysis = this.analysis;
         if (analysis == null) throw new Error(
             "Refinement requires an analysed system"
@@ -433,25 +430,12 @@ inspector.onRequest("sampleTrace", function (data: TraceRequest): TraceData {
 
 // Analyse the system
 export type AnalysisRequest = null;
-export type AnalysisData = null;
+export type AnalysisData = {
+    tGame: number,
+    tAnalysis: number
+};
 inspector.onRequest("analyse", function (data: AnalysisRequest): AnalysisData {
-    if ($.locked) throw new Error("system is locked, cannot analyse");
-    // Use analysis results to simplify the game graph
-    const analysis = $.analysis;
-    const gameGraph = $.system.serializeGameGraph(analysis);
-    // Prevent changes to the system until analysis has finished
-    $.locked = true;
-    // Also give previous analysis results to new analysis
-    analyser.request("analyse", [gameGraph, analysis]).then(function (data) {
-        $.processAnalysis(data);
-        // Unlock system after analysis
-        $.locked = false;
-        // Send "ready" signal to inspector, signalling that system has changed
-        return inspector.request("ready", "analysis");
-    });
-    // Return early, to signal that game graph has been built and analysis is
-    // running. Final update is then pushed to host in a separate request.
-    return null;
+    return $.analyse();
 });
 
 
@@ -502,23 +486,6 @@ inspector.onRequest("nameSnapshot", function (data: NameSnapshotRequest): NameSn
 
 
 
-// Additional worker for analysis, so system exploration stays responsive
-const analyser = new Communicator("ANA");
-
-// Analysis requires the objective once at startup
-analyser.onRequest("objective", function (data): JSONObjective {
-    return $.objective.serialize();
-});
-
-// When this and the analysis worker are both ready, signal readyness to the
-// host application
-analyser.onRequest("ready", function (data) {
-    inspector.request("ready", "init");
-    return null;
-});
-
-
-
 // Because https://github.com/facebook/flow/pull/6100 is not merged yet:
 // $FlowFixMe
 inspector.host = self;
@@ -528,10 +495,7 @@ inspector.request("init", null).then(function (data: [JSONAbstractedLSS, JSONObj
     const [system, objective] = data;
     // Initialize the global state manager
     $.initialize(AbstractedLSS.deserialize(system), Objective.deserialize(objective));
-    // Start the analysis worker
-    analyser.host = new Worker("./inspector-worker-analysis.js");
-    // When the analysis worker is ready, it will send the ready signal to the
-    // host application
-    return null;
+    // Send the ready signal to the host application
+    inspector.request("ready", null);
 });
 

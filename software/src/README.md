@@ -28,7 +28,6 @@
 - `html/inspector.html`
 - `js/inspector-widgets-inspector.js`: widget collection for problem exploration
 - `js/inspector-widgets-setup.js`: widget collection for problem input
-- `js/inspector-worker-analysis.js`: web worker for game construction and analysis
 - `js/inspector-worker-system.js`: web worker for system abstraction management and operations
 
 ### Plotter 2D

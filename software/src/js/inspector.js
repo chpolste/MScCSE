@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const keybindings = new dom.Keybindings();
 
-    const problemSetup = new ProblemSetup(function (lss, predicates, predicateLabels, objective) {
+    const problemSetup = new ProblemSetup((lss, predicates, predicateLabels, objective, analyseWhenReady) => {
 
         // Create initial abstraction of LSS by decomposing with the specified
         // predicates
@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Show a summary of the problem setup and the interactive system inspector
         const problem = new ProblemSummary(system, objective);
-        const inspector = new SystemInspector(system, objective, keybindings);
+        const inspector = new SystemInspector(system, objective, keybindings, analyseWhenReady);
 
         if (contentNode == null) throw new Error();
         dom.replaceChildren(contentNode, [problem.node, inspector.node]);

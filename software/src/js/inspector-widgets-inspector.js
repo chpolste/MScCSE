@@ -189,9 +189,9 @@ export class SystemInspector {
     +objective: Objective;
     +_system: AbstractedLSS;
 
-    constructor(system: AbstractedLSS, objective: Objective, keys: dom.Keybindings) {
+    constructor(system: AbstractedLSS, objective: Objective, keys: dom.Keybindings, analyseWhenReady: boolean) {
         const log = new Logger();
-        const model = new SystemModel(system, objective, log);
+        const model = new SystemModel(system, objective, log, analyseWhenReady);
         // Main
         const systemViewCtrl = new SystemViewCtrl(model);
         const systemViewCtrlCtrl = new SystemViewCtrlCtrl(systemViewCtrl, keys);
@@ -321,7 +321,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
     _support: ?SupportData;
     _trace: ?TraceData;
 
-    constructor(system: AbstractedLSS, objective: Objective, log: Logger): void {
+    constructor(system: AbstractedLSS, objective: Objective, log: Logger, analyseWhenReady: boolean): void {
         super();
         this.log = log;
         // System initialization
@@ -338,6 +338,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
                 this.notify("support");
                 this.notify("trace");
                 this.notify("system");
+                if (analyseWhenReady) this.analyse();
             });
             const worker = new Worker("./js/inspector-worker-system.js");
             worker.onerror = () => {
@@ -345,7 +346,6 @@ class SystemModel extends ObservableMixin<ModelChange> {
             };
             this._comm.host = worker;
         } catch (e) {
-            // TODO worker error handling as in AnalysisCtrl
             // Chrome does not allow Web Workers for local resources
             if (e.name === "SecurityError") {
                 this.logError(e);

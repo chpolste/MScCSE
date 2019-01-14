@@ -79,7 +79,7 @@ objective with a live preview and consistency checks.
 
 // Widgets here take other inputs as dimension/shape args, to allow change
 
-type ProblemCallback = (LSS, Halfspace[], string[], Objective) => void;
+type ProblemCallback = (LSS, Halfspace[], string[], Objective, boolean) => void;
 
 export class ProblemSetup extends ObservableMixin<null> {
     
@@ -93,6 +93,7 @@ export class ProblemSetup extends ObservableMixin<null> {
     +cs: Input<Polytope>;
     +predicates: Input<[Halfspace[], string[]]>;
     +objective: Input<Objective>;
+    +analyseWhenReady: Input<boolean>;
     +callback: ProblemCallback;
     +system: AbstractedLSS;
 
@@ -133,6 +134,7 @@ export class ProblemSetup extends ObservableMixin<null> {
                 this.submit();
             }
         });
+        this.analyseWhenReady = new CheckboxInput(true);
         this.node = dom.FORM({}, [
             dom.H3({}, ["Dimensions"]),
             dom.P({}, [this.ssDim.node, " state space"]),
@@ -140,6 +142,7 @@ export class ProblemSetup extends ObservableMixin<null> {
             dom.H3({}, ["Evolution Equation"]), this.equation.node,
             columns,
             dom.H3({}, ["Continue"]),
+            dom.P({}, [dom.LABEL({}, [this.analyseWhenReady.node, "analyse at startup"])]),
             dom.P({}, [submit])
         ]);
 
@@ -184,7 +187,7 @@ export class ProblemSetup extends ObservableMixin<null> {
     }
 
     submit(): void {
-        this.callback(this.lss, ...this.predicates.value, this.objective.value);
+        this.callback(this.lss, ...this.predicates.value, this.objective.value, this.analyseWhenReady.value);
     }
 
 }

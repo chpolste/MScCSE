@@ -202,8 +202,7 @@ export class SystemInspector {
         const stateView = new StateView(model);
         const actionViewCtrl = new ActionViewCtrl(model);
         // System
-        const systemSummaryView = new SystemSummaryView(model);
-        const analysisCtrl = new AnalysisCtrl(model, keys);
+        const analysisCtrl = new AnalysisViewCtrl(model, keys);
         const refinementCtrl = new RefinementCtrl(model, keys);
         const snapshotViewCtrl = new SnapshotViewCtrl(model);
         // Strategy
@@ -240,7 +239,6 @@ export class SystemInspector {
                 actionViewCtrl.node
             ],
             "System": [
-                systemSummaryView.node,
                 dom.H3({}, ["Analysis", dom.infoBox("info-analysis")]),
                 analysisCtrl.node,
                 dom.H3({}, ["Abstraction Refinement", dom.infoBox("info-refinement")]),
@@ -1206,26 +1204,52 @@ class ActionViewCtrl {
 
 
 // Tab: System
-// - SystemSummaryView
-// - AnalysisCtrl
+// - AnalysisViewCtrl
 // - RefinementCtrl
 // - SnapshotViewCtrl
 
 
-class SystemSummaryView {
+class AnalysisViewCtrl {
 
     +node: HTMLDivElement;
     +_model: SystemModel;
+    +_button: HTMLButtonElement;
+    +_info: HTMLSpanElement;
+    _bar: HTMLDivElement;
     _summary: ?SystemSummaryData;
 
-    constructor(model: SystemModel): void {
+    constructor(model: SystemModel, keys: dom.Keybindings): void {
         this._model = model;
         this._model.attach((mc) => this.handleModelChange(mc));
-        this._summary = null;
-        this.node = dom.DIV({}, ["..."]);
+        // Button to start analysis
+        this._button = dom.BUTTON({}, [dom.create("u", {}, ["a"]), "nalyse"]);
+        this._button.addEventListener("click", () => this.analyse());
+        // Text information display
+        this._info = dom.SPAN({ "class": "count-stats" });
+        // Progress bar
+        this._bar = percentageBar({ "please wait...": 1 });
+        // Widget
+        this.node = dom.DIV({ "id": "analysis-view-ctrl"}, [
+            dom.P({}, [this._button, this._info]),
+            this._bar
+        ]);
+        keys.bind("a", () => this.analyse());
     }
 
-    handleChange() {
+    analyse(): void {
+        //if (this._startTime != null) { TODO
+            //this._model.logError({ name: "BusyError", message: "analysis already in progress" });
+            //return;
+        //}
+        // Redirect game graph to analysis worker and wait for results
+        this._model.analyse().then((data: AnalysisData) => {
+            //this.infoText = "game abstraction (" + t2s(data.tGame) + "), analysis (" + t2s(data.tAnalysis) + ").";
+        }).catch(err => {
+            this._model.logError(err);
+        });
+    }
+
+    handleChange(): void {
         const [_, q] = this._model.state;
         const summary = this._summary;
         if (summary == null) return; // TODO
@@ -1233,19 +1257,19 @@ class SystemSummaryView {
         if (stats == null) return; // TODO
         const count = stats.count;
         const volume = stats.volume;
-        const totalCount = stats.count.yes + stats.count.no + stats.count.maybe + stats.count.unreachable;
-        const totalVolume = stats.volume.yes + stats.volume.no + stats.volume.maybe + stats.volume.unreachable;
-        dom.replaceChildren(this.node, [
-            dom.P({}, [
-                automatonLabel(q), " :: ",
-                dom.SPAN({ "class": "yes", "title": "yes" }, [stats.count.yes.toString()]), " + ",
-                dom.SPAN({ "class": "maybe", "title": "maybe" }, [stats.count.maybe.toString()]), " + ",
-                dom.SPAN({ "class": "no", "title": "no" }, [stats.count.no.toString()]), " + ",
-                dom.SPAN({ "class": "unreachable", "title": "unrechable" }, [stats.count.unreachable.toString()]), " = ",
-                totalCount + " states"
-            ]),
-            percentageBar(stats.volume)
+        const totalCount = count.yes + count.no + count.maybe + count.unreachable;
+        const totalVolume = volume.yes + volume.no + volume.maybe + volume.unreachable;
+        dom.replaceChildren(this._info, [
+            automatonLabel(q), " :: ",
+            dom.SPAN({ "class": "yes", "title": "yes" }, [count.yes.toString()]), " + ",
+            dom.SPAN({ "class": "maybe", "title": "maybe" }, [count.maybe.toString()]), " + ",
+            dom.SPAN({ "class": "no", "title": "no" }, [count.no.toString()]), " + ",
+            dom.SPAN({ "class": "unreachable", "title": "unrechable" }, [count.unreachable.toString()]), " = ",
+            totalCount + " states"
         ]);
+        const bar = percentageBar(volume);
+        this.node.replaceChild(bar, this._bar);
+        this._bar = bar;
     }
 
     handleModelChange(mc: ?ModelChange): void {
@@ -1257,56 +1281,6 @@ class SystemSummaryView {
         } else if (mc == "state") {
             this.handleChange();
         }
-    }
-
-}
-
-
-class AnalysisCtrl {
-
-    +node: HTMLDivElement;
-    +_model: SystemModel;
-    +_button: HTMLButtonElement;
-    +_info: HTMLSpanElement;
-    _infoText: string;
-
-    constructor(model: SystemModel, keys: dom.Keybindings): void {
-        this._model = model;
-        // Control elements, information display, keybindings
-        this._button = dom.BUTTON({}, [dom.create("u", {}, ["a"]), "nalyse"]);
-        this._button.addEventListener("click", () => this.analyse());
-        this._info = dom.SPAN();
-        this.node = dom.DIV({ "id": "analysis-ctrl"}, [
-            dom.P({}, [this._button, " ", this._info])
-        ]);
-        keys.bind("a", () => this.analyse());
-        this._infoText = "";
-        // Initialize
-        this.handleChange();
-    }
-
-    set infoText(text: string): void {
-        this._infoText = text;
-        this.handleChange();
-    }
-
-    analyse(): void {
-        //if (this._startTime != null) { TODO
-            //this._model.logError({ name: "BusyError", message: "analysis already in progress" });
-            //return;
-        //}
-        this.infoText = "analysing...";
-        // Redirect game graph to analysis worker and wait for results
-        this._model.analyse().then((data: AnalysisData) => {
-            this.infoText = "game abstraction (" + t2s(data.tGame) + "), analysis (" + t2s(data.tAnalysis) + ").";
-        }).catch(err => {
-            //this.infoText = "error during construction of game abstraction";
-            this._model.logError(err);
-        });
-    }
-
-    handleChange(): void {
-        dom.replaceChildren(this._info, [this._infoText]);
     }
 
 }

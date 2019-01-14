@@ -447,6 +447,11 @@ span.unreachable {
     float: right;
 }
 
+#analysis-view-ctrl .count-stats {
+    float: right;
+    line-height: 23px;
+}
+
 #refinement-qs {
     margin-bottom: 10px;
     border-bottom: 1px solid #CCC;

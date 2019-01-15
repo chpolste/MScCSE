@@ -192,6 +192,7 @@ export class SystemInspector {
     constructor(system: AbstractedLSS, objective: Objective, keys: dom.Keybindings, analyseWhenReady: boolean) {
         const log = new Logger();
         const model = new SystemModel(system, objective, log, analyseWhenReady);
+        // TODO: handle analyseWhenReady by attaching to model?
         // Main
         const systemViewCtrl = new SystemViewCtrl(model);
         const systemViewCtrlCtrl = new SystemViewCtrlCtrl(systemViewCtrl, keys);
@@ -202,7 +203,7 @@ export class SystemInspector {
         const stateView = new StateView(model);
         const actionViewCtrl = new ActionViewCtrl(model);
         // System
-        const analysisCtrl = new AnalysisViewCtrl(model, keys);
+        const analysisViewCtrl = new AnalysisViewCtrl(model, keys);
         const refinementCtrl = new RefinementCtrl(model, keys);
         const snapshotViewCtrl = new SnapshotViewCtrl(model);
         // Strategy
@@ -231,51 +232,51 @@ export class SystemInspector {
             dom.appendChildren(appLinks, [" :: ", plotterLink]);
         }
 
-        this.tabs = new TabbedView({
-            "Game": [
-                dom.H3({}, ["Selection", dom.infoBox("info-state")]),
-                stateView.node,
-                dom.H3({}, ["Actions", dom.infoBox("info-actions")]),
-                actionViewCtrl.node
-            ],
-            "System": [
-                dom.H3({}, ["Analysis", dom.infoBox("info-analysis")]),
-                analysisCtrl.node,
-                dom.H3({}, ["Abstraction Refinement", dom.infoBox("info-refinement")]),
-                refinementCtrl.node,
-                dom.H3({}, ["Snapshots", dom.infoBox("info-snapshots")]),
-                snapshotViewCtrl.node
-            ],
-            //"Objective": [
-                //dom.H3({}, ["Trace Sample", dom.infoBox("info-trace")]),
-                //traceViewCtrl.node
-            //],
-            "Debug": [
-                dom.H3({}, ["Connectivity"]),
-                appLinks,
-                dom.H3({}, ["Error Message"]),
-                log.node
-            ]
-        }, "System");
-        log.attach(() => this.tabs.highlight("Debug"));
+        const tabs = new TabbedView();
+        const gameTab = tabs.newTab("Game", [
+            stateView,
+            actionViewCtrl
+        ]);
+        const systemTab = tabs.newTab("System", [
+            analysisViewCtrl,
+            refinementCtrl,
+            snapshotViewCtrl
+        ]);
+        //const controlTab = tabs.newTab("Control", [
+            // TODO traceViewCtrl
+        //]);
+        //const infoTab = tabs.newTab("Info", [
+            // TODO: connectivity, log
+        //]);
+        tabs.select("System");
+        //log.attach(() => this.tabs.highlight("Debug")); TODO
 
         this.node = dom.DIV({ "id": "inspector" }, [
             dom.DIV({ "class": "left" }, [
                 systemViewCtrl.node,
                 dom.DIV({"class": "cols"}, [
                     dom.DIV({ "class": "left" }, [
-                        dom.H3({}, ["Control and Random Space", dom.infoBox("info-control")]),
+                        dom.H3({}, [
+                            "Control and Random Space",
+                            dom.DIV({ "class": "icons" }, [dom.infoBox("info-control")])
+                        ]),
                         controlSpaceView.node, randomSpaceView.node,
-                        dom.H3({}, ["View Settings", dom.infoBox("info-settings")]),
+                        dom.H3({}, [
+                            "View Settings",
+                            dom.DIV({ "class": "icons" }, [dom.infoBox("info-settings")])
+                        ]),
                         systemViewCtrlCtrl.node
                     ]),
                     dom.DIV({ "class": "right" }, [
-                        dom.H3({}, ["Objective Automaton", dom.infoBox("info-automaton")]),
+                        dom.H3({}, [
+                            "Objective Automaton",
+                            dom.DIV({ "class": "icons" }, [dom.infoBox("info-automaton")])
+                        ]),
                         automatonViewCtrl.node
                     ])
                 ])
             ]),
-            this.tabs.node
+            tabs.node
         ]);
     }
 
@@ -980,48 +981,112 @@ class AutomatonViewCtrl {
 
 // Right Column: Tabs
 
-type Tabs = { [string]: TabContent[] };
-type TabContent = Element | { +node: Element };
 class TabbedView {
 
-    +tabs: Tabs;
-    +content: HTMLDivElement;
-    +titles: { [string]: HTMLDivElement };
-    _selection: ?string;
+    +_tabs: Map<string, TabContent>;
+    +_bar: HTMLDivElement;
+    +_content: HTMLDivElement;
+    _selection: ?TabContent;
     +node: HTMLDivElement;
 
-    constructor(tabs: Tabs, init: string): void {
-        this.tabs = tabs;
-        this.content = dom.DIV();
-        this.titles = obj.map((key, _) => {
-            const link = dom.DIV({}, [key]);
-            link.addEventListener("click", () => this.select(key));
-            return link;
-        }, tabs);
-        this.node = dom.DIV({ "class": "tabs" }, [
-            dom.DIV({ "class": "bar" }, [...obj.values(this.titles)]), this.content
-        ]);
+    constructor(): void {
+        this._tabs = new Map();
+        this._bar = dom.DIV({ "class": "bar" });
+        this._content = dom.DIV();
+        this.node = dom.DIV({ "class": "tabs" }, [this._bar, this._content]);
         this._selection = null;
-        this.select(init);
     }
 
-    select(tab: string): void {
-        const sel = this._selection;
-        if (sel != null) {
-            this.titles[sel].className = "";
+    newTab(name: string, widgets: TabWidget[]): TabContent {
+        const tab = new TabContent(this, name, widgets);
+        this._tabs.set(name, tab);
+        this._bar.appendChild(tab.title);
+        return tab;
+    }
+
+    select(name: string): void {
+        const oldTab = this._selection;
+        if (oldTab != null) {
+            oldTab.title.className = ""; // TODO
         }
-        const nodes = this.tabs[tab];
-        dom.replaceChildren(this.content, nodes.map(
-            (_) => (_ instanceof Element ? _ : _.node)
-        ));
-        this.titles[tab].className = "selection";
+        const tab = this._tabs.get(name);
+        if (tab == null) throw new Error(); // TODO
+        dom.replaceChildren(this._content, tab.children);
+        tab.title.className = "selection";
         this._selection = tab;
     }
 
-    highlight(tab: string): void {
-        if (this._selection == null || this._selection != tab) {
-            this.titles[tab].className = "highlight";
+}
+
+
+type TabWidget = { +node: HTMLDivElement, +heading: HTMLHeadingElement };
+class TabContent {
+
+    +title: HTMLDivElement;
+    +widgets: TabWidget[];
+
+    constructor(view: TabbedView, name: string, widgets: TabWidget[]): void {
+        this.title = dom.DIV({}, [name]);
+        this.title.addEventListener("click", () => view.select(name));
+        this.widgets = widgets;
+    }
+
+    get children(): HTMLElement[] {
+        const out = [];
+        for (let widget of this.widgets) {
+            out.push(widget.heading);
+            out.push(widget.node);
         }
+        return out;
+    }
+
+}
+
+
+class WidgetPlus {
+
+    // ...
+    +node: HTMLDivElement;
+    +heading: HTMLHeadingElement;
+    +_icons: HTMLElement[];
+    // ...
+    _isLoading: number;
+
+    constructor(title: string, infoBoxId?: string): void {
+        this._isLoading = 0;
+        this._icons = [
+            dom.create("img", {
+                "src": "svg/loading16.svg",
+                "style": "display:none;",
+                "title": "loading...",
+                "alt": "loading..."
+            })
+        ];
+        if (infoBoxId != null) this._icons.push(dom.infoBox(infoBoxId));
+        this.heading = dom.H3({}, [
+            title,
+            dom.DIV({ "class": "icons" }, this._icons)
+        ]);
+    }
+
+    // TODO: logging
+
+    get isLoading(): boolean {
+        return this._isLoading > 0;
+    }
+
+    pushLoad(): void {
+        this._isLoading++;
+        if (this._isLoading === 1) this.handleLoadingChange();
+    }
+    
+    popLoad(): void {
+        this._isLoading--;
+        if (this._isLoading === 0) this.handleLoadingChange();
+    }
+
+    handleLoadingChange(): void {
+        this._icons[0].style.display = this.isLoading ? "inline-block" : "none";
     }
 
 }
@@ -1031,7 +1096,7 @@ class TabbedView {
 // - StateView
 // - ActionViewCtrl
 
-class StateView {
+class StateView extends WidgetPlus {
 
     +node: HTMLDivElement;
     +_model: SystemModel;
@@ -1039,6 +1104,7 @@ class StateView {
     +_predicates: SelectableNodes<PredicateID>;
 
     constructor(model: SystemModel): void {
+        super("Selection", "info-state");
         this._model = model;
         this._model.attach((mc) => this.handleChange(mc));
         this._lines = [dom.DIV({ "class": "selection" }), dom.DIV(), dom.DIV()];
@@ -1097,7 +1163,7 @@ class StateView {
 
 // Lists actions available for the selected state and contains the currently
 // selected action. Observes StateView for the currently selected state.
-class ActionViewCtrl {
+class ActionViewCtrl extends WidgetPlus {
 
     +node: HTMLDivElement;
     +_model: SystemModel;
@@ -1110,6 +1176,7 @@ class ActionViewCtrl {
     _supportNode: HTMLDivElement;
 
     constructor(model: SystemModel): void {
+        super("Actions", "info-actions");
         this._model = model;
         this._model.attach((mc) => this.handleChange(mc));
         this._action = null;
@@ -1127,12 +1194,17 @@ class ActionViewCtrl {
             const [x, q] = this._model.state;
             if (x != null && this._model.transitionTo(x, q) != null
                           && analysisKind(q, x.analysis) !== "unreachable") {
+                this.pushLoad();
                 this._model.getActions(x.label).then((actions) => {
                     // Only update if state has not changed since
                     if (this._model.state[0] !== x) return;
                     this._actionNodes = new Map(actions.map(_ => [_, this.actionToNode(_)]));
                     dom.replaceChildren(this.node, this._actionNodes.values());
-                }).catch((e) => this._model.logError(e));
+                }).catch((e) => {
+                    this._model.logError(e)
+                }).finally(() => {
+                    this.popLoad();
+                });
             } else {
                 dom.replaceChildren(this.node, ["-"]);
             }
@@ -1156,10 +1228,15 @@ class ActionViewCtrl {
             const newNode = this._actionNodes.get(action);
             if (newNode != null) {
                 newNode.className = "selection";
+                this.pushLoad();
                 this._model.getSupports(action.origin.label, action.id).then(supports => {
                     dom.replaceChildren(this._supportNode, supports.map((_) => this.supportToNode(_)));
                     dom.appendAfter(this.node, newNode, this._supportNode);
-                }).catch(e => this._model.logError(e));
+                }).catch((e) => {
+                    this._model.logError(e)
+                }).finally(() => {
+                    this.popLoad();
+                });
             }
         }
         this._model.action = this._action;
@@ -1209,9 +1286,8 @@ class ActionViewCtrl {
 // - SnapshotViewCtrl
 
 
-class AnalysisViewCtrl {
+class AnalysisViewCtrl extends WidgetPlus{
 
-    +node: HTMLDivElement;
     +_model: SystemModel;
     +_button: HTMLButtonElement;
     +_info: HTMLSpanElement;
@@ -1219,6 +1295,7 @@ class AnalysisViewCtrl {
     _summary: ?SystemSummaryData;
 
     constructor(model: SystemModel, keys: dom.Keybindings): void {
+        super("Analysis", "info-analysis");
         this._model = model;
         this._model.attach((mc) => this.handleModelChange(mc));
         // Button to start analysis
@@ -1237,15 +1314,16 @@ class AnalysisViewCtrl {
     }
 
     analyse(): void {
-        //if (this._startTime != null) { TODO
-            //this._model.logError({ name: "BusyError", message: "analysis already in progress" });
-            //return;
-        //}
+        if (this.isLoading) return; // TODO
+        this.pushLoad();
         // Redirect game graph to analysis worker and wait for results
         this._model.analyse().then((data: AnalysisData) => {
+            // TODO: log
             //this.infoText = "game abstraction (" + t2s(data.tGame) + "), analysis (" + t2s(data.tAnalysis) + ").";
         }).catch(err => {
             this._model.logError(err);
+        }).finally(() => {
+            this.popLoad();
         });
     }
 
@@ -1274,13 +1352,23 @@ class AnalysisViewCtrl {
 
     handleModelChange(mc: ?ModelChange): void {
         if (mc === "system") {
+            this.pushLoad();
             this._model.getSystemSummary().then((data) => {
                 this._summary = data;
                 this.handleChange();
+            }).catch((e) => {
+                this._model.logError(e);
+            }).finally(() => {
+                this.popLoad();
             });
         } else if (mc == "state") {
             this.handleChange();
         }
+    }
+    
+    handleLoadingChange(): void {
+        super.handleLoadingChange();
+        this._button.disabled = this.isLoading;
     }
 
 }
@@ -1288,22 +1376,21 @@ class AnalysisViewCtrl {
 
 // Refinement controls. Observes analysis widget to block operations while
 // analysis is carried out.
-class RefinementCtrl {
+class RefinementCtrl extends WidgetPlus {
 
-    +node: HTMLDivElement;
     +_model: SystemModel;
-    +_refine: HTMLButtonElement;
+    +_button: HTMLButtonElement;
     +_info: HTMLSpanElement;
     +_qs: Map<AutomatonStateLabel, HTMLInputElement>;
     +_steps: RefinementStep[];
     +_stepBox: HTMLDivElement;
     
     constructor(model: SystemModel, keys: dom.Keybindings): void {
+        super("Abstraction Refinement", "info-refinement");
         this._model = model;
         this._model.attach((mc) => this.handleChange(mc));
-        this._refine = dom.BUTTON({}, [dom.create("u", {}, ["r"]), "efine"]);
-        this._refine.addEventListener("click", () => this.refine());
-        this._info = dom.SPAN({}, []);
+        this._button = dom.BUTTON({}, [dom.create("u", {}, ["r"]), "efine"]);
+        this._button.addEventListener("click", () => this.refine());
         this._qs = new Map();
         for (let q of this._model.qAll) {
             const checkbox = dom.INPUT({ "type": "checkbox" });
@@ -1317,8 +1404,7 @@ class RefinementCtrl {
         ];
         this._stepBox = dom.DIV({}, this._steps.map(_ => _.node));
         this.node = dom.DIV({}, [
-            //dom.P({}, [ this._info]), TODO: move to debug log, create proper notification system
-            dom.P({ "id": "refinement-ctrl" }, [this._refine, " ", ...iter.map(([q, box]) => dom.LABEL({}, [box, automatonLabel(q)]), this._qs)]),
+            dom.P({ "id": "refinement-ctrl" }, [this._button, " ", ...iter.map(([q, box]) => dom.LABEL({}, [box, automatonLabel(q)]), this._qs)]),
             this._stepBox
         ]);
         // Keyboard Shortcuts
@@ -1337,8 +1423,16 @@ class RefinementCtrl {
         return qs;
     }
 
-    set infoText(text: string): void {
-        dom.replaceChildren(this._info, [text]);
+    refine(): void {
+        if (this.isLoading) return; // TODO
+        this.pushLoad();
+        this._model.refine(this.qs, this.steps).then((data) => {
+            //this.infoText = "Refined " + data.size + (data.size === 1 ? " state." : " states."); TODO
+        }).catch(e => {
+            this._model.logError(e);
+        }).finally(() => {
+            this.popLoad();
+        });
     }
 
     handleChange(mc: ?ModelChange): void {
@@ -1346,13 +1440,9 @@ class RefinementCtrl {
         const [x, _] = this._model.state;
     }
 
-    refine(): void {
-        this._model.refine(this.qs, this.steps).then((data) => {
-            this.infoText = "Refined " + data.size + (data.size === 1 ? " state." : " states.");
-        }).catch(e => {
-            // TODO catch analysis busy error
-            this._model.logError(e);
-        });
+    handleLoadingChange(): void {
+        super.handleLoadingChange();
+        this._button.disabled = this.isLoading;
     }
 
 }
@@ -1412,9 +1502,8 @@ class RefinementStep {
 }
 
 
-class SnapshotViewCtrl {
+class SnapshotViewCtrl extends WidgetPlus {
 
-    +node: HTMLDivElement;
     +_model: SystemModel;
     +_forms: { [string]: HTMLButtonElement|HTMLInputElement };
     +_treeView: HTMLDivElement;
@@ -1423,6 +1512,7 @@ class SnapshotViewCtrl {
     _selection: ?number;
 
     constructor(model: SystemModel): void {
+        super("Snapshots", "info-snapshots");
         this._model = model;
         this._model.attach((mc) => this.handleChange(mc));
         // Widget: menu bar with tree-structure view below
@@ -1447,21 +1537,29 @@ class SnapshotViewCtrl {
         // and initializes the state variables
         this._data = null;
         this._selection = null;
-        // Disable taking snapshots at first, will be enabled with the first
-        // handleChange call
-        this._forms.take.disabled = true;
+        this.handleLoadingChange();
     }
 
     takeSnapshot(): void {
         const name = this._forms.name.value.trim();
         this._forms.name.value = "";
-        this._model.takeSnapshot(name.length === 0 ? "Snapshot" : name);
+        this.pushLoad();
+        this._model.takeSnapshot(name.length === 0 ? "Snapshot" : name).catch((e) => {
+            this._model.logError(e);
+        }).finally(() => {
+            this.popLoad();
+        });
     }
 
     loadSnapshot(): void {
         const selection = this._selection;
         if (selection != null) {
-            this._model.loadSnapshot(selection).catch((e) => this._model.logError(e));
+            this.pushLoad();
+            this._model.loadSnapshot(selection).catch((e) => {
+                this._model.logError(e);
+            }).finally(() => {
+                this.popLoad();
+            });
         }
     }
 
@@ -1469,18 +1567,25 @@ class SnapshotViewCtrl {
         const selection = this._selection;
         const name = this._forms.name.value.trim();
         if (selection != null && name.length > 0) {
-            this._model.nameSnapshot(selection, name).catch(e => this._model.logError(e));
+            this.pushLoad();
+            this._model.nameSnapshot(selection, name).catch((e) => {
+                this._model.logError(e);
+            }).finally(() => {
+                this.popLoad();
+            });
         }
     }
 
     handleChange(mc: ?ModelChange): void {
         if (mc !== "snapshot") return;
-        this._forms.take.disabled = false;
+        this.pushLoad();
         this._model.getSnapshots().then((data) => {
             this._data = data;
             this.redraw();
         }).catch(e => {
             this._model.logError(e);
+        }).finally(() => {
+            this.popLoad();
         });
     }
 
@@ -1496,8 +1601,7 @@ class SnapshotViewCtrl {
     // Click handler
     _select(which: number): void {
         this._selection = this._selection === which ? null : which;
-        this._forms.load.disabled = this._selection == null;
-        this._forms.rename.disabled = this._selection == null;
+        this.handleLoadingChange();
         this.redraw();
     }
 
@@ -1520,6 +1624,13 @@ class SnapshotViewCtrl {
             nodes.push(indented);
         }
         return nodes;
+    }
+
+    handleLoadingChange(): void {
+        super.handleLoadingChange();
+        this._forms.take.disabled = this.isLoading;
+        this._forms.load.disabled = this.isLoading || this._selection == null;
+        this._forms.rename.disabled = this.isLoading || this._selection == null;
     }
 
 }

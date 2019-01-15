@@ -114,16 +114,32 @@ export class ProblemSetup extends ObservableMixin<null> {
         const columns = dom.DIV({ "id": "inspector" }, [
             dom.DIV({ "class": "left" }, [
                 this.preview.node,
-                dom.H3({}, ["Objective", dom.infoBox("info-input-objective")]), this.objective.node
+                dom.H3({}, [
+                    "Objective",
+                    dom.DIV({ "class": "icons" }, [dom.infoBox("info-input-objective")])
+                ]),
+                this.objective.node
             ]),
             dom.DIV({ "class": "right" }, [
-                dom.H3({}, ["Control Space Polytope", dom.infoBox("info-input-control")]),
+                dom.H3({}, [
+                    "Control Space Polytope",
+                    dom.DIV({ "class": "icons" }, [dom.infoBox("info-input-control")])
+                ]),
                 this.cs.node,
-                dom.H3({}, ["Random Space Polytope", dom.infoBox("info-input-random")]),
+                dom.H3({}, [
+                    "Random Space Polytope",
+                    dom.DIV({ "class": "icons" }, [dom.infoBox("info-input-random")])
+                ]),
                 this.rs.node,
-                dom.H3({}, ["State Space Polytope", dom.infoBox("info-input-state")]),
+                dom.H3({}, [
+                    "State Space Polytope",
+                    dom.DIV({ "class": "icons" }, [dom.infoBox("info-input-state")])
+                ]),
                 this.ss.node,
-                dom.H3({}, ["Initial State Space Decomposition", dom.infoBox("info-input-predicates")]),
+                dom.H3({}, [
+                    "Initial State Space Decomposition",
+                    dom.DIV({ "class": "icons" }, [dom.infoBox("info-input-predicates")])
+                ]),
                 this.predicates.node
             ])
         ]);

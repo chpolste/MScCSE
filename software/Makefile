@@ -27,6 +27,7 @@ SRC = ./src
 SRC_JS = $(SRC)/js
 SRC_CSS = $(SRC)/css
 SRC_HTML = $(SRC)/html
+SRC_SVG = $(SRC)/svg
 
 # Test code
 TEST = ./test
@@ -38,6 +39,7 @@ DIST_JS = $(DIST)/js
 DIST_CSS = $(DIST)/css
 DIST_FONTS = $(DIST_CSS)/fonts
 DIST_HTML = $(DIST)
+DIST_SVG = $(DIST)/svg
 
 # Compiled JS modules for use with node
 JS_MODULES = ./modules
@@ -63,6 +65,7 @@ set-up-environment:
 	mkdir -p $(DIST_JS)
 	mkdir -p $(DIST_CSS)
 	mkdir -p $(DIST_HTML)
+	mkdir -p $(DIST_SVG)
 	mkdir -p $(JS_MODULES)
 	npm install
 	$(FLOW_TYPED) install --skip
@@ -72,6 +75,7 @@ clean:
 	rm -f $(DIST_CSS)/*.css
 	rm -rf $(DIST_FONTS)
 	rm -f $(DIST_HTML)/*.html
+	rm -f $(DIST_SVG)/*.svg
 	rm -f $(JS_MODULES)/*.js
 
 test:
@@ -84,7 +88,7 @@ check:
 # Apps
 
 inspector: $(DIST_HTML)/inspector.html $(DIST_CSS)/inspector.css $(DIST_JS)/inspector.js \
-		$(DIST_JS)/inspector-worker-system.js
+		$(DIST_JS)/inspector-worker-system.js $(DIST_SVG)/loading16.svg
 
 plotter-2d: $(DIST_HTML)/plotter-2d.html $(DIST_JS)/plotter-2d.js $(DIST_CSS)/plotter-2d.css
 
@@ -106,6 +110,8 @@ $(JS_MODULES)/%.js: $(SRC_JS)/%.js
 $(DIST_JS)/%.js: $(SRC_JS)/%.js
 	$(BROWSERIFY) $< > $@
 
+$(DIST_SVG)/%.svg: $(SRC_SVG)/%.svg
+	cp $< $@
 
 # There are no intermediate files that communicate changes of non-direct
 # dependencies to the apps built by browserify, so either all dependencies have

@@ -12,6 +12,7 @@ import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Polytope, Union } from "./geometry.js";
 import { Objective } from "./logic.js";
 import { Refinery } from "./refinement.js";
+import { SnapshotTree } from "./snapshot.js";
 import { AbstractedLSS } from "./system.js";
 import { iter, sets, obj } from "./tools.js";
 import { Communicator } from "./worker.js";
@@ -20,18 +21,6 @@ import { Communicator } from "./worker.js";
 // https://github.com/facebook/flow/issues/3128
 declare var self: DedicatedWorkerGlobalScope;
 
-
-type Snapshot = {
-    id: number,
-    name: string,
-    states: number,
-    volumeStats: SystemStats,
-    system: JSONAbstractedLSS,
-    analysis: ?AnalysisResults,
-    // Tree structure
-    parent: ?Snapshot,
-    children: Set<Snapshot>
-}
 
 type SystemStats = {
     yes: number,
@@ -42,27 +31,22 @@ type SystemStats = {
 
 class SystemManager {
 
-    _id: number;
-    _snapshots: Map<number, Snapshot>;
-    _root: ?Snapshot;
-    _current: ?Snapshot;
+    _snapshots: SnapshotTree;
+    // Current state of worker
     _system: ?AbstractedLSS;
     _analysis: ?AnalysisResults;
     _objective: ?Objective;
 
     constructor(): void {
-        this._snapshots = new Map();
-        this._id = 0;
-        this._root = null;
-        this._current = null;
+        this._snapshots = new SnapshotTree();
         this._system = null;
         this._analysis = null;
+        this._objective = null;
     }
 
     // Startup (has to be called before instance can be used)
 
     initialize(system: AbstractedLSS, objective: Objective): void {
-        this._snapshots.clear();
         this._system = system;
         this._objective = objective;
         this.takeSnapshot("Initial Problem");
@@ -95,64 +79,33 @@ class SystemManager {
     // Transferable tree representation for widget-display
 
     get snapshotTree(): SnapshotData {
-        if (this._root == null) throw new Error(
-            "system worker is not initialized yet (snapshot tree root is not set)"
-        );
-        return this._treeify(this._root);
+        return this._treeify(this._snapshots.root);
     }
 
-    _treeify(node: Snapshot): SnapshotData {
+    _treeify(id: number): SnapshotData {
         return {
-            id: node.id,
-            name: node.name,
-            states: node.states,
-            volumeStats: node.volumeStats,
-            children: sets.map(_ => this._treeify(_), node.children),
-            isCurrent: node === this._current
+            id: id,
+            name: this._snapshots.getName(id),
+            states: this._snapshots.getNumberOfStates(id),
+            children: sets.map(_ => this._treeify(_), this._snapshots.getChildren(id)),
+            isCurrent: id === this._snapshots.current
         };
     }
 
     // Snapshot management
 
     takeSnapshot(name: string): void {
-        const snapshot = {
-            id: this._id++,
-            name: name,
-            states: this.numberOfStates,
-            volumeStats: this.getVolumeStats(this.objective.automaton.initialState.label),
-            system: this.system.serialize(true), // include actions/supports
-            analysis: this._analysis,
-            parent: this._current,
-            children: new Set()
-        }
-        // Maintain snapshot tree
-        if (this._current != null) {
-            this._current.children.add(snapshot);
-        } else {
-            this._root = snapshot;
-        }
-        // Maintain direct access name-mapping
-        this._snapshots.set(snapshot.id, snapshot);
-        // Update current snapshot, no need to update system (mutable)
-        this._current = snapshot;
+        this._snapshots.take(name, this.system, this.analysis, true);
     }
 
     loadSnapshot(id: number): void {
-        const snapshot = this._snapshots.get(id);
-        if (snapshot == null) throw new Error(
-            "Snapshot with id " + id + "does not exist"
-        );
-        this._current = snapshot;
-        this._system = AbstractedLSS.deserialize(snapshot.system);
-        this._analysis = snapshot.analysis;
+        this._snapshots.select(id);
+        this._system = this._snapshots.getSystem();
+        this._analysis = this._snapshots.getAnalysis();
     }
 
     nameSnapshot(id: number, name: string): void {
-        const snapshot = this._snapshots.get(id);
-        if (snapshot == null) throw new Error(
-            "Snapshot with id " + id + "does not exist"
-        );
-        snapshot.name = name;
+        this._snapshots.rename(id, name);
     }
 
     // Wrapped system functionality (with additional housekeeping)
@@ -194,19 +147,9 @@ class SystemManager {
         }
         // Apply partitioning to system (in-place)
         const refinementMap = this.system.refine(partitions);
-        // Update analysis results (use results of old state for their new
-        // states that were generated in the refinement
-        const updatedAnalysis = new Map(analysis);
-        for (let [xOld, xNews] of refinementMap) {
-            const result = this.getAnalysis(xOld);
-            if (result != null) {
-                for (let xNew of xNews) {
-                    updatedAnalysis.set(xNew.label, result);
-                }
-            }
-            updatedAnalysis.delete(xOld.label);
-        }
-        this._analysis = updatedAnalysis;
+        // Update analysis results
+        analysis.remap(refinementMap);
+        // Return set of states that were refined
         return new Set(refinementMap.keys());
     }
 
@@ -216,11 +159,6 @@ class SystemManager {
         if (this._analysis == null) return null;
         const result = this._analysis.get(state.label);
         return result;
-    }
-
-    // Number of states excluding outer states
-    get numberOfStates(): number {
-        return iter.count(iter.filter(_ => !_.isOuter, this.system.states.values()));
     }
 
     getCountStats(q: AutomatonStateLabel): SystemStats {
@@ -255,37 +193,6 @@ class SystemManager {
             no: sNo,
             maybe: sMaybe,
             unreachable: sUnreach
-        };
-    }
-
-    // TODO: rewrite with getSystemStats
-    _volumeRatios(): { [string]: number } {
-        let volYes = 0;
-        let volMaybe = 0;
-        let volNo = 0;
-        for (let state of this.system.states.values()) {
-            const result = this.getAnalysis(state);
-            // If no results are available yet, everything is undecided
-            if (result == null) {
-                return { yes: 0, no: 0, maybe: 1 };
-            // Outer states are ignored
-            } else if (state.isOuter) {
-                // ...
-            } else if (result.yes.has(result.init)) {
-                volYes += state.polytope.volume;
-            } else if (result.no.has(result.init)) {
-                volNo += state.polytope.volume;
-            } else if (result.maybe.has(result.init)) {
-                volMaybe += state.polytope.volume;
-            } else throw new Error(
-                "unreachable initial state " + state.label
-            );
-        }
-        const volAll = volYes + volMaybe + volNo;
-        return {
-            yes: volYes / volAll,
-            no: volNo / volAll,
-            maybe: volMaybe / volAll
         };
     }
 
@@ -455,7 +362,6 @@ export type SnapshotData = {
     id: number,
     name: string,
     states: number,
-    volumeStats: SystemStats,
     children: Set<SnapshotData>,
     isCurrent: boolean
 };

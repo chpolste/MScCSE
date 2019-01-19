@@ -1,10 +1,10 @@
 // @flow
 "use strict";
 
-import type { StateID, ActionID, SupportID, PredicateID } from "./system.js";
+import type { StateID, ActionID, SupportID, PredicateID, RefinementMap } from "./system.js";
 
 import { Objective } from "./logic.js";
-import { iter, sets, obj, hashString, UniqueCollection } from "./tools.js";
+import { iter, sets, hashString, UniqueCollection } from "./tools.js";
 
 
 /* Game graph navigation interface
@@ -108,9 +108,57 @@ const DEFAULT_PRIORITY = 2;
 // Thrown if game validation fails
 export class ValidationError extends Error {}
 
-// Each state has an object with results attached (these should be
-// JSON-compatible)
-export type AnalysisResults = Map<StateID, AnalysisResult>;
+// Analysis Results
+export type JSONAnalysisResults = { [StateID]: JSONAnalysisResult };
+// Built-in Map with a few extra features
+export class AnalysisResults extends Map<StateID, AnalysisResult> {
+
+    static deserialize(json: JSONAnalysisResults): AnalysisResults {
+        const results = new AnalysisResults();
+        for (let label in json) {
+            const result = json[label];
+            results.set(label, {
+                init: result.init,
+                yes: new Set(result.yes),
+                no: new Set(result.no),
+                maybe: new Set(result.maybe)
+            });
+        }
+        return results;
+    }
+
+    serialize(): JSONAnalysisResults {
+        const json = {};
+        for (let [label, result] of this) {
+            json[label] = {
+                init: result.init,
+                yes: Array.from(result.yes),
+                no: Array.from(result.no),
+                maybe: Array.from(result.maybe)
+            };
+        }
+        return json;
+    }
+
+    // In-place remapping of results after refinement
+    remap(refinementMap: RefinementMap): void {
+        for (let [xOld, xNews] of refinementMap) {
+            const result = this.get(xOld.label);
+            if (result == null) throw new Error(
+                "Remapping analysis results failed: state '" + xOld.label + "' does not exists"
+            );
+            // Remove results of refined states
+            this.delete(xOld.label);
+            // Use results of old state for states it was split into
+            for (let xNew of xNews) {
+                this.set(xNew.label, result);
+            }
+        }
+    }
+
+}
+
+// Each state has an object with results attached
 export type AnalysisResult = {
     // Initial automaton state
     init: string,
@@ -121,6 +169,13 @@ export type AnalysisResult = {
     // For which automaton states is there a cooperative strategy?
     maybe: Set<string>
 };
+export type JSONAnalysisResult = {
+    init: string,
+    yes: string[],
+    no: string[],
+    maybe: string[]
+};
+
 
 // 2½-player game
 export class TwoPlayerProbabilisticGame {
@@ -264,7 +319,7 @@ export class TwoPlayerProbabilisticGame {
                 if (state.automatonState !== "__SAT__") qSat.add(state.automatonState);
             }
         }
-        const results = new Map();
+        const results = new AnalysisResults();
         // Initial states cover all system states
         for (let state of this.initialStates) {
             // Initial result status: empty results except for co-safe

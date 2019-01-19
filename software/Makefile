@@ -45,7 +45,8 @@ DIST_SVG = $(DIST)/svg
 JS_MODULES = ./modules
 JS_MODULES_FILES = $(JS_MODULES)/geometry.js $(JS_MODULES)/linalg.js $(JS_MODULES)/tools.js \
                    $(JS_MODULES)/parser.js $(JS_MODULES)/presets.js $(JS_MODULES)/logic.js \
-                   $(JS_MODULES)/game.js $(JS_MODULES)/refinement.js $(JS_MODULES)/controller.js
+                   $(JS_MODULES)/game.js $(JS_MODULES)/refinement.js $(JS_MODULES)/controller.js \
+				   $(JS_MODULES)/snapshot.js
 
 
 # General rules
@@ -153,8 +154,8 @@ $(SRC_JS)/inspector-widgets-inspector.js: $(SRC_JS)/linalg.js $(SRC_JS)/dom.js \
 	@touch $(SRC_JS)/inspector-widgets-inspector.js
 
 $(SRC_JS)/inspector-worker-system.js: $(SRC_JS)/controller.js $(SRC_JS)/game.js \
-		$(SRC_JS)/geometry.js $(SRC_JS)/logic.js $(SRC_JS)/refinement.js $(SRC_JS)/system.js \
-		$(SRC_JS)/tools.js $(SRC_JS)/worker.js 
+		$(SRC_JS)/geometry.js $(SRC_JS)/logic.js $(SRC_JS)/refinement.js $(SRC_JS)/snapshot.js \
+		$(SRC_JS)/system.js $(SRC_JS)/tools.js $(SRC_JS)/worker.js 
 	@touch $(SRC_JS)/inspector-worker-system.js
 
 $(SRC_JS)/linalg.js: $(SRC_JS)/tools.js
@@ -165,6 +166,9 @@ $(SRC_JS)/logic.js: $(SRC_JS)/parser.js $(SRC_JS)/tools.js
 
 $(SRC_JS)/refinement.js: $(SRC_JS)/geometry.js $(SRC_JS)/tools.js
 	@touch $(SRC_JS)/refinement.js
+
+$(SRC_JS)/snapshot.js: $(SRC_JS)/game.js $(SRC_JS)/system.js
+	@touch $(SRC_JS)/snapshot.js
 
 $(SRC_JS)/system.js: $(SRC_JS)/tools.js $(SRC_JS)/linalg.js $(SRC_JS)/geometry.js
 	@touch $(SRC_JS)/system.js

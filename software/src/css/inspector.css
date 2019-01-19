@@ -492,11 +492,6 @@ span.unreachable {
     float: right;
     color: #666;
 }
-#snapshot-ctrl .snap .percentage-bar {
-    display: inline-flex;
-    width: 100px;
-    margin-left: 5px;
-}
 #snapshot-ctrl .snap.current {
     color: #069;
 }

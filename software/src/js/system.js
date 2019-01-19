@@ -247,6 +247,8 @@ export type TraceStep = {
     random: Vector;
 };
 
+export type RefinementMap = Map<State, Set<State>>;
+
 // Serialization of entire system (optionally with actions)
 export type JSONAbstractedLSS = {
     lss: JSONLSS,
@@ -350,7 +352,7 @@ export class AbstractedLSS implements GameGraph {
 
     // Refine states according to the given partitionings. Returns mapping of
     // old refined states to sets of new states that were substituted
-    refine(partitions: Map<State, Region>): Map<State, Set<State>> {
+    refine(partitions: Map<State, Region>): RefinementMap {
         const refined = new Map();
         for (let [state, partition] of partitions) {
             // Validate that partition covers state polytope

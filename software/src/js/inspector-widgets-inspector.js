@@ -1612,7 +1612,7 @@ class SnapshotViewCtrl extends WidgetPlus {
                            + (snapshot.id === this._selection ? " selection" : "");
         const node = dom.DIV({ "class": cls }, [
             snapshot.name,
-            dom.SPAN({}, [snapshot.states + " states", percentageBar(snapshot.volumeStats)])
+            dom.SPAN({}, [snapshot.states + " states"])
         ]);
         node.addEventListener("click", () => this._select(snapshot.id));
         nodes.push(node);

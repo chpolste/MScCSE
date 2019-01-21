@@ -184,7 +184,6 @@ export class ProblemSummary {
 export class SystemInspector {
 
     +node: HTMLDivElement;
-    +tabs: TabbedView;
     // ...
     +objective: Objective;
     +_system: AbstractedLSS;
@@ -210,7 +209,7 @@ export class SystemInspector {
         const traceViewCtrl = new TraceViewCtrl(model, keys);
 
         // Debug: connectivity
-        const appLinks = dom.P();
+        const appLinks = dom.P(); // TODO
         // Link that opens polytopic calculator with basic problem setup loaded
         const calcData = {
             "A": JSON.stringify(system.lss.A),
@@ -245,11 +244,13 @@ export class SystemInspector {
         //const controlTab = tabs.newTab("Control", [
             // TODO traceViewCtrl
         //]);
-        //const infoTab = tabs.newTab("Info", [
-            // TODO: connectivity, log
-        //]);
+        const infoTab = tabs.newTab("Info", [
+            log
+        ]);
         tabs.select("System");
-        //log.attach(() => this.tabs.highlight("Debug")); TODO
+        log.attach((kind) => {
+            if (kind === "error") tabs.highlight("Info");
+        });
 
         this.node = dom.DIV({ "id": "inspector" }, [
             dom.DIV({ "class": "left" }, [
@@ -278,28 +279,6 @@ export class SystemInspector {
             ]),
             tabs.node
         ]);
-    }
-
-}
-
-
-class Logger extends ObservableMixin<null> {
-
-    +node: HTMLDivElement;
-
-    constructor(): void {
-        super();
-        this.node = dom.DIV({ "id": "log-view" }, ["-"]);
-    }
-
-    log(text: string): void {
-        dom.replaceChildren(this.node, [text]);
-        this.notify();
-    }
-
-    logError(e: { name: string, message: string }): void {
-        console.log(e);
-        this.log(e.name + " :: " + e.message);
     }
 
 }
@@ -341,13 +320,13 @@ class SystemModel extends ObservableMixin<ModelChange> {
             });
             const worker = new Worker("./js/inspector-worker-system.js");
             worker.onerror = () => {
-                this.logError({ name: "WorkerError", message: "unable to start system worker" });
+                this.log.write("error", "unable to start system worker");
             };
             this._comm.host = worker;
         } catch (e) {
             // Chrome does not allow Web Workers for local resources
             if (e.name === "SecurityError") {
-                this.logError(e);
+                this.log.writeError(e);
                 return;
             }
             throw e;
@@ -444,59 +423,94 @@ class SystemModel extends ObservableMixin<ModelChange> {
     // Worker request interface
 
     getState(state: StateID): Promise<StateDataPlus> {
-        return this._comm.request("getState", state);
+        return this._comm.request("getState", state).catch((e) => {
+            //this.log.writeError(e); // TODO: this is only used for refreshSelection, errors are intended
+            throw e;
+        });
     }
 
     getStates(): Promise<StateDataPlus[]> {
-        return this._comm.request("getStates", null);
+        return this._comm.request("getStates", null).catch((e) => {
+            this.log.writeError(e);
+            throw e;
+        });
     }
 
     getActions(state: StateID): Promise<ActionData[]> {
-        return this._comm.request("getActions", state);
+        return this._comm.request("getActions", state).catch((e) => {
+            this.log.writeError(e);
+            throw e;
+        });
     }
 
     getSupports(state: StateID, action: ActionID): Promise<SupportData[]> {
-        return this._comm.request("getSupports", [state, action]);
+        return this._comm.request("getSupports", [state, action]).catch((e) => {
+            this.log.writeError(e);
+            throw e;
+        });
     }
 
     getOperator(op: string, state: StateID, us: JSONUnion): Promise<OperatorData> {
-        return this._comm.request("getOperator", [op, state, us]);
+        return this._comm.request("getOperator", [op, state, us]).catch((e) => {
+            this.log.writeError(e);
+            throw e;
+        });
     }
 
     sampleTrace(state: ?StateID, controller: string, maxSteps: number): Promise<TraceData> {
-        return this._comm.request("sampleTrace", [state, controller, maxSteps]);
+        return this._comm.request("sampleTrace", [state, controller, maxSteps]).catch((e) => {
+            this.log.writeError(e);
+            throw e;
+        });
     }
 
     analyse(): Promise<AnalysisData> {
         return this._comm.request("analyse", null).then((data) => {
+            this.log.writeAnalysis(data);
             this.notify("system");
             this.refreshSelection();
             return data;
+        }).catch((e) => {
+            this.log.writeError(e);
+            throw e;
         });
     }
 
     refine(qs: AutomatonStateLabel[], steps: RefineRequestStep[]): Promise<RefineData> {
         return this._comm.request("refine", [qs, steps]).then((data) => {
             if (data.size > 0) {
+                this.log.writeRefinement(data);
                 this.notify("system");
                 this.refreshSelection();
             }
             return data;
+        }).catch((e) => {
+            this.log.writeError(e);
+            throw e;
         });
     }
 
     getSystemSummary(): Promise<SystemSummaryData> {
-        return this._comm.request("getSystemSummary", null);
+        return this._comm.request("getSystemSummary", null).catch((e) => {
+            this.log.writeError(e);
+            throw e;
+        });
     }
 
     getSnapshots(): Promise<SnapshotData> {
-        return this._comm.request("getSnapshots", null);
+        return this._comm.request("getSnapshots", null).catch((e) => {
+            this.log.writeError(e);
+            throw e;
+        });
     }
 
     takeSnapshot(name: string): Promise<TakeSnapshotData> {
         return this._comm.request("takeSnapshot", name).then((data) => {
             this.notify("snapshot");
             return data;
+        }).catch((e) => {
+            this.log.writeError(e);
+            throw e;
         });
     }
 
@@ -506,6 +520,9 @@ class SystemModel extends ObservableMixin<ModelChange> {
             this.notify("system");
             this.refreshSelection();
             return data;
+        }).catch((e) => {
+            this.log.writeError(e);
+            throw e;
         });
     }
 
@@ -513,13 +530,10 @@ class SystemModel extends ObservableMixin<ModelChange> {
         return this._comm.request("nameSnapshot", [id, name]).then((data) => {
             this.notify("snapshot");
             return data;
+        }).catch((e) => {
+            this.log.writeError(e);
+            throw e;
         });
-    }
-
-    // Logger interface
-
-    logError(e: *): void {
-        this.log.logError(e);
     }
 
 }
@@ -599,7 +613,7 @@ class SystemViewCtrl {
                 }
                 // Redraw interactive states
                 this.drawSystem(data);
-            }).catch((e) => this._model.logError(e));
+            });
         } else if (mc === "state") {
             this.drawState();
             this.drawAnalysis();
@@ -679,8 +693,6 @@ class SystemViewCtrl {
                 );
                 this._layers.highlight1.shapes = shapes;
                 this._layers.highlight2.shapes = shapes;
-            }).catch(e => {
-                this._model.logError(e);
             });
         }
     }
@@ -1016,10 +1028,20 @@ class TabbedView {
         this._selection = tab;
     }
 
+    highlight(name: string): void {
+        const tab = this._tabs.get(name);
+        if (tab == null) throw new Error(); // TODO
+        if (tab !== this._selection) tab.title.className = "highlight";
+    }
+
 }
 
 
-type TabWidget = { +node: HTMLDivElement, +heading: HTMLHeadingElement };
+interface TabWidget {
+    +node: HTMLDivElement,
+    +heading: HTMLHeadingElement
+};
+
 class TabContent {
 
     +title: HTMLDivElement;
@@ -1043,7 +1065,7 @@ class TabContent {
 }
 
 
-class WidgetPlus {
+class WidgetPlus implements TabWidget {
 
     // ...
     +node: HTMLDivElement;
@@ -1068,8 +1090,6 @@ class WidgetPlus {
             dom.DIV({ "class": "icons" }, this._icons)
         ]);
     }
-
-    // TODO: logging
 
     get isLoading(): boolean {
         return this._isLoading > 0;
@@ -1201,7 +1221,7 @@ class ActionViewCtrl extends WidgetPlus {
                     this._actionNodes = new Map(actions.map(_ => [_, this.actionToNode(_)]));
                     dom.replaceChildren(this.node, this._actionNodes.values());
                 }).catch((e) => {
-                    this._model.logError(e)
+                    // ...
                 }).finally(() => {
                     this.popLoad();
                 });
@@ -1233,7 +1253,7 @@ class ActionViewCtrl extends WidgetPlus {
                     dom.replaceChildren(this._supportNode, supports.map((_) => this.supportToNode(_)));
                     dom.appendAfter(this.node, newNode, this._supportNode);
                 }).catch((e) => {
-                    this._model.logError(e)
+                    // ...
                 }).finally(() => {
                     this.popLoad();
                 });
@@ -1318,10 +1338,9 @@ class AnalysisViewCtrl extends WidgetPlus{
         this.pushLoad();
         // Redirect game graph to analysis worker and wait for results
         this._model.analyse().then((data: AnalysisData) => {
-            // TODO: log
-            //this.infoText = "game abstraction (" + t2s(data.tGame) + "), analysis (" + t2s(data.tAnalysis) + ").";
-        }).catch(err => {
-            this._model.logError(err);
+            // ...
+        }).catch((e) => {
+            // ...
         }).finally(() => {
             this.popLoad();
         });
@@ -1357,7 +1376,7 @@ class AnalysisViewCtrl extends WidgetPlus{
                 this._summary = data;
                 this.handleChange();
             }).catch((e) => {
-                this._model.logError(e);
+                // ...
             }).finally(() => {
                 this.popLoad();
             });
@@ -1427,9 +1446,9 @@ class RefinementCtrl extends WidgetPlus {
         if (this.isLoading) return; // TODO
         this.pushLoad();
         this._model.refine(this.qs, this.steps).then((data) => {
-            //this.infoText = "Refined " + data.size + (data.size === 1 ? " state." : " states."); TODO
-        }).catch(e => {
-            this._model.logError(e);
+            // ...
+        }).catch((e) => {
+            // ...
         }).finally(() => {
             this.popLoad();
         });
@@ -1545,7 +1564,7 @@ class SnapshotViewCtrl extends WidgetPlus {
         this._forms.name.value = "";
         this.pushLoad();
         this._model.takeSnapshot(name.length === 0 ? "Snapshot" : name).catch((e) => {
-            this._model.logError(e);
+            // ...
         }).finally(() => {
             this.popLoad();
         });
@@ -1556,7 +1575,7 @@ class SnapshotViewCtrl extends WidgetPlus {
         if (selection != null) {
             this.pushLoad();
             this._model.loadSnapshot(selection).catch((e) => {
-                this._model.logError(e);
+                // ...
             }).finally(() => {
                 this.popLoad();
             });
@@ -1569,7 +1588,7 @@ class SnapshotViewCtrl extends WidgetPlus {
         if (selection != null && name.length > 0) {
             this.pushLoad();
             this._model.nameSnapshot(selection, name).catch((e) => {
-                this._model.logError(e);
+                // ...
             }).finally(() => {
                 this.popLoad();
             });
@@ -1582,8 +1601,8 @@ class SnapshotViewCtrl extends WidgetPlus {
         this._model.getSnapshots().then((data) => {
             this._data = data;
             this.redraw();
-        }).catch(e => {
-            this._model.logError(e);
+        }).catch((e) => {
+            // ...
         }).finally(() => {
             this.popLoad();
         });
@@ -1699,7 +1718,9 @@ class TraceViewCtrl {
             this._model.trace = data.reverse();
             this.drawTraceSelectors();
             this.drawTraceArrows();
-        }).catch(e => this._model.logError(e));
+        }).catch((e) => {
+            // ...
+        });
     }
 
     clear(): void {
@@ -1744,6 +1765,85 @@ class TraceViewCtrl {
                 }));
             }
         }
+    }
+
+}
+
+
+// Tab: Info
+// - Logger
+
+type LogKind = "analysis" | "refinement" | "error";
+
+class Logger extends ObservableMixin<LogKind> implements TabWidget {
+
+    +node: HTMLDivElement;
+    +heading: HTMLHeadingElement;
+    +_filters: { [string]: Input<boolean> };
+    +_entries: HTMLDivElement;
+
+    constructor(): void {
+        super();
+        this._filters = {
+            analysis: new CheckboxInput(true),
+            refinement: new CheckboxInput(true),
+            error: new CheckboxInput(true)
+        };
+        obj.forEach((_, input) => input.attach(() => this.handleFilterChange()), this._filters);
+        this._entries = dom.DIV()
+        this.node = dom.DIV({ "id": "logger" }, [
+            dom.P({ "class": "log-filter" }, [
+                dom.LABEL({}, [this._filters.analysis.node, "analysis"]),
+                dom.LABEL({}, [this._filters.refinement.node, "refinement"]),
+                dom.LABEL({}, [this._filters.error.node, "error"])
+            ]),
+            this._entries
+        ]);
+        this.heading = dom.H3({}, ["Log Messages"]);
+        this.handleFilterChange();
+    }
+
+    _write(kind: LogKind, content: HTMLDivElement): void {
+        content.className = "log-content";
+        const now = new Date(Date.now());
+        const entry = dom.DIV({ "class": "log-" + kind }, [
+            dom.DIV({ "class": "log-heading" }, [now.toLocaleTimeString(), " :: ", kind]),
+            content
+        ]);
+        this._entries.appendChild(entry);
+        this._entries.scrollTop = entry.offsetTop;
+        this.notify(kind);
+    }
+
+    write(kind: LogKind, text: string): void {
+        this._write(kind, dom.DIV({}, [text]));
+    }
+
+    writeError(e: Error): void {
+        console.log(e);
+        this.write("error", e.message);
+    }
+
+    writeAnalysis(data: AnalysisData): void {
+        this._write("analysis", dom.DIV({}, [
+            "game abstraction (" + t2s(data.tGame) + "), analysis (" + t2s(data.tAnalysis) + ")."
+        ]));
+    }
+
+    writeRefinement(data: RefineData): void {
+        this._write("refinement", dom.DIV({}, [
+            "refined " + data.size + " states"
+        ]));
+    }
+    
+    handleFilterChange(): void {
+        let cls = "log-entries";
+        for (let kind in this._filters) {
+            if (this._filters[kind].value) {
+                cls += " show-" + kind;
+            }
+        }
+        this._entries.className = cls;
     }
 
 }

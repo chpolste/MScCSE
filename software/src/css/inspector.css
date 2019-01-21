@@ -502,3 +502,32 @@ span.unreachable {
     background-color: #EEE;
 }
 
+#logger .log-filter label {
+    display: inline-block;
+    margin-right: 1em;
+}
+#logger .log-entries {
+    height: 550px;
+    overflow-y: auto;
+}
+#logger .log-entries > div {
+    margin: 0 0 8px 0;
+    display: none;
+}
+#logger .show-analysis .log-analysis, #logger .show-error .log-error, #logger .show-refinement .log-refinement {
+    display: block;
+}
+#logger .log-heading {
+    font-size: 0.8em;
+    color: #333;
+}
+#logger .log-content {
+    margin-left: 12px;
+    padding-left: 12px;
+    border-left: 1px solid #999;
+}
+#logger .log-error .log-heading {
+    color: #C00;
+}
+
+

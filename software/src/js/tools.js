@@ -68,6 +68,19 @@ export const iter = {
         for (let xs of xss) {
             yield* xs;
         }
+    },
+
+    argmax: function <A>(value: (A) => number, xs: Iterable<A>): ?A {
+        let maxArg = null;
+        let maxVal = -Infinity;
+        for (let x of xs) {
+            const val = value(x);
+            if (val > maxVal) {
+                maxArg = x;
+                maxVal = val;
+            }
+        }
+        return maxArg;
     }
 
 };
@@ -140,6 +153,10 @@ export const arr = {
         }
         out.pop();
         return out;
+    },
+
+    sample: function <T>(items: T[]): T {
+        return items[Math.floor(Math.random() * items.length)];
     }
 
 }

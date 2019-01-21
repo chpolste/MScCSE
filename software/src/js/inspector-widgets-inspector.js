@@ -11,7 +11,7 @@ import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, T
 import type { Vector, Matrix } from "./linalg.js";
 import type { AutomatonStateLabel, AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
-import type { RefinerySettings, RefineryActionPick, RefineryApproximation } from "./refinement.js";
+import type { RefinerySettings, RefineryApproximation } from "./refinement.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
@@ -1474,7 +1474,6 @@ class RefinementStep {
     +_info: HTMLDivElement;
     +_toggle: Input<boolean>;
     +_approximation: Input<RefineryApproximation>;
-    +_actionPick: Input<RefineryActionPick>;
     +_showActionPick: boolean
     _expanded: boolean;
 
@@ -1487,11 +1486,6 @@ class RefinementStep {
             "approximate target": "target",
             "approximate after": "after"
         }, "no approximation");
-        this._actionPick = new ClickCycler({
-            "estimate best action": "best",
-            "random action": "random"
-        }, "estimate best action");
-        this._showActionPick = showActionPick;
         this._info = dom.DIV({ "class": "info" });
         this.node = dom.DIV({ "class": "refinement-step" }, [
             dom.LABEL({ "class": "name" }, [this._toggle.node, name]), this._info
@@ -1505,7 +1499,6 @@ class RefinementStep {
 
     get settings(): RefinerySettings {
         return {
-            actionPick: this._actionPick.value,
             approximation: this._approximation.value
         };
     }
@@ -1513,7 +1506,6 @@ class RefinementStep {
     handleChange(): void {
         const nodes = [];
         if (!this._toggle.value) nodes.push("disabled");
-        if (this._showActionPick) nodes.push(this._actionPick.node);
         nodes.push(this._approximation.node);
         dom.replaceChildren(this._info, arr.intersperse(" :: ", nodes));
     }

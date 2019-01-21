@@ -16,12 +16,23 @@ import { iter, NotImplementedError } from "./tools.js";
 export type RefinementPartition = { done: Region, rest: Region };
 
 // ...
-export type RefineryActionPick = "best" | "random";
 export type RefineryApproximation = "none" | "target" | "after";
 export type RefinerySettings = {
-    actionPick: RefineryActionPick,
     approximation: RefineryApproximation
 };
+
+
+
+function valueControl(x: State, control: Region, reach: Region, avoid: Region, weights: [number, number, number]): number {
+    const post = x.post(control);
+    const postVol = post.volume;
+    const ratioReach = reach.intersect(post).volume / postVol;
+    const ratioAvoid = reach.intersect(post).volume / postVol;
+    const ratioOther = 1 - ratioReach - ratioAvoid;
+    // Weighted linear combination of intersection ratios
+    const [wReach, wAvoid, wOther] = weights;
+    return wReach * ratioReach + wAvoid * ratioAvoid + wOther * ratioOther;
+}
 
 
 export class Refinery {
@@ -30,8 +41,6 @@ export class Refinery {
     +_objective: Objective;
     +_results: AnalysisResults;
     +settings: RefinerySettings;
-    // Defaults for standard implementations of settings helpers
-    _pickActionBestParameters: [number, number, number];
 
     constructor(system: AbstractedLSS, objective: Objective,
                 results: AnalysisResults, settings: RefinerySettings): void {
@@ -39,8 +48,6 @@ export class Refinery {
         this._objective = objective;
         this._results = results;
         this.settings = settings;
-        // Best action pick weights. Order: [yes, no, maybe].
-        this._pickActionBestParameters = [1, -1, 0];
     }
 
     // Partition the system state x in automaton states qs using the given
@@ -74,48 +81,6 @@ export class Refinery {
             "Positive Robust Predecessor": PositivePreRRefinery,
             "Positive Robust Attractor": PositiveAttrRRefinery
         };
-    }
-
-    // Action pick helpers
-
-    // Select an action for a transition from system state x when transitioning
-    // to automaton state qNext according to the refinery settings
-    _pickAction(x: State, qNext: AutomatonStateLabel): ?Action {
-        const pick = this.settings.actionPick;
-        const actions = x.actions;
-        // Nothing to pick if state has no actions
-        if (actions.length === 0) return null;
-        // Best action estimate
-        if (pick === "best") return this._pickActionBest(x, qNext);
-        // By default, choose action randomly
-        return actions[Math.floor(Math.random() * actions.length)];
-    }
-
-    // Default implementation for action pick setting "best". Estimate which
-    // action is "best" by looking at the overlap of each action's posterior
-    // with yes/maybe/no states. The overlap areas are combined into a score
-    // and the action with the highest score is returned. The weights used in
-    // the score calculation can be adjusted with __pickActionBestParameters.
-    _pickActionBest(x: State, qNext: AutomatonStateLabel): ?Action {
-        const [cYes, cNo, cMaybe] = this._pickActionBestParameters;
-        const actions = x.actions;
-        const regionPos = this._getStateRegion("yes", qNext);
-        const regionNeg = this._getStateRegion("no", qNext);
-        let best = null;
-        let bestScore = -Infinity;
-        for (let action of actions) {
-            const post = x.post(action.controls);
-            const postVol = post.volume;
-            const ratioPos = regionPos.intersect(post).volume / postVol;
-            const ratioNeg = regionNeg.intersect(post).volume / postVol;
-            const ratioMaybe = 1 - ratioPos - ratioNeg;
-            const score = cYes * ratioPos + cNo * ratioNeg + cMaybe * ratioMaybe;
-            if (score > bestScore) {
-                best = action;
-                bestScore = score;
-            }
-        }
-        return best;
     }
 
     // Approximation helpers
@@ -244,8 +209,6 @@ class PositiveAttrRRefinery extends Refinery {
             const target = this._approximate(this._getStateRegion("yes", q), "target");
             this.yes.set(q, target.simplify());
         }
-        // Look for most overlap with yes targets
-        this._pickActionBestParameters = [10, -1, 1];
     }
 
     partition(x: State, q: AutomatonStateLabel, rest: Region): ?RefinementPartition {
@@ -256,23 +219,26 @@ class PositiveAttrRRefinery extends Refinery {
         if (qNext == null) return null;
         const target = this.yes.get(qNext);
         if (target == null || target.isEmpty) return null;
-        // Obtain an action for refining with
-        const action = this._pickAction(x, qNext);
+        // Choose an action for refining with
+        if (x.actions.length === 0) return null;
+        // Estimate which action is "best" by looking at the overlap of each
+        // action's posterior with yes/maybe/no states.
+        const reach = this._getStateRegion("yes", qNext);
+        const avoid = this._getStateRegion("no", qNext);
+        // Look for most overlap with yes targets
+        const action = iter.argmax(
+            _ => valueControl(x, _.controls, reach, avoid, [10, -1, 1]),
+            x.actions
+        );
         if (action == null) return null;
-        const lss = this._system.lss;
         // Subdivide action polytope into smaller parts and find best part to
         // refine with (largest AttrR)
-        let done = null;
-        let doneVol = -Infinity;
-        for (let u of action.controls.shatter().polytopes) {
-            const attrR = lss.attrR(x.polytope, u, target).intersect(rest);
-            //const attrR = x.attrR(u, xYes).intersect(rest);
-            const vol = attrR.volume;
-            if (doneVol < vol) {
-                done = attrR;
-                doneVol = vol;
-            }
-        }
+        const lss = this._system.lss;
+        const attrR = (u) => lss.attrR(x.polytope, u, target).intersect(rest);
+        let done = iter.argmax(
+            _ => _.volume,
+            action.controls.shatter().polytopes.map(attrR)
+        );
         if (done == null) return null;
         done = this._approximate(done, "after").simplify();
         rest = rest.remove(done).simplify();

@@ -37,28 +37,34 @@ function valueControl(x: State, control: Region, reach: Region, avoid: Region, w
 
 export class Refinery {
 
-    +_system: AbstractedLSS;
-    +_objective: Objective;
-    +_results: AnalysisResults;
+    +q: AutomatonStateLabel;
+    +system: AbstractedLSS;
+    +objective: Objective;
+    +results: AnalysisResults;
     +settings: RefinerySettings;
 
-    constructor(system: AbstractedLSS, objective: Objective,
-                results: AnalysisResults, settings: RefinerySettings): void {
-        this._system = system;
-        this._objective = objective;
-        this._results = results;
+    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
+                settings: RefinerySettings, q: AutomatonStateLabel): void {
+        this.q = q;
+        this.system = system;
+        this.objective = objective;
+        this.results = results;
         this.settings = settings;
     }
 
-    // Partition the system state x in automaton states qs using the given
-    // refinement steps
-    static execute(steps: Refinery[], x: State, qs: AutomatonStateLabel[]): Region {
-        let rest = x.polytope;
-        // Apply all refinement steps for every given automaton state
-        for (let q of qs) {
+    // Partition the system states using the given refinement steps. Modifies
+    // the given system partition in-place.
+    static execute(steps: Refinery[], partitions: Map<State, Region>): void {
+        // Apply all refinement steps for every system state (automaton state
+        // is baked into the refinement steps)
+        for (let [x, rest] of partitions) {
+            // Partition elements can be marked as "done" in a refinement step
+            // and will not be modified further by subsequent steps
             let done = Union.empty(rest.dim);
             for (let step of steps) {
-                const partition = step.partition(x, q, rest);
+                // Only refine maybe states
+                if (!step.requiresRefinement(x)) continue;
+                const partition = step.partition(x, rest);
                 // null-return: refinery does not want to partition the state
                 if (partition == null) continue;
                 // Collect parts
@@ -67,11 +73,11 @@ export class Refinery {
                 // Nothing left to refine?
                 if (rest.isEmpty) break;
             }
-            // Reset rest to entire polytope as parts marked as done in some
-            // automaton state will generally not also be done in another
-            rest = rest.union(done);
+            // Assign new partition. For other qs, rest is reset to cover the
+            // entire state polytope. Parts marked as done in this automaton
+            // state will generally not also be done in another.
+            partitions.set(x, rest.union(done));
         }
-        return rest;
     }
 
     // Collection of built-in refineries for module export
@@ -85,40 +91,44 @@ export class Refinery {
 
     // Approximation helpers
 
-    _approximate(r: Region, what: RefineryApproximation): Region {
+    approximate(r: Region, what: RefineryApproximation): Region {
         return (this.settings.approximation === what) ? r.hull() : r;
     }
 
     // Convenience accessors
 
-    _getStates(which: "yes"|"no"|"maybe", q: AutomatonStateLabel): Iterable<State> {
-        return iter.filter((state) => this._getResult(state)[which].has(q), this._system.states.values());
+    requiresRefinement(x: State): boolean {
+        return this.getResult(x).maybe.has(this.q);
     }
 
-    _getStateRegion(which: "yes"|"no"|"maybe", q: AutomatonStateLabel): Region {
+    getStates(which: "yes"|"no"|"maybe", q: AutomatonStateLabel): Iterable<State> {
+        return iter.filter((state) => this.getResult(state)[which].has(q), this.system.states.values());
+    }
+
+    getStateRegion(which: "yes"|"no"|"maybe", q: AutomatonStateLabel): Region {
         const polys = [];
-        for (let x of this._getStates(which, q)) {
+        for (let x of this.getStates(which, q)) {
             polys.push(x.polytope);
         }
-        return polys.length === 0 ? this._getEmpty() : Union.from(polys);
+        return polys.length === 0 ? this.getEmpty() : Union.from(polys);
     }
 
-    _getResult(x: State): AnalysisResult {
-        const result = this._results.get(x.label);
+    getResult(x: State): AnalysisResult {
+        const result = this.results.get(x.label);
         if (result == null) throw new Error("TODO477"); // TODO
         return result;
     }
 
-    _getEmpty(): Region {
-        return Polytope.ofDim(this._system.lss.dim).empty();
+    getEmpty(): Region {
+        return Polytope.ofDim(this.system.lss.dim).empty();
     }
     
-    _qNext(x: State, q: AutomatonStateLabel): ?AutomatonStateLabel {
-        return this._objective.nextState(x.predicates, q);
+    qNext(x: State): ?AutomatonStateLabel {
+        return this.objective.nextState(x.predicates, this.q);
     }
 
     // Implement in subclass
-    partition(x: State, q: AutomatonStateLabel, rest: Region): ?RefinementPartition {
+    partition(x: State, rest: Region): ?RefinementPartition {
         throw new NotImplementedError();
     }
 
@@ -132,28 +142,26 @@ class NegativeAttrRefinery extends Refinery {
 
     +attr: Map<AutomatonStateLabel, Region>;
 
-    constructor(system: AbstractedLSS, objective: Objective,
-                results: AnalysisResults, settings: RefinerySettings): void {
-        super(system, objective, results, settings);
+    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
+                settings: RefinerySettings, q: AutomatonStateLabel): void {
+        super(system, objective, results, settings, q);
         // Precompute attractor of "no" states for every q
         this.attr = new Map();
         const lss = system.lss;
         for (let q of objective.allStates) {
-            const target = this._approximate(this._getStateRegion("no", q), "target");
+            const target = this.approximate(this.getStateRegion("no", q), "target");
             this.attr.set(q, lss.attr(lss.xx, lss.uus, target).simplify());
         }
     }
 
-    partition(x: State, q: AutomatonStateLabel, rest: Region): ?RefinementPartition {
-        // Only refine maybe states
-        if (!this._getResult(x).maybe.has(q)) return null;
+    partition(x: State, rest: Region): ?RefinementPartition {
         // Refine wrt to next automaton state
-        const qNext = this._qNext(x, q);
+        const qNext = this.qNext(x);
         if (qNext == null) return null;
         // Cut attractor of "no" region out of state
         const attr = this.attr.get(qNext);
         if (attr == null) throw new Error("NAR2"); // TODO
-        const done = this._approximate(attr, "after").intersect(rest).simplify();
+        const done = this.approximate(attr, "after").intersect(rest).simplify();
         rest = rest.remove(done).simplify();
         // Progress guarantee, don't refine the attr further
         return { done: done, rest: rest };
@@ -166,31 +174,29 @@ class PositivePreRRefinery extends Refinery {
 
     +preR: Map<AutomatonStateLabel, Region>;
 
-    constructor(system: AbstractedLSS, objective: Objective,
-                results: AnalysisResults, settings: RefinerySettings): void {
-        super(system, objective, results, settings);
+    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
+                settings: RefinerySettings, q: AutomatonStateLabel): void {
+        super(system, objective, results, settings, q);
         // Precompute robust predecessor of "yes" states for every q
         this.preR = new Map();
         const lss = system.lss;
         for (let q of objective.allStates) {
-            const target = this._approximate(this._getStateRegion("yes", q), "target");
+            const target = this.approximate(this.getStateRegion("yes", q), "target");
             this.preR.set(q, lss.preR(lss.xx, lss.uus, target).simplify());
         }
     }
 
-    partition(x: State, q: AutomatonStateLabel, rest: Region): ?RefinementPartition {
-        // Only refine maybe states
-        if (!this._getResult(x).maybe.has(q)) return null;
+    partition(x: State, rest: Region): ?RefinementPartition {
         // Refine wrt to next automaton state
-        const qNext = this._qNext(x, q);
+        const qNext = this.qNext(x);
         if (qNext == null) return null;
         // Cut robust predecessor of "yes" region out of state
         const preR = this.preR.get(qNext);
         if (preR == null) throw new Error("NAR2"); // TODO
-        const done = this._approximate(preR, "after").intersect(rest).simplify();
+        const done = this.approximate(preR, "after").intersect(rest).simplify();
         rest = rest.remove(done).simplify();
         // No progress guarantee, everything can be refined further
-        return { done: this._getEmpty(), rest: done.union(rest) };
+        return { done: this.getEmpty(), rest: done.union(rest) };
     }
 
 }
@@ -200,22 +206,20 @@ class PositiveAttrRRefinery extends Refinery {
 
     +yes: Map<AutomatonStateLabel, Region>;
 
-    constructor(system: AbstractedLSS, objective: Objective,
-                results: AnalysisResults, settings: RefinerySettings): void {
-        super(system, objective, results, settings);
+    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
+                settings: RefinerySettings, q: AutomatonStateLabel): void {
+        super(system, objective, results, settings, q);
         // Precompute target region ("yes" states) for every q
         this.yes = new Map();
         for (let q of objective.allStates) {
-            const target = this._approximate(this._getStateRegion("yes", q), "target");
+            const target = this.approximate(this.getStateRegion("yes", q), "target");
             this.yes.set(q, target.simplify());
         }
     }
 
-    partition(x: State, q: AutomatonStateLabel, rest: Region): ?RefinementPartition {
-        // Only refine maybe states
-        if (!this._getResult(x).maybe.has(q)) return null;
+    partition(x: State, rest: Region): ?RefinementPartition {
         // Refine wrt to next automaton state
-        const qNext = this._qNext(x, q);
+        const qNext = this.qNext(x);
         if (qNext == null) return null;
         const target = this.yes.get(qNext);
         if (target == null || target.isEmpty) return null;
@@ -223,8 +227,8 @@ class PositiveAttrRRefinery extends Refinery {
         if (x.actions.length === 0) return null;
         // Estimate which action is "best" by looking at the overlap of each
         // action's posterior with yes/maybe/no states.
-        const reach = this._getStateRegion("yes", qNext);
-        const avoid = this._getStateRegion("no", qNext);
+        const reach = this.getStateRegion("yes", qNext);
+        const avoid = this.getStateRegion("no", qNext);
         // Look for most overlap with yes targets
         const action = iter.argmax(
             _ => valueControl(x, _.controls, reach, avoid, [10, -1, 1]),
@@ -233,14 +237,14 @@ class PositiveAttrRRefinery extends Refinery {
         if (action == null) return null;
         // Subdivide action polytope into smaller parts and find best part to
         // refine with (largest AttrR)
-        const lss = this._system.lss;
+        const lss = this.system.lss;
         const attrR = (u) => lss.attrR(x.polytope, u, target).intersect(rest);
         let done = iter.argmax(
             _ => _.volume,
             action.controls.shatter().polytopes.map(attrR)
         );
         if (done == null) return null;
-        done = this._approximate(done, "after").simplify();
+        done = this.approximate(done, "after").simplify();
         rest = rest.remove(done).simplify();
         // Progress guarantee, don't refine the AttrR further
         return { done: done, rest: rest };

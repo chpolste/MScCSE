@@ -129,21 +129,19 @@ class SystemManager {
         if (analysis == null) throw new Error(
             "Refinement requires an analysed system"
         );
-        // Setup refinement steps
-        const Clss = Refinery.builtIns();
-        const steps = [];
-        for (let [name, settings] of refineries) {
-            const Cls = Clss[name];
-            if (Cls == null) throw new Error(
-                "Refinement step '" + name + "' does not match any of the built-in refinement methods"
-            );
-            steps.push(new Cls(this.system, this.objective, analysis, settings));
-
-        }
-        // Partition states
+        // Initialize state partition
         const partitions = new Map();
         for (let state of this.system.states.values()) {
-            partitions.set(state, Refinery.execute(steps, state, qs));
+            partitions.set(state, state.polytope);
+        }
+        // Initialize and execute refinement steps for all desired origin qs
+        const Clss = Refinery.builtIns();
+        for (let q of qs) {
+            const steps = refineries.map((step) => {
+                const [name, settings] = step;
+                return new Clss[name](this.system, this.objective, analysis, settings, q);
+            });
+            Refinery.execute(steps, partitions);
         }
         // Apply partitioning to system (in-place)
         const refinementMap = this.system.refine(partitions);

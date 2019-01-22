@@ -143,6 +143,7 @@ textarea, input[type=text] {
     font-size: 12px;
     font-family: monospace;
     background-color: #FFF;
+    vertical-align: bottom;
 }
 input[type=checkbox], input[type=radio] {
     vertical-align: top;

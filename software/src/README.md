@@ -12,6 +12,7 @@
 - `js/parser.js`: precedence climbing parser for mathematical expressions
 - `js/presets.js`: predefined objectives and hybrid system setups for applications and tests
 - `js/refinement.js`: partition generation for abstraction refinement
+- `js/snapshot.js`: system saving, organization and loading
 - `js/system.js`: LSS and its abstraction (states, actions, action supports), polytopic operators, refinement
 - `js/tools.js`: helper functions for arrays, iterators, sets, objects and strings, observer pattern mixin, custom collections
 - `js/widgets-input.js`: input fields with automatic validation and value conversion

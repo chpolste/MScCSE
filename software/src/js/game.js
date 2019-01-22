@@ -427,10 +427,10 @@ export class TwoPlayerProbabilisticGame {
                 const qiNext = objective.nextState(pis, qi);
                 // Analysis result, if available
                 const result = analysis == null ? null : analysis.get(xi);
-                // No legal automaton transition: don't add any actions, so
-                // state is connected to dead end later
+                // No legal automaton transition: don't add any actions, state
+                // is connected to dead end later
                 if (qiNext == null) {
-                    continue;
+                    // pass
                 // If a priority 0 state would be reached in the co-safe
                 // interpretation, ensure that player 1 wins immediately (so
                 // even if the trace leaves the state space afterwards, the
@@ -464,12 +464,10 @@ export class TwoPlayerProbabilisticGame {
                     // is no need to evaluate supports as player 1 can pick
                     // this action to win immediately.
                 }
-                // No action or qiNext == null: connect via player 2 action to
-                // common dead-end state
+                // No game action was added above action (system state is outer
+                // or qiNext == null): connect to dead-end state
                 if (state.actions.length === 0) {
-                    const action = game.takeP2State(xi, 0, "");
-                    action.actions.push(new Set([deadEndP1]));
-                    state.actions.push(new Set([action]));
+                    state.actions.push(new Set([deadEndP2]));
                 }
             // For every player 2 state ((Xi, Uij), q), create actions to
             // player 1 states (Xj, q) for every system action support set

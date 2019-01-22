@@ -12,6 +12,7 @@ git push -f origin gh-pages
 git checkout -f "${current_branch}"
 mkdir -p "dist/js"
 mkdir -p "dist/css"
+mkdir -p "dist/svg"
 make clean
 make
 

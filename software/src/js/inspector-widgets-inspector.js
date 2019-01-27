@@ -1356,13 +1356,22 @@ class AnalysisViewCtrl extends WidgetPlus{
         const volume = stats.volume;
         const totalCount = count.yes + count.no + count.maybe + count.unreachable;
         const totalVolume = volume.yes + volume.no + volume.maybe + volume.unreachable;
+        const nodes = [];
+        if (count.yes > 0) nodes.push(
+            dom.SPAN({ "class": "yes", "title": "yes" }, [count.yes.toString()])
+        );
+        if (count.maybe > 0) nodes.push(
+            dom.SPAN({ "class": "maybe", "title": "maybe" }, [count.maybe.toString()])
+        );
+        if (count.no > 0) nodes.push(
+            dom.SPAN({ "class": "no", "title": "no" }, [count.no.toString()])
+        );
+        if (count.unreachable > 0) nodes.push(
+            dom.SPAN({ "class": "unreachable", "title": "unreachable" }, [count.unreachable.toString()])
+        );
         dom.replaceChildren(this._info, [
             automatonLabel(q), " :: ",
-            dom.SPAN({ "class": "yes", "title": "yes" }, [count.yes.toString()]), " + ",
-            dom.SPAN({ "class": "maybe", "title": "maybe" }, [count.maybe.toString()]), " + ",
-            dom.SPAN({ "class": "no", "title": "no" }, [count.no.toString()]), " + ",
-            dom.SPAN({ "class": "unreachable", "title": "unrechable" }, [count.unreachable.toString()]), " = ",
-            totalCount + " states"
+            ...arr.intersperse(" + ", nodes), " = ", totalCount + " states"
         ]);
         const bar = percentageBar(volume);
         this.node.replaceChild(bar, this._bar);

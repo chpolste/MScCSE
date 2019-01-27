@@ -89,7 +89,9 @@ export class Refinery {
         return {
             "Negative Attractor": NegativeAttrRefinery,
             "Positive Robust Predecessor": PositivePreRRefinery,
-            "Positive Robust Attractor": PositiveAttrRRefinery
+            "Positive Robust Attractor": PositiveAttrRRefinery,
+            "Predecessor Onion": PreOnionRefinery,
+            "Robust Predecessor Onion": PreROnionRefinery
         };
     }
 
@@ -262,6 +264,65 @@ class PositiveAttrRRefinery extends Refinery {
         rest = rest.remove(done).simplify();
         // Progress guarantee, don't refine the AttrR further
         return { done: done, rest: rest };
+    }
+
+}
+
+// TODO
+class _OnionRefinery extends Refinery {
+
+    layers: Region[];
+
+    initialize(): void {
+        // Select states of two categories:
+        const targets = new Set(); // try to reach these states
+        // All other states are to be avoided (or are unreachable)
+        for (let x of this.system.states.values()) {
+            const result = this.getResult(x);
+            if (result.yes.has(this.q) || (result.maybe.has(this.q) && this.qNext(x) !== this.q)) {
+                targets.add(x);
+            }
+        }
+        const lss = this.system.lss;
+        this.layers = [];
+        let layer = this.approximate(this.asRegion(targets), "target").simplify();
+        for (let i = 0; i < 10; i++) {
+            layer = this.approximate(this.layerOp(layer), "target").simplify();
+            this.layers.push(layer);
+        }
+    }
+
+    layerOp(target: Region): Region {
+        throw new NotImplementedError();
+    }
+
+    partition(x: State, rest: Region): ?RefinementPartition {
+        let inner = this.getEmpty();
+        for (let layer of this.layers) {
+            const intersection = this.approximate(rest.intersect(layer), "after").simplify();
+            rest = rest.remove(intersection).simplify();
+            inner = inner.union(intersection);
+            if (rest.isEmpty) break;
+        }
+        return { done: this.getEmpty(), rest: inner.union(rest) };
+    }
+
+}
+
+class PreOnionRefinery extends _OnionRefinery {
+
+    layerOp(target: Region): Region {
+        const lss = this.system.lss;
+        return lss.pre(lss.xx, lss.uus, target);
+    }
+
+}
+
+class PreROnionRefinery extends _OnionRefinery {
+
+    layerOp(target: Region): Region {
+        const lss = this.system.lss;
+        return lss.preR(lss.xx, lss.uus, target);
     }
 
 }

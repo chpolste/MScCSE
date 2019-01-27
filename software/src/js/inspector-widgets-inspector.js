@@ -1418,6 +1418,7 @@ class RefinementCtrl extends WidgetPlus {
         }
         this._steps = [
             new RefinementStep("Negative Attractor", true),
+            new RefinementStep("Negative Supports"),
             new RefinementStep("Positive Robust Predecessor"),
             new RefinementStep("Positive Robust Attractor"),
             new RefinementStep("Predecessor Onion"),

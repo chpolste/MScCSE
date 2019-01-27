@@ -88,6 +88,7 @@ export class Refinery {
     static builtIns(): { [string]: Class<Refinery> } {
         return {
             "Negative Attractor": NegativeAttrRefinery,
+            "Negative Supports": NegativeSupportsRefinery,
             "Positive Robust Predecessor": PositivePreRRefinery,
             "Positive Robust Attractor": PositiveAttrRRefinery,
             "Predecessor Onion": PreOnionRefinery,
@@ -299,8 +300,8 @@ class _OnionRefinery extends Refinery {
     partition(x: State, rest: Region): ?RefinementPartition {
         let inner = this.getEmpty();
         for (let layer of this.layers) {
-            const intersection = this.approximate(rest.intersect(layer), "after").simplify();
-            rest = rest.remove(intersection).simplify();
+            const intersection = this.approximate(rest.intersect(layer), "after");
+            rest = rest.remove(intersection);
             inner = inner.union(intersection);
             if (rest.isEmpty) break;
         }
@@ -323,6 +324,58 @@ class PreROnionRefinery extends _OnionRefinery {
     layerOp(target: Region): Region {
         const lss = this.system.lss;
         return lss.preR(lss.xx, lss.uus, target);
+    }
+
+}
+
+
+// TODO
+class NegativeSupportsRefinery extends Refinery {
+    
+    yes: Map<AutomatonStateLabel, Region>;
+
+    initialize(): void {
+        // Precompute target region ("yes" states) for every q
+        this.yes = new Map();
+        for (let q of this.objective.allStates) {
+            const target = this.approximate(this.getStateRegion("yes", q), "target");
+            this.yes.set(q, target.simplify());
+        }
+    }
+
+    partition(x: State, rest: Region): ?RefinementPartition {
+        // Refine wrt to next automaton state
+        const qNext = this.qNext(x);
+        if (qNext == null) return null;
+        const target = this.yes.get(qNext);
+        if (target == null || target.isEmpty) return null;
+        // Choose an action for refining with
+        if (x.actions.length === 0) return null;
+        // Estimate which action is "best" by looking at the overlap of each
+        // action's posterior with yes/maybe/no states.
+        const reach = this.getStateRegion("yes", qNext);
+        const avoid = this.getStateRegion("no", qNext);
+        // Look for most overlap with yes targets
+        const action = iter.argmax(
+            _ => valueControl(x, _.controls, reach, avoid, [10, -1, 1]),
+            x.actions
+        );
+        if (action == null) return null;
+        // Look at supports of chosen action and remove ones that contain
+        // no-states
+        let toRemove = this.getEmpty();
+        for (let support of action.supports) {
+            for (let target of support.targets) {
+                const result = this.getResult(target);
+                if (result.no.has(qNext)) {
+                    toRemove = toRemove.union(support.origins);
+                }
+            }
+        }
+        if (toRemove.isEmpty) return null;
+        toRemove = toRemove.simplify();
+        const remaining = rest.remove(toRemove).simplify();
+        return { done: this.getEmpty(), rest: rest.remove(remaining).union(remaining) };
     }
 
 }

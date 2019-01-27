@@ -4,7 +4,7 @@
 import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Region } from "./geometry.js";
 import type { Objective, AutomatonStateLabel } from "./logic.js";
-import type { AbstractedLSS, State, Action } from "./system.js";
+import type { AbstractedLSS, State } from "./system.js";
 
 import { Polytope, Union } from "./geometry.js";
 import { iter, NotImplementedError } from "./tools.js";
@@ -50,6 +50,10 @@ export class Refinery {
         this.objective = objective;
         this.results = results;
         this.settings = settings;
+        // Subclasses could override the constructor but due to the many
+        // arguments, a separate initialization method seems cleaner. Subclass
+        // properties cannot be declared readonly because of this though...
+        this.initialize();
     }
 
     // Partition the system states using the given refinement steps. Modifies
@@ -106,11 +110,7 @@ export class Refinery {
     }
 
     getStateRegion(which: "yes"|"no"|"maybe", q: AutomatonStateLabel): Region {
-        const polys = [];
-        for (let x of this.getStates(which, q)) {
-            polys.push(x.polytope);
-        }
-        return polys.length === 0 ? this.getEmpty() : Union.from(polys);
+        return this.asRegion(this.getStates(which, q));
     }
 
     getResult(x: State): AnalysisResult {
@@ -122,12 +122,28 @@ export class Refinery {
     getEmpty(): Region {
         return Polytope.ofDim(this.system.lss.dim).empty();
     }
+
+    asRegion(xs: Iterable<State>): Region {
+        const polys = [];
+        for (let x of xs) {
+            polys.push(x.polytope);
+        }
+        return polys.length === 0 ? this.getEmpty() : Union.from(polys);
+    }
     
     qNext(x: State): ?AutomatonStateLabel {
         return this.objective.nextState(x.predicates, this.q);
     }
 
     // Implement in subclass
+
+    // Global computations necessary for the refinement that is called once
+    // during construction of the refinery.
+    initialize(): void {
+        // If no initialization is needed, this can be left empty
+    }
+
+    // Refine the region rest, which is a partition of state x
     partition(x: State, rest: Region): ?RefinementPartition {
         throw new NotImplementedError();
     }
@@ -140,15 +156,13 @@ export class Refinery {
 // Remove Attractor of non-satisfying states
 class NegativeAttrRefinery extends Refinery {
 
-    +attr: Map<AutomatonStateLabel, Region>;
+    attr: Map<AutomatonStateLabel, Region>;
 
-    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
-                settings: RefinerySettings, q: AutomatonStateLabel): void {
-        super(system, objective, results, settings, q);
+    initialize(): void {
         // Precompute attractor of "no" states for every q
         this.attr = new Map();
-        const lss = system.lss;
-        for (let q of objective.allStates) {
+        const lss = this.system.lss;
+        for (let q of this.objective.allStates) {
             const target = this.approximate(this.getStateRegion("no", q), "target");
             this.attr.set(q, lss.attr(lss.xx, lss.uus, target).simplify());
         }
@@ -169,18 +183,20 @@ class NegativeAttrRefinery extends Refinery {
 
 }
 
-// Remove Attractor of non-satisfying states
+// TODO: all following positive refinement methods only work for co-safe
+// reachability/avoidance problems because they target yes-states. Instead,
+// they should target states that enable an automaton transition in general.
+
+// Robust Predecessor of satisfying states
 class PositivePreRRefinery extends Refinery {
 
-    +preR: Map<AutomatonStateLabel, Region>;
+    preR: Map<AutomatonStateLabel, Region>;
 
-    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
-                settings: RefinerySettings, q: AutomatonStateLabel): void {
-        super(system, objective, results, settings, q);
+    initialize(): void {
         // Precompute robust predecessor of "yes" states for every q
         this.preR = new Map();
-        const lss = system.lss;
-        for (let q of objective.allStates) {
+        const lss = this.system.lss;
+        for (let q of this.objective.allStates) {
             const target = this.approximate(this.getStateRegion("yes", q), "target");
             this.preR.set(q, lss.preR(lss.xx, lss.uus, target).simplify());
         }
@@ -204,14 +220,12 @@ class PositivePreRRefinery extends Refinery {
 // Case 1 of the Positive AttrR refinement from Svorenova et al. (2017)
 class PositiveAttrRRefinery extends Refinery {
 
-    +yes: Map<AutomatonStateLabel, Region>;
+    yes: Map<AutomatonStateLabel, Region>;
 
-    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
-                settings: RefinerySettings, q: AutomatonStateLabel): void {
-        super(system, objective, results, settings, q);
+    initialize(): void {
         // Precompute target region ("yes" states) for every q
         this.yes = new Map();
-        for (let q of objective.allStates) {
+        for (let q of this.objective.allStates) {
             const target = this.approximate(this.getStateRegion("yes", q), "target");
             this.yes.set(q, target.simplify());
         }

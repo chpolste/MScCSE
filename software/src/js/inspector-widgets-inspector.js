@@ -1417,9 +1417,9 @@ class RefinementCtrl extends WidgetPlus {
             this._qs.set(q, checkbox);
         }
         this._steps = [
-            new RefinementStep("Negative Attractor", false),
-            new RefinementStep("Positive Robust Predecessor", false),
-            new RefinementStep("Positive Robust Attractor", true)
+            new RefinementStep("Negative Attractor"),
+            new RefinementStep("Positive Robust Predecessor"),
+            new RefinementStep("Positive Robust Attractor")
         ];
         this._stepBox = dom.DIV({}, this._steps.map(_ => _.node));
         this.node = dom.DIV({}, [
@@ -1474,10 +1474,9 @@ class RefinementStep {
     +_info: HTMLDivElement;
     +_toggle: Input<boolean>;
     +_approximation: Input<RefineryApproximation>;
-    +_showActionPick: boolean
     _expanded: boolean;
 
-    constructor(name: string, showActionPick: boolean): void {
+    constructor(name: string): void {
         this.name = name;
         this._toggle = new CheckboxInput(false);
         this._toggle.attach(() => this.handleChange());

@@ -117,7 +117,10 @@ label {
 }
 
 /* Form elements */
-textarea, button, input, select {
+textarea,
+button,
+input,
+select {
     vertical-align: center;
     display: inline-block;
     border: 1px solid #BBB;
@@ -131,7 +134,9 @@ textarea {
 select {
     height: 23px !important;
 }
-button, input[type=button], input[type=submit] {
+button,
+input[type=button],
+input[type=submit] {
     height: 23px !important;
     padding: 0 8px;
 }
@@ -139,23 +144,36 @@ input[type=text] {
     height: 21px !important;
     padding: 0 4px;
 }
-textarea, input[type=text] {
+textarea,
+input[type=text] {
     font-size: 12px;
     font-family: monospace;
     background-color: #FFF;
     vertical-align: bottom;
 }
-input[type=checkbox], input[type=radio] {
+input[type=checkbox],
+input[type=radio] {
     vertical-align: top;
     margin: 0 4px 0 0;
 }
-button:hover, button:focus, input:hover, input:focus, textarea:hover, textarea:focus, select:hover, select:focus {
+button:hover,
+button:focus,
+input:hover,
+input:focus,
+textarea:hover,
+textarea:focus,
+select:hover,
+select:focus {
     border-color: #999;
 }
-button:disabled, input:disabled, textarea:disabled, select:disabled {
+button:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
     color: #666;
 }
-input:invalid, textarea:invalid {
+input:invalid,
+textarea:invalid {
     border-color: #933;
 }
 .click-cycler {
@@ -405,7 +423,7 @@ span.unreachable {
 }
 
 #action-view {
-    height: 550px;
+    max-height: 500px;
     overflow-y: auto;
 }
 #action-view > div {
@@ -455,26 +473,19 @@ span.unreachable {
     line-height: 23px;
 }
 
-#refinement-qs {
-    margin-bottom: 10px;
-    border-bottom: 1px solid #CCC;
+#layer-refinement-ctrl {
+    display: table;
+    margin: 0 0 8px 0;
 }
-#refinement-ctrl > label {
-    display: inline-block;
-    margin: 0 4px;
+#layer-refinement-ctrl > div {
+    display: table-row;
 }
-
-.refinement-step {
-    padding: 3px 0;
+#layer-refinement-ctrl > div > div {
+    display: table-cell;
+    padding-bottom: 5px;
 }
-.refinement-step .name {
-    margin: 0;
-    padding: 0 0 2px 0;
-    cursor: default;
-}
-.refinement-step .info {
-    font-size: 0.8em;
-    color: #333;
+#layer-refinement-ctrl > div > div:first-child {
+    padding-right: 1em;
 }
 
 #snapshot-ctrl .right {

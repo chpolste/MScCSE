@@ -4,14 +4,14 @@
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
 import type { JSONObjective, AutomatonStateLabel } from "./logic.js";
-import type { RefinerySettings } from "./refinement.js";
-import type { LSS, State, Trace, JSONAbstractedLSS } from "./system.js";
+import type { StateRefineryApproximation } from "./refinement.js";
+import type { StateID, LSS, State, Trace, JSONAbstractedLSS } from "./system.js";
 
 import { controller } from "./controller.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Polytope, Union } from "./geometry.js";
 import { Objective } from "./logic.js";
-import { Refinery } from "./refinement.js";
+import { StateRefinery } from "./refinement.js";
 import { SnapshotTree } from "./snapshot.js";
 import { AbstractedLSS } from "./system.js";
 import { iter, sets, obj } from "./tools.js";
@@ -124,27 +124,20 @@ class SystemManager {
         };
     }
 
-    refine(qs: AutomatonStateLabel[], refineries: RefineRequestStep[]): Set<State> {
+    refineState(x: State, q: AutomatonStateLabel, method: string, approximation: StateRefineryApproximation): Set<State> {
         const analysis = this.analysis;
         if (analysis == null) throw new Error(
             "Refinement requires an analysed system"
         );
-        // Initialize state partition
-        const partitions = new Map();
-        for (let state of this.system.states.values()) {
-            partitions.set(state, state.polytope);
-        }
-        // Initialize and execute refinement steps for all desired origin qs
-        const Clss = Refinery.builtIns();
-        for (let q of qs) {
-            const steps = refineries.map((step) => {
-                const [name, settings] = step;
-                return new Clss[name](this.system, this.objective, analysis, settings, q);
-            });
-            Refinery.execute(steps, partitions);
-        }
+        // Initialize refinement method
+        const Cls = StateRefinery.builtIns()[method];
+        if (Cls == null) throw new Error(); // TODO
+        const refinery = new Cls(this.system, this.objective, analysis, {
+            q: q,
+            approximation: approximation
+        });
         // Apply partitioning to system (in-place)
-        const refinementMap = this.system.refine(partitions);
+        const refinementMap = x.refine(refinery.partition(x));
         // Update analysis results
         analysis.remap(refinementMap);
         // Return set of states that were refined
@@ -345,13 +338,14 @@ inspector.onRequest("analyse", function (data: AnalysisRequest): AnalysisData {
 
 
 // Refine the system
-export type RefineRequest = [AutomatonStateLabel[], RefineRequestStep[]];
-export type RefineRequestStep = [string, RefinerySettings];
 export type RefineData = Set<string>;
-inspector.onRequest("refine", function (data: RefineRequest): RefineData {
-    const [qs, refineries] = data;
+
+export type RefineStateRequest = [StateID, AutomatonStateLabel, string, StateRefineryApproximation];
+inspector.onRequest("refineState", function (data: RefineStateRequest): RefineData {
+    const [label, q, method, approx] = data;
+    const x = $.system.getState(label);
     // Return set of states that were changed by refinement
-    return sets.map(_ => _.label, $.refine(qs, refineries));
+    return sets.map(_ => _.label, $.refineState(x, q, method, approx));
 });
 
 

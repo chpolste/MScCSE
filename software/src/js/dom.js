@@ -123,6 +123,12 @@ export function appendAfter(parent: Element, before: Element, after: Element): v
 
 /* Mouse event helper */
 
+export function createButton(a: ElementAttributes, c: ElementChildren, f: MouseEventListener): HTMLButtonElement {
+    const button = BUTTON(a, c);
+    button.addEventListener("click", f);
+    return button;
+}
+
 // Test if related target of event is a child element of the given node. Use to
 // discard mouseover/mouseout events that are triggered by moving over a nested
 // element.

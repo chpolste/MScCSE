@@ -5,13 +5,12 @@ import type { FigureLayer, Shape } from "./figure.js";
 import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
 import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, TraceData,
-              AnalysisData, RefineRequestStep, RefineData, TakeSnapshotData,
-              LoadSnapshotData, NameSnapshotData, SnapshotData, SystemSummaryData
-            } from "./inspector-worker-system.js";
+              AnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
+              SnapshotData, SystemSummaryData } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
 import type { AutomatonStateLabel, AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
-import type { RefinerySettings, RefineryApproximation } from "./refinement.js";
+import type { StateRefineryApproximation } from "./refinement.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
@@ -200,10 +199,11 @@ export class SystemInspector {
         const automatonViewCtrl = new AutomatonViewCtrl(model, keys);
         // Game
         const stateView = new StateView(model);
+        const stateRefinementCtrl = new StateRefinementCtrl(model);
         const actionViewCtrl = new ActionViewCtrl(model);
         // System
         const analysisViewCtrl = new AnalysisViewCtrl(model, keys);
-        const refinementCtrl = new RefinementCtrl(model, keys);
+        const layerRefinementCtrl = new LayerRefinementCtrl(model, keys);
         const snapshotViewCtrl = new SnapshotViewCtrl(model);
         // Strategy
         const traceViewCtrl = new TraceViewCtrl(model, keys);
@@ -232,13 +232,14 @@ export class SystemInspector {
         }
 
         const tabs = new TabbedView();
-        const gameTab = tabs.newTab("Game", [
+        const stateTab = tabs.newTab("State", [
             stateView,
+            stateRefinementCtrl,
             actionViewCtrl
         ]);
         const systemTab = tabs.newTab("System", [
             analysisViewCtrl,
-            refinementCtrl,
+            layerRefinementCtrl,
             snapshotViewCtrl
         ]);
         //const controlTab = tabs.newTab("Control", [
@@ -476,8 +477,9 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
-    refine(qs: AutomatonStateLabel[], steps: RefineRequestStep[]): Promise<RefineData> {
-        return this._comm.request("refine", [qs, steps]).then((data) => {
+    refineState(state: StateID, q: AutomatonStateLabel, method: string,
+                approximation: StateRefineryApproximation): Promise<RefineData> {
+        return this._comm.request("refineState", [state, q, method, approximation]).then((data) => {
             if (data.size > 0) {
                 this.log.writeRefinement(data);
                 this.notify("system");
@@ -1089,6 +1091,7 @@ class WidgetPlus implements TabWidget {
             title,
             dom.DIV({ "class": "icons" }, this._icons)
         ]);
+        this.node = dom.DIV();
     }
 
     get isLoading(): boolean {
@@ -1176,6 +1179,60 @@ class StateView extends WidgetPlus {
             for (let line of this._lines) dom.replaceChildren(line, ["-"]);
             this._predicates.items = [];
         }
+    }
+
+}
+
+
+class StateRefinementCtrl extends WidgetPlus {
+
+    +_model: SystemModel;
+    +_negAttr: HTMLButtonElement;
+    +_posAttrR: HTMLButtonElement;
+    +_approximation: Input<StateRefineryApproximation>;
+
+    constructor(model: SystemModel): void {
+        super("Refinement", "info-state-refinement");
+        this._model = model;
+        this._model.attach((mc) => this.handleModelChange(mc));
+        this._negAttr = dom.createButton({}, ["Attr-"], () => this.refine("Attr-"));
+        this._posAttrR = dom.createButton({}, ["AttrR+"], () => this.refine("AttrR+"));
+        this._approximation = new SelectInput({
+            "no approximation": "none",
+            "convex hull": "hull"
+        }, "no approximation");
+        this.node = dom.DIV({}, [
+            dom.P({}, [this._negAttr, " ", this._posAttrR, " :: ", this._approximation.node])
+        ]);
+    }
+
+    // Refinement is only enabled for states if they have analysis information
+    // available and have not beed decided yet
+    get canRefine(): boolean {
+        const [x, q] = this._model.state;
+        return x != null && x.analysis != null && x.analysis.maybe.has(q);
+    }
+
+    handleModelChange(mc: ?ModelChange): void {
+        if (mc !== "state") return;
+        const canRefine = this.canRefine;
+        this._negAttr.disabled = !canRefine;
+        this._posAttrR.disabled = !canRefine;
+    }
+
+    refine(method: string): void {
+        if (this.isLoading || !this.canRefine) return;
+        const [x, q] = this._model.state;
+        if (x == null) throw new Error(); // ...
+        const approximation = this._approximation.value;
+        this.pushLoad();
+        this._model.refineState(x.label, q, method, approximation).then((data: RefineData) => {
+            // ...
+        }).catch(() => {
+            // ...
+        }).finally(() => {
+            this.popLoad();
+        });
     }
 
 }
@@ -1402,123 +1459,14 @@ class AnalysisViewCtrl extends WidgetPlus{
 }
 
 
-// Refinement controls. Observes analysis widget to block operations while
-// analysis is carried out.
-class RefinementCtrl extends WidgetPlus {
+// TODO
+class LayerRefinementCtrl extends WidgetPlus {
 
     +_model: SystemModel;
-    +_button: HTMLButtonElement;
-    +_info: HTMLSpanElement;
-    +_qs: Map<AutomatonStateLabel, HTMLInputElement>;
-    +_steps: RefinementStep[];
-    +_stepBox: HTMLDivElement;
-    
+
     constructor(model: SystemModel, keys: dom.Keybindings): void {
-        super("Abstraction Refinement", "info-refinement");
+        super("Layered Abstraction Refinement", "info-layer-refinement");
         this._model = model;
-        this._model.attach((mc) => this.handleChange(mc));
-        this._button = dom.BUTTON({}, [dom.create("u", {}, ["r"]), "efine"]);
-        this._button.addEventListener("click", () => this.refine());
-        this._qs = new Map();
-        for (let q of this._model.qAll) {
-            const checkbox = dom.INPUT({ "type": "checkbox" });
-            checkbox.checked = true;
-            this._qs.set(q, checkbox);
-        }
-        this._steps = [
-            new RefinementStep("Negative Attractor", true),
-            new RefinementStep("Negative Supports"),
-            new RefinementStep("Positive Robust Predecessor"),
-            new RefinementStep("Positive Robust Attractor"),
-            new RefinementStep("Predecessor Onion"),
-            new RefinementStep("Robust Predecessor Onion")
-        ];
-        this._stepBox = dom.DIV({}, this._steps.map(_ => _.node));
-        this.node = dom.DIV({}, [
-            dom.P({ "id": "refinement-ctrl" }, [this._button, " ", ...iter.map(([q, box]) => dom.LABEL({}, [box, automatonLabel(q)]), this._qs)]),
-            this._stepBox
-        ]);
-        // Keyboard Shortcuts
-        keys.bind("r", () => this.refine());
-    }
-
-    get steps(): RefineRequestStep[] {
-        return this._steps.filter(_ => _.isEnabled).map(_ => [_.name, _.settings]);
-    }
-
-    get qs(): AutomatonStateLabel[] {
-        const qs = [];
-        for (let [q, box] of this._qs) {
-            if (box.checked) qs.push(q);
-        }
-        return qs;
-    }
-
-    refine(): void {
-        if (this.isLoading) return; // TODO
-        this.pushLoad();
-        this._model.refine(this.qs, this.steps).then((data) => {
-            // ...
-        }).catch((e) => {
-            // ...
-        }).finally(() => {
-            this.popLoad();
-        });
-    }
-
-    handleChange(mc: ?ModelChange): void {
-        if (mc !== "state") return;
-        const [x, _] = this._model.state;
-    }
-
-    handleLoadingChange(): void {
-        super.handleLoadingChange();
-        this._button.disabled = this.isLoading;
-    }
-
-}
-
-
-class RefinementStep {
-
-    +node: HTMLDivElement;
-    +name: string;
-    +_info: HTMLDivElement;
-    +_toggle: Input<boolean>;
-    +_approximation: Input<RefineryApproximation>;
-    _expanded: boolean;
-
-    constructor(name: string, tf?: boolean): void {
-        this.name = name;
-        this._toggle = new CheckboxInput(tf != null && tf);
-        this._toggle.attach(() => this.handleChange());
-        this._approximation = new ClickCycler({
-            "no approximation": "none",
-            "approximate target": "target",
-            "approximate after": "after"
-        }, "no approximation");
-        this._info = dom.DIV({ "class": "info" });
-        this.node = dom.DIV({ "class": "refinement-step" }, [
-            dom.LABEL({ "class": "name" }, [this._toggle.node, name]), this._info
-        ]);
-        this.handleChange();
-    }
-
-    get isEnabled(): boolean {
-        return this._toggle.value;
-    }
-
-    get settings(): RefinerySettings {
-        return {
-            approximation: this._approximation.value
-        };
-    }
-
-    handleChange(): void {
-        const nodes = [];
-        if (!this._toggle.value) nodes.push("disabled");
-        nodes.push(this._approximation.node);
-        dom.replaceChildren(this._info, arr.intersperse(" :: ", nodes));
     }
 
 }

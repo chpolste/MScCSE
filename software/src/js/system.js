@@ -641,6 +641,11 @@ export class State {
         return this.system.zOne([this]);
     }
 
+    // Shortcut for single-state refinement
+    refine(partition: Region): RefinementMap {
+        return this.system.refine(new Map([[this, partition]]));
+    }
+
     // Clear action cache if a state in the given set is reachable from this
     // state.
     resetActions(targets?: Set<State>): void {

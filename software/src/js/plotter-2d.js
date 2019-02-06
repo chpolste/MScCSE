@@ -217,8 +217,7 @@ class PolygonInput {
         }, "Hull");
         this.inputForm.attach(() => this.handleChange());
         // Add the polygon returned by the input form 
-        const submit = dom.BUTTON({}, ["add"]);
-        submit.addEventListener("click", () => this.addPolygon());
+        const submit = dom.createButton({}, ["add"], () => this.addPolygon());
         // Build widget and initialize
         this.node = dom.DIV({}, [
             dom.P({}, [this.inputForm.node, " ", submit]),

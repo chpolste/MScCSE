@@ -167,8 +167,7 @@ class PolytopeForm extends ObservableMixin<null> {
         this.input = dom.TEXTAREA({ "cols": "15", "rows": "8" })
         if (!readOnly) this.input.addEventListener("change", () => this.handleChange());
         // Connect to viewer
-        const send = dom.BUTTON({}, ["send to viewer"]);
-        send.addEventListener("click", () => this.sendToViewer())
+        const send = dom.createButton({}, ["send to viewer"], () => this.sendToViewer());
         // Preview
         const fig = new Figure();
         this.layer = fig.newLayer({ "stroke": "#000", "fill": "#EEE" });

@@ -46,9 +46,10 @@ class SystemManager {
 
     // Startup (has to be called before instance can be used)
 
-    initialize(system: AbstractedLSS, objective: Objective): void {
+    initialize(system: AbstractedLSS, objective: Objective, analyse: boolean): void {
         this._system = system;
         this._objective = objective;
+        if (analyse) this.analyse();
         this.takeSnapshot("Initial Problem");
     }
 
@@ -389,10 +390,10 @@ inspector.onRequest("nameSnapshot", function (data: NameSnapshotRequest): NameSn
 inspector.host = self;
 
 // Initialize
-inspector.request("init", null).then(function (data: [JSONAbstractedLSS, JSONObjective]) {
-    const [system, objective] = data;
+inspector.request("init", null).then(function (data: [JSONAbstractedLSS, JSONObjective, boolean]) {
+    const [system, objective, analyse] = data;
     // Initialize the global state manager
-    $.initialize(AbstractedLSS.deserialize(system), Objective.deserialize(objective));
+    $.initialize(AbstractedLSS.deserialize(system), Objective.deserialize(objective), analyse);
     // Send the ready signal to the host application
     inspector.request("ready", null);
 });

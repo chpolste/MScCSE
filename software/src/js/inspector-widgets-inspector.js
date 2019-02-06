@@ -183,33 +183,29 @@ export class ProblemSummary {
 export class SystemInspector {
 
     +node: HTMLDivElement;
-    // ...
-    +objective: Objective;
-    +_system: AbstractedLSS;
 
-    constructor(system: AbstractedLSS, objective: Objective, keys: dom.Keybindings, analyseWhenReady: boolean) {
+    constructor(system: AbstractedLSS, objective: Objective, keys: dom.Keybindings, analyseOnStartup: boolean) {
         const log = new Logger();
-        const model = new SystemModel(system, objective, log, analyseWhenReady);
-        // TODO: handle analyseWhenReady by attaching to model?
-        // Main
+        const model = new SystemModel(system, objective, log, analyseOnStartup);
+        // Main views
         const systemViewCtrl = new SystemViewCtrl(model);
         const systemViewCtrlCtrl = new SystemViewCtrlCtrl(systemViewCtrl, keys);
         const randomSpaceView = new RandomSpaceView(model);
         const controlSpaceView = new ControlSpaceView(model);
         const automatonViewCtrl = new AutomatonViewCtrl(model, keys);
-        // Game
+        // State tab
         const stateView = new StateView(model);
         const stateRefinementCtrl = new StateRefinementCtrl(model);
         const actionViewCtrl = new ActionViewCtrl(model);
-        // System
+        // System tab
         const analysisViewCtrl = new AnalysisViewCtrl(model, keys);
         const layerRefinementCtrl = new LayerRefinementCtrl(model, keys);
         const snapshotViewCtrl = new SnapshotViewCtrl(model);
-        // Strategy
-        const traceViewCtrl = new TraceViewCtrl(model, keys);
+        // Strategy tab
+        //const traceViewCtrl = new TraceViewCtrl(model, keys); TODO
 
-        // Debug: connectivity
-        const appLinks = dom.P(); // TODO
+        /* Debug: connectivity
+        //const appLinks = dom.P(); TODO: create connectivity widget for Info tab
         // Link that opens polytopic calculator with basic problem setup loaded
         const calcData = {
             "A": JSON.stringify(system.lss.A),
@@ -230,6 +226,7 @@ export class SystemInspector {
             });
             dom.appendChildren(appLinks, [" :: ", plotterLink]);
         }
+        */
 
         const tabs = new TabbedView();
         const stateTab = tabs.newTab("State", [
@@ -242,18 +239,18 @@ export class SystemInspector {
             layerRefinementCtrl,
             snapshotViewCtrl
         ]);
-        //const controlTab = tabs.newTab("Control", [
-            // TODO traceViewCtrl
-        //]);
         const infoTab = tabs.newTab("Info", [
             log
         ]);
         tabs.select("System");
+
+        // Highlight Info tab on error to notify user about error message
         log.attach((kind) => {
             if (kind === "error") tabs.highlight("Info");
         });
 
         this.node = dom.DIV({ "id": "inspector" }, [
+            // System and automaton views on the left
             dom.DIV({ "class": "left" }, [
                 systemViewCtrl.node,
                 dom.DIV({"class": "cols"}, [
@@ -278,6 +275,7 @@ export class SystemInspector {
                     ])
                 ])
             ]),
+            // Tabs on the right
             tabs.node
         ]);
     }
@@ -292,7 +290,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
     +_comm: Communicator<Worker>;
     +log: Logger;
     +objective: Objective;
-    // Selections
+    // Selections (application state)
     _system: AbstractedLSS;
     _xState: ?StateDataPlus;
     _qState: AutomatonStateLabel;
@@ -300,15 +298,22 @@ class SystemModel extends ObservableMixin<ModelChange> {
     _support: ?SupportData;
     _trace: ?TraceData;
 
-    constructor(system: AbstractedLSS, objective: Objective, log: Logger, analyseWhenReady: boolean): void {
+    constructor(system: AbstractedLSS, objective: Objective, log: Logger, analyseAtStartup: boolean): void {
         super();
+        // System model handles all requests to the system worker and also
+        // updates the log with analysis, refinement and error messages
         this.log = log;
-        // System initialization
+        // Save the initial system for LSS and predicate accessors (static)
         this._system = system;
+        // Save the objective for automaton queries (static)
+        this.objective = objective;
         // Setup dedicated worker for system tasks
         try {
             this._comm = new Communicator("ISYS");
-            this._comm.onRequest("init", (data) => [system.serialize(), objective.serialize()]);
+            // Worker starts its own initialization process
+            this._comm.onRequest("init", (data) => [
+                system.serialize(), objective.serialize(), analyseAtStartup
+            ]);
             // The worker signals "ready" when everything is set up
             this._comm.onRequest("ready", (data: null) => {
                 this.notify("snapshot");
@@ -317,7 +322,6 @@ class SystemModel extends ObservableMixin<ModelChange> {
                 this.notify("support");
                 this.notify("trace");
                 this.notify("system");
-                if (analyseWhenReady) this.analyse();
             });
             const worker = new Worker("./js/inspector-worker-system.js");
             worker.onerror = () => {
@@ -332,8 +336,6 @@ class SystemModel extends ObservableMixin<ModelChange> {
             }
             throw e;
         }
-        // Static system information
-        this.objective = objective;
         // Initialize selections
         this._xState = null;
         this._qState = objective.automaton.initialState.label;
@@ -342,6 +344,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
         this._trace = null;
     }
 
+    // After changes to the system's states, the selections have to be updated
     refreshSelection(): void {
         const [xOld, _] = this.state;
         if (xOld != null) {
@@ -403,7 +406,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
         this.notify("trace");
     }
 
-    // System information convenience accessors
+    // System information convenience accessors (static information)
 
     get lss(): LSS {
         return this._system.lss;
@@ -421,11 +424,14 @@ class SystemModel extends ObservableMixin<ModelChange> {
         return this.objective.nextState(x.predicates, q);
     }
 
-    // Worker request interface
+    // Worker request interface. Occuring errors are logged and re-thrown so
+    // they can be handled by the caller too.
 
     getState(state: StateID): Promise<StateDataPlus> {
         return this._comm.request("getState", state).catch((e) => {
-            //this.log.writeError(e); // TODO: this is only used for refreshSelection, errors are intended
+            // Individual state requests are currently only used by
+            // refreshSelection which uses the error to detect changes
+            //this.log.writeError(e);
             throw e;
         });
     }
@@ -560,7 +566,7 @@ class SystemViewCtrl {
 
     constructor(model: SystemModel): void {
         this._model = model;
-        this._model.attach((mc) => this.handleChange(mc));
+        this._model.attach((mc) => this.handleModelChange(mc));
         // View settings
         this._showLabels = false;
         this._showVectors = false;
@@ -602,7 +608,7 @@ class SystemViewCtrl {
     }
 
     // Redraw elements when changes happen
-    handleChange(mc: ?ModelChange): void {
+    handleModelChange(mc: ?ModelChange): void {
         if (mc === "system") {
             this._model.getStates().then((data) => {
                 this._data = data;
@@ -823,7 +829,7 @@ class ControlSpaceView {
 
     constructor(model: SystemModel): void {
         this._model = model;
-        this._model.attach((mc) => this.handleChange(mc));
+        this._model.attach((mc) => this.handleModelChange(mc));
         const fig = new Figure();
         this._layers = {
             poly:   fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF" }),
@@ -837,7 +843,7 @@ class ControlSpaceView {
         this.node = dom.DIV({ "id": "control-space-view" }, [plot.node]);
     }
 
-    handleChange(mc: ?ModelChange): void {
+    handleModelChange(mc: ?ModelChange): void {
         if (mc === "action") {
             const action = this._model.action;
             if (action == null) {
@@ -869,7 +875,7 @@ class RandomSpaceView {
 
     constructor(model: SystemModel): void {
         this._model = model;
-        this._model.attach((mc) => this.handleChange(mc));
+        this._model.attach((mc) => this.handleModelChange(mc));
         const fig = new Figure();
         this._layers = {
             poly:   fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF" }),
@@ -882,7 +888,7 @@ class RandomSpaceView {
         this.node = dom.DIV({ "id": "random-space-view" }, [plot.node]);
     }
 
-    handleChange(mc: ?ModelChange): void {
+    handleModelChange(mc: ?ModelChange): void {
         // TODO
         /*const marked = this.traceView.marked;
         const trace = this.traceView.trace;
@@ -905,11 +911,10 @@ class AutomatonViewCtrl {
 
     constructor(model: SystemModel, keys: dom.Keybindings): void {
         this._model = model;
-        this._model.attach((mc) => this.handleChange(mc));
-        // ...
+        this._model.attach((mc) => this.handleModelChange(mc));
         const objective = this._model.objective;
         const init = objective.automaton.initialState.label;
-        // ...
+        // Plot the objective automaton
         const fig = new Figure();
         this._shapes = objective.toShapes();
         this._layers = {
@@ -930,21 +935,20 @@ class AutomatonViewCtrl {
             })
         };
         this.drawLabels();
-        // Setup plot area
+        // Display the automaton plot
         const extent = this._shapes.extent;
         if (extent == null) throw new Error("No automaton plot extent given by objective");
         const proj = autoProjection(3/2, ...extent);
         const plot = new ShapePlot([330, 220], fig, proj, false);
         // Additional textual information about automaton
         const info = dom.P({}, [dom.create("u", {}, ["I"]), "nitial state: ", dom.snLabel.toHTML(init)]);
+        // TODO: automaton transition label translation table (with highlighting)
         this.node = dom.DIV({}, [info, plot.node]);
         keys.bind("i", () => { this._model.qState = init; });
     }
 
-    handleChange(mc: ?ModelChange): void {
-        if (mc === "state") {
-            this.draw();
-        }
+    handleModelChange(mc: ?ModelChange): void {
+        if (mc === "state") this.draw();
     }
 
     draw(): void {
@@ -1067,13 +1071,15 @@ class TabContent {
 }
 
 
+// Widget base class that implements common functionality:
+// - Title with info box and loading icons
+// - Request counter linked to the loading icon display
 class WidgetPlus implements TabWidget {
 
-    // ...
     +node: HTMLDivElement;
     +heading: HTMLHeadingElement;
     +_icons: HTMLElement[];
-    // ...
+    // Request counter
     _isLoading: number;
 
     constructor(title: string, infoBoxId?: string): void {
@@ -1098,11 +1104,13 @@ class WidgetPlus implements TabWidget {
         return this._isLoading > 0;
     }
 
+    // Increment the request counter and show loading icon
     pushLoad(): void {
         this._isLoading++;
         if (this._isLoading === 1) this.handleLoadingChange();
     }
     
+    // Decrease the request counter and hide loading icon if no request is left
     popLoad(): void {
         this._isLoading--;
         if (this._isLoading === 0) this.handleLoadingChange();
@@ -1117,6 +1125,7 @@ class WidgetPlus implements TabWidget {
 
 // Tab: Game
 // - StateView
+// - StateRefinementCtrl
 // - ActionViewCtrl
 
 class StateView extends WidgetPlus {
@@ -1129,7 +1138,7 @@ class StateView extends WidgetPlus {
     constructor(model: SystemModel): void {
         super("Selection", "info-state");
         this._model = model;
-        this._model.attach((mc) => this.handleChange(mc));
+        this._model.attach((mc) => this.handleModelChange(mc));
         this._lines = [dom.DIV({ "class": "selection" }), dom.DIV(), dom.DIV()];
         this._predicates = new SelectableNodes(
             _ => predicateLabel(_, this._model.getPredicate(_)), "-", ", "
@@ -1143,7 +1152,7 @@ class StateView extends WidgetPlus {
         ]);
     }
 
-    handleChange(mc: ?ModelChange): void {
+    handleModelChange(mc: ?ModelChange): void {
         if (mc !== "state") return;
         const [x, q] = this._model.state;
         if (x != null) {
@@ -1223,13 +1232,13 @@ class StateRefinementCtrl extends WidgetPlus {
     refine(method: string): void {
         if (this.isLoading || !this.canRefine) return;
         const [x, q] = this._model.state;
-        if (x == null) throw new Error(); // ...
+        if (x == null) throw new Error("canRefine is true but x is null");
         const approximation = this._approximation.value;
         this.pushLoad();
         this._model.refineState(x.label, q, method, approximation).then((data: RefineData) => {
-            // ...
+            // Result logging is done in SystemModel
         }).catch(() => {
-            // ...
+            // Error logging is done in SystemModel
         }).finally(() => {
             this.popLoad();
         });
@@ -1238,8 +1247,8 @@ class StateRefinementCtrl extends WidgetPlus {
 }
 
 
-// Lists actions available for the selected state and contains the currently
-// selected action. Observes StateView for the currently selected state.
+// List actions available for the selected state and supports for the currently
+// selected action.
 class ActionViewCtrl extends WidgetPlus {
 
     +node: HTMLDivElement;
@@ -1255,7 +1264,7 @@ class ActionViewCtrl extends WidgetPlus {
     constructor(model: SystemModel): void {
         super("Actions", "info-actions");
         this._model = model;
-        this._model.attach((mc) => this.handleChange(mc));
+        this._model.attach((mc) => this.handleModelChange(mc));
         this._action = null;
         this._actions = [];
         this._actionNodes = new Map();
@@ -1264,7 +1273,7 @@ class ActionViewCtrl extends WidgetPlus {
         this.node = dom.DIV({ "id": "action-view" });
     }
 
-    handleChange(mc: ?ModelChange): void {
+    handleModelChange(mc: ?ModelChange): void {
         // TODO: this should be able to handle action changes that come from
         // somewhere other than itself
         if (mc === "state") {
@@ -1278,7 +1287,7 @@ class ActionViewCtrl extends WidgetPlus {
                     this._actionNodes = new Map(actions.map(_ => [_, this.actionToNode(_)]));
                     dom.replaceChildren(this.node, this._actionNodes.values());
                 }).catch((e) => {
-                    // ...
+                    // Error logging is done in SystemModel
                 }).finally(() => {
                     this.popLoad();
                 });
@@ -1310,7 +1319,7 @@ class ActionViewCtrl extends WidgetPlus {
                     dom.replaceChildren(this._supportNode, supports.map((_) => this.supportToNode(_)));
                     dom.appendAfter(this.node, newNode, this._supportNode);
                 }).catch((e) => {
-                    // ...
+                    // Error logging is done in SystemModel
                 }).finally(() => {
                     this.popLoad();
                 });
@@ -1359,7 +1368,7 @@ class ActionViewCtrl extends WidgetPlus {
 
 // Tab: System
 // - AnalysisViewCtrl
-// - RefinementCtrl
+// - RefinementCtrl TODO
 // - SnapshotViewCtrl
 
 
@@ -1376,8 +1385,7 @@ class AnalysisViewCtrl extends WidgetPlus{
         this._model = model;
         this._model.attach((mc) => this.handleModelChange(mc));
         // Button to start analysis
-        this._button = dom.BUTTON({}, [dom.create("u", {}, ["a"]), "nalyse"]);
-        this._button.addEventListener("click", () => this.analyse());
+        this._button = dom.createButton({}, [dom.create("u", {}, ["a"]), "nalyse"], () => this.analyse());
         // Text information display
         this._info = dom.SPAN({ "class": "count-stats" });
         // Progress bar
@@ -1393,11 +1401,10 @@ class AnalysisViewCtrl extends WidgetPlus{
     analyse(): void {
         if (this.isLoading) return; // TODO
         this.pushLoad();
-        // Redirect game graph to analysis worker and wait for results
         this._model.analyse().then((data: AnalysisData) => {
-            // ...
+            // Result logging is done in SystemModel
         }).catch((e) => {
-            // ...
+            // Error logging is done in SystemModel
         }).finally(() => {
             this.popLoad();
         });
@@ -1442,7 +1449,7 @@ class AnalysisViewCtrl extends WidgetPlus{
                 this._summary = data;
                 this.handleChange();
             }).catch((e) => {
-                // ...
+                // Error logging is done in SystemModel
             }).finally(() => {
                 this.popLoad();
             });
@@ -1459,7 +1466,6 @@ class AnalysisViewCtrl extends WidgetPlus{
 }
 
 
-// TODO
 class LayerRefinementCtrl extends WidgetPlus {
 
     +_model: SystemModel;
@@ -1484,17 +1490,14 @@ class SnapshotViewCtrl extends WidgetPlus {
     constructor(model: SystemModel): void {
         super("Snapshots", "info-snapshots");
         this._model = model;
-        this._model.attach((mc) => this.handleChange(mc));
+        this._model.attach((mc) => this.handleModelChange(mc));
         // Widget: menu bar with tree-structure view below
         this._forms = {
-            take:   dom.BUTTON({}, ["new"]),
-            load:   dom.BUTTON({}, ["load"]),
-            rename: dom.BUTTON({}, ["rename"]),
+            take:   dom.createButton({}, ["new"], () => this.takeSnapshot()),
+            load:   dom.createButton({}, ["load"], () => this.loadSnapshot()),
+            rename: dom.createButton({}, ["rename"], () => this.renameSnapshot()),
             name:   dom.INPUT({ "type": "text", "placeholder": "Snapshot", "size": "25" })
         };
-        this._forms.take.addEventListener("click", () => this.takeSnapshot());
-        this._forms.load.addEventListener("click", () => this.loadSnapshot());
-        this._forms.rename.addEventListener("click", () => this.renameSnapshot());
         this._treeView = dom.DIV({ "class": "tree" });
         this.node = dom.DIV({ "id": "snapshot-ctrl"}, [
             dom.P({}, [
@@ -1503,8 +1506,8 @@ class SnapshotViewCtrl extends WidgetPlus {
             ]),
             this._treeView
         ]);
-        // Ready-message from worker in proxy triggers first handleChange call
-        // and initializes the state variables
+        // Ready-message from worker in proxy triggers first handleModelChange
+        // call and initializes the state variables
         this._data = null;
         this._selection = null;
         this.handleLoadingChange();
@@ -1515,7 +1518,7 @@ class SnapshotViewCtrl extends WidgetPlus {
         this._forms.name.value = "";
         this.pushLoad();
         this._model.takeSnapshot(name.length === 0 ? "Snapshot" : name).catch((e) => {
-            // ...
+            // Error logging is done in SystemModel
         }).finally(() => {
             this.popLoad();
         });
@@ -1526,7 +1529,7 @@ class SnapshotViewCtrl extends WidgetPlus {
         if (selection != null) {
             this.pushLoad();
             this._model.loadSnapshot(selection).catch((e) => {
-                // ...
+                // Error logging is done in SystemModel
             }).finally(() => {
                 this.popLoad();
             });
@@ -1539,21 +1542,21 @@ class SnapshotViewCtrl extends WidgetPlus {
         if (selection != null && name.length > 0) {
             this.pushLoad();
             this._model.nameSnapshot(selection, name).catch((e) => {
-                // ...
+                // Error logging is done in SystemModel
             }).finally(() => {
                 this.popLoad();
             });
         }
     }
 
-    handleChange(mc: ?ModelChange): void {
+    handleModelChange(mc: ?ModelChange): void {
         if (mc !== "snapshot") return;
         this.pushLoad();
         this._model.getSnapshots().then((data) => {
             this._data = data;
             this.redraw();
         }).catch((e) => {
-            // ...
+            // Error logging is done in SystemModel
         }).finally(() => {
             this.popLoad();
         });
@@ -1610,6 +1613,7 @@ class SnapshotViewCtrl extends WidgetPlus {
 // Tab: Control
 // - TraceViewCtrl
 
+/* TODO
 class TraceViewCtrl {
 
     +node: HTMLDivElement;
@@ -1631,14 +1635,12 @@ class TraceViewCtrl {
         this._controller = new SelectInput({
             "Random": "Random"
         }, "Random");
-        const sampleButton = dom.BUTTON({
+        const sampleButton = dom.createButton({
             "title": "sample a new trace with the selected controller"
-        }, [dom.create("u", {}, ["s"]), "ample trace"]);
-        sampleButton.addEventListener("click", () => this.sample());
-        const clearButton = dom.BUTTON({ "title": "clear the current trace" }, [
-            dom.create("u", {}, ["d"]), "elete"
-        ]);
-        clearButton.addEventListener("click", () => this.clear());
+        }, [dom.create("u", {}, ["s"]), "ample trace"], () => this.sample());
+        const clearButton = dom.createButton({
+            "title": "clear the current trace"
+        }, [dom.create("u", {}, ["d"]), "elete"], () => this.clear());
 
         this.node = dom.DIV({ "id": "trace-ctrl" }, [
             dom.P({}, [
@@ -1719,6 +1721,7 @@ class TraceViewCtrl {
     }
 
 }
+*/
 
 
 // Tab: Info

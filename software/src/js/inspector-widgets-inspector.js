@@ -20,7 +20,7 @@ import { Figure, autoProjection, Horizontal1D } from "./figure.js";
 import * as linalg from "./linalg.js";
 import { Objective, texifyProposition } from "./logic.js";
 import { iter, arr, obj, sets, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
-import { CheckboxInput, SelectInput, inputTextRotation } from "./widgets-input.js";
+import { CheckboxInput, DropdownInput, inputTextRotation } from "./widgets-input.js";
 import { InteractivePlot, AxesPlot, ShapePlot } from "./widgets-plot.js";
 import { Communicator } from "./worker.js";
 
@@ -782,7 +782,7 @@ class SystemViewCtrlCtrl {
 
     constructor(systemViewCtrl: SystemViewCtrl, keys: dom.Keybindings): void {
         // Operator highlight
-        const operator = new SelectInput({
+        const operator = new DropdownInput({
             "None": null,
             "Posterior": (model, state, us) => model.getOperator("post", state.label, us),
             "Predecessor": (model, state, us) => model.getOperator("pre", state.label, us),
@@ -794,11 +794,15 @@ class SystemViewCtrlCtrl {
             systemViewCtrl.operator = operator.value;
         });
         // View configuration
-        const labels = new CheckboxInput(false);
+        const labels = new CheckboxInput(false, dom.SPAN({}, [
+            "State ", dom.create("u", {}, ["L"]), "abels"
+        ]));
         labels.attach(() => {
             systemViewCtrl.showLabels = labels.value;
         });
-        const vectors = new CheckboxInput(false);
+        const vectors = new CheckboxInput(false, dom.SPAN({}, [
+            dom.create("u", {}, ["V"]), "ector Field"
+        ]));
         vectors.attach(() => {
             systemViewCtrl.showVectors = vectors.value;
         });
@@ -807,8 +811,7 @@ class SystemViewCtrlCtrl {
             dom.P({ "class": "highlight" }, [
                 operator.node, " ", dom.create("u", {}, ["h"]), "ighlight" 
             ]),
-            dom.LABEL({}, [labels.node, "State ", dom.create("u", {}, ["L"]), "abels"]),
-            dom.LABEL({}, [vectors.node, dom.create("u", {}, ["V"]), "ector Field"])
+            dom.P({}, [labels.node, dom.create("br"), vectors.node])
         ]);
         // Keybindings
         keys.bind("l", inputTextRotation(labels, ["t", "f"]));
@@ -1202,7 +1205,7 @@ class StateRefinementCtrl extends WidgetPlus {
         this._model.attach((mc) => this.handleModelChange(mc));
         this._negAttr = dom.createButton({}, ["Attr-"], () => this.refine("Attr-"));
         this._posAttrR = dom.createButton({}, ["AttrR+"], () => this.refine("AttrR+"));
-        this._approximation = new SelectInput({
+        this._approximation = new DropdownInput({
             "no approximation": "none",
             "convex hull": "hull"
         }, "no approximation");
@@ -1628,7 +1631,7 @@ class TraceViewCtrl {
         const proj = new Horizontal1D([-1, 0.01], [0, 1]);
         const plot = new ShapePlot([480, 20], fig, proj, false);
 
-        this._controller = new SelectInput({
+        this._controller = new DropdownInput({
             "Random": "Random"
         }, "Random");
         const sampleButton = dom.createButton({
@@ -1735,17 +1738,17 @@ class Logger extends ObservableMixin<LogKind> implements TabWidget {
     constructor(): void {
         super();
         this._filters = {
-            analysis: new CheckboxInput(true),
-            refinement: new CheckboxInput(true),
-            error: new CheckboxInput(true)
+            analysis: new CheckboxInput(true, "analysis"),
+            refinement: new CheckboxInput(true, "refinement"),
+            error: new CheckboxInput(true, "error")
         };
         obj.forEach((_, input) => input.attach(() => this.handleFilterChange()), this._filters);
         this._entries = dom.DIV()
         this.node = dom.DIV({ "id": "logger" }, [
             dom.P({ "class": "log-filter" }, [
-                dom.LABEL({}, [this._filters.analysis.node, "analysis"]),
-                dom.LABEL({}, [this._filters.refinement.node, "refinement"]),
-                dom.LABEL({}, [this._filters.error.node, "error"])
+                this._filters.analysis.node,
+                this._filters.refinement.node,
+                this._filters.error.node
             ]),
             this._entries
         ]);

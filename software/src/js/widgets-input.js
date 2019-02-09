@@ -25,6 +25,11 @@ export interface Input<T> extends Observable<null> {
     text: string;
 }
 
+type Options<T> = { [string]: T };
+export interface OptionsInput<T> extends Input<T> {
+    setOptions(Options<T>, initialText?: string): void;
+}
+
 
 // Convenience function for associating keypresses with input fields. With each
 // invocation of the returned closure, the next entry from the given list of
@@ -153,28 +158,23 @@ export class MultiLineInput<T> extends ObservableMixin<null> implements Input<T[
 }
 
 
-// A drop-down selection of a fixed set of values
-export class SelectInput<T> extends ObservableMixin<null> implements Input<T> {
+// A drop-down selection
+export class DropdownInput<T> extends ObservableMixin<null> implements OptionsInput<T> {
 
     +node: HTMLSelectElement;
-    +options: { [string]: T };
     +isValid: boolean;
+    _options: Options<T>;
 
-    constructor(options: { [string]: T }, initialText?: string): void {
+    constructor(options: Options<T>, initialText?: string): void {
         super();
-        this.options = options;
-        const optionNodes = [];
-        for (let key in options) {
-            optionNodes.push(dom.create("option", {}, [key]));
-        }
-        this.node = dom.SELECT({}, optionNodes);
+        this.node = dom.SELECT();
         this.node.addEventListener("change", () => this.handleChange());
-        this.text = (initialText != null && options.hasOwnProperty(initialText)) ? initialText : Object.keys(options)[0];
         this.isValid = true;
+        this.setOptions(options, initialText);
     }
 
     get value(): T {
-        return this.options[this.text];
+        return this._options[this.text];
     }
 
     get text(): string {
@@ -182,11 +182,76 @@ export class SelectInput<T> extends ObservableMixin<null> implements Input<T> {
     }
 
     set text(text: string): void {
-        if (!this.options.hasOwnProperty(text)) {
-            throw new Error("text not in options");
-        }
+        if (!this._options.hasOwnProperty(text)) throw new Error("text not in options");
         this.node.value = text;
         this.handleChange();
+    }
+
+    setOptions(options: Options<T>, initialText?: string): void {
+        this._options = options;
+        dom.replaceChildren(this.node, obj.map2Array((k, v) => dom.OPTION({}, [k]), options));
+        // Set initial value, this also invokes change handler
+        this.text = (initialText != null) ? initialText : Object.keys(options)[0];
+    }
+
+    handleChange(): void {
+        this.notify();
+    }
+
+}
+
+
+// Radio buttons need unique names
+let ID_GEN = 0;
+
+// A set of radio buttons
+export class RadioInput<T> extends ObservableMixin<null> implements OptionsInput<T> {
+
+    +node: HTMLDivElement;
+    +isValid: boolean;
+    +name: string;
+    +nodeify: null | (string) => HTMLElement;
+    _options: Options<T>;
+    _radios: HTMLInputElement[];
+
+    constructor(options: Options<T>, initialText?: string, nodeify?: (string) => HTMLElement): void {
+        super();
+        this.nodeify = (nodeify == null) ? null : nodeify;
+        this.isValid = true;
+        this.name = "radio_id_" + (ID_GEN++);
+        this.node = dom.DIV();
+        this.setOptions(options, initialText);
+    }
+
+    get value(): T {
+        return this._options[this.text];
+    }
+
+    get text(): string {
+        for (let radio of this._radios) {
+            if (radio.checked) return radio.value;
+        }
+        throw new Error("no radio is selected");
+    }
+
+    set text(text: string): void {
+        if (!this._options.hasOwnProperty(text)) throw new Error("text not in options");
+        for (let radio of this._radios) {
+            radio.checked = (radio.value === text);
+        }
+        this.notify();
+    }
+
+    setOptions(options: Options<T>, initialText?: string): void {
+        this._radios = [];
+        this._options = options;
+        dom.replaceChildren(this.node, obj.map2Array((text, _) => {
+            const radio = dom.INPUT({ "type": "radio", "name": this.name, "value": text });
+            radio.addEventListener("change", () => this.handleChange());
+            this._radios.push(radio); //!\ side-effect
+            return dom.LABEL({}, [radio, (this.nodeify == null) ? text : this.nodeify(text)]);
+        }, options));
+        this.text = (initialText != null) ? initialText : Object.keys(options)[0];
     }
 
     handleChange(): void {
@@ -199,19 +264,21 @@ export class SelectInput<T> extends ObservableMixin<null> implements Input<T> {
 // A true/false switch
 export class CheckboxInput extends ObservableMixin<null> implements Input<boolean> {
 
-    +node: HTMLInputElement;
+    +node: HTMLLabelElement;
+    +_box: HTMLInputElement;
     +isValid: boolean;
 
-    constructor(initialValue?: boolean): void {
+    constructor(initialValue?: boolean, label: ?(string|HTMLElement)): void {
         super();
-        this.node = dom.INPUT({ "type": "checkbox" });
-        this.node.addEventListener("change", () => this.handleChange());
-        this.node.checked = initialValue != null && initialValue;
         this.isValid = true;
+        this._box = dom.INPUT({ "type": "checkbox" });
+        this._box.addEventListener("change", () => this.handleChange());
+        this._box.checked = initialValue != null && initialValue;
+        this.node = dom.LABEL({}, (label == null ? [this._box] : [this._box, label]));
     }
 
     get value(): boolean {
-        return this.node.checked;
+        return this._box.checked;
     }
 
     get text(): string {
@@ -219,7 +286,7 @@ export class CheckboxInput extends ObservableMixin<null> implements Input<boolea
     }
 
     set text(text: string): void {
-        this.node.checked = text === "t";
+        this._box.checked = text === "t";
         this.handleChange();
     }
 

@@ -37,6 +37,7 @@ export const FORM     = (a?: ElementAttributes, c?: ElementChildren) => ((create
 export const H3       = (a?: ElementAttributes, c?: ElementChildren) => ((create("h3"      , a, c): any): HTMLHeadingElement);
 export const INPUT    = (a?: ElementAttributes, c?: ElementChildren) => ((create("input"   , a, c): any): HTMLInputElement);
 export const LABEL    = (a?: ElementAttributes, c?: ElementChildren) => ((create("label"   , a, c): any): HTMLLabelElement);
+export const OPTION   = (a?: ElementAttributes, c?: ElementChildren) => ((create("option"  , a, c): any): HTMLOptionElement);
 export const P        = (a?: ElementAttributes, c?: ElementChildren) => ((create("p"       , a, c): any): HTMLParagraphElement);
 export const SELECT   = (a?: ElementAttributes, c?: ElementChildren) => ((create("select"  , a, c): any): HTMLSelectElement);
 export const SPAN     = (a?: ElementAttributes, c?: ElementChildren) => ((create("span"    , a, c): any): HTMLSpanElement);

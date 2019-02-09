@@ -13,7 +13,7 @@ import { Halfspace, Polytope, Union } from "./geometry.js";
 import { Objective, OnePairStreettAutomaton, AtomicProposition, parseProposition, traverseProposition } from "./logic.js";
 import { Figure, autoProjection } from "./figure.js";
 import { AxesPlot } from "./widgets-plot.js";
-import { ValidationError, CheckboxInput, SelectInput, MultiLineInput, MatrixInput, LineInput } from "./widgets-input.js";
+import { ValidationError, CheckboxInput, DropdownInput, MultiLineInput, MatrixInput, LineInput } from "./widgets-input.js";
 import { LSS, AbstractedLSS } from "./system.js";
 import { VAR_NAMES, COLORS } from "./inspector-widgets-inspector.js";
 
@@ -51,7 +51,7 @@ export class SessionManager {
     constructor(problemSetup: ProblemSetup): void {
         this.node = dom.DIV();
         this.problemSetup = problemSetup;
-        let presetSelect = new SelectInput(presets.setups);
+        let presetSelect = new DropdownInput(presets.setups);
         let presetButton = dom.INPUT({"type": "button", "value": "fill in"});
         presetButton.addEventListener("click", () => this.problemSetup.load(presetSelect.value));
         dom.appendChildren(this.node, [
@@ -101,8 +101,8 @@ export class ProblemSetup extends ObservableMixin<null> {
         super();
         this.callback = callback;
 
-        this.ssDim = new SelectInput({"1-dimensional": 1, "2-dimensional": 2}, "2-dimensional");
-        this.csDim = new SelectInput({"1-dimensional": 1, "2-dimensional": 2}, "2-dimensional");
+        this.ssDim = new DropdownInput({"1-dimensional": 1, "2-dimensional": 2}, "2-dimensional");
+        this.csDim = new DropdownInput({"1-dimensional": 1, "2-dimensional": 2}, "2-dimensional");
         this.equation = new EvolutionEquationInput(this.ssDim, this.csDim);
         this.ss = new PolytopeInput(this.ssDim, false);
         this.rs = new PolytopeInput(this.ssDim, false);
@@ -150,7 +150,7 @@ export class ProblemSetup extends ObservableMixin<null> {
                 this.submit();
             }
         });
-        this.analyseWhenReady = new CheckboxInput(true);
+        this.analyseWhenReady = new CheckboxInput(true, "analyse at startup");
         this.node = dom.FORM({}, [
             dom.H3({}, ["Dimensions"]),
             dom.P({}, [this.ssDim.node, " state space"]),
@@ -158,7 +158,7 @@ export class ProblemSetup extends ObservableMixin<null> {
             dom.H3({}, ["Evolution Equation"]), this.equation.node,
             columns,
             dom.H3({}, ["Continue"]),
-            dom.P({}, [dom.LABEL({}, [this.analyseWhenReady.node, "analyse at startup"])]),
+            dom.P({}, [this.analyseWhenReady.node]),
             dom.P({}, [submit])
         ]);
 
@@ -483,14 +483,14 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
     +coSafe: Input<boolean>;
     +terms: ObjectiveTermsInput;
     +formula: HTMLSpanElement;
-    +coSafeLine: HTMLLabelElement;
+    +coSafeLine: HTMLParagraphElement;
 
     constructor(predicates: Input<[Halfspace[], string[]]>): void {
         super();
-        this.kind = new SelectInput(presets.objectives, "Reachability");
+        this.kind = new DropdownInput(presets.objectives, "Reachability");
         this.kind.attach(() => this.handleChange());
-        this.coSafe = new CheckboxInput(false);
-        this.coSafeLine = dom.LABEL();
+        this.coSafe = new CheckboxInput(false, "co-safe interpretation");
+        this.coSafeLine = dom.P();
         this.terms = new ObjectiveTermsInput(this.kind, predicates);
         this.formula = dom.SPAN();
         this.node = dom.DIV({}, [
@@ -533,9 +533,7 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
         const kind = this.kind.value;
         dom.renderTeX(kind.formula, this.formula);
         if (this.isCoSafeCompatible) {
-            dom.replaceChildren(this.coSafeLine, [
-                this.coSafe.node, "co-safe interpretation"
-            ]);
+            dom.replaceChildren(this.coSafeLine, [this.coSafe.node]);
         } else {
             dom.replaceChildren(this.coSafeLine, [
                 this.kind.text + " objective has no co-safe interpretation"

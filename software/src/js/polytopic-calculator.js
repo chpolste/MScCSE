@@ -10,7 +10,7 @@ import { Figure, autoProjection } from "./figure.js";
 import { Halfspace, Polytope } from "./geometry.js";
 import { minkowski, apply } from "./linalg.js";
 import { ObservableMixin, n2s, arr } from "./tools.js";
-import { SelectInput, MatrixInput } from "./widgets-input.js";
+import { DropdownInput, MatrixInput } from "./widgets-input.js";
 import { ShapePlot, AxesPlot } from "./widgets-plot.js";
 
 
@@ -254,7 +254,7 @@ class TransformationWidget {
         this.matrix.addEventListener("change", () => this.handleChange());
 
         this.transformationForm = dom.P();
-        this.transformation = new SelectInput({
+        this.transformation = new DropdownInput({
             "apply left": (p, m) => p.apply(m),
             "apply right": (p, m) => p.applyRight(m),
             "translate": (p, m) => p.translate(m)
@@ -296,7 +296,7 @@ class TransformationWidget {
 
 class MinkowskiPontryaginWidget {
 
-    +op: SelectInput<(Polytope, Polytope) => Polytope>;
+    +op: DropdownInput<(Polytope, Polytope) => Polytope>;
     +arg1: PolytopeForm;
     +arg2: PolytopeForm;
     +result: PolytopeForm;
@@ -304,7 +304,7 @@ class MinkowskiPontryaginWidget {
     +node: HTMLDivElement;
 
     constructor(viewer: PolytopeViewer): void {
-        this.op = new SelectInput({
+        this.op = new DropdownInput({
             "+": (p, q) => p.minkowski(q),
             "-": (p, q) => p.pontryagin(q)
         });
@@ -368,7 +368,7 @@ class OperatorsWidget extends ObservableMixin<null> {
         this.inputs.y.attach(() => this.handleChange());
         this.inputs.w.attach(() => this.handleChange());
 
-        this.op = new SelectInput({
+        this.op = new DropdownInput({
             "Post(X, U)": (A, B) => this.post(A, B),
             "U(X, Y)": (A, B) => this.actionPolytope(A, B),
             "Pre(X, U, {Y})": (A, B) => this.pre(A, B),
@@ -491,7 +491,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const operators = new OperatorsWidget(viewer);
 
     const widget = dom.DIV();
-    const widgets = new SelectInput({
+    const widgets = new DropdownInput({
         "Transformations": new TransformationWidget(viewer),
         "Minkowski/Pontryagin": new MinkowskiPontryaginWidget(viewer),
         "Polytopic Operators": operators

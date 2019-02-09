@@ -112,8 +112,8 @@ u {
 }
 
 label {
-    display: block;
-    margin: 4px 0;
+    display: inline-block;
+    padding-right: 8px;
 }
 
 /* Form elements */
@@ -377,7 +377,7 @@ a:hover {
 }
 
 #view-ctrl .highlight {
-    margin: 8px 0 0 2px;
+    margin-left: 2px;
     padding-left: 6px;
     border-left: 10px solid #FC0;
 }
@@ -408,6 +408,7 @@ span.unreachable {
 #state-view .label {
     text-align: right;
     padding-right: 1em;
+    margin-right: 1em;
 }
 #state-view .predicates {
     cursor: default;
@@ -514,10 +515,6 @@ span.unreachable {
     background-color: #EEE;
 }
 
-#logger .log-filter label {
-    display: inline-block;
-    margin-right: 1em;
-}
 #logger .log-entries {
     height: 550px;
     overflow-y: auto;

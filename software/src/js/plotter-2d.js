@@ -9,7 +9,7 @@ import * as dom from "./dom.js";
 import { Figure, autoProjection } from "./figure.js";
 import { Polytope, Polygon, Union } from "./geometry.js";
 import { ObservableMixin, n2s, arr } from "./tools.js";
-import { LineInput, SelectInput, MatrixInput } from "./widgets-input.js";
+import { LineInput, DropdownInput, MatrixInput } from "./widgets-input.js";
 import { ShapePlot, InteractivePlot } from "./widgets-plot.js";
 
 
@@ -311,7 +311,7 @@ class PolygonInput {
         this.errorBox = dom.DIV({ "class": "error" });
         // Different input methods are selectable from a drop-down menu
         this.formContainer = dom.DIV({ "class": "input-form-container" });
-        this.inputForm = new SelectInput({
+        this.inputForm = new DropdownInput({
             "Hull": new HullInputForm(),
             "Transformation": new TransformationInputForm(items)
         }, "Hull");

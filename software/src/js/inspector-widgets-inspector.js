@@ -1760,8 +1760,7 @@ class Logger extends ObservableMixin<LogKind> implements TabWidget {
             dom.DIV({ "class": "log-heading" }, [now.toLocaleTimeString(), " :: ", kind]),
             content
         ]);
-        this._entries.appendChild(entry);
-        this._entries.scrollTop = entry.offsetTop;
+        this._entries.insertBefore(entry, this._entries.firstChild);
         this.notify(kind);
     }
 

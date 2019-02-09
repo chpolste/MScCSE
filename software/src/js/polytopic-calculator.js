@@ -9,8 +9,8 @@ import * as dom from "./dom.js";
 import { Figure, autoProjection } from "./figure.js";
 import { Halfspace, Polytope } from "./geometry.js";
 import { minkowski, apply } from "./linalg.js";
-import { ObservableMixin, n2s } from "./tools.js";
-import { SelectInput, SelectableNodes, MatrixInput } from "./widgets-input.js";
+import { ObservableMixin, n2s, arr } from "./tools.js";
+import { SelectInput, MatrixInput } from "./widgets-input.js";
 import { ShapePlot, AxesPlot } from "./widgets-plot.js";
 
 
@@ -32,8 +32,8 @@ class PolytopeViewer {
     +input: HTMLTextAreaElement;
     +plot: AxesPlot;
     +layers: { [string]: FigureLayer };
-    +vertices: SelectableNodes<Vector>;
-    +halfspaces: SelectableNodes<Halfspace>;
+    +vertices: HTMLDivElement;
+    +halfspaces: HTMLDivElement;
     +tex: HTMLTextAreaElement;
     +errorBox: HTMLDivElement;
     +node: HTMLDivElement;
@@ -52,16 +52,8 @@ class PolytopeViewer {
         this.input.addEventListener("change", () => this.handleChange());
 
         this.errorBox = dom.DIV({ "class": "error" });
-        this.vertices = new SelectableNodes(PolytopeViewer.vertexToNode, "-", ", ");
-        this.vertices.node.className = "vertices";
-        this.vertices.attach(isClick => {
-            if (!isClick) this.drawVertex();
-        });
-        this.halfspaces = new SelectableNodes(PolytopeViewer.halfspaceToNode, "-");
-        this.halfspaces.node.className = "halfspaces";
-        this.halfspaces.attach(isClick => {
-            if (!isClick) this.drawHalfspace();
-        });
+        this.vertices = dom.DIV({ "class": "vertices" }, ["-"]);
+        this.halfspaces = dom.DIV({ "class": "halfspaces" }, ["-"]);
         this.tex = dom.TEXTAREA({ "class": "tex", "rows": "3", "cols": "60" });
 
         this.node = dom.DIV({ "class": "widget viewer" }, [
@@ -69,8 +61,8 @@ class PolytopeViewer {
             dom.DIV({}, [this.plot.node]),
             dom.DIV({}, [
                 dom.P({}, ["TeX"]), this.tex,
-                dom.P({}, ["Vertices"]), this.vertices.node,
-                dom.P({}, ["Halfspaces"]), this.halfspaces.node,
+                dom.P({}, ["Vertices"]), this.vertices,
+                dom.P({}, ["Halfspaces"]), this.halfspaces,
                 this.errorBox
             ])
         ]);
@@ -87,15 +79,17 @@ class PolytopeViewer {
             const dim = input[0].length;
             const poly = Polytope.ofDim(dim).hull(input);
             if (poly.isEmpty) throw new Error("Polytope is empty");
-            this.vertices.items = poly.vertices;
-            this.halfspaces.items = poly.halfspaces;
+            dom.replaceChildren(this.vertices, arr.intersperse(", ",
+                poly.vertices.map(_ => this._vertexToNode(_))
+            ));
+            dom.replaceChildren(this.halfspaces, poly.halfspaces.map(_ => this._halfspaceToNode(_)));
             this.tex.value = "\\Hull \\Big( \\Big\\{ " + poly.vertices.map(texifyVertex).join(", ") + " \\Big\\} \\Big)";
             this.layers.poly.shapes = [{ "kind": "polytope", "vertices": poly.vertices }];
             this.plot.projection = autoProjection(4/3, ...poly.extent);
             this.setError();
         } catch (err) {
-            this.halfspaces.items = [];
-            this.vertices.items = [];
+            dom.replaceChildren(this.vertices, ["-"]);
+            dom.replaceChildren(this.halfspaces, ["-"]);
             this.tex.value = "";
             this.layers.poly.shapes = [];
             this.plot.projection = autoProjection(4/3);
@@ -103,13 +97,11 @@ class PolytopeViewer {
         }
     }
 
-    drawVertex(): void {
-        const v = this.vertices.hoverSelection;
+    drawVertex(v: ?Vector): void {
         this.layers.vertex.shapes = v == null ? [] : [{ kind: "arrow", origin: v, target: v }];
     }
 
-    drawHalfspace(): void {
-        const h = this.halfspaces.hoverSelection;
+    drawHalfspace(h: ?Halfspace): void {
         this.layers.halfspace.shapes = h == null ? [] : [{
             kind: "halfspace", normal: h.normal, offset: h.offset
         }];
@@ -123,11 +115,14 @@ class PolytopeViewer {
         }
     }
 
-    static vertexToNode(v: Vector): HTMLSpanElement {
-        return dom.SPAN({}, ["[" + v.map(_ => n2s(_, 3)).join(", ") + "]"]);
+    _vertexToNode(v: Vector): HTMLSpanElement {
+        const node = dom.SPAN({ "class": "item" }, ["[" + v.map(_ => n2s(_, 3)).join(", ") + "]"]);
+        node.addEventListener("mouseover", () => this.drawVertex(v));
+        node.addEventListener("mouseout", () => this.drawVertex(null));
+        return node;
     }
 
-    static halfspaceToNode(h: Halfspace): HTMLDivElement {
+    _halfspaceToNode(h: Halfspace): HTMLDivElement {
         const terms = [];
         for (let i = 0; i < h.dim; i++) {
             if (h.normal[i] === 0) {
@@ -142,11 +137,14 @@ class PolytopeViewer {
             }
             terms.push(VAR_NAMES[i]);
         }
-        return dom.DIV({}, [
+        const node = dom.DIV({ "class": "item" }, [
             dom.DIV({}, [terms.join(" ")]),
             dom.DIV({}, [" < "]),
             dom.DIV({}, [n2s(h.offset)])
         ]);
+        node.addEventListener("mouseover", () => this.drawHalfspace(h));
+        node.addEventListener("mouseout", () => this.drawHalfspace(null));
+        return node;
     }
 
 }

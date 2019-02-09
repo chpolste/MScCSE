@@ -20,7 +20,7 @@ import { Figure, autoProjection, Horizontal1D } from "./figure.js";
 import * as linalg from "./linalg.js";
 import { Objective, texifyProposition } from "./logic.js";
 import { iter, arr, obj, sets, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
-import { CheckboxInput, SelectInput, SelectableNodes, ClickCycler, inputTextRotation } from "./widgets-input.js";
+import { CheckboxInput, SelectInput, inputTextRotation } from "./widgets-input.js";
 import { InteractivePlot, AxesPlot, ShapePlot } from "./widgets-plot.js";
 import { Communicator } from "./worker.js";
 
@@ -1133,22 +1133,17 @@ class StateView extends WidgetPlus {
     +node: HTMLDivElement;
     +_model: SystemModel;
     +_lines: HTMLDivElement[];
-    +_predicates: SelectableNodes<PredicateID>;
 
     constructor(model: SystemModel): void {
         super("Selection", "info-state");
         this._model = model;
         this._model.attach((mc) => this.handleModelChange(mc));
-        this._lines = [dom.DIV({ "class": "selection" }), dom.DIV(), dom.DIV()];
-        this._predicates = new SelectableNodes(
-            _ => predicateLabel(_, this._model.getPredicate(_)), "-", ", "
-        );
-        this._predicates.node.className = "predicates";
+        this._lines = [dom.DIV({ "class": "selection" }), dom.DIV(), dom.DIV(), dom.DIV()];
         this.node = dom.DIV({ "id": "state-view" }, [
             dom.DIV({}, [dom.DIV({ "class": "label" }, ["State:"]), this._lines[0]]),
             dom.DIV({}, [dom.DIV({ "class": "label" }, ["Actions:"]), this._lines[1]]),
             dom.DIV({}, [dom.DIV({ "class": "label" }, ["Analysis:"]), this._lines[2]]),
-            dom.DIV({}, [dom.DIV({ "class": "label" }, ["Predicates:"]), this._predicates.node]),
+            dom.DIV({}, [dom.DIV({ "class": "label" }, ["Predicates:"]), this._lines[3]]),
         ]);
     }
 
@@ -1183,10 +1178,11 @@ class StateView extends WidgetPlus {
                 ));
             };
             // Line 4: linear predicates
-            this._predicates.items = Array.from(x.predicates);
+            dom.replaceChildren(this._lines[3], x.predicates.size < 1 ? ["-"] : arr.intersperse(
+                ", ", iter.map(_ => predicateLabel(_, this._model.getPredicate(_)), x.predicates)
+            ));
         } else {
             for (let line of this._lines) dom.replaceChildren(line, ["-"]);
-            this._predicates.items = [];
         }
     }
 

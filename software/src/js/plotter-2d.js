@@ -8,8 +8,8 @@ import type { Input } from "./widgets-input.js";
 import * as dom from "./dom.js";
 import { Figure, autoProjection } from "./figure.js";
 import { Polytope, Polygon, Union } from "./geometry.js";
-import { ObservableMixin, n2s } from "./tools.js";
-import { LineInput, SelectInput, SelectableNodes, MatrixInput } from "./widgets-input.js";
+import { ObservableMixin, n2s, arr } from "./tools.js";
+import { LineInput, SelectInput, MatrixInput } from "./widgets-input.js";
 import { ShapePlot, InteractivePlot } from "./widgets-plot.js";
 
 
@@ -17,6 +17,106 @@ type Range = [number, number];
 
 // Item Viewer widget
 type ItemView = SelectableNodes<PolygonItem>;
+
+// A mutable collection of items (values), represented by user-defined DOM
+// nodes and with associated select and hover events. An observer can
+// distinguish between the two events using the boolean flag sent with the
+// notification (true: select, false: hover). Nodes are generated from the
+// items using the itemToNode function. A delimiter can be be inserted between
+// nodes with the optional third argument. When the collection of items is
+// empty the second emptyMessage argument of the constructor is shown.
+
+type NodeCreator<T> = (T) => HTMLElement;
+
+export class SelectableNodes<T> extends ObservableMixin<boolean> {
+    
+    +node: HTMLDivElement;
+    +itemToNode: NodeCreator<T>;
+    +delimiter: ?string;
+    +emptyMessage: string;
+    +nodeMap: Map<T, HTMLElement>; // TODO: conflict if same item is shown twice
+    hoverSelection: ?T;
+    _selection: ?T;
+
+    constructor(itemToNode: NodeCreator<T>, emptyMessage: string, delimiter?: ?string): void {
+        super();
+        this.itemToNode = itemToNode;
+        this.delimiter = delimiter;
+        this.emptyMessage = emptyMessage;
+        this._selection = null;
+        this.hoverSelection = null;
+        this.nodeMap = new Map();
+        this.node = dom.DIV({}, [emptyMessage]);
+    }
+
+    set items(items: T[]): void {
+        this.nodeMap.clear();
+        this.selection = null;
+        this.hoverSelection = null;
+        if (items.length == 0) {
+            this.node.innerHTML = this.emptyMessage;
+        } else {
+            let itemNodes = items.map(item => this.createNode(item));
+            if (this.delimiter != null) {
+                itemNodes = arr.intersperse(this.delimiter, itemNodes);
+            }
+            dom.replaceChildren(this.node, itemNodes);
+        }
+        this.notify();
+    }
+
+    get selection(): ?T {
+        return this._selection;
+    }
+
+    set selection(item: ?T): void {
+        if (this.selection != null) {
+            let curNode = this.nodeMap.get(this.selection);
+            if (curNode != null) {
+                curNode.className = "item";
+            }
+        }
+        if (item != null) {
+            let selNode = this.nodeMap.get(item);
+            if (selNode != null) {
+                selNode.className = "item selection";
+            } else {
+                throw new Error();
+            }
+        }
+        this._selection = item;
+        this.notify(true);
+    }
+
+    // Create a single node and attach all necessary event handlers
+    createNode(item: T): Element {
+        if (this.nodeMap.has(item)) throw new Error(
+            "Duplicate item in nodeMap of SelectableNodes"
+        );
+        const node = this.itemToNode(item);
+        node.className = "item";
+        node.addEventListener("click", () => this.onClick(item));
+        node.addEventListener("mouseover", () => this.onMouseOver(item));
+        node.addEventListener("mouseout", () => this.onMouseOut(item));
+        this.nodeMap.set(item, node);
+        return node;
+    }
+
+    onClick(item: T): void {
+        this.selection = this.selection === item ? null : item;
+    }
+
+    onMouseOver(item: T): void {
+        this.hoverSelection = item;
+        this.notify(false);
+    }
+
+    onMouseOut(item: T): void {
+        this.hoverSelection = null;
+        this.notify(false);
+    }
+
+}
 
 
 // #123 to #112233

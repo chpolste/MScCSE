@@ -10,8 +10,8 @@ import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, T
 import type { Vector, Matrix } from "./linalg.js";
 import type { AutomatonStateLabel, AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
-import type { StateRefinerySettings, StateRefineryApproximation,
-              LayerRefinerySettings } from "./refinement.js";
+import type { StateRefinerySettings, StateRefineryApproximation, LayerRefinerySettings,
+              LayerRefineryGenerator, LayerRefineryGenerations } from "./refinement.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
@@ -21,7 +21,7 @@ import { Figure, autoProjection, Horizontal1D } from "./figure.js";
 import * as linalg from "./linalg.js";
 import { Objective, texifyProposition } from "./logic.js";
 import { iter, arr, obj, sets, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
-import { CheckboxInput, DropdownInput, inputTextRotation } from "./widgets-input.js";
+import { CheckboxInput, DropdownInput, RadioInput, inputTextRotation } from "./widgets-input.js";
 import { InteractivePlot, AxesPlot, ShapePlot } from "./widgets-plot.js";
 import { Communicator } from "./worker.js";
 
@@ -1485,22 +1485,64 @@ class AnalysisViewCtrl extends WidgetPlus{
 class LayerRefinementCtrl extends WidgetPlus {
 
     +_model: SystemModel;
+    // Form elements
+    +_q: Input<AutomatonStateLabel>;
+    +_generator: Input<LayerRefineryGenerator>;
+    +_rangeStart: Input<number>;
+    +_rangeEnd: Input<number>;
+    +_generations: Input<LayerRefineryGenerations>;
 
     constructor(model: SystemModel, keys: dom.Keybindings): void {
         super("Layer Refinement", "info-layer-refinement");
         this._model = model;
+        // Origin automaton state selection
+        const automaton = model.objective.automaton;
+        this._q = new RadioInput(
+            obj.fromMap(_ => _, model.qAll),
+            automaton.initialState.label,
+            automatonLabel
+        );
+        // Layer generating function
+        this._generator = new DropdownInput({
+            "Predecessor": "Pre",
+            "Robust Predecessor": "PreR"
+        }, "Robust Predecessor");
+        // TODO
+        this._rangeStart = new DropdownInput({ "1": 1 }, "1");
+        this._rangeEnd = new DropdownInput({ "10": 10 }, "10");
+        // TODO
+        this._generations = new DropdownInput({ "2": 2 }, "2");
+        // Assemble
         const submit = dom.createButton({}, ["refine"], () => this.refine())
         this.node = dom.DIV({}, [
+            dom.DIV({ "id": "layer-refinement-ctrl" }, [
+                dom.DIV({}, [
+                    dom.DIV({}, ["Origin"]),
+                    dom.DIV({}, [this._q.node])
+                ]),
+                dom.DIV({}, [
+                    dom.DIV({}, ["Generator"]),
+                    dom.DIV({}, [this._generator.node])
+                ]),
+                dom.DIV({}, [
+                    dom.DIV({}, ["Layers"]),
+                    dom.DIV({}, [this._rangeStart.node, " to ", this._rangeEnd.node])
+                ]),
+                dom.DIV({}, [
+                    dom.DIV({}, ["Generations"]),
+                    dom.DIV({}, [this._generations.node])
+                ]),
+            ]),
             dom.P({}, [submit])
         ]);
     }
 
     refine(): void {
         this._model.refineLayer({
-            q: "", // TODO
-            generator: "PreR",
-            range: [1, 10],
-            generations: 9
+            q: this._q.value,
+            generator: this._generator.value,
+            range: [this._rangeStart.value, this._rangeEnd.value],
+            generations: this._generations.value
         });
     }
 

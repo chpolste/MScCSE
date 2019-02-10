@@ -268,6 +268,14 @@ export const obj = {
 
     clone: function <A>(kvs: A): A {
         return Object.assign({}, kvs);
+    },
+
+    fromMap: function <A>(fun: (string) => A, ks: Iterable<string>): Obj<A> {
+        const out = {};
+        for (let k of ks) {
+            out[k] = fun(k);
+        }
+        return out;
     }
 
 };

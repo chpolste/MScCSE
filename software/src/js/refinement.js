@@ -201,7 +201,7 @@ export class LayerRefinery extends Refinery {
         super(system, objective, results);
         this.settings = settings;
         // TODO pick target
-        const target = this.getStateRegion("yes", "q0");
+        const target = this.getStateRegion("yes", settings.q);
         // Iteratively generate layers starting from target
         this.layers = [target];
         for (let i = 0; i <= settings.range[1]; i++) {

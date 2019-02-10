@@ -483,10 +483,10 @@ span.unreachable {
 }
 #layer-refinement-ctrl > div > div {
     display: table-cell;
-    padding-bottom: 5px;
 }
 #layer-refinement-ctrl > div > div:first-child {
     padding-right: 1em;
+    line-height: 28px;
 }
 
 #snapshot-ctrl .right {

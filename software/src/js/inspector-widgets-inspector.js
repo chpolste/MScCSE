@@ -10,7 +10,8 @@ import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, T
 import type { Vector, Matrix } from "./linalg.js";
 import type { AutomatonStateLabel, AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
-import type { StateRefineryApproximation } from "./refinement.js";
+import type { StateRefinerySettings, StateRefineryApproximation,
+              LayerRefinerySettings } from "./refinement.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
@@ -483,9 +484,22 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
-    refineState(state: StateID, q: AutomatonStateLabel, method: string,
-                approximation: StateRefineryApproximation): Promise<RefineData> {
-        return this._comm.request("refineState", [state, q, method, approximation]).then((data) => {
+    refineState(state: StateID, method: string, settings: StateRefinerySettings): Promise<RefineData> {
+        return this._comm.request("refineState", [state, method, settings]).then((data) => {
+            if (data.size > 0) {
+                this.log.writeRefinement(data);
+                this.notify("system");
+                this.refreshSelection();
+            }
+            return data;
+        }).catch((e) => {
+            this.log.writeError(e);
+            throw e;
+        });
+    }
+
+    refineLayer(settings: LayerRefinerySettings): Promise<RefineData> {
+        return this._comm.request("refineLayer", settings).then((data) => {
             if (data.size > 0) {
                 this.log.writeRefinement(data);
                 this.notify("system");
@@ -1200,7 +1214,7 @@ class StateRefinementCtrl extends WidgetPlus {
     +_approximation: Input<StateRefineryApproximation>;
 
     constructor(model: SystemModel): void {
-        super("Refinement", "info-state-refinement");
+        super("State Refinement", "info-state-refinement");
         this._model = model;
         this._model.attach((mc) => this.handleModelChange(mc));
         this._negAttr = dom.createButton({}, ["Attr-"], () => this.refine("Attr-"));
@@ -1232,9 +1246,12 @@ class StateRefinementCtrl extends WidgetPlus {
         if (this.isLoading || !this.canRefine) return;
         const [x, q] = this._model.state;
         if (x == null) throw new Error("canRefine is true but x is null");
-        const approximation = this._approximation.value;
+        const settings = {
+            q: q,
+            approximation: this._approximation.value
+        };
         this.pushLoad();
-        this._model.refineState(x.label, q, method, approximation).then((data: RefineData) => {
+        this._model.refineState(x.label, method, settings).then((data: RefineData) => {
             // Result logging is done in SystemModel
         }).catch(() => {
             // Error logging is done in SystemModel
@@ -1470,8 +1487,21 @@ class LayerRefinementCtrl extends WidgetPlus {
     +_model: SystemModel;
 
     constructor(model: SystemModel, keys: dom.Keybindings): void {
-        super("Layered Abstraction Refinement", "info-layer-refinement");
+        super("Layer Refinement", "info-layer-refinement");
         this._model = model;
+        const submit = dom.createButton({}, ["refine"], () => this.refine())
+        this.node = dom.DIV({}, [
+            dom.P({}, [submit])
+        ]);
+    }
+
+    refine(): void {
+        this._model.refineLayer({
+            q: "", // TODO
+            generator: "PreR",
+            range: [1, 10],
+            generations: 9
+        });
     }
 
 }

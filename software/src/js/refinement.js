@@ -174,3 +174,81 @@ export class PosAttrRRefinery extends StateRefinery {
 
 }
 
+
+/* (Global) layer-based refinement procedures */
+
+// Polytopic operator from which the layers are iteratively generated
+export type LayerRefineryGenerator = "PreR" | "Pre";
+// Which layers participate in the refinement (inclusive range)
+export type LayerRefineryRange = [number, number];
+// How many generations of refinement are executed?
+export type LayerRefineryGenerations = number;
+// Settings object
+export type LayerRefinerySettings = {
+    q: AutomatonStateLabel,
+    generator: LayerRefineryGenerator,
+    range: LayerRefineryRange,
+    generations: LayerRefineryGenerations
+};
+
+export class LayerRefinery extends Refinery {
+
+    +settings: LayerRefinerySettings;
+    +layers: Region[];
+
+    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
+                settings: LayerRefinerySettings): void {
+        super(system, objective, results);
+        this.settings = settings;
+        // TODO pick target
+        const target = this.getStateRegion("yes", "q0");
+        // Iteratively generate layers starting from target
+        this.layers = [target];
+        for (let i = 0; i <= settings.range[1]; i++) {
+            // Target of next layer is previous layer
+            const previous = this.layers[this.layers.length - 1];
+            this.layers.push(this._generateLayer(previous).simplify());
+        }
+    }
+
+    _generateLayer(target: Region): Region {
+        const lss = this.system.lss;
+        switch (this.settings.generator) {
+            case "PreR":
+                return lss.preR(lss.xx, lss.uus, target);
+            case "Pre":
+                return lss.pre(lss.xx, lss.uus, target);
+            default:
+                throw new NotImplementedError(
+                    "layer generator '" + this.settings.generator + "' does not exist"
+                );
+        }
+    }
+
+    partition(x: State): Region {
+        let rest = x.polytope;
+        let done = this.getEmpty();
+        for (let layer of this.layers) {
+            const intersection = rest.intersect(layer).simplify();
+            done = done.union(intersection);
+            rest = rest.remove(intersection);
+            if (rest.isEmpty) break;
+        }
+        return done.union(rest);
+
+        // TODO:
+        // For every active layer:
+            // get intersection with state
+            // Set up priority queue of not-decided parts (first out are largest polys, initial elements: intersection polytopes gen0)
+            // While not-decided part in queue (or another exit criterion is met):
+                // If generation of part is >= final generation: add part to decided collection, continue
+                // compute action polytope to target
+                // shatter this action polytope, for every part do:
+                    // compute the robust attractor wrt the target region
+                    // -> pick the action polytope part that decides the largest area of the origin polytope
+                // split the not-decided part: put AttrR into decided collection, rest into queue. Increase generation count of all parts.
+        // split state according to generated partitions in layers
+    }
+
+}
+

@@ -4,14 +4,14 @@
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
 import type { JSONObjective, AutomatonStateLabel } from "./logic.js";
-import type { StateRefineryApproximation } from "./refinement.js";
+import type { StateRefinerySettings, LayerRefinerySettings } from "./refinement.js";
 import type { StateID, LSS, State, Trace, JSONAbstractedLSS } from "./system.js";
 
 import { controller } from "./controller.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Polytope, Union } from "./geometry.js";
 import { Objective } from "./logic.js";
-import { StateRefinery } from "./refinement.js";
+import { StateRefinery, LayerRefinery } from "./refinement.js";
 import { SnapshotTree } from "./snapshot.js";
 import { AbstractedLSS } from "./system.js";
 import { iter, sets, obj } from "./tools.js";
@@ -125,7 +125,7 @@ class SystemManager {
         };
     }
 
-    refineState(x: State, q: AutomatonStateLabel, method: string, approximation: StateRefineryApproximation): Set<State> {
+    refineState(x: State, method: string, settings: StateRefinerySettings): Set<State> {
         const analysis = this.analysis;
         if (analysis == null) throw new Error(
             "Refinement requires an analysed system"
@@ -133,12 +133,22 @@ class SystemManager {
         // Initialize refinement method
         const Cls = StateRefinery.builtIns()[method];
         if (Cls == null) throw new Error(); // TODO
-        const refinery = new Cls(this.system, this.objective, analysis, {
-            q: q,
-            approximation: approximation
-        });
+        const refinery = new Cls(this.system, this.objective, analysis, settings);
         // Apply partitioning to system (in-place)
         const refinementMap = x.refine(refinery.partition(x));
+        // Update analysis results
+        analysis.remap(refinementMap);
+        // Return set of states that were refined
+        return new Set(refinementMap.keys());
+    }
+
+    refineLayer(settings: LayerRefinerySettings): Set<State> {
+        const analysis = this.analysis;
+        if (analysis == null) throw new Error(
+            "Refinement requires an analysed system" // TODO: analysis generally not required for layer-based refinement
+        );
+        const refinery = new LayerRefinery(this.system, this.objective, analysis, settings)
+        const refinementMap = this.system.refine(refinery.partitionAll(this.system.states.values()));
         // Update analysis results
         analysis.remap(refinementMap);
         // Return set of states that were refined
@@ -338,15 +348,21 @@ inspector.onRequest("analyse", function (data: AnalysisRequest): AnalysisData {
 });
 
 
-// Refine the system
+// Refinement
 export type RefineData = Set<string>;
-
-export type RefineStateRequest = [StateID, AutomatonStateLabel, string, StateRefineryApproximation];
+// State-based
+export type RefineStateRequest = [StateID, string, StateRefinerySettings];
 inspector.onRequest("refineState", function (data: RefineStateRequest): RefineData {
-    const [label, q, method, approx] = data;
+    const [label, method, settings] = data;
     const x = $.system.getState(label);
     // Return set of states that were changed by refinement
-    return sets.map(_ => _.label, $.refineState(x, q, method, approx));
+    return sets.map(_ => _.label, $.refineState(x, method, settings));
+});
+// Layer-based
+export type RefineLayerRequest = LayerRefinerySettings;
+inspector.onRequest("refineLayer", function (settings: RefineLayerRequest): RefineData {
+    // Return set of states that were changed by refinement
+    return sets.map(_ => _.label, $.refineLayer(settings));
 });
 
 

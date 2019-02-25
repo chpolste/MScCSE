@@ -43,6 +43,19 @@ export class Refinery {
         return this.asRegion(this.getStates(which, q));
     }
 
+    getTransitionStates(qTarget: AutomatonStateLabel, q: AutomatonStateLabel): Iterable<State> {
+        const origin = this.objective.getState(q);
+        const target = this.objective.getState(qTarget);
+        return iter.filter((state) => {
+            const valuation = this.objective.valuationFor(state.predicates);
+            return origin.successor(valuation) === target;
+        }, this.system.states.values());
+    }
+
+    getTransitionRegion(qTarget: AutomatonStateLabel, q: AutomatonStateLabel): Region {
+        return this.asRegion(this.getTransitionStates(qTarget, q));
+    }
+
     getResult(x: State): AnalysisResult {
         const result = this.results.get(x.label);
         if (result == null) throw new Error("TODO477"); // TODO
@@ -58,7 +71,7 @@ export class Refinery {
         for (let x of xs) {
             polys.push(x.polytope);
         }
-        return polys.length === 0 ? this.getEmpty() : Union.from(polys);
+        return polys.length === 0 ? this.getEmpty() : Union.from(polys).simplify();
     }
     
     qNext(x: State, q: AutomatonStateLabel): ?AutomatonStateLabel {
@@ -203,8 +216,15 @@ export class LayerRefinery extends Refinery {
                 settings: LayerRefinerySettings): void {
         super(system, objective, results);
         this.settings = settings; // TODO: value sanity checks (e.g. range start > 0, ...)
-        // TODO pick target
-        const target = this.getStateRegion("yes", settings.origin);
+        // Target region
+        let target;
+        if (settings.target === "__yes") {
+            target = this.getStateRegion("yes", settings.origin);
+        } else if (settings.target === "__no") {
+            target = this.getStateRegion("no", settings.origin);
+        } else {
+            target = this.getTransitionRegion(settings.target, settings.origin);
+        }
         // Iteratively generate layers starting from target
         this.layers = [target];
         for (let i = 0; i <= settings.range[1]; i++) {

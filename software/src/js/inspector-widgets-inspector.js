@@ -11,10 +11,10 @@ import type { Vector, Matrix } from "./linalg.js";
 import type { AutomatonStateLabel, AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
 import type { StateRefinerySettings, StateRefineryApproximation, LayerRefinerySettings,
-              LayerRefineryGenerator, LayerRefineryGenerations } from "./refinement.js";
+              LayerRefineryGenerator, LayerRefineryTarget } from "./refinement.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
 import type { Plot } from "./widgets-plot.js";
-import type { Input } from "./widgets-input.js";
+import type { Input, OptionsInput } from "./widgets-input.js";
 
 import * as dom from "./dom.js";
 import { Figure, autoProjection, Horizontal1D } from "./figure.js";
@@ -1486,39 +1486,48 @@ class LayerRefinementCtrl extends WidgetPlus {
 
     +_model: SystemModel;
     // Form elements
-    +_q: Input<AutomatonStateLabel>;
+    +_origin: Input<AutomatonStateLabel>;
+    +_target: OptionsInput<LayerRefineryTarget>;
     +_generator: Input<LayerRefineryGenerator>;
     +_rangeStart: Input<number>;
     +_rangeEnd: Input<number>;
-    +_generations: Input<LayerRefineryGenerations>;
+    +_generations: Input<number>;
 
     constructor(model: SystemModel, keys: dom.Keybindings): void {
         super("Layer Refinement", "info-layer-refinement");
         this._model = model;
         // Origin automaton state selection
         const automaton = model.objective.automaton;
-        this._q = new RadioInput(
+        this._origin = new RadioInput(
             obj.fromMap(_ => _, model.qAll),
             automaton.initialState.label,
             automatonLabel
+        );
+        this._origin.attach(() => this.handleOriginChange());
+        this._target = new RadioInput(
+            { "yes": "__yes", "no": "__no" },
+            "yes",
+            (_) => _.startsWith("__") ? _ : automatonLabel(_)
         );
         // Layer generating function
         this._generator = new DropdownInput({
             "Predecessor": "Pre",
             "Robust Predecessor": "PreR"
         }, "Robust Predecessor");
-        // TODO
-        this._rangeStart = new DropdownInput({ "1": 1 }, "1");
-        this._rangeEnd = new DropdownInput({ "10": 10 }, "10");
-        // TODO
-        this._generations = new DropdownInput({ "2": 2 }, "2");
+        this._rangeStart = new DropdownInput(DropdownInput.rangeOptions(1, 10, 1), "1");
+        this._rangeEnd = new DropdownInput(DropdownInput.rangeOptions(1, 10, 1), "9");
+        this._generations = new DropdownInput(DropdownInput.rangeOptions(1, 10, 1), "2");
         // Assemble
         const submit = dom.createButton({}, ["refine"], () => this.refine())
         this.node = dom.DIV({}, [
             dom.DIV({ "id": "layer-refinement-ctrl" }, [
                 dom.DIV({}, [
                     dom.DIV({}, ["Origin"]),
-                    dom.DIV({}, [this._q.node])
+                    dom.DIV({}, [this._origin.node])
+                ]),
+                dom.DIV({}, [
+                    dom.DIV({}, ["Target"]),
+                    dom.DIV({}, [this._target.node]),
                 ]),
                 dom.DIV({}, [
                     dom.DIV({}, ["Generator"]),
@@ -1531,19 +1540,42 @@ class LayerRefinementCtrl extends WidgetPlus {
                 dom.DIV({}, [
                     dom.DIV({}, ["Generations"]),
                     dom.DIV({}, [this._generations.node])
-                ]),
+                ])
             ]),
             dom.P({}, [submit])
         ]);
+        this.handleOriginChange();
     }
 
     refine(): void {
         this._model.refineLayer({
-            q: this._q.value,
+            origin: this._origin.value,
+            target: this._target.value,
             generator: this._generator.value,
             range: [this._rangeStart.value, this._rangeEnd.value],
             generations: this._generations.value
         });
+    }
+
+    handleOriginChange(): void {
+        const oldTarget = this._target.text;
+        const newOptions = {
+            "yes": "__yes",
+            "no": "__no"
+        };
+        const origin = this._model.objective.getState(this._origin.value);
+        // Add conditional transition targets
+        const qTargets = Array.from(origin.transitions.keys()).map(_ => _.label);
+        // Add default transition if exists
+        const defaultTarget = origin.defaultTarget;
+        if (defaultTarget != null) qTargets.push(defaultTarget.label);
+        // Sort and add to target options
+        for (let qTarget of qTargets.sort()) {
+            newOptions[qTarget] = qTarget;
+        }
+        // ...
+        const init = newOptions.hasOwnProperty(oldTarget) ? oldTarget : "yes";
+        this._target.setOptions(newOptions, init);
     }
 
 }

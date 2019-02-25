@@ -61,7 +61,7 @@ export class Objective {
         return new Objective(json.kind, json.terms.map(parseProposition), json.coSafeInterpretation);
     }
 
-    getState(label: AutomatonStateLabel): State {
+    getState(label: AutomatonStateLabel): AutomatonState {
         const state = this.automaton.states.get(label);
         if (state == null) throw new Error(
             "automaton state " + label + " does not exist"
@@ -357,10 +357,10 @@ export type AutomatonShapeCollection = {
 
 export class OnePairStreettAutomaton {
 
-    +states: Map<AutomatonStateLabel, State>;
-    +acceptanceSetE: Set<State>;
-    +acceptanceSetF: Set<State>;
-    initialState: State;
+    +states: Map<AutomatonStateLabel, AutomatonState>;
+    +acceptanceSetE: Set<AutomatonState>;
+    +acceptanceSetF: Set<AutomatonState>;
+    initialState: AutomatonState;
 
     // Initialize empty automaton
     constructor(): void {
@@ -387,10 +387,10 @@ export class OnePairStreettAutomaton {
         );
     }
 
-    takeState(label: AutomatonStateLabel): State {
+    takeState(label: AutomatonStateLabel): AutomatonState {
         let state = this.states.get(label);
         if (state == null) {
-            state = new State(label);
+            state = new AutomatonState(label);
             this.states.set(label, state);
         }
         return state;
@@ -542,12 +542,12 @@ export class OnePairStreettAutomaton {
 
 export type AutomatonStateLabel = string;
 
-class State {
+class AutomatonState {
 
     // TODO? reference to automaton
     +label: AutomatonStateLabel;
-    +transitions: Map<State, Proposition>;
-    defaultTarget: ?State;
+    +transitions: Map<AutomatonState, Proposition>;
+    defaultTarget: ?AutomatonState;
 
     constructor(label: AutomatonStateLabel): void {
         if (label.startsWith("__")) throw new Error(
@@ -562,7 +562,7 @@ class State {
         return this.transitions.size === 0 && this.defaultTarget === this;
     }
 
-    successor(valuation: Valuation): ?State {
+    successor(valuation: Valuation): ?AutomatonState {
         for (let [target, formula] of this.transitions) {
             // First match is returned
             if (formula.evalWith(valuation)) return target;

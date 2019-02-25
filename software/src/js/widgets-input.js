@@ -198,11 +198,21 @@ export class DropdownInput<T> extends ObservableMixin<null> implements OptionsIn
         this.notify();
     }
 
+    static rangeOptions(start: number, stop: number, step: number): { [string]: number } {
+        const options = {};
+        for (let i = start; i < stop; i += step) {
+            options[String(i)] = i;
+        }
+        return options;
+    }
+
 }
 
 
 // Radio buttons need unique names
 let ID_GEN = 0;
+
+type _Nodeifier = (string) => HTMLElement | string;
 
 // A set of radio buttons
 export class RadioInput<T> extends ObservableMixin<null> implements OptionsInput<T> {
@@ -210,11 +220,11 @@ export class RadioInput<T> extends ObservableMixin<null> implements OptionsInput
     +node: HTMLDivElement;
     +isValid: boolean;
     +name: string;
-    +nodeify: null | (string) => HTMLElement;
+    +nodeify: null | _Nodeifier;
     _options: Options<T>;
     _radios: HTMLInputElement[];
 
-    constructor(options: Options<T>, initialText?: string, nodeify?: (string) => HTMLElement): void {
+    constructor(options: Options<T>, initialText?: string, nodeify?: _Nodeifier): void {
         super();
         this.nodeify = (nodeify == null) ? null : nodeify;
         this.isValid = true;

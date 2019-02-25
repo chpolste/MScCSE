@@ -349,20 +349,33 @@ inspector.onRequest("analyse", function (data: AnalysisRequest): AnalysisData {
 
 
 // Refinement
-export type RefineData = Set<string>;
+export type RefineData = {
+    elapsed: number,
+    states: Set<string>
+};
 // State-based
 export type RefineStateRequest = [StateID, string, StateRefinerySettings];
 inspector.onRequest("refineState", function (data: RefineStateRequest): RefineData {
     const [label, method, settings] = data;
     const x = $.system.getState(label);
-    // Return set of states that were changed by refinement
-    return sets.map(_ => _.label, $.refineState(x, method, settings));
+    const t0 = performance.now();
+    const states = sets.map(_ => _.label, $.refineState(x, method, settings));
+    const t1 = performance.now();
+    return {
+        elapsed: (t1 - t0),
+        states: states
+    };
 });
 // Layer-based
 export type RefineLayerRequest = LayerRefinerySettings;
 inspector.onRequest("refineLayer", function (settings: RefineLayerRequest): RefineData {
-    // Return set of states that were changed by refinement
-    return sets.map(_ => _.label, $.refineLayer(settings));
+    const t0 = performance.now();
+    const states = sets.map(_ => _.label, $.refineLayer(settings));
+    const t1 = performance.now();
+    return {
+        elapsed: (t1 - t0),
+        states: states
+    };
 });
 
 

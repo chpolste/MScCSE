@@ -485,8 +485,8 @@ class SystemModel extends ObservableMixin<ModelChange> {
     }
 
     refineState(state: StateID, method: string, settings: StateRefinerySettings): Promise<RefineData> {
-        return this._comm.request("refineState", [state, method, settings]).then((data) => {
-            if (data.size > 0) {
+        return this._comm.request("refineState", [state, method, settings]).then((data: RefineData) => {
+            if (data.states.size > 0) {
                 this.log.writeRefinement(data);
                 this.notify("system");
                 this.refreshSelection();
@@ -499,8 +499,8 @@ class SystemModel extends ObservableMixin<ModelChange> {
     }
 
     refineLayer(settings: LayerRefinerySettings): Promise<RefineData> {
-        return this._comm.request("refineLayer", settings).then((data) => {
-            if (data.size > 0) {
+        return this._comm.request("refineLayer", settings).then((data: RefineData) => {
+            if (data.states.size > 0) {
                 this.log.writeRefinement(data);
                 this.notify("system");
                 this.refreshSelection();
@@ -1856,7 +1856,7 @@ class Logger extends ObservableMixin<LogKind> implements TabWidget {
 
     writeRefinement(data: RefineData): void {
         this._write("refinement", dom.DIV({}, [
-            "refined " + data.size + " states"
+            "refined " + data.states.size + " states in " + t2s(data.elapsed) + "."
         ]));
     }
     

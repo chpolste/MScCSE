@@ -315,7 +315,6 @@ class PolygonInput {
             "Hull": new HullInputForm(),
             "Transformation": new TransformationInputForm(items)
         }, "Hull");
-        this.inputForm.attach(() => this.handleChange());
         // Add the polygon returned by the input form 
         const submit = dom.createButton({}, ["add"], () => this.addPolygon());
         // Build widget and initialize
@@ -325,7 +324,8 @@ class PolygonInput {
             this.errorBox
         ]);
         this.counter = 1;
-        this.handleChange();
+        // Reevaluate input on change and initialize
+        this.inputForm.attach(() => this.handleChange(), true);
     }
 
     addPolygon(): void {
@@ -418,9 +418,6 @@ class SelectionView {
 
     constructor(items: SelectableNodes<PolygonItem>): void {
         this.items = items;
-        this.items.attach((isClick) => {
-            if (isClick) this.handleChange();
-        });
         // Input elements for properties of the item
         this.inputs = {
             showLabel: dom.INPUT({ "type": "checkbox" }),
@@ -466,7 +463,10 @@ class SelectionView {
                 dom.DIV({}, ["stroke ", this.inputs.showStroke, this.inputs.stroke])
             ])
         ]);
-        this.handleChange();
+        // When selection changes, update info bar. Initialize.
+        this.items.attach((isClick) => {
+            if (isClick) this.handleChange();
+        }, true);
     }
 
     // (De-)Activate the form for the current selection

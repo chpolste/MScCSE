@@ -221,9 +221,7 @@ class SystemPreview {
 
     constructor(setup: ProblemSetup, terms: ObjectiveTermsInput): void {
         this.setup = setup;
-        this.setup.attach(() => this.drawSystem());
         this.terms = terms;
-        this.terms.attach(() => this.drawObjectiveTerm());
         this._system = null;
         let fig = new Figure();
         this.plot = new AxesPlot([660, 440], fig, autoProjection(3/2));
@@ -233,7 +231,9 @@ class SystemPreview {
             outer:     fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": COLORS.no })
         };
         this.node = dom.DIV({ "class": "plot" }, [this.plot.node]);
-        this.drawSystem();
+        // Initialize and keep system preview updated
+        this.setup.attach(() => this.drawSystem(), true);
+        this.terms.attach(() => this.drawObjectiveTerm(), true);
     }
 
     drawSystem(): void {
@@ -365,12 +365,12 @@ class PolytopeInput extends ObservableMixin<null> implements Input<Polytope> {
             line => Halfspace.parse(line, this.variables),
             [5, 25]
         );
-        this.predicates.attach(() => this.handleChange());
         let fig = new Figure();
         this.previewLayer = fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#EEE" });
         this.preview = new AxesPlot([90, 90], fig, autoProjection(4/3));
         this.node = dom.DIV({ "class": "polytope-builder" }, [this.predicates.node, this.preview.node]);
-        this.handleChange();
+        // Update on input changes
+        this.predicates.attach(() => this.handleChange(), true);
     }
 
     get value(): Polytope {
@@ -488,7 +488,6 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
     constructor(predicates: Input<[Halfspace[], string[]]>): void {
         super();
         this.kind = new DropdownInput(presets.objectives, "Reachability");
-        this.kind.attach(() => this.handleChange());
         this.coSafe = new CheckboxInput(false, "co-safe interpretation");
         this.coSafeLine = dom.P();
         this.terms = new ObjectiveTermsInput(this.kind, predicates);
@@ -498,7 +497,8 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
             this.terms.node,
             this.coSafeLine
         ]);
-        this.handleChange();
+        // Adapt widget to selected objective and initialize
+        this.kind.attach(() => this.handleChange(), true);
     }
 
     get value(): Objective {
@@ -556,13 +556,14 @@ class ObjectiveTermsInput extends ObservableMixin<null> implements Input<Proposi
     constructor(kind: Input<ObjectiveKind>, predicates: Input<[Halfspace[], string[]]>): void {
         super();
         this.kind = kind;
-        this.kind.attach(() => this.updateTerms());
         this.predicates = predicates;
-        this.predicates.attach(() => this.handleChange());
         this.inputs = [];
         this.previewTerm = null;
         this.node = dom.DIV({ "class": "objective-terms" });
-        this.updateTerms();
+        // Adapt to number of inputs that selected objective requires
+        this.kind.attach(() => this.updateTerms(), true);
+        // When predicate definitions change, reevaluate term inputs
+        this.predicates.attach(() => this.handleChange(), true);
     }
 
     get value(): Proposition[] {

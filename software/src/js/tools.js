@@ -337,7 +337,7 @@ Observable changes. Supports push and push-update notifications.
 
 export type Observer<T> = (event?: T) => void;
 export interface Observable<T> {
-    attach(observer: Observer<T>): void;
+    attach(observer: Observer<T>, callImmediately?: boolean): void;
     detach(observer: Observer<T>): void;
     isSendingNotifications: boolean;
     notify(event?: T): void;
@@ -355,8 +355,9 @@ export class ObservableMixin<T> implements Observable<T> {
         this.isSendingNotifications = true;
     }
 
-    attach(observer: Observer<T>): void {
+    attach(observer: Observer<T>, callImmediately?: boolean): void {
         this.observers.push(observer);
+        if (callImmediately === true) observer();
     }
 
     detach(observer: Observer<T>): void {

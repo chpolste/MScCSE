@@ -1486,24 +1486,23 @@ class LayerRefinementCtrl extends WidgetPlus {
 
     +_model: SystemModel;
     // Form elements
-    +_origin: Input<AutomatonStateLabel>;
+    +_origin: OptionsInput<AutomatonStateLabel>;
     +_target: OptionsInput<LayerRefineryTarget>;
-    +_generator: Input<LayerRefineryGenerator>;
-    +_rangeStart: Input<number>;
-    +_rangeEnd: Input<number>;
-    +_generations: Input<number>;
+    +_generator: OptionsInput<LayerRefineryGenerator>;
+    +_rangeStart: OptionsInput<number>;
+    +_rangeEnd: OptionsInput<number>;
+    +_generations: OptionsInput<number>;
 
     constructor(model: SystemModel, keys: dom.Keybindings): void {
         super("Layer Refinement", "info-layer-refinement");
         this._model = model;
-        // Origin automaton state selection
+        // Origin and target automaton state selection
         const automaton = model.objective.automaton;
         this._origin = new RadioInput(
             obj.fromMap(_ => _, model.qAll),
             automaton.initialState.label,
             automatonLabel
         );
-        this._origin.attach(() => this.handleOriginChange());
         this._target = new RadioInput(
             { "yes": "__yes", "no": "__no" },
             "yes",
@@ -1515,7 +1514,7 @@ class LayerRefinementCtrl extends WidgetPlus {
             "Robust Predecessor": "PreR"
         }, "Robust Predecessor");
         this._rangeStart = new DropdownInput(DropdownInput.rangeOptions(1, 10, 1), "1");
-        this._rangeEnd = new DropdownInput(DropdownInput.rangeOptions(1, 10, 1), "9");
+        this._rangeEnd = new DropdownInput({ "9": 9 }, "9");
         this._generations = new DropdownInput(DropdownInput.rangeOptions(1, 10, 1), "2");
         // Assemble
         const submit = dom.createButton({}, ["refine"], () => this.refine())
@@ -1544,7 +1543,10 @@ class LayerRefinementCtrl extends WidgetPlus {
             ]),
             dom.P({}, [submit])
         ]);
-        this.handleOriginChange();
+        // Keep list of targets in sync with origin selection
+        this._origin.attach(() => this.handleOriginChange(), true);
+        // Adapt upper end of layer range to lower end
+        this._rangeStart.attach(() => this.handleRangeChange(), true);
     }
 
     refine(): void {
@@ -1559,6 +1561,7 @@ class LayerRefinementCtrl extends WidgetPlus {
 
     handleOriginChange(): void {
         const oldTarget = this._target.text;
+        // Start with yes and no state region targets
         const newOptions = {
             "yes": "__yes",
             "no": "__no"
@@ -1573,9 +1576,16 @@ class LayerRefinementCtrl extends WidgetPlus {
         for (let qTarget of qTargets.sort()) {
             newOptions[qTarget] = qTarget;
         }
-        // ...
+        // Select previously selected target if possible, otherwise yes states
         const init = newOptions.hasOwnProperty(oldTarget) ? oldTarget : "yes";
         this._target.setOptions(newOptions, init);
+    }
+
+    handleRangeChange(): void {
+        const lower = this._rangeStart.value;
+        const upper = this._rangeEnd.value;
+        const init = String(Math.max(lower, upper));
+        this._rangeEnd.setOptions(DropdownInput.rangeOptions(lower, 10, 1), init);
     }
 
 }

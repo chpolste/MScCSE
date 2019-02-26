@@ -1528,14 +1528,15 @@ class LayerRefinementCtrl extends WidgetPlus {
         this._model = model;
         // Origin and target automaton state selection
         const automaton = model.objective.automaton;
+        const qAllObj = obj.fromMap(_ => _, model.qAll)
         this._origin = new RadioInput(
-            obj.fromMap(_ => _, model.qAll),
+            qAllObj,
             automaton.initialState.label,
             automatonLabel
         );
         this._target = new RadioInput(
-            { "yes": "__yes", "no": "__no" },
-            "yes",
+            obj.merge(qAllObj, { "yes": "__yes", "no": "__no" }),
+            automaton.initialState.label,
             (_) => _.startsWith("__") ? _ : automatonLabel(_)
         );
         // Layer generating function
@@ -1573,8 +1574,6 @@ class LayerRefinementCtrl extends WidgetPlus {
             ]),
             dom.P({}, [submit])
         ]);
-        // Keep list of targets in sync with origin selection
-        this._origin.attach(() => this.handleOriginChange(), true);
         // Adapt upper end of layer range to lower end
         this._rangeStart.attach(() => this.handleRangeChange(), true);
     }
@@ -1587,28 +1586,6 @@ class LayerRefinementCtrl extends WidgetPlus {
             range: [this._rangeStart.value, this._rangeEnd.value],
             generations: this._generations.value
         });
-    }
-
-    handleOriginChange(): void {
-        const oldTarget = this._target.text;
-        // Start with yes and no state region targets
-        const newOptions = {
-            "yes": "__yes",
-            "no": "__no"
-        };
-        const origin = this._model.objective.getState(this._origin.value);
-        // Add conditional transition targets
-        const qTargets = Array.from(origin.transitions.keys()).map(_ => _.label);
-        // Add default transition if exists
-        const defaultTarget = origin.defaultTarget;
-        if (defaultTarget != null) qTargets.push(defaultTarget.label);
-        // Sort and add to target options
-        for (let qTarget of qTargets.sort()) {
-            newOptions[qTarget] = qTarget;
-        }
-        // Select previously selected target if possible, otherwise yes states
-        const init = newOptions.hasOwnProperty(oldTarget) ? oldTarget : "yes";
-        this._target.setOptions(newOptions, init);
     }
 
     handleRangeChange(): void {

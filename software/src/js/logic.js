@@ -564,12 +564,15 @@ export class OnePairStreettAutomaton {
 
 }
 
+// To clarify the intent of variables:
 export type AutomatonStateLabel = string;
 
 class AutomatonState {
 
-    // TODO? reference to automaton
     +label: AutomatonStateLabel;
+    // Successor is determined by first transition whose proposition evaluates
+    // to true under a given valuation or the default transition if no
+    // proposition is true. Map returns its items in insertion order.
     +transitions: Map<AutomatonState, Proposition>;
     defaultTarget: ?AutomatonState;
 
@@ -586,6 +589,7 @@ class AutomatonState {
         return this.transitions.size === 0 && this.defaultTarget === this;
     }
 
+    // Successor state under the given valuation
     successor(valuation: Valuation): ?AutomatonState {
         for (let [target, formula] of this.transitions) {
             // First match is returned
@@ -594,17 +598,35 @@ class AutomatonState {
         return this.defaultTarget;
     }
 
+    // Proposition which has to be true for transition to successor. This is
+    // not just the proposition given in the transition map but also honours
+    // the order in which propositions are tested and introduces guards in case
+    // of "overlapping" propositions.
     proposition(successor: AutomatonState): ?Proposition {
-        const prop = this.transitions.get(successor);
-        if (prop != null) {
-            return prop;
-        } else if (successor === this.defaultTarget) {
-            if (this.transitions.size === 0) {
-                return new Top();
+        // Find target in transition map, keep track of previous propositions
+        let prop = null;
+        const prevProps = [];
+        for (let [target, formula] of this.transitions) {
+            if (target === successor) {
+                prop = formula;
+                break;
             } else {
-                const props = Array.from(this.transitions.values());
-                return new Negation(props.reduce((r, s) => new Disjunction(r, s)));
+                prevProps.push(formula);
             }
+        }
+        // Exclude propositions of previous transitions, as there might be
+        // overlap between subsequent propositions and the first match is
+        // always chosen
+        const preCond = prevProps.length > 0
+                      ? new Negation(prevProps.reduce((l, r) => new Disjunction(l, r)))
+                      : new Top();
+        // Successor was found in conditional transitions
+        if (prop != null) {
+            return new Conjunction(preCond, prop);
+        // Successor is default target
+        } else if (this.defaultTarget === successor) {
+            return preCond;
+        // Successor cannot be reached
         } else {
             return null;
         }

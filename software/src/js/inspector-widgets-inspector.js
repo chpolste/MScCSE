@@ -8,7 +8,7 @@ import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, T
               AnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
               SnapshotData, SystemSummaryData } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
-import type { AutomatonStateLabel, AutomatonShapeCollection } from "./logic.js";
+import type { Proposition, AutomatonStateLabel, AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
 import type { StateRefinerySettings, StateRefineryApproximation, LayerRefinerySettings,
               LayerRefineryGenerator, LayerRefineryTarget } from "./refinement.js";
@@ -17,9 +17,9 @@ import type { Plot } from "./widgets-plot.js";
 import type { Input, OptionsInput } from "./widgets-input.js";
 
 import * as dom from "./dom.js";
-import { Figure, autoProjection, Horizontal1D } from "./figure.js";
+import { Figure, autoProjection, Cartesian2D, Horizontal1D } from "./figure.js";
 import * as linalg from "./linalg.js";
-import { Objective, texifyProposition } from "./logic.js";
+import { AtomicProposition, Objective, texifyProposition } from "./logic.js";
 import { iter, arr, obj, sets, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
 import { CheckboxInput, DropdownInput, RadioInput, inputTextRotation } from "./widgets-input.js";
 import { InteractivePlot, AxesPlot, ShapePlot } from "./widgets-plot.js";
@@ -39,7 +39,7 @@ export const COLORS = {
     highlight: "#FC0",
     support: "#09C",
     action: "#000",
-    predicate: "#000",
+    stateRegion: "#F60",
     split: "#C00",
     vectorField: "#333",
     trace: "#000"
@@ -149,10 +149,13 @@ export class ProblemSummary {
         const cs = new AxesPlot([90, 90], csFig, autoProjection(1, ...system.lss.uus.extent));
         const rs = new AxesPlot([90, 90], rsFig, autoProjection(1, ...system.lss.ww.extent));
         const ss = new AxesPlot([90, 90], ssFig, autoProjection(1, ...system.lss.xx.extent));
+        // Show formula with transition label and substituted propositions
         let formula = objective.kind.formula;
         for (let [symbol, prop] of objective.propositions) {
             formula = replaceAll(formula, symbol, "(" + texifyProposition(prop, dom.snLabel.toTeX) + ")");
         }
+        formula = objective.kind.formula + " = " + formula;
+        // Assemble
         this.node = dom.DIV({ "id": "problem-summary" }, [
             dom.renderTeX("x_{t+1} = " + matrixToTeX(system.lss.A) + " x_t + " + matrixToTeX(system.lss.B) + " u_t + w_t", dom.P()),
             dom.DIV({ "class": "boxes" }, [
@@ -193,7 +196,7 @@ export class SystemInspector {
         const systemViewCtrlCtrl = new SystemViewCtrlCtrl(systemViewCtrl, keys);
         const randomSpaceView = new RandomSpaceView(model);
         const controlSpaceView = new ControlSpaceView(model);
-        const automatonViewCtrl = new AutomatonViewCtrl(model, keys);
+        const automatonViewCtrl = new AutomatonViewCtrl(model, systemViewCtrl, keys);
         // State tab
         const stateView = new StateView(model);
         const stateRefinementCtrl = new StateRefinementCtrl(model);
@@ -563,6 +566,8 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
 // Left Column: Basic Views
 
+type _StateRegionTest = (StateDataPlus) => boolean;
+
 // Main view: LSS visualization and state selection
 class SystemViewCtrl {
 
@@ -570,10 +575,11 @@ class SystemViewCtrl {
     +_model: SystemModel;
     +_plot: InteractivePlot;
     +_layers: { [string]: FigureLayer };
-    // View settings
+    // View settings and highlights
     _showLabels: boolean;
     _showVectors: boolean;
     _operator: ?OperatorWrapper;
+    _stateRegion: ?_StateRegionTest;
     // Data caches
     _data: ?StateDataPlus[];
     _centroid: { [string]: Vector };
@@ -585,6 +591,7 @@ class SystemViewCtrl {
         this._showLabels = false;
         this._showVectors = false;
         this._operator = null;
+        this._stateRegion = null;
         // Setup view
         const fig = new Figure();
         this._layers = {
@@ -595,12 +602,12 @@ class SystemViewCtrl {
             support:        fig.newLayer({ "stroke": COLORS.support, "fill": COLORS.support }),
             vectorField:    fig.newLayer({ "stroke": COLORS.vectorField, "stroke-width": "1", "fill": COLORS.vectorField }),
             action:         fig.newLayer({ "stroke": COLORS.action, "stroke-width": "2", "fill": COLORS.action }),
-            predicate:      fig.newLayer({ "stroke": COLORS.predicate, "fill": COLORS.predicate, "fill-opacity": "0.2" }),
+            stateRegion:    fig.newLayer({ "stroke": "none", "fill": COLORS.stateRegion }),
             trace:          fig.newLayer({ "stroke": COLORS.trace, "stroke-width": "1.5", "fill": COLORS.trace }),
             label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle", "transform": "translate(0 3)" }),
             interaction:    fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" })
         };
-        this._plot = new InteractivePlot([660, 440], fig, autoProjection(3/2, ...this._model.lss.extent));
+        this._plot = new InteractivePlot([660, 440], fig, autoProjection(3/2, ...this._model.lss.xx.extent));
         this.node = this._plot.node;
     }
 
@@ -619,6 +626,11 @@ class SystemViewCtrl {
     set operator(op: ?OperatorWrapper): void {
         this._operator = op;
         this.drawOperator();
+    }
+
+    set stateRegion(stateRegion: ?_StateRegionTest): void {
+        this._stateRegion = stateRegion;
+        this.drawStateRegion();
     }
 
     // Redraw elements when changes happen
@@ -749,21 +761,19 @@ class SystemViewCtrl {
         this._layers.vectorField.shapes = shapes;
     }
 
-/* TODO: reimplement this functionality
-
-    drawPredicate(): void {
-        const label = this.stateView.predicates.hoverSelection;
-        if (label == null) {
-            this.layers.predicate.shapes = [];
+    drawStateRegion(): void {
+        const test = this._stateRegion;
+        if (test == null || this._data == null) {
+            this._layers.stateRegion.shapes = [];
         } else {
-            const predicate = this.proxy.getPredicate(label);
-            this.layers.predicate.shapes = [{
-                kind: "halfspace",
-                normal: predicate.normal,
-                offset: predicate.offset
-            }];
+            this._layers.stateRegion.shapes = this._data.filter(test).map((x) => ({
+                kind: "polytope",
+                vertices: x.polytope.vertices
+            }));
         }
     }
+
+/* TODO: reimplement this functionality
 
     drawTrace(): void {
         const marked = this.traceView.marked;
@@ -926,7 +936,7 @@ class AutomatonViewCtrl {
     +_shapes: AutomatonShapeCollection;
     +_layers: { [string]: FigureLayer };
 
-    constructor(model: SystemModel, keys: dom.Keybindings): void {
+    constructor(model: SystemModel, systemViewCtrl: SystemViewCtrl, keys: dom.Keybindings): void {
         this._model = model;
         this._model.attach((mc) => this.handleModelChange(mc));
         const objective = this._model.objective;
@@ -938,7 +948,8 @@ class AutomatonViewCtrl {
             // State and transition labels are offset by 4px to achieve
             // vertical centering
             transitionLabels: fig.newLayer({
-                "font-family": "serif", "font-size": "10pt", "transform": "translate(0 4)"
+                "font-family": "serif", "font-size": "10pt", "transform": "translate(0 4)",
+                "cursor": "default", "class": "transition-labels"
             }),
             stateLabels: fig.newLayer({
                 "font-family": "DejaVu Sans, sans-serif", "font-size": "10pt",
@@ -951,17 +962,51 @@ class AutomatonViewCtrl {
                 "fill": "#FFF", "fill-opacity": "0", "stroke": "#000", "stroke-width": "2"
             })
         };
-        this.drawLabels();
         // Display the automaton plot
         const extent = this._shapes.extent;
         if (extent == null) throw new Error("No automaton plot extent given by objective");
-        const proj = autoProjection(3/2, ...extent);
-        const plot = new ShapePlot([330, 220], fig, proj, false);
-        // Additional textual information about automaton
-        const info = dom.P({}, [dom.create("u", {}, ["I"]), "nitial state: ", dom.snLabel.toHTML(init)]);
-        // TODO: automaton transition label translation table (with highlighting)
-        this.node = dom.DIV({}, [info, plot.node]);
+        // Padding is introduced by Objective.toShapes, don't use
+        // autoProjection which would add even more (relative) padding
+        const proj = new Cartesian2D(...extent);
+        // Width is given by layout, height scales with automaton extent
+        const width = Math.abs(extent[0][1] - extent[0][0]);
+        const height = Math.abs(extent[1][1] - extent[1][0]);
+        const plot = new ShapePlot([330, (330 / width) * height], fig, proj, false);
+        // Assemble
+        this.node = dom.DIV({ "id": "automaton-view-ctrl" }, [
+            plot.node,
+            // Initial state information
+            dom.P({}, [
+                dom.create("u", {}, ["I"]), "nitial state: ", dom.snLabel.toHTML(init)
+            ])
+        ]);
+        // Keybindings
         keys.bind("i", () => { this._model.qState = init; });
+        // Draw labels once now, they never change
+        this._layers.stateLabels.shapes = iter.map(_ => _[1], this._shapes.states.values());
+        // Transitions have to be flattened
+        const ts = [];
+        for (let [q, transitions] of this._shapes.transitions) {
+            const qState = this._model.objective.getState(q);
+            for (let [qNext, shapes] of transitions) {
+                const qNextState = this._model.objective.getState(qNext);
+                const highlighter = (x: StateDataPlus) => {
+                    const valuation = this._model.objective.valuationFor(x.predicates);
+                    const proposition = qState.proposition(qNextState);
+                    return !x.isOuter && proposition != null && proposition.evalWith(valuation);
+                };
+                const t = obj.clone(shapes[1]);
+                t.events = {
+                    "mouseover": () => { systemViewCtrl.stateRegion = highlighter },
+                    "mouseout": () => { systemViewCtrl.stateRegion = null; }
+                };
+                ts.push(t);
+            }
+        }
+        this._layers.transitionLabels.shapes = ts;
+        // Transition arrows and state circles can be highlighted later, so
+        // they have separate draw method
+        this.draw();
     }
 
     handleModelChange(mc: ?ModelChange): void {
@@ -994,21 +1039,6 @@ class AutomatonViewCtrl {
         }
         this._layers.states.shapes = ss;
         this._layers.transitions.shapes = ts;
-    }
-
-    drawLabels(): void {
-        const ss = [];
-        for (let [_, l] of this._shapes.states.values()) {
-            ss.push(l);
-        }
-        this._layers.stateLabels.shapes = ss;
-        const ts = [];
-        for (let transitions of this._shapes.transitions.values()) {
-            for (let [_, l] of transitions.values()) {
-                ts.push(l);
-            }
-        }
-        this._layers.transitionLabels.shapes = ts;
     }
 
 }

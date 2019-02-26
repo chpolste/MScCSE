@@ -15,7 +15,6 @@ Associates automaton variables with propositional formulas so they can be
 evaluated together and provides some convenience functionality.
 */
 
-type AutomatonPlacement = { [string]: [number, number, number] }; // x, y, loop angle
 export type ObjectiveKind = {
     name: string,
     formula: string,
@@ -110,7 +109,11 @@ export class Objective {
             if (y < ymin) ymin = y;
             if (y > ymax) ymax = y;
         }
-        shapes.extent = [[xmin - 0.1, xmax + 0.1], [ymin - 0.1, ymax + 0.1]];
+        // Add 100 padding around each state. In a 1:1 projection to pixels,
+        // this should leave enough room for labels and self-loops around
+        // states. The state positioning should therefore be expressed in px,
+        // considering the scale prescribed by this padding.
+        shapes.extent = [[xmin - 100, xmax + 100], [ymin - 100, ymax + 100]];
         return shapes;
     }
 
@@ -131,7 +134,7 @@ evalWith method determines the truth value of the formula, given a valuation of
 atomic propositions.
 */
 
-export type Proposition = AtomicProposition | Negation | Conjunction | Disjunction | Implication;
+export type Proposition = AtomicProposition | Top | Negation | Conjunction | Disjunction | Implication;
 export type Valuation = (AtomicProposition) => boolean;
 
 export class AtomicProposition {
@@ -149,6 +152,18 @@ export class AtomicProposition {
 
     stringify(): string {
         return this.symbol;
+    }
+
+}
+
+export class Top {
+
+    evalWith(valuate: Valuation): boolean {
+        return true;
+    }
+
+    stringify(): string {
+        return "TRUE";
     }
 
 }
@@ -284,6 +299,9 @@ export function texifyProposition(prop: Proposition, symbolTransform?: (string) 
     if (prop instanceof AtomicProposition) {
         return symbolTransform(prop.symbol);
     }
+    if (prop instanceof Top) {
+        return symbolTransform("__TRUE__");
+    }
     const op = getOpOf(prop);
     let out = "";
     let needsParentheses = false;
@@ -321,7 +339,11 @@ export function texifyProposition(prop: Proposition, symbolTransform?: (string) 
 // Call a function for every node of the expression tree
 export function traverseProposition(fun: (Proposition) => void, prop: Proposition): void {
     fun(prop);
-    if (!(prop instanceof AtomicProposition)) {
+    if (prop instanceof AtomicProposition) {
+        // stop
+    } else if (prop instanceof Top) {
+        // stop
+    } else {
         for (let arg of prop.args) {
             traverseProposition(fun, arg);
         }
@@ -348,6 +370,8 @@ Used to represent an LTL formula. State-based acceptance. States are identified
 by labels (strings). Transitions are identified by their target and associated
 with a propositional formula.
 */
+
+export type AutomatonPlacement = { [string]: [number, number, number] }; // x, y, loop angle
 
 export type AutomatonShapeCollection = {
     states: Map<string, [Shape, Shape]>, // symbol, label
@@ -397,8 +421,8 @@ export class OnePairStreettAutomaton {
     }
 
     // Return an organized collection with shapes for states, transitions and
-    // their labels. The organization enables finding specific
-    // transitions/states later so they can be highlighted.
+    // their labels. The organization enables finding specific transitions
+    // andstates later so they can be highlighted.
     toShapes(placement: AutomatonPlacement, propositions?: null): AutomatonShapeCollection {
         // States and state labels
         const ss = new Map();
@@ -568,6 +592,22 @@ class AutomatonState {
             if (formula.evalWith(valuation)) return target;
         }
         return this.defaultTarget;
+    }
+
+    proposition(successor: AutomatonState): ?Proposition {
+        const prop = this.transitions.get(successor);
+        if (prop != null) {
+            return prop;
+        } else if (successor === this.defaultTarget) {
+            if (this.transitions.size === 0) {
+                return new Top();
+            } else {
+                const props = Array.from(this.transitions.values());
+                return new Negation(props.reduce((r, s) => new Disjunction(r, s)));
+            }
+        } else {
+            return null;
+        }
     }
 
 }

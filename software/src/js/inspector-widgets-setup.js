@@ -226,7 +226,7 @@ class SystemPreview {
         let fig = new Figure();
         this.plot = new AxesPlot([660, 440], fig, autoProjection(3/2));
         this.layers = {
-            objective: fig.newLayer({ "stroke": COLORS.selection, "fill": COLORS.selection }),
+            objective: fig.newLayer({ "stroke": COLORS.stateRegion, "fill": COLORS.stateRegion }),
             state:     fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill-opacity": "0" }),
             outer:     fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": COLORS.no })
         };

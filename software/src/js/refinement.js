@@ -7,7 +7,7 @@ import type { Objective, AutomatonStateLabel } from "./logic.js";
 import type { AbstractedLSS, State } from "./system.js";
 
 import { Polytope, Union } from "./geometry.js";
-import { iter, NotImplementedError } from "./tools.js";
+import { iter, PriorityQueue, ValueError, NotImplementedError } from "./tools.js";
 
 
 export class Refinery {
@@ -46,10 +46,10 @@ export class Refinery {
     getTransitionStates(qTarget: AutomatonStateLabel, q: AutomatonStateLabel): Iterable<State> {
         const origin = this.objective.getState(q);
         const target = this.objective.getState(qTarget);
-        return iter.filter((state) => {
-            const valuation = this.objective.valuationFor(state.predicates);
-            return origin.successor(valuation) === target;
-        }, this.system.states.values());
+        return iter.filter(
+            (state) => (this.qNext(state, q) === qTarget),
+            this.system.states.values()
+        );
     }
 
     getTransitionRegion(qTarget: AutomatonStateLabel, q: AutomatonStateLabel): Region {
@@ -216,6 +216,10 @@ export class LayerRefinery extends Refinery {
                 settings: LayerRefinerySettings): void {
         super(system, objective, results);
         this.settings = settings; // TODO: value sanity checks (e.g. range start > 0, ...)
+        // Settings sanity checks
+        if (settings.range[0] < 1 || settings.range[1] < settings.range[0]) throw new ValueError(
+            "settings.range = [" + settings.range.join(", ") + "] is invalid"
+        );
         // Target region
         let target;
         if (settings.target === "__yes") {
@@ -249,6 +253,12 @@ export class LayerRefinery extends Refinery {
     }
 
     partition(x: State): Region {
+        // Only refine maybe states
+        const q = this.settings.origin;
+        if (!this.getResult(x).maybe.has(q) || this.qNext(x, q) == null) {
+            return x.polytope;
+        }
+        const lss = this.system.lss;
         const [start, end] = this.settings.range;
         // Remove inner target
         let done = x.polytope.intersect(this.layers[start - 1]).simplify();
@@ -258,20 +268,51 @@ export class LayerRefinery extends Refinery {
         for (let i = start; i <= end; i++) {
             // Return if nothing remains to be refined
             if (rest.isEmpty) return done;
+            // Target this:
+            const target = this.layers[i - 1];
             // Refine this:
             const intersection = rest.intersect(this.layers[i]).simplify();
-            // TODO: priority queue, generations
-            // Set up priority queue of not-decided parts (first out are largest polys, initial elements: intersection polytopes gen0)
-            let queue = [...intersection.polytopes];
-            while (queue.length > 0) {
-                const part = queue.pop();
-                // TODO: if generation of part is >= final generation: add part to decided collection, continue
-                // TODO: compute action polytope to target
-                // TODO: shatter this action polytope, for every part do:
-                    // compute the robust attractor wrt the target region
-                    // -> pick the action polytope part that decides the largest area of the origin polytope
-                // TODO: split the not-decided part: put AttrR into decided collection, rest into queue. Increase generation count of all parts.
-                done = done.union(part);
+            // Priority queue of polytopes: first out are largest polytopes
+            const queue = new PriorityQueue((a, b) => (a[0].volume - b[0].volume));
+            // Initialize queue with intersection polytopes (generation 0)
+            queue.enqueue(...intersection.polytopes.map(_ => [_, 0]));
+            while (queue.size > 0) {
+                const [part, gen] = queue.dequeue();
+                // If generation exceeds limit, don't refine the part further
+                if (gen >= this.settings.generations) {
+                    done = done.union(part);
+                    continue;
+                }
+                // If there are control inputs that lead exclusively to the
+                // target, add to decided collection, continue
+                const uRobust = lss.actR(part, target);
+                if (!uRobust.isEmpty) {
+                    done = done.union(part);
+                    continue;
+                }
+                // Compute action polytope to target
+                const u = lss.act(part, target);
+                // Shatter this action polytope, for every part compute the
+                // robust attractor wrt the target region an pick the control
+                // polytope that decides the largets area of the origin part
+                let attrR = iter.argmax(
+                    _ => _.volume,
+                    u.shatter().polytopes.map((u) => lss.attrR(part, u, target))
+                );
+                // If a non-empty AttrR exists, split part: put the AttrR into
+                // the decided collection, the rest into the queue. Increase
+                // generation count of all parts.
+                if (attrR != null && !attrR.isEmpty) {
+                    attrR = attrR.simplify();
+                    done = done.union(attrR);
+                    queue.enqueue(...part.remove(attrR).polytopes.map(_ => [_, gen + 1]));
+                // No usable action found, just shatter polytope and hope for
+                // the best in the next iteration.
+                // TODO: do something far more clever here (self loop removal?
+                //       better selection of u?)
+                } else {
+                    queue.enqueue(...part.shatter().polytopes.map(_ => [_, gen + 1]));
+                }
             }
             // Entire layer is considered as done
             rest = rest.remove(intersection).simplify();

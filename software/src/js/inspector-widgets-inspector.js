@@ -1522,6 +1522,7 @@ class LayerRefinementCtrl extends WidgetPlus {
     +_rangeStart: OptionsInput<number>;
     +_rangeEnd: OptionsInput<number>;
     +_generations: OptionsInput<number>;
+    +_button: HTMLButtonElement;
 
     constructor(model: SystemModel, keys: dom.Keybindings): void {
         super("Layer Refinement", "info-layer-refinement");
@@ -1548,7 +1549,7 @@ class LayerRefinementCtrl extends WidgetPlus {
         this._rangeEnd = new DropdownInput({ "9": 9 }, "9");
         this._generations = new DropdownInput(DropdownInput.rangeOptions(1, 10, 1), "2");
         // Assemble
-        const submit = dom.createButton({}, ["refine"], () => this.refine())
+        this._button = dom.createButton({}, ["refine"], () => this.refine())
         this.node = dom.DIV({}, [
             dom.DIV({ "id": "layer-refinement-ctrl" }, [
                 dom.DIV({}, [
@@ -1572,20 +1573,33 @@ class LayerRefinementCtrl extends WidgetPlus {
                     dom.DIV({}, [this._generations.node])
                 ])
             ]),
-            dom.P({}, [submit])
+            dom.P({}, [this._button])
         ]);
         // Adapt upper end of layer range to lower end
         this._rangeStart.attach(() => this.handleRangeChange(), true);
     }
 
     refine(): void {
+        if (this.isLoading) return;
+        this.pushLoad();
         this._model.refineLayer({
             origin: this._origin.value,
             target: this._target.value,
             generator: this._generator.value,
             range: [this._rangeStart.value, this._rangeEnd.value],
             generations: this._generations.value
+        }).then((data: RefineData) => {
+            // Result logging is done in SystemModel
+        }).catch(() => {
+            // Error logging is done in SystemModel
+        }).finally(() => {
+            this.popLoad();
         });
+    }
+
+    handleLoadingChange(): void {
+        super.handleLoadingChange();
+        this._button.disabled = this.isLoading;
     }
 
     handleRangeChange(): void {

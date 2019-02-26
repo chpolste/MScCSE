@@ -56,6 +56,11 @@ export function sub(v: Vector, w: Vector): Vector {
     return arr.zip2map((a, b) => a - b, v, w);
 }
 
+export function midpoint(v: Vector, w: Vector): Vector {
+    assertEqualDims(v.length, w.length);
+    return arr.zip2map((a, b) => a + 0.5 * (b - a), v, w);
+}
+
 export function areClose(v: Vector, w: Vector): boolean {
     assertEqualDims(v.length, w.length);
     return norm2(sub(v, w)) < TOL;

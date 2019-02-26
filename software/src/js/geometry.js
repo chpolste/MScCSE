@@ -890,10 +890,24 @@ export class Polygon extends Polytope {
     }
 
     shatter(): Union {
-        const centroid = this.centroid;
-        return new Union(this.dim, arr.cyc2map(
-            (v, w) => Polygon.hull([centroid, v, w]), this.vertices
-        ), true);
+        const c = this.centroid;
+        const vs = this.vertices;
+        const l = vs.length;
+        // Split polytope into quadrilaterals by connecting centroid, a vertex
+        // and the midpoints between the vertex and its neighbours. While it
+        // would be easier to triangulate by connecting the centroid with two
+        // neighbouring vertices, this partition is favoured as it is
+        // guaranteed to shorten the longest edge.
+        const polys = [
+            // Wrap arounds
+            [c, vs[0], linalg.midpoint(vs[l - 1], vs[0]), linalg.midpoint(vs[0], vs[1])],
+            [c, vs[l - 1], linalg.midpoint(vs[l - 2], vs[l - 1]), linalg.midpoint(vs[l - 1], vs[0])]
+        ];
+        // Inner vertices
+        for (let i = 1; i < l - 1; i++) {
+            polys.push([c, vs[i], linalg.midpoint(vs[i - 1], vs[i]), linalg.midpoint(vs[i], vs[i + 1])]);
+        }
+        return new Union(this.dim, polys.map(Polygon.hull), true);
     }
 
     // Custom intersect implementation for 2D: make use of absolute canonical

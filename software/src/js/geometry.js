@@ -481,7 +481,14 @@ export class Polytope {
         return this.constructor.noredund(halfspaces);
     }
 
-    shatter() { throw new NotImplementedError() };
+    shatter(): Union { throw new NotImplementedError() };
+
+    scale(factor: number): Polytope {
+        const c = this.centroid;
+        return this.constructor.hull(
+            this.vertices.map((v) => arr.zip2map((a, b) => a + factor * (b - a), c, v))
+        );
+    }
 
     // Split polytope with halfspace and return both parts
     split(h: Halfspace): [Polytope, Polytope] {

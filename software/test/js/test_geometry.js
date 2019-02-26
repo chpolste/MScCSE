@@ -257,6 +257,28 @@ describe("geometry.Interval", function () {
         assert(pieces.isDisjunct);
     });
 
+    it("scale with factor = 1", function () {
+        const scaled = poly.scale(1);
+        assert.equal(scaled.volume, poly.volume);
+        assert(scaled.isSameAs(poly));
+    });
+
+    it("scale with factor < 1", function () {
+        const scaled = poly.scale(0.7378);
+        assert(scaled.volume < poly.volume);
+        for (let v of scaled.vertices) {
+            assert(poly.contains(v));
+        }
+    });
+
+    it("scale with factor > 1", function () {
+        const scaled = poly.scale(1.5378);
+        assert(scaled.volume > poly.volume);
+        for (let v of poly.vertices) {
+            assert(scaled.contains(v));
+        }
+    });
+
     it("intersect with self is identity", function () {
         assert(poly.isSameAs(poly.intersect(poly)));
     });
@@ -493,6 +515,28 @@ describe("geometry.Polygon with square", function () {
         assert(pieces.polytopes.length > poly.polytopes.length);
         assert(pieces.isSameAs(poly));
         assert(pieces.isDisjunct);
+    });
+
+    it("scale with factor = 1", function () {
+        const scaled = poly.scale(1);
+        assert.equal(scaled.volume, poly.volume);
+        assert(scaled.isSameAs(poly));
+    });
+
+    it("scale with factor < 1", function () {
+        const scaled = poly.scale(0.7378);
+        assert(scaled.volume < poly.volume);
+        for (let v of scaled.vertices) {
+            assert(poly.contains(v));
+        }
+    });
+
+    it("scale with factor > 1", function () {
+        const scaled = poly.scale(1.5378);
+        assert(scaled.volume > poly.volume);
+        for (let v of poly.vertices) {
+            assert(scaled.contains(v));
+        }
     });
 
     it("intersect with self is identity", function () {

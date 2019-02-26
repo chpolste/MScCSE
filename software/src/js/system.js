@@ -68,7 +68,7 @@ export type JSONLSS = {
     B: number[][], // matrix
     stateSpace: JSONPolytope,
     randomSpace: JSONPolytope,
-    controlSpace: JSONUnion
+    controlSpace: JSONPolytope
 };
 
 export class LSS {
@@ -79,16 +79,16 @@ export class LSS {
     +xx: Polytope;
     +xxExt: Region;
     +ww: Polytope;
-    +uus: Region;
+    +uu: Polytope;
     +oneStepReachable: Region;
 
     constructor(A: Matrix, B: Matrix, stateSpace: Polytope, randomSpace: Polytope,
-                controlSpace: Region): void {
+                controlSpace: Polytope): void {
         this.A = A;
         this.B = B;
         this.xx = stateSpace;
         this.ww = randomSpace;
-        this.uus = controlSpace;
+        this.uu = controlSpace;
         this.dim = stateSpace.dim;
         this.oneStepReachable = this.post(stateSpace, controlSpace);
         this.xxExt = stateSpace.union(this.oneStepReachable).disjunctify();
@@ -100,7 +100,7 @@ export class LSS {
             json.B,
             Polytope.deserialize(json.stateSpace),
             Polytope.deserialize(json.randomSpace),
-            Union.deserialize(json.controlSpace)
+            Polytope.deserialize(json.controlSpace)
         );
     }
 
@@ -168,14 +168,14 @@ export class LSS {
     act(x: Polytope, y: Region): Region {
         const Axpws = linalg.minkowski.axpy(this.A, x.vertices, this.ww.vertices);
         const poly = Polytope.ofDim(this.dim).hull(Axpws).invert();
-        return y.minkowski(poly).applyRight(this.B).intersect(this.uus);
+        return y.minkowski(poly).applyRight(this.B).intersect(this.uu);
     }
 
     // Robust action polytope
     actR(x: Polytope, y: Region): Region {
         const Axpws = linalg.minkowski.axpy(this.A, x.vertices, this.ww.vertices);
         const poly = Polytope.ofDim(this.dim).hull(Axpws);
-        return y.pontryagin(poly).applyRight(this.B).intersect(this.uus);
+        return y.pontryagin(poly).applyRight(this.B).intersect(this.uu);
     }
 
     zNonZero(xs: Region): Region {
@@ -229,7 +229,7 @@ export class LSS {
             B: this.B,
             stateSpace: this.xx.serialize(),
             randomSpace: this.ww.serialize(),
-            controlSpace: this.uus.toUnion().serialize()
+            controlSpace: this.uu.serialize()
         };
     }
 
@@ -598,7 +598,7 @@ export class State {
             return this._actions;
         } else {
             const op = target => this.act(target);
-            this._reachable = this.oneStepReachable(this.system.lss.uus);
+            this._reachable = this.oneStepReachable(this.system.lss.uu);
             this._actions = itemizedOperatorPartition(this._reachable, op).map(
                 part => new Action(this, part.items, part.region.simplify())
             );

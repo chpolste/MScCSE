@@ -177,7 +177,7 @@ export class ProblemSetup extends ObservableMixin<null> {
     get lss(): LSS {
         return new LSS(
             this.equation.A.value, this.equation.B.value,
-            this.ss.value, this.rs.value, this.cs.value.toUnion()
+            this.ss.value, this.rs.value, this.cs.value
         );
     }
 

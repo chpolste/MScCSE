@@ -1,7 +1,7 @@
 // @flow
 "use strict";
 
-import type { Region } from "./geometry.js";
+import type { Polytope } from "./geometry.js";
 import type { Vector } from "./linalg.js";
 import type { AbstractedLSS } from "./system.js";
 
@@ -15,14 +15,14 @@ export interface Controller {
 // Return a random control input at every step
 class RandomController implements Controller {
     
-    +uus: Region;
+    +uu: Polytope;
     
     constructor(system: AbstractedLSS): void {
-        this.uus = system.lss.uus;
+        this.uu = system.lss.uu;
     }
 
     input(x: Vector): Vector {
-        return this.uus.sample();
+        return this.uu.sample();
     }
 
 }

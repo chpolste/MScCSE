@@ -21,8 +21,8 @@ function actionPolytopesCoverControlSpace(sys) {
             assert(actionPolytopes.length > 0);
             const actions = Union.from(actionPolytopes);
             assert(!actions.isEmpty);
-            assert(actions.isSameAs(sys.lss.uus));
-            assert(sys.lss.uus.isSameAs(actions));
+            assert(actions.isSameAs(sys.lss.uu));
+            assert(sys.lss.uu.isSameAs(actions));
         }
     }
 }
@@ -81,7 +81,7 @@ describe("Svoreňová et al. (2017): illustrative example system", function () {
         [[1, 0], [0, 1]], // B
         geometry.Polygon.hull([[0, 0], [4, 0], [4, 2], [0, 2]]), // state space
         geometry.Polygon.hull([[-0.1, -0.1], [-0.1, 0.1], [0.1, -0.1], [0.1, 0.1]]), // random space
-        geometry.Polygon.hull([[-1, -1], [-1, 1], [1, -1], [1, 1]]).toUnion() // control space
+        geometry.Polygon.hull([[-1, -1], [-1, 1], [1, -1], [1, 1]]) // control space
     );
 
     const sys = lss.decompose([geometry.Halfspace.parse("x > 2", "xy")]);

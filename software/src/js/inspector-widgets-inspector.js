@@ -135,7 +135,7 @@ export class ProblemSummary {
 
     constructor(system: AbstractedLSS, objective: Objective): void {
         const csFig = new Figure();
-        csFig.newLayer({ stroke: "#000", fill: "#EEE" }).shapes = system.lss.uus.polytopes.map(
+        csFig.newLayer({ stroke: "#000", fill: "#EEE" }).shapes = system.lss.uu.polytopes.map(
             u => ({ kind: "polytope", vertices: u.vertices })
         );
         const rsFig = new Figure();
@@ -146,7 +146,7 @@ export class ProblemSummary {
         ssFig.newLayer({ stroke: "#000", fill: "#EEE" }).shapes = [
             { kind: "polytope", vertices: system.lss.xx.vertices }
         ];
-        const cs = new AxesPlot([90, 90], csFig, autoProjection(1, ...system.lss.uus.extent));
+        const cs = new AxesPlot([90, 90], csFig, autoProjection(1, ...system.lss.uu.extent));
         const rs = new AxesPlot([90, 90], rsFig, autoProjection(1, ...system.lss.ww.extent));
         const ss = new AxesPlot([90, 90], ssFig, autoProjection(1, ...system.lss.xx.extent));
         // Show formula with transition label and substituted propositions
@@ -215,7 +215,7 @@ export class SystemInspector {
             "A": JSON.stringify(system.lss.A),
             "B": JSON.stringify(system.lss.B),
             "X": JSON.stringify(system.lss.xx.vertices),
-            "U": JSON.stringify(system.lss.uus.polytopes[0].vertices),
+            "U": JSON.stringify(system.lss.uu.polytopes[0].vertices),
             "Y": "",
             "W": JSON.stringify(system.lss.ww.vertices)
         };
@@ -718,7 +718,7 @@ class SystemViewCtrl {
             this._layers.highlight2.shapes = [];
         } else {
             const action = this._model.action;
-            const control = (action == null) ? this._model.lss.uus.toUnion().serialize() : action.controls;
+            const control = (action == null) ? this._model.lss.uu.toUnion().serialize() : action.controls;
             this._operator(this._model, x, control).then((data) => {
                 // Only update if state has not changed since
                 if (this._model.state[0] !== x) return;
@@ -863,9 +863,9 @@ class ControlSpaceView {
             action: fig.newLayer({ "stroke": COLORS.action, "fill": COLORS.action }),
             trace:  fig.newLayer(MARKED_STEP_STYLE)
         };
-        const uus = this._model.lss.uus;
-        this._layers.poly.shapes = uus.polytopes.map((u) => ({ kind: "polytope", vertices: u.vertices }));
-        const proj = autoProjection(1, ...uus.extent);
+        const uu = this._model.lss.uu;
+        this._layers.poly.shapes = uu.polytopes.map((u) => ({ kind: "polytope", vertices: u.vertices }));
+        const proj = autoProjection(1, ...uu.extent);
         const plot = new AxesPlot([120, 120], fig, proj);
         this.node = dom.DIV({ "id": "control-space-view" }, [plot.node]);
     }

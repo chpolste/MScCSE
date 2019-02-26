@@ -137,7 +137,7 @@ export class NegAttrRefinery extends StateRefinery {
             return x.polytope;
         }
         // Use entire control space
-        const u = this.system.lss.uus;
+        const u = this.system.lss.uu;
         // Attractor set of "no" states is guaranteed to be part of the "no"
         // region
         const neg = Array.from(this.getStates("no", qNext));
@@ -242,9 +242,9 @@ export class LayerRefinery extends Refinery {
         const lss = this.system.lss;
         switch (this.settings.generator) {
             case "PreR":
-                return lss.preR(lss.xx, lss.uus, target);
+                return lss.preR(lss.xx, lss.uu, target);
             case "Pre":
-                return lss.pre(lss.xx, lss.uus, target);
+                return lss.pre(lss.xx, lss.uu, target);
             default:
                 throw new NotImplementedError(
                     "layer generator '" + this.settings.generator + "' does not exist"

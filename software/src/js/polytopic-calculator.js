@@ -370,7 +370,8 @@ class OperatorsWidget extends ObservableMixin<null> {
 
         this.op = new DropdownInput({
             "Post(X, U)": (A, B) => this.post(A, B),
-            "U(X, Y)": (A, B) => this.actionPolytope(A, B),
+            "Act(X, {Y})": (A, B) => this.act(A, B),
+            "ActR(X, {Y})": (A, B) => this.actR(A, B),
             "Pre(X, U, {Y})": (A, B) => this.pre(A, B),
             "PreR(X, U, {Y})": (A, B) => this.preR(A, B)
         }, "Post(X, U)");
@@ -422,7 +423,7 @@ class OperatorsWidget extends ObservableMixin<null> {
         );
     }
 
-    actionPolytope(A: Matrix, B: Matrix): Polytope {
+    act(A: Matrix, B: Matrix): Polytope {
         const x = this.inputs.x.polytope;
         const y = this.inputs.y.polytope;
         const w = this.inputs.w.polytope;
@@ -430,6 +431,15 @@ class OperatorsWidget extends ObservableMixin<null> {
             minkowski.xmy(y.vertices, minkowski.axpy(A, x.vertices, w.vertices))
         ).applyRight(B);
     }
+
+    actR(A: Matrix, B: Matrix): Polytope {
+        const x = this.inputs.x.polytope;
+        const y = this.inputs.y.polytope;
+        const w = this.inputs.w.polytope;
+        const poly = Polytope.ofDim(x.dim).hull(minkowski.axpy(A, x.vertices, w.vertices));
+        return y.pontryagin(poly).applyRight(B);
+    }
+
 
     pre(A: Matrix, B: Matrix): Polytope {
         const x = this.inputs.x.polytope;

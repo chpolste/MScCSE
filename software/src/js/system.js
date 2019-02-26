@@ -164,12 +164,18 @@ export class LSS {
         return x.remove(this.pre(x, us, this.xxExt.remove(ys)));
     }
 
-    // Action Polytope
-    // TODO: accept a u that isn't the entire control space
-    actionPolytope(x: Polytope, y: Polytope): Region {
+    // Action polytope
+    act(x: Polytope, y: Region): Region {
         const Axpws = linalg.minkowski.axpy(this.A, x.vertices, this.ww.vertices);
-        const poly = Polytope.ofDim(this.dim).hull(linalg.minkowski.xmy(y.vertices, Axpws));
-        return poly.applyRight(this.B).intersect(this.uus);
+        const poly = Polytope.ofDim(this.dim).hull(Axpws).invert();
+        return y.minkowski(poly).applyRight(this.B).intersect(this.uus);
+    }
+
+    // Robust action polytope
+    actR(x: Polytope, y: Region): Region {
+        const Axpws = linalg.minkowski.axpy(this.A, x.vertices, this.ww.vertices);
+        const poly = Polytope.ofDim(this.dim).hull(Axpws);
+        return y.pontryagin(poly).applyRight(this.B).intersect(this.uus);
     }
 
     zNonZero(xs: Region): Region {
@@ -425,8 +431,12 @@ export class AbstractedLSS implements GameGraph {
         return this.lss.attrR(x.polytope, us, Union.from(ys.map(y => y.polytope)));
     }
 
-    actionPolytope(x: State, y: State): Region {
-        return this.lss.actionPolytope(x.polytope, y.polytope);
+    act(x: State, y: State): Region {
+        return this.lss.act(x.polytope, y.polytope);
+    }
+
+    actR(x: State, y: State): Region {
+        return this.lss.actR(x.polytope, y.polytope);
     }
 
     zNonZero(xs: State[]): Region {
@@ -587,7 +597,7 @@ export class State {
         if (this._actions != null) {
             return this._actions;
         } else {
-            const op = target => this.actionPolytope(target);
+            const op = target => this.act(target);
             this._reachable = this.oneStepReachable(this.system.lss.uus);
             this._actions = itemizedOperatorPartition(this._reachable, op).map(
                 part => new Action(this, part.items, part.region.simplify())
@@ -629,8 +639,12 @@ export class State {
         return out;
     }
 
-    actionPolytope(y: State): Region {
-        return this.system.actionPolytope(this, y);
+    act(y: State): Region {
+        return this.system.act(this, y);
+    }
+
+    actR(y: State): Region {
+        return this.system.actR(this, y);
     }
 
     zNonZero(): Region {

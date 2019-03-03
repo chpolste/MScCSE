@@ -1,0 +1,35 @@
+#! /usr/bin/env node
+"use strict";
+
+const fs = require("fs");
+const path = require("path");
+const parser = require("@babel/parser");
+
+// Command line arguments are input files
+for (let i = 2; i < process.argv.length; i++) {
+    const filename = process.argv[i];
+    const file = fs.readFileSync(filename, "utf8");
+    const ast = parser.parse(file, {
+        sourceType: "module",
+        plugins: [ "flow" ]
+    });
+    if (ast.program == null) throw new Error("AST has no program property");
+    if (ast.program.body == null) throw new Error("AST has no program.body property");
+    // Find top-level ImportDeclaration nodes of kind "value". Nodes of kind
+    // "type" are flow imports and are not included in the dependency chain for
+    // make.
+    const imports = ast.program.body.filter(
+        _ => (_.type === "ImportDeclaration" && _.importKind === "value")
+    );
+    // Turn source filenames into absolute paths
+    const sources = imports.map(
+        _ => path.join(path.dirname(filename), _.source.value)
+    );
+    // Print empty target rule
+    if (sources.length > 0) {
+        console.log(filename + ": " + sources.join(" "));
+        console.log("\t@touch " + filename);
+        console.log();
+    }
+}
+

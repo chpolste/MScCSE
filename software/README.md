@@ -6,6 +6,7 @@
 - [__Plotter 2D__](https://chpolste.github.io/MScCSE/software/dist/plotter-2d.html): vertex-based preview of polytopes. Useful for debugging and custom figure creation.
 - [__Polytopic Calculator__](https://chpolste.github.io/MScCSE/software/dist/polytopic-calculator.html): polytopic computations with visualizations.
 
+
 ## Development Environment
 
 I'm writing JavaScript (ES6), targeting both the [browser](https://www.mozilla.org/firefox/) and [node.js](https://nodejs.org/).
@@ -33,8 +34,18 @@ make release
 to build minified variants without source maps. To set up the environment run
 
 ```bash
-make set-up-environment
+make node-setup
+make dist-setup
 ```
+
+and additionally
+
+```bash
+make targets
+```
+
+which extracts dependencies from the javascript source files and appends them to the Makefile as [empty targets](https://www.gnu.org/software/make/manual/make.html#Empty-Targets).
+
 
 ### KaTeX injection
 

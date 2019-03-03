@@ -11,3 +11,4 @@ software/modules/
 software/node_modules/
 software/flow-typed/
 software/.ipynb_checkpoints
+software/src/*/*.d

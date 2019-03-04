@@ -3,7 +3,7 @@
 
 import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Region } from "./geometry.js";
-import type { Objective, AutomatonStateLabel } from "./logic.js";
+import type { Objective, AutomatonStateID } from "./logic.js";
 import type { AbstractedLSS, State } from "./system.js";
 
 import { Polytope, Union } from "./geometry.js";
@@ -35,15 +35,15 @@ export class Refinery {
 
     // Convenience accessors
 
-    getStates(which: "yes"|"no"|"maybe", q: AutomatonStateLabel): Iterable<State> {
+    getStates(which: "yes"|"no"|"maybe", q: AutomatonStateID): Iterable<State> {
         return iter.filter((state) => this.getResult(state)[which].has(q), this.system.states.values());
     }
 
-    getStateRegion(which: "yes"|"no"|"maybe", q: AutomatonStateLabel): Region {
+    getStateRegion(which: "yes"|"no"|"maybe", q: AutomatonStateID): Region {
         return this.asRegion(this.getStates(which, q));
     }
 
-    getTransitionStates(qTarget: AutomatonStateLabel, q: AutomatonStateLabel): Iterable<State> {
+    getTransitionStates(qTarget: AutomatonStateID, q: AutomatonStateID): Iterable<State> {
         const origin = this.objective.getState(q);
         const target = this.objective.getState(qTarget);
         return iter.filter(
@@ -52,7 +52,7 @@ export class Refinery {
         );
     }
 
-    getTransitionRegion(qTarget: AutomatonStateLabel, q: AutomatonStateLabel): Region {
+    getTransitionRegion(qTarget: AutomatonStateID, q: AutomatonStateID): Region {
         return this.asRegion(this.getTransitionStates(qTarget, q));
     }
 
@@ -74,7 +74,7 @@ export class Refinery {
         return polys.length === 0 ? this.getEmpty() : Union.from(polys).simplify();
     }
     
-    qNext(x: State, q: AutomatonStateLabel): ?AutomatonStateLabel {
+    qNext(x: State, q: AutomatonStateID): ?AutomatonStateID {
         return this.objective.nextState(x.predicates, q);
     }
 
@@ -96,7 +96,7 @@ export class Refinery {
 
 export type StateRefineryApproximation = "none" | "hull";
 export type StateRefinerySettings = {
-    q: AutomatonStateLabel,
+    q: AutomatonStateID,
     approximation: StateRefineryApproximation
 };
 
@@ -191,7 +191,7 @@ export class PosAttrRRefinery extends StateRefinery {
 /* (Global) layer-based refinement procedures */
 
 // Target region
-export type LayerRefineryTarget = "__yes" | "__no" | AutomatonStateLabel;
+export type LayerRefineryTarget = "__yes" | "__no" | AutomatonStateID;
 // Polytopic operator from which the layers are iteratively generated
 export type LayerRefineryGenerator = "PreR" | "Pre";
 // Which layers participate in the refinement (inclusive range)
@@ -200,7 +200,7 @@ export type LayerRefineryRange = [number, number];
 export type LayerRefineryGenerations = number;
 // Settings object
 export type LayerRefinerySettings = {
-    origin: AutomatonStateLabel,
+    origin: AutomatonStateID,
     target: LayerRefineryTarget,
     generator: LayerRefineryGenerator,
     range: LayerRefineryRange,

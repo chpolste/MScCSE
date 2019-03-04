@@ -3,9 +3,10 @@
 
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
-import type { JSONObjective, AutomatonStateLabel } from "./logic.js";
+import type { JSONObjective, AutomatonStateID } from "./logic.js";
 import type { StateRefinerySettings, LayerRefinerySettings } from "./refinement.js";
-import type { StateID, LSS, State, Trace, JSONAbstractedLSS } from "./system.js";
+import type { StateID, ActionID, SupportID, PredicateID, LSS, State, Trace,
+              JSONAbstractedLSS } from "./system.js";
 
 import { controller } from "./controller.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
@@ -163,15 +164,15 @@ class SystemManager {
         return result;
     }
 
-    getCountStats(q: AutomatonStateLabel): SystemStats {
+    getCountStats(q: AutomatonStateID): SystemStats {
         return this._stats(q, _ => 1);
     }
 
-    getVolumeStats(q: AutomatonStateLabel): SystemStats {
+    getVolumeStats(q: AutomatonStateID): SystemStats {
         return this._stats(q, _ => _.polytope.volume);
     }
 
-    _stats(q: AutomatonStateLabel, f: (State) => number): SystemStats {
+    _stats(q: AutomatonStateID, f: (State) => number): SystemStats {
         let sYes     = 0;
         let sMaybe   = 0;
         let sNo      = 0;
@@ -210,17 +211,17 @@ const $ = new SystemManager();
 const inspector = new Communicator("2W");
 
 // States of the system
-export type StateRequest = string;
+export type StateRequest = StateID;
 export type StatesRequest = null;
 type StateAnalysis = {
-    yes: Set<string>,
-    no: Set<string>,
-    maybe: Set<string>
+    yes: Set<StateID>,
+    no: Set<StateID>,
+    maybe: Set<StateID>
 };
 export type StateData = {
-    label: string,
+    label: StateID,
     isOuter: boolean,
-    predicates: Set<string>,
+    predicates: Set<PredicateID>,
     analysis: ?AnalysisResult
 };
 export type StateDataPlus = StateData & {
@@ -258,7 +259,7 @@ function stateDataPlusOf(state: State): StateDataPlus {
 
 // System information summary
 export type SystemSummaryRequest = null;
-export type SystemSummaryData = Map<AutomatonStateLabel, { count: SystemStats, volume: SystemStats }>;
+export type SystemSummaryData = Map<AutomatonStateID, { count: SystemStats, volume: SystemStats }>;
 inspector.onRequest("getSystemSummary", function (data: SystemSummaryRequest): SystemSummaryData {
     return new Map(iter.map(
         q => [q, { count: $.getCountStats(q), volume: $.getVolumeStats(q) }],
@@ -268,10 +269,10 @@ inspector.onRequest("getSystemSummary", function (data: SystemSummaryRequest): S
 
 
 // Actions of a state
-export type ActionRequest = string;
+export type ActionRequest = StateID;
 export type ActionData = {
     origin: StateData,
-    id: number,
+    id: ActionID,
     controls: JSONUnion,
     targets: StateData[]
 };
@@ -286,10 +287,10 @@ inspector.onRequest("getActions", function (data: ActionRequest): ActionData[] {
 
 
 // Supports of an action
-export type SupportRequest = [string, number];
+export type SupportRequest = [StateID, ActionID];
 export type SupportData = {
     origin: StateData,
-    id: number,
+    id: SupportID,
     origins: JSONUnion,
     targets: StateData[]
 };
@@ -306,7 +307,7 @@ inspector.onRequest("getSupports", function (data: SupportRequest): SupportData[
 
 
 // Operator of a state
-export type OperatorRequest = [string, string, JSONUnion];
+export type OperatorRequest = [string, StateID, JSONUnion];
 export type OperatorData = JSONUnion;
 const OPERATORS: { [string]: (State, Union) => Region } = {
     "post":  (state, us) => state.isOuter ? Polytope.ofDim($.lss.dim).empty() : state.post(us),
@@ -324,7 +325,7 @@ inspector.onRequest("getOperator", function (data: OperatorRequest): OperatorDat
 
 
 // Trace through a system
-export type TraceRequest = [string|null, string, number];
+export type TraceRequest = [StateID|null, string, number];
 export type TraceData = Trace;
 inspector.onRequest("sampleTrace", function (data: TraceRequest): TraceData {
     const [sourceLabel, controllerName, maxSteps] = data;
@@ -351,7 +352,7 @@ inspector.onRequest("analyse", function (data: AnalysisRequest): AnalysisData {
 // Refinement
 export type RefineData = {
     elapsed: number,
-    states: Set<string>
+    states: Set<StateID>
 };
 // State-based
 export type RefineStateRequest = [StateID, string, StateRefinerySettings];

@@ -258,7 +258,7 @@ export type RefinementMap = Map<State, Set<State>>;
 // Serialization of entire system (optionally with actions)
 export type JSONAbstractedLSS = {
     lss: JSONLSS,
-    predicates: { [string]: JSONHalfspace },
+    predicates: { [PredicateID]: JSONHalfspace },
     states: JSONState[],
     labelNum: number
 };
@@ -538,10 +538,10 @@ export class AbstractedLSS implements GameGraph {
 
 // JSON-compatible serialization
 type JSONState = {
-    label: string,
+    label: StateID,
     polytope: JSONPolytope,
     isOuter: boolean,
-    predicates: string[],
+    predicates: PredicateID[],
     actions: JSONAction[] | null;
 };
 
@@ -697,7 +697,7 @@ export class State {
 
 // JSON-compatible serialization
 type JSONAction = {
-    targets: string[],
+    targets: StateID[],
     controls: JSONUnion,
     supports: JSONActionSupport[] | null
 };
@@ -777,7 +777,7 @@ export class Action {
 
 // JSON-compatible serialization
 type JSONActionSupport = {
-    targets: string[],
+    targets: StateID[],
     origins: JSONUnion
 };
 

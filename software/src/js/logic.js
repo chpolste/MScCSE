@@ -34,7 +34,7 @@ export class Objective {
     +kind: ObjectiveKind;
     +automaton: OnePairStreettAutomaton;
     // Convenient access to all automaton states by label
-    +allStates: Set<AutomatonStateLabel>;
+    +allStates: Set<AutomatonStateID>;
     // Mapping of automaton transition label variables to propositions over
     // linear predicates of system
     +propositions: Map<string, Proposition>;
@@ -60,7 +60,7 @@ export class Objective {
         return new Objective(json.kind, json.terms.map(parseProposition), json.coSafeInterpretation);
     }
 
-    getState(label: AutomatonStateLabel): AutomatonState {
+    getState(label: AutomatonStateID): AutomatonState {
         const state = this.automaton.states.get(label);
         if (state == null) throw new Error(
             "automaton state " + label + " does not exist"
@@ -85,14 +85,14 @@ export class Objective {
         };
     }
 
-    nextState(predicates: Set<PredicateID>, label: AutomatonStateLabel): ?AutomatonStateLabel {
+    nextState(predicates: Set<PredicateID>, label: AutomatonStateID): ?AutomatonStateID {
         const state = this.getState(label);
         const next = state.successor(this.valuationFor(predicates));
         return next == null ? null : next.label;
     }
 
     // Test for final (satisfying) states of co-safe objectives
-    isCoSafeFinal(label: AutomatonStateLabel): boolean {
+    isCoSafeFinal(label: AutomatonStateID): boolean {
         const state = this.getState(label);
         return this.coSafeInterpretation && state.isFinal && this.automaton.acceptanceSetF.has(state);
     }
@@ -381,7 +381,7 @@ export type AutomatonShapeCollection = {
 
 export class OnePairStreettAutomaton {
 
-    +states: Map<AutomatonStateLabel, AutomatonState>;
+    +states: Map<AutomatonStateID, AutomatonState>;
     +acceptanceSetE: Set<AutomatonState>;
     +acceptanceSetF: Set<AutomatonState>;
     initialState: AutomatonState;
@@ -411,7 +411,7 @@ export class OnePairStreettAutomaton {
         );
     }
 
-    takeState(label: AutomatonStateLabel): AutomatonState {
+    takeState(label: AutomatonStateID): AutomatonState {
         let state = this.states.get(label);
         if (state == null) {
             state = new AutomatonState(label);
@@ -565,18 +565,18 @@ export class OnePairStreettAutomaton {
 }
 
 // To clarify the intent of variables:
-export type AutomatonStateLabel = string;
+export type AutomatonStateID = string;
 
-class AutomatonState {
+export class AutomatonState {
 
-    +label: AutomatonStateLabel;
+    +label: AutomatonStateID;
     // Successor is determined by first transition whose proposition evaluates
     // to true under a given valuation or the default transition if no
     // proposition is true. Map returns its items in insertion order.
     +transitions: Map<AutomatonState, Proposition>;
     defaultTarget: ?AutomatonState;
 
-    constructor(label: AutomatonStateLabel): void {
+    constructor(label: AutomatonStateID): void {
         if (label.startsWith("__")) throw new Error(
             "automaton state labels starting with '__' are reserved"
         );

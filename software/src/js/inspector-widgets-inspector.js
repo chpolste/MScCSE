@@ -8,7 +8,7 @@ import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, T
               AnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
               SnapshotData, SystemSummaryData } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
-import type { Proposition, AutomatonStateLabel, AutomatonShapeCollection } from "./logic.js";
+import type { Proposition, AutomatonStateID, AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
 import type { StateRefinerySettings, StateRefineryApproximation, LayerRefinerySettings,
               LayerRefineryGenerator, LayerRefineryTarget } from "./refinement.js";
@@ -51,7 +51,7 @@ const MARKED_STEP_STYLE = { "stroke": "#C00", "fill": "#C00" };
 export const TRACE_LENGTH = 35;
 
 type _AnalysisKind = "maybe" | "yes" | "no" | "unreachable";
-function analysisKind(q: AutomatonStateLabel, analysis: ?AnalysisResult): _AnalysisKind {
+function analysisKind(q: AutomatonStateID, analysis: ?AnalysisResult): _AnalysisKind {
     // If no analysis results are available, everything is undecided
     if (analysis == null || analysis.maybe.has(q)) {
         return "maybe";
@@ -65,17 +65,17 @@ function analysisKind(q: AutomatonStateLabel, analysis: ?AnalysisResult): _Analy
 }
 
 // State coloring according to analysis status
-function stateColor(state: StateData, wrtQ: AutomatonStateLabel): string {
+function stateColor(state: StateData, wrtQ: AutomatonStateID): string {
     return COLORS[analysisKind(wrtQ, state.analysis)];
 }
 
-function stateLabel(state: StateData, wrtQ: ?AutomatonStateLabel): HTMLSpanElement {
+function stateLabel(state: StateData, wrtQ: ?AutomatonStateID): HTMLSpanElement {
     const out = dom.snLabel.toHTML(state.label);
     if (wrtQ != null) out.className = analysisKind(wrtQ, state.analysis);
     return out;
 }
 
-function automatonLabel(label: AutomatonStateLabel, ana?: ?AnalysisResult): HTMLSpanElement {
+function automatonLabel(label: AutomatonStateID, ana?: ?AnalysisResult): HTMLSpanElement {
     const out = dom.snLabel.toHTML(label);
     out.className = analysisKind(label, ana);
     return out;
@@ -297,7 +297,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
     // Selections (application state)
     _system: AbstractedLSS;
     _xState: ?StateDataPlus;
-    _qState: AutomatonStateLabel;
+    _qState: AutomatonStateID;
     _action: ?ActionData;
     _support: ?SupportData;
     _trace: ?TraceData;
@@ -369,7 +369,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
     // Getters and setters for selections
 
-    get state(): [?StateDataPlus, AutomatonStateLabel] {
+    get state(): [?StateDataPlus, AutomatonStateID] {
         return [this._xState, this._qState];
     }
 
@@ -378,7 +378,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
         this.notify("state");
     }
 
-    set qState(q: AutomatonStateLabel): void {
+    set qState(q: AutomatonStateID): void {
         this._qState = q;
         this.notify("state");
     }
@@ -416,7 +416,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
         return this._system.lss;
     }
 
-    get qAll(): Set<AutomatonStateLabel> {
+    get qAll(): Set<AutomatonStateID> {
         return this.objective.allStates;
     }
 
@@ -424,7 +424,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
         return this._system.getPredicate(label);
     }
 
-    transitionTo(x: StateData, q: AutomatonStateLabel): ?AutomatonStateLabel {
+    transitionTo(x: StateData, q: AutomatonStateID): ?AutomatonStateID {
         return this.objective.nextState(x.predicates, q);
     }
 
@@ -1516,7 +1516,7 @@ class LayerRefinementCtrl extends WidgetPlus {
 
     +_model: SystemModel;
     // Form elements
-    +_origin: OptionsInput<AutomatonStateLabel>;
+    +_origin: OptionsInput<AutomatonStateID>;
     +_target: OptionsInput<LayerRefineryTarget>;
     +_generator: OptionsInput<LayerRefineryGenerator>;
     +_rangeStart: OptionsInput<number>;

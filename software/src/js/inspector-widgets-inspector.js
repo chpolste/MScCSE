@@ -4,7 +4,7 @@
 import type { FigureLayer, Shape } from "./figure.js";
 import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
-import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, TraceData,
+import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData,
               AnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
               SnapshotData, SystemSummaryData } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
@@ -300,7 +300,6 @@ class SystemModel extends ObservableMixin<ModelChange> {
     _qState: AutomatonStateID;
     _action: ?ActionData;
     _support: ?SupportData;
-    _trace: ?TraceData;
 
     constructor(system: AbstractedLSS, objective: Objective, log: Logger, analyseAtStartup: boolean): void {
         super();
@@ -345,7 +344,6 @@ class SystemModel extends ObservableMixin<ModelChange> {
         this._qState = objective.automaton.initialState.label;
         this._action = null;
         this._support = null;
-        this._trace = null;
     }
 
     // After changes to the system's states, the selections have to be updated
@@ -401,15 +399,6 @@ class SystemModel extends ObservableMixin<ModelChange> {
         this.notify("support");
     }
 
-    get trace(): ?TraceData {
-        return this._trace;
-    }
-
-    set trace(t: ?TraceData): void {
-        this._trace = t;
-        this.notify("trace");
-    }
-
     // System information convenience accessors (static information)
 
     get lss(): LSS {
@@ -463,13 +452,6 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
     getOperator(op: string, state: StateID, us: JSONUnion): Promise<OperatorData> {
         return this._comm.request("getOperator", [op, state, us]).catch((e) => {
-            this.log.writeError(e);
-            throw e;
-        });
-    }
-
-    sampleTrace(state: ?StateID, controller: string, maxSteps: number): Promise<TraceData> {
-        return this._comm.request("sampleTrace", [state, controller, maxSteps]).catch((e) => {
             this.log.writeError(e);
             throw e;
         });

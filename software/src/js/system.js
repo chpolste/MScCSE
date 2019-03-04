@@ -244,15 +244,6 @@ export type ActionID = number;
 export type SupportID = number;
 export type PredicateID = string;
 
-// Traces
-export type Trace = TraceStep[];
-export type TraceStep = {
-    origin: Vector;
-    target: Vector;
-    control: Vector;
-    random: Vector;
-};
-
 export type RefinementMap = Map<State, Set<State>>;
 
 // Serialization of entire system (optionally with actions)
@@ -387,26 +378,6 @@ export class AbstractedLSS implements GameGraph {
         for (let state of this.states.values()) {
             state.resetActions(targets);
         }
-    }
-
-    // Trace sampling
-    sampleTrace(init: Vector, controller: Controller, steps: number): Trace {
-        // Trace starts from given location
-        let x = init;
-        // Take requested number of steps or end trace when it has left the
-        // state space polytope
-        const trace = [];
-        while (trace.length < steps && this.lss.xx.contains(x)) {
-            // Obtain the control input from the strategy
-            const u = controller.input(x);
-            // Sample the random space polytope
-            const w = this.lss.ww.sample();
-            // Evaluate the evolution equation to obtain the next point
-            const xx = this.lss.eval(x, u, w);
-            trace.push({ origin: x, target: xx, control: u, random: w });
-            x = xx;
-        }
-        return trace;
     }
 
     /* Convenience wrappers for polytopic operators */

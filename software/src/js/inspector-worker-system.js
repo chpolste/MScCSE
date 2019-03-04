@@ -1,14 +1,15 @@
 // @flow
 "use strict";
 
+import type { JSONTrace } from "./controller.js";
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
 import type { JSONObjective, AutomatonStateID } from "./logic.js";
 import type { StateRefinerySettings, LayerRefinerySettings } from "./refinement.js";
-import type { StateID, ActionID, SupportID, PredicateID, LSS, State, Trace,
+import type { StateID, ActionID, SupportID, PredicateID, LSS, State,
               JSONAbstractedLSS } from "./system.js";
 
-import { controller } from "./controller.js";
+import { Controller, Trace } from "./controller.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Polytope, Union } from "./geometry.js";
 import { Objective } from "./logic.js";
@@ -321,20 +322,6 @@ inspector.onRequest("getOperator", function (data: OperatorRequest): OperatorDat
     const state = $.system.getState(stateLabel);
     const us = Union.deserialize(control);
     return OPERATORS[operator](state, us).toUnion().serialize();
-});
-
-
-// Trace through a system
-export type TraceRequest = [StateID|null, string, number];
-export type TraceData = Trace;
-inspector.onRequest("sampleTrace", function (data: TraceRequest): TraceData {
-    const [sourceLabel, controllerName, maxSteps] = data;
-    const srcPoly = sourceLabel == null ? $.lss.xx : $.system.getState(sourceLabel).polytope;
-    const Strategy = controller[controllerName];
-    if (Strategy == null) throw new Error(
-        "Control strategy " + controllerName + " cannot be found"
-    );
-    return $.system.sampleTrace(srcPoly.sample(), new Strategy($.system), maxSteps);
 });
 
 

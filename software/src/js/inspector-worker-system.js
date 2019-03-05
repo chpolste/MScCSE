@@ -325,6 +325,29 @@ inspector.onRequest("getOperator", function (data: OperatorRequest): OperatorDat
 });
 
 
+// TODO: Trace Sampling
+export type TraceRequest = [string, ?StateID, AutomatonStateID];
+export type TraceData = JSONTrace;
+inspector.onRequest("getTrace", function (data: TraceRequest): TraceData {
+    const [controllerName, xLabel, qLabel] = data;
+    // ...
+    const Cls = Controller.builtIns()[controllerName];
+    if (Cls == null) throw new Error(
+        "Controller '" + controllerName + "' not found in built-in controllers"
+    );
+    const controller = new Cls($.system, $.objective, $.analysis);
+    // ...
+    const qInit = $.objective.getState(qLabel);
+    const xInit = xLabel == null
+                ? $.system.lss.xx.sample()
+                : $.system.getState(xLabel).polytope.sample();
+    // ...
+    const trace = new Trace($.system, $.objective);
+    trace.stepFor(100, controller, xInit, null, qInit);
+    return trace.serialize();
+});
+
+
 // Analyse the system
 export type AnalysisRequest = null;
 export type AnalysisData = {

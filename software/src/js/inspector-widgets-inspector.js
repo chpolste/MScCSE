@@ -1,10 +1,11 @@
 // @flow
 "use strict";
 
+import type { JSONTraceStep } from "./controller.js";
 import type { FigureLayer, Shape } from "./figure.js";
 import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
-import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData,
+import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, TraceData,
               AnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
               SnapshotData, SystemSummaryData } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
@@ -205,8 +206,9 @@ export class SystemInspector {
         const analysisViewCtrl = new AnalysisViewCtrl(model, keys);
         const layerRefinementCtrl = new LayerRefinementCtrl(model, keys);
         const snapshotViewCtrl = new SnapshotViewCtrl(model);
-        // Strategy tab
-        //const traceViewCtrl = new TraceViewCtrl(model, keys); TODO
+        // Control tab
+        const traceCtrl = new TraceCtrl(model);
+        const traceViewStepCtrl = new TraceViewStepCtrl(model);
 
         /* Debug: connectivity
         //const appLinks = dom.P(); TODO: create connectivity widget for Info tab
@@ -242,6 +244,10 @@ export class SystemInspector {
             analysisViewCtrl,
             layerRefinementCtrl,
             snapshotViewCtrl
+        ]);
+        const controlTab = tabs.newTab("Control", [
+            traceCtrl,
+            traceViewStepCtrl,
         ]);
         const infoTab = tabs.newTab("Info", [
             log
@@ -287,7 +293,7 @@ export class SystemInspector {
 }
 
 
-type ModelChange = "state" | "action" | "support" | "trace" | "system" | "snapshot"; 
+type ModelChange = "state" | "action" | "support" | "trace" | "trace-step" | "system" | "snapshot"; 
 // System access, centralized selection storage and change notifications
 class SystemModel extends ObservableMixin<ModelChange> {
 
@@ -300,6 +306,8 @@ class SystemModel extends ObservableMixin<ModelChange> {
     _qState: AutomatonStateID;
     _action: ?ActionData;
     _support: ?SupportData;
+    _trace: JSONTraceStep[];
+    _traceStep: ?JSONTraceStep;
 
     constructor(system: AbstractedLSS, objective: Objective, log: Logger, analyseAtStartup: boolean): void {
         super();
@@ -344,6 +352,8 @@ class SystemModel extends ObservableMixin<ModelChange> {
         this._qState = objective.automaton.initialState.label;
         this._action = null;
         this._support = null;
+        this._trace = [];
+        this._traceStep = null;
     }
 
     // After changes to the system's states, the selections have to be updated
@@ -399,6 +409,24 @@ class SystemModel extends ObservableMixin<ModelChange> {
         this.notify("support");
     }
 
+    get trace(): TraceData {
+        return this._trace;
+    }
+
+    set trace(t: TraceData): void {
+        this._trace = t;
+        this.notify("trace");
+    }
+
+    get traceStep(): ?JSONTraceStep {
+        return this._traceStep;
+    }
+
+    set traceStep(s: JSONTraceStep): void {
+        this._traceStep = s;
+        this.notify("trace-step");
+    }
+
     // System information convenience accessors (static information)
 
     get lss(): LSS {
@@ -452,6 +480,15 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
     getOperator(op: string, state: StateID, us: JSONUnion): Promise<OperatorData> {
         return this._comm.request("getOperator", [op, state, us]).catch((e) => {
+            this.log.writeError(e);
+            throw e;
+        });
+    }
+
+    getTrace(controller: string): Promise<TraceData> {
+        const [x, qLabel] = this.state;
+        const xLabel = x == null ? null : x.label;
+        return this._comm.request("getTrace", [controller, xLabel, qLabel]).catch((e) => {
             this.log.writeError(e);
             throw e;
         });
@@ -637,6 +674,8 @@ class SystemViewCtrl {
             this.drawAction();
         } else if (mc === "support") {
             this.drawSupport();
+        } else if (mc === "trace") {
+            this.drawTrace();
         }
     }
 
@@ -755,15 +794,15 @@ class SystemViewCtrl {
         }
     }
 
-/* TODO: reimplement this functionality
-
     drawTrace(): void {
-        const marked = this.traceView.marked;
-        this.layers.trace.shapes = this.traceView.trace.map((step, i) => ({
-            kind: "arrow", origin: step.origin, target: step.target,
-            style: (i === marked ? MARKED_STEP_STYLE : {})
+        const marked = this._model.traceStep;
+        this._layers.trace.shapes = this._model.trace.map((step) => ({
+            kind: "arrow", origin: step.xOrigin[0], target: step.xTarget[0],
+            style: (step === marked ? MARKED_STEP_STYLE : {})
         }));
     }
+
+/* TODO: reimplement this functionality
 
     toExportURL(): string {
         if (this._data == null) throw new Error("..."); // TODO
@@ -1183,7 +1222,7 @@ class StateView extends WidgetPlus {
             const analysis = x.analysis;
             // Line 1: system and automaton labels
             dom.replaceChildren(this._lines[0], [
-               dom.snLabel.toHTML(x.label), ", ", dom.snLabel.toHTML(q)
+                dom.snLabel.toHTML(x.label), ", ", dom.snLabel.toHTML(q)
             ]);
             // Line 2: action and automaton transition
             const qNext = this._model.transitionTo(x, q);
@@ -1727,117 +1766,103 @@ class SnapshotViewCtrl extends WidgetPlus {
 
 
 // Tab: Control
-// - TraceViewCtrl
+// - TraceCtrl
+// - TraceViewStepCtrl
+// - TraceStepView
 
-/* TODO
-class TraceViewCtrl {
+class TraceCtrl extends WidgetPlus {
 
-    +node: HTMLDivElement;
     +_model: SystemModel;
-    +_controller: Input<string>;
-    +_layers: { [string]: FigureLayer };
+    +_initial: HTMLSpanElement;
 
-    constructor(model: SystemModel, keys: dom.Keybindings): void {
+    constructor(model: SystemModel): void {
+        super("Sample Trace", "info-trace-sample");
         this._model = model;
-
-        const fig = new Figure();
-        this._layers = {
-            arrows: fig.newLayer({ "stroke": COLORS.trace, "stroke-width": "1.5", "fill": COLORS.trace }),
-            interaction: fig.newLayer({ "stroke": "none", "fill": "#FFF", "fill-opacity": "0" })
-        };
-        const proj = new Horizontal1D([-1, 0.01], [0, 1]);
-        const plot = new ShapePlot([480, 20], fig, proj, false);
-
-        this._controller = new DropdownInput({
-            "Random": "Random"
-        }, "Random");
-        const sampleButton = dom.createButton({
-            "title": "sample a new trace with the selected controller"
-        }, [dom.create("u", {}, ["s"]), "ample trace"], () => this.sample());
-        const clearButton = dom.createButton({
-            "title": "clear the current trace"
-        }, [dom.create("u", {}, ["d"]), "elete"], () => this.clear());
-
-        this.node = dom.DIV({ "id": "trace-ctrl" }, [
-            dom.P({}, [
-                sampleButton, " ", clearButton,
-                dom.DIV({ "class": "right" }, [
-                    dom.create("u", {}, ["C"]), "ontroller ",
-                    this._controller.node
-                ])
-            ]),
-            plot.node
-        ]);
-
-        keys.bind("s", () => this.sample());
-        keys.bind("c", inputTextRotation(this._controller, ["Random"]));
-        keys.bind("d", () => this.clear());
-
-        this.drawTraceArrows();
-    }
-
-    sample(): void {
-        // If a system state is selected, sample from its polytope, otherwise
-        // from the entire state space polytope
-        const [x, y] = this._model.state;
-        const initPoly = x == null ? null : x.label;
-        const controller = this._controller.value;
-        this._model.sampleTrace(initPoly, controller, TRACE_LENGTH).then((data) => {
-            // Reversing results in nicer plots (tips aren't covered by next line)
-            this._model.trace = data.reverse();
-            this.drawTraceSelectors();
-            this.drawTraceArrows();
-        }).catch((e) => {
-            // ...
+        this._model.attach((mc) => this.handleModelChange(mc));
+        // Initial state display
+        this._initial = dom.SPAN();
+        // Control elements
+        const controller = new DropdownInput({
+            "Random Controller": "random",
+            "Round-robin Controller": "round-robin"
+        }, "Random Controller");
+        const sampleButton = dom.createButton({}, ["sample"], () => {
+            this.pushLoad();
+            this._model.getTrace(controller.value).then((data: TraceData) => {
+                this._model.trace = data;
+            }).catch((e) => {
+                // ...
+            }).finally(() => {
+                this.popLoad();
+            });
         });
+        const clearButton = dom.createButton({}, ["clear"], () => {
+            this._model.trace = [];
+        });
+        this.node = dom.DIV({}, [
+            dom.P({}, ["Starting from ", this._initial, ":"]),
+            dom.P({}, [controller.node, " ", sampleButton, " ", clearButton])
+        ]);
     }
 
-    clear(): void {
-        this._model.trace = [];
-        this.drawTraceSelectors();
-        this.drawTraceArrows();
-    }
-
-    mark(stepNo: number): void {
-        //this._marked = stepNo;
-        this.drawTraceArrows();
-    }
-
-    // TODO: draw when _model notifies
-    drawTraceSelectors(): void {
-        const trace = this._model.trace;
-        if (trace != null) {
-            const n = trace.length;
-            // TODO
-            this._layers.interaction.shapes = trace.map((step, i) => ({
-                kind: "polytope", vertices: [[-(i+1)/n], [-i/n]],
-                events: {
-                    "mouseover": () => this.mark(i),
-                    "mouseout": () => this.mark(-1)
-                }
-            }));
-        }
-    }
-
-    drawTraceArrows(): void {
-        const trace = this._model.trace;
-        if (trace != null) {
-            const n = trace.length;
-            //const marked = this._marked;
-            const marked = false; // TODO
-            if (n === 0) {
-                this._layers.arrows.shapes = [];
-            } else {
-                this._layers.arrows.shapes = trace.map((step, i) => ({
-                    kind: "arrow", origin: [-(i+1)/n], target: [-i/n],
-                    style: (i === marked ? MARKED_STEP_STYLE : {})
-                }));
-            }
-        }
+    handleModelChange(mc: ?ModelChange): void {
+        if (mc != "state") return;
+        const [x, q] = this._model.state;
+        dom.replaceChildren(this._initial, x == null
+            ? [dom.snLabel.toHTML(q)]
+            : [dom.snLabel.toHTML(q), " in ", dom.snLabel.toHTML(x.label)]
+        );
     }
 
 }
-*/
+
+
+class TraceViewStepCtrl extends WidgetPlus {
+
+    +_model: SystemModel;
+    +_layers: { [string]: FigureLayer };
+
+    constructor(model: SystemModel): void {
+        super("Trace", "info-trace");
+        this._model = model;
+        this._model.attach((mc) => this.handleModelChange(mc));
+        const fig = new Figure();
+        this._layers = {
+            arrows: fig.newLayer({ "stroke": COLORS.trace, "stroke-width": "1.5", "fill": COLORS.trace }),
+            states: fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" }),
+            hovers: fig.newLayer({ "stroke": "none", "fill": "#FFF", "fill-opacity": "0" })
+        };
+        const proj = new Cartesian2D([-0.5, 15.5], [-4.7, 0.3]);
+        const plot = new ShapePlot([480, 250], fig, proj, false);
+        this.node = dom.DIV({}, [
+            plot.node
+        ]);
+    }
+
+    handleModelChange(mc: ?ModelChange): void {
+        if (mc != "trace") return;
+        const trace = this._model.trace;
+        const arrows = [];
+        const states = [];
+        if (trace.length > 0) {
+            arrows.push({ kind: "arrow", origin: [0, 0], target: [0, 0] });
+            states.push({ kind: "label", coords: [0, -0.35], text: trace[0].xOrigin[2] });
+        }
+        for (let i = 0; i < trace.length; i++) {
+            const step = trace[i];
+            const x = i % 15;
+            const y = -Math.floor(i / 15);
+            arrows.push({ kind: "arrow", origin: [x, y], target: [x + 1, y] });
+            if (step.xOrigin[2] !== step.xTarget[2]) {
+                states.push({ kind: "label", coords: [x + 1, y - 0.35], text: step.xTarget[2] });
+            }
+        }
+        this._layers.arrows.shapes = arrows;
+        this._layers.states.shapes = states;
+    }
+
+}
+
 
 
 // Tab: Info

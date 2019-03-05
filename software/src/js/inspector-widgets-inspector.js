@@ -41,15 +41,11 @@ export const COLORS = {
     support: "#09C",
     action: "#000",
     stateRegion: "#F60",
-    split: "#C00",
     vectorField: "#333",
-    trace: "#000"
+    trace: "#000",
+    traceStep: "#C00"
 };
 
-// Arrow style of trace highlight
-const MARKED_STEP_STYLE = { "stroke": "#C00", "fill": "#C00" };
-// Max number of steps when sampling
-export const TRACE_LENGTH = 35;
 
 type _AnalysisKind = "maybe" | "yes" | "no" | "unreachable";
 function analysisKind(q: AutomatonStateID, analysis: ?AnalysisResult): _AnalysisKind {
@@ -422,7 +418,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
         return this._traceStep;
     }
 
-    set traceStep(s: JSONTraceStep): void {
+    set traceStep(s: ?JSONTraceStep): void {
         this._traceStep = s;
         this.notify("trace-step");
     }
@@ -623,6 +619,7 @@ class SystemViewCtrl {
             action:         fig.newLayer({ "stroke": COLORS.action, "stroke-width": "2", "fill": COLORS.action }),
             stateRegion:    fig.newLayer({ "stroke": "none", "fill": COLORS.stateRegion }),
             trace:          fig.newLayer({ "stroke": COLORS.trace, "stroke-width": "1.5", "fill": COLORS.trace }),
+            traceStep:      fig.newLayer({ "stroke": COLORS.traceStep, "stroke-width": "1.5", "fill": COLORS.traceStep }),
             label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle", "transform": "translate(0 3)" }),
             interaction:    fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" })
         };
@@ -676,6 +673,8 @@ class SystemViewCtrl {
             this.drawSupport();
         } else if (mc === "trace") {
             this.drawTrace();
+        } else if (mc === "trace-step") {
+            this.drawTraceStep();
         }
     }
 
@@ -795,11 +794,16 @@ class SystemViewCtrl {
     }
 
     drawTrace(): void {
-        const marked = this._model.traceStep;
         this._layers.trace.shapes = this._model.trace.map((step) => ({
-            kind: "arrow", origin: step.xOrigin[0], target: step.xTarget[0],
-            style: (step === marked ? MARKED_STEP_STYLE : {})
+            kind: "arrow", origin: step.xOrigin[0], target: step.xTarget[0]
         }));
+    }
+
+    drawTraceStep(): void {
+        const step = this._model.traceStep;
+        this._layers.traceStep.shapes = step == null ? [] : [{
+            kind: "arrow", origin: step.xOrigin[0], target: step.xTarget[0]
+        }];
     }
 
 /* TODO: reimplement this functionality
@@ -882,7 +886,7 @@ class ControlSpaceView {
         this._layers = {
             poly:   fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF" }),
             action: fig.newLayer({ "stroke": COLORS.action, "fill": COLORS.action }),
-            trace:  fig.newLayer(MARKED_STEP_STYLE)
+            trace:  fig.newLayer({ "stroke": COLORS.traceStep, "fill": COLORS.traceStep })
         };
         const uu = this._model.lss.uu;
         this._layers.poly.shapes = uu.polytopes.map((u) => ({ kind: "polytope", vertices: u.vertices }));
@@ -901,15 +905,12 @@ class ControlSpaceView {
                     poly => ({ kind: "polytope", vertices: poly.vertices })
                 );
             }
+        } else if (mc === "trace-step") {
+            const step = this._model.traceStep;
+            this._layers.trace.shapes = step == null ? [] : [{
+                kind: "marker", size: 3, coords: step.u
+            }];
         }
-        // TODO
-        /*const marked = this.traceView.marked;
-        const trace = this.traceView.trace;
-        if (marked >= 0 && marked < trace.length) {
-            this.ctrlLayers.trace.shapes = [{ kind: "marker", size: 3, coords: trace[marked].control }];
-        } else {
-            this.ctrlLayers.trace.shapes = [];
-        }*/
     }
 
 }
@@ -927,7 +928,7 @@ class RandomSpaceView {
         const fig = new Figure();
         this._layers = {
             poly:   fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF" }),
-            trace:  fig.newLayer(MARKED_STEP_STYLE)
+            trace:  fig.newLayer({ "stroke": COLORS.traceStep, "fill": COLORS.traceStep })
         };
         const ww = this._model.lss.ww;
         this._layers.poly.shapes = [{ kind: "polytope", vertices: ww.vertices }];
@@ -937,14 +938,11 @@ class RandomSpaceView {
     }
 
     handleModelChange(mc: ?ModelChange): void {
-        // TODO
-        /*const marked = this.traceView.marked;
-        const trace = this.traceView.trace;
-        if (marked >= 0 && marked < trace.length) {
-            this.randLayers.trace.shapes = [{ kind: "marker", size: 3, coords: trace[marked].random }];
-        } else {
-            this.randLayers.trace.shapes = [];
-        }*/
+        if (mc !== "trace-step") return;
+        const step = this._model.traceStep;
+        this._layers.trace.shapes = step == null ? [] : [{
+            kind: "marker", size: 3, coords: step.w
+        }];
     }
 
 }
@@ -978,6 +976,9 @@ class AutomatonViewCtrl {
             }),
             transitions: fig.newLayer({
                 "fill": "#000", "stroke": "#000", "stroke-width": "2"
+            }),
+            traceStep: fig.newLayer({
+                "fill": COLORS.traceStep, "stroke": COLORS.traceStep, "stroke-width": "2"
             }),
             states: fig.newLayer({
                 "fill": "#FFF", "fill-opacity": "0", "stroke": "#000", "stroke-width": "2"
@@ -1031,7 +1032,11 @@ class AutomatonViewCtrl {
     }
 
     handleModelChange(mc: ?ModelChange): void {
-        if (mc === "state") this.draw();
+        if (mc === "state") {
+            this.draw();
+        } else if (mc === "trace-step") {
+            this.drawTraceStep();
+        }
     }
 
     draw(): void {
@@ -1060,6 +1065,23 @@ class AutomatonViewCtrl {
         }
         this._layers.states.shapes = ss;
         this._layers.transitions.shapes = ts;
+    }
+
+    drawTraceStep(): void {
+        const step = this._model.traceStep;
+        if (step == null) {
+            this._layers.traceStep.shapes = [];
+        } else {
+            const transitions = this._shapes.transitions.get(step.xOrigin[2]);
+            if (transitions == null) throw new Error(
+                "Trace takes transition which does not exist: " + step.xOrigin[2] + " → " + step.xTarget[2]
+            );
+            const shapes = transitions.get(step.xTarget[2]);
+            if (shapes == null) throw new Error(
+                "Trace takes transition which does not exist: " + step.xOrigin[2] + " → " + step.xTarget[2]
+            );
+            this._layers.traceStep.shapes = [shapes[0]];
+        }
     }
 
 }
@@ -1829,6 +1851,7 @@ class TraceViewStepCtrl extends WidgetPlus {
         const fig = new Figure();
         this._layers = {
             arrows: fig.newLayer({ "stroke": COLORS.trace, "stroke-width": "1.5", "fill": COLORS.trace }),
+            step:   fig.newLayer({ "stroke": COLORS.traceStep, "stroke-width": "1.5", "fill": COLORS.traceStep }),
             states: fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" }),
             hovers: fig.newLayer({ "stroke": "none", "fill": "#FFF", "fill-opacity": "0" })
         };
@@ -1844,6 +1867,7 @@ class TraceViewStepCtrl extends WidgetPlus {
         const trace = this._model.trace;
         const arrows = [];
         const states = [];
+        const hovers = [];
         if (trace.length > 0) {
             arrows.push({ kind: "arrow", origin: [0, 0], target: [0, 0] });
             states.push({ kind: "label", coords: [0, -0.35], text: trace[0].xOrigin[2] });
@@ -1853,12 +1877,28 @@ class TraceViewStepCtrl extends WidgetPlus {
             const x = i % 15;
             const y = -Math.floor(i / 15);
             arrows.push({ kind: "arrow", origin: [x, y], target: [x + 1, y] });
+            hovers.push({
+                kind: "polytope",
+                vertices: [[x, y + 0.3], [x + 1, y + 0.3], [x + 1, y - 0.3], [x, y - 0.3]],
+                events: {
+                    "mouseover": () => this.highlightStep(step, x, y),
+                    "mouseout": () => this.highlightStep(null, 0, 0)
+                }
+            });
             if (step.xOrigin[2] !== step.xTarget[2]) {
                 states.push({ kind: "label", coords: [x + 1, y - 0.35], text: step.xTarget[2] });
             }
         }
         this._layers.arrows.shapes = arrows;
+        this._layers.hovers.shapes = hovers;
         this._layers.states.shapes = states;
+    }
+
+    highlightStep(step: ?JSONTraceStep, x: number, y: number): void {
+        this._layers.step.shapes = step == null ? [] : [{
+            kind: "arrow", origin: [x, y], target: [x + 1, y]
+        }];
+        this._model.traceStep = step;
     }
 
 }

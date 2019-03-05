@@ -173,6 +173,11 @@ export class Halfspace {
         this.dim = normal.length;
     }
 
+
+    static deserialize(json: JSONHalfspace): Halfspace {
+        return new Halfspace(json.normal, json.offset);
+    }
+
     static normalized(normal: Vector, offset: number): Halfspace {
         let norm = linalg.norm2(normal);
         if (norm < TOL) {
@@ -208,9 +213,6 @@ export class Halfspace {
         return Halfspace.normalized(normal, offset);
     }
 
-    static deserialize(json: JSONHalfspace): Halfspace {
-        return new Halfspace(json.normal, json.offset);
-    }
 
     // Empty "halfspace"
     get isInfeasible(): boolean {
@@ -222,13 +224,20 @@ export class Halfspace {
         return this.offset === Infinity;
     }
 
-    flip(): Halfspace {
-        return new Halfspace(this.normal.map(x => -x), -this.offset);
+
+    // Apply a matrix from the right to the normal vector. This may change the
+    // dimensionality of the halfspace.
+    applyRight(m: Matrix): Halfspace {
+        return Halfspace.normalized(linalg.applyRight(m, this.normal), this.offset);
     }
 
     contains(point: Vector): boolean {
         linalg.assertEqualDims(this.dim, point.length);
         return linalg.dot(this.normal, point) - this.offset < TOL;
+    }
+
+    flip(): Halfspace {
+        return new Halfspace(this.normal.map(x => -x), -this.offset);
     }
 
     isSameAs(other: Halfspace): boolean {
@@ -242,12 +251,6 @@ export class Halfspace {
         return Halfspace.normalized(this.normal, this.offset + linalg.dot(this.normal, v));
     }
 
-    // Apply a matrix from the right to the normal vector. This may change the
-    // dimensionality of the halfspace.
-    applyRight(m: Matrix): Halfspace {
-        return Halfspace.normalized(linalg.applyRight(m, this.normal), this.offset);
-    }
-
     // JSON-compatible serialization and deserialization
     serialize(): JSONHalfspace {
         return { normal: this.normal, offset: this.offset };
@@ -259,13 +262,14 @@ export class Halfspace {
 
 /* Convex Polytopes */
 
-// Polytopic region
+// General Region type contains Polytope and Union types with common interface
 export type Region = Polytope | Union;
 
-// JSON serializations
+// JSON serialization of a polytpe
 export type JSONPolytope = { dim: number, vertices: number[][] };
 
-// Dimension-independent implementations
+// Dimension-independent implementations are specified in the general type,
+// specific dimensions have their own subtypes (here for 1D and 2D)
 export class Polytope {
 
     +dim: number;
@@ -285,23 +289,6 @@ export class Polytope {
         this._isEmpty = null;
     }
 
-    // Get the subclass for a specific dimension of polytope
-    static ofDim(dim: number): Class<Polytope> {
-        if (dim === 1) return Interval;
-        if (dim === 2) return Polygon;
-        throw new NotImplementedError();
-    }
-
-    // Convex hull of a set of points
-    static hull(ps: Vector[]): Polytope { throw new NotImplementedError(); }
-    // intersection takes an array of halfspaces and returns the polytope that
-    // is bounded by these (returns empty if polytope is unbounded)
-    static intersection(hs: Halfspace[]): Polytope { throw new NotImplementedError(); }
-    // Like intersection but noredund expects halfspaces to already be in
-    // canonical order and without infeasible/trivial ones
-    static noredund(hs: Halfspace[]): Polytope { throw new NotImplementedError(); }
-    // Empty polytope
-    static empty(): Polytope { throw new NotImplementedError(); }
 
     // JSON serialization
     static deserialize(json: JSONPolytope): Polytope {
@@ -310,44 +297,36 @@ export class Polytope {
         throw new NotImplementedError();
     }
 
-    // Consistent iteration for polytopes of Region. Guarantees [] as a return
-    // value if region is empty.
-    get polytopes(): Polytope[] {
-        return this.isEmpty ? [] : [this];
+    // Empty polytope
+    static empty(): Polytope { throw new NotImplementedError(); }
+
+    // Convex hull of a set of points
+    static hull(ps: Vector[]): Polytope { throw new NotImplementedError(); }
+
+    // intersection takes an array of halfspaces and returns the polytope that
+    // is bounded by these (returns empty if polytope is unbounded)
+    static intersection(hs: Halfspace[]): Polytope { throw new NotImplementedError(); }
+
+    // Like intersection but noredund expects halfspaces to already be in
+    // canonical order and without infeasible/trivial ones
+    static noredund(hs: Halfspace[]): Polytope { throw new NotImplementedError(); }
+
+    // Get the subclass for a specific dimension of polytope
+    static ofDim(dim: number): Class<Polytope> {
+        if (dim === 1) return Interval;
+        if (dim === 2) return Polygon;
+        throw new NotImplementedError();
     }
 
-    // Cached access to V-representation
-    get vertices(): Vector[] {
-        if (this._vertices != null) return this._vertices;
-        this._HtoV();
-        return this.vertices;
-    }
-
-    // Cached access to H-representation
-    get halfspaces(): Halfspace[] {
-        if (this._halfspaces != null) return this._halfspaces;
-        this._VtoH();
-        return this.halfspaces;
-    }
-
-    // isEmpty test is cached
-    get isEmpty(): boolean {
-        if (this._isEmpty != null) return this._isEmpty;
-        // All polytopes that are not full-dimensional are considered to be empty.
-        this._isEmpty = (this._vertices != null && this._vertices.length <= this.dim)
-                || (this._halfspaces != null && this._halfspaces.length <= this.dim)
-                || this.volume < TOL;
-        return this._isEmpty;
-    }
-
-    get volume(): number { throw new NotImplementedError(); }
-    get centroid(): Vector { throw new NotImplementedError(); }
 
     // Axis-aligned minimum bounding box
     get boundingBox(): Polytope {
         let bbox = cartesian(...this.extent);
         return this.constructor.hull(bbox);
     }
+
+    // Geometric center
+    get centroid(): Vector { throw new NotImplementedError(); }
 
     // Axis-aligned extent
     get extent(): [number, number][] {
@@ -368,6 +347,107 @@ export class Polytope {
         return arr.zip2(mins, maxs);
     }
 
+    // Cached access to H-representation
+    get halfspaces(): Halfspace[] {
+        if (this._halfspaces != null) return this._halfspaces;
+        this._VtoH();
+        return this.halfspaces;
+    }
+
+    // An individual polytope is trivially disjunct
+    get isDisjunct(): boolean { return true; }
+
+    // isEmpty test is cached
+    get isEmpty(): boolean {
+        if (this._isEmpty != null) return this._isEmpty;
+        // All polytopes that are not full-dimensional are considered to be empty.
+        this._isEmpty = (this._vertices != null && this._vertices.length <= this.dim)
+                || (this._halfspaces != null && this._halfspaces.length <= this.dim)
+                || this.volume < TOL;
+        return this._isEmpty;
+    }
+
+    // Consistent iteration for polytopes of Region. Guarantees [] as a return
+    // value if region is empty.
+    get polytopes(): Polytope[] {
+        return this.isEmpty ? [] : [this];
+    }
+
+    // Cached access to V-representation
+    get vertices(): Vector[] {
+        if (this._vertices != null) return this._vertices;
+        this._HtoV();
+        return this.vertices;
+    }
+
+    // Length (1D), Area (2D), Volume (3D), ...
+    get volume(): number { throw new NotImplementedError(); }
+
+
+    // Apply matrix from the left to every vertex
+    apply(m: Matrix): Polytope {
+        linalg.assertEqualDims(m[0].length, this.dim);
+        return Polytope.ofDim(m.length).hull(this.vertices.map(v => linalg.apply(m, v)));
+    }
+
+    // Apply matrix from the right to every halfspace normal. For invertible
+    // matrices, applyRight is identical to calling apply with the inverse of
+    // the matrix.
+    applyRight(m: Matrix): Polytope {
+        linalg.assertEqualDims(m.length, this.dim);
+        return Polytope.ofDim(m[0].length).intersection(this.halfspaces.map(h => h.applyRight(m)));
+    }
+
+    // Does the given point lie inside the polytope?
+    contains(p: Vector): boolean {
+        linalg.assertEqualDims(this.dim, p.length);
+        return iter.every(this.halfspaces.map(h => h.contains(p)));
+    }
+
+    // Is the other region covered by this polytope?
+    covers(other: Region): boolean {
+        if (this.isEmpty) return other.isEmpty;
+        return other.remove(this).isEmpty;
+    }
+
+    // An individual polytope is trivially disjunct
+    disjunctify(): Polytope { return this; }
+
+    // Do all points of the polytope fulfil the linear predicate?
+    fulfils(predicate: Halfspace): boolean {
+        linalg.assertEqualDims(this.dim, predicate.dim);
+        return iter.every(this.vertices.map(v => predicate.contains(v)));
+    }
+
+    // Convex polytope is its own hull
+    hull(): Polytope { return this; }
+
+    // Intersection with polytope of union of polytopes. Parametric so that
+    // intersection of two Polytopes yields a Polytope and intersection of
+    // a Polytope with a Union yields a Union.
+    intersect<T: Region>(other: T): T {
+        linalg.assertEqualDims(this.dim, other.dim);
+        if (other instanceof Union) {
+            return other.intersect(this);
+        } else {
+            if (other.isEmpty || this.isEmpty) return other.constructor.empty();
+            return this._intersectPolytope(other);
+        }
+    }
+
+    // Does the polytope intersect the given region?
+    intersects(other: Region): boolean {
+        for (let p of other.polytopes) {
+            if (!this.intersect(p).isEmpty) return true;
+        }
+        return false;
+    }
+
+    // Reflection with respect to the origin
+    invert(): Polytope {
+        return this.constructor.hull(this.vertices.map(v => v.map(x => -x)));
+    }
+
     // Polytope equality test
     isSameAs(other: Region): boolean {
         if (other instanceof Union) {
@@ -385,70 +465,6 @@ export class Polytope {
             }
             return true;
         }
-    }
-
-    covers(other: Region): boolean {
-        if (this.isEmpty) return other.isEmpty;
-        return other.remove(this).isEmpty;
-    }
-
-    // Does the given point lie inside the polytope?
-    contains(p: Vector): boolean {
-        linalg.assertEqualDims(this.dim, p.length);
-        return iter.every(this.halfspaces.map(h => h.contains(p)));
-    }
-
-    // Does the polytope intersect the given region?
-    intersects(other: Region): boolean {
-        for (let p of other.polytopes) {
-            if (!this.intersect(p).isEmpty) return true;
-        }
-        return false;
-    }
-
-    // Do all points of the polytope fulfil the linear predicate?
-    fulfils(predicate: Halfspace): boolean {
-        linalg.assertEqualDims(this.dim, predicate.dim);
-        return iter.every(this.vertices.map(v => predicate.contains(v)));
-    }
-
-    // A random point from inside the polytope, based on a uniform distribution
-    sample(): Vector {
-        // Rejection based sampling should terminate eventually
-        const extent = this.extent;
-        let point;
-        do {
-            point = this.extent.map(([l, u]) => l + (u - l) * Math.random());
-        } while (!this.contains(point));
-        return point;
-    }
-
-    // Polytope translated by vector v
-    translate(v: Vector): Polytope {
-        // TODO: is hull really necessary? Translation should not change the
-        // proper order of vertices...
-        linalg.assertEqualDims(v.length, this.dim);
-        return this.constructor.hull(this.vertices.map(x => linalg.add(x, v)));
-        //return polytopeType(this.dim).noredund(this.halfspaces.map(h => h.translate(v)));
-    }
-
-    // Reflection with respect to the origin
-    invert(): Polytope {
-        return this.constructor.hull(this.vertices.map(v => v.map(x => -x)));
-    }
-
-    // Apply matrix from the left to every vertex
-    apply(m: Matrix): Polytope {
-        linalg.assertEqualDims(m[0].length, this.dim);
-        return Polytope.ofDim(m.length).hull(this.vertices.map(v => linalg.apply(m, v)));
-    }
-
-    // Apply matrix from the right to every halfspace normal. For invertible
-    // matrices, applyRight is identical to calling apply with the inverse of
-    // the matrix.
-    applyRight(m: Matrix): Polytope {
-        linalg.assertEqualDims(m.length, this.dim);
-        return Polytope.ofDim(m[0].length).intersection(this.halfspaces.map(h => h.applyRight(m)));
     }
 
     // Minkowski sum as defined by Baotić (2009)
@@ -481,43 +497,6 @@ export class Polytope {
         return this.constructor.noredund(halfspaces);
     }
 
-    shatter(): Union { throw new NotImplementedError() };
-
-    scale(factor: number): Polytope {
-        const c = this.centroid;
-        return this.constructor.hull(
-            this.vertices.map((v) => arr.zip2map((a, b) => a + factor * (b - a), c, v))
-        );
-    }
-
-    // Split polytope with halfspace and return both parts
-    split(h: Halfspace): [Polytope, Polytope] {
-        const intersection = this.constructor.intersection;
-        return [
-            intersection([...this.halfspaces, h]),
-            intersection([...this.halfspaces, h.flip()])
-        ];
-    }
-
-    // Intersection with polytope of union of polytopes. Parametric so that
-    // intersection of two Polytopes yields a Polytope and intersection of
-    // a Polytope with a Union yields a Union.
-    intersect<T: Region>(other: T): T {
-        linalg.assertEqualDims(this.dim, other.dim);
-        if (other instanceof Union) {
-            return other.intersect(this);
-        } else {
-            if (other.isEmpty || this.isEmpty) return other.constructor.empty();
-            return this._intersectPolytope(other);
-        }
-    }
-
-    // Intersection of convex polytopes in H-representation: put all halfspaces
-    // together and reduce to minimal (canonical) form.
-    _intersectPolytope<T: Polytope>(other: T): T {
-        return other.constructor.intersection([...this.halfspaces, ...other.halfspaces]);
-    }
-
     // Set difference, yields a union of convex polytopes (in general).
     // Implementation of the regiondiff algorithm by Baotić (2009).
     remove(other: Region): Region {
@@ -526,18 +505,27 @@ export class Polytope {
         // Find a polytope in other that intersects and therefore requires
         // removal
         let k = 0;
-        while (this.intersect(polytopes[k]).isEmpty) {
-            k++;
-            if (k === polytopes.length) {
-                return this;
+        let halfspaces = null;
+        while (halfspaces == null && k < polytopes.length) {
+            const intersection = this.intersect(polytopes[k]);
+            // Polytope does not intersect, try next one
+            if (intersection.isEmpty) {
+                k++;
+            // Polytope intersects, use halfspaces of intersection for removal
+            // (active constraints)
+            } else {
+                halfspaces = intersection.halfspaces;
             }
         }
+        // No polytope intersects: nothing to remove
+        if (halfspaces == null) return this;
+        // Regiondiff:
         const out = [];
         let poly = this;
         // Use the halfspaces of the polytope that is removed to cut the
         // remainder into convex polytopes, then continue removal recursively
         // with the remaining elements in other.
-        for (let halfspace of polytopes[k].halfspaces) {
+        for (let halfspace of halfspaces) {
             const [_poly, polyCandidate] = poly.split(halfspace);
             if (!polyCandidate.isEmpty) {
                 if (k < polytopes.length - 1) {
@@ -549,7 +537,27 @@ export class Polytope {
             }
             poly = _poly;
         }
-        return out.length === 1 ? out[0] : new Union(this.dim, out, null);
+        // Because remove works with split, the out-polytopes must be disjunct
+        return out.length === 1 ? out[0] : new Union(this.dim, out, true);
+    }
+
+    // A random point from inside the polytope, based on a uniform distribution
+    sample(): Vector {
+        // Rejection based sampling should terminate eventually
+        const extent = this.extent;
+        let point;
+        do {
+            point = this.extent.map(([l, u]) => l + (u - l) * Math.random());
+        } while (!this.contains(point));
+        return point;
+    }
+
+    // Scale the polytope wrt to the centroid point
+    scale(factor: number): Polytope {
+        const c = this.centroid;
+        return this.constructor.hull(
+            this.vertices.map((v) => arr.zip2map((a, b) => a + factor * (b - a), c, v))
+        );
     }
 
     // JSON serialization
@@ -557,25 +565,52 @@ export class Polytope {
         return { dim: this.dim, vertices: this.vertices };
     }
 
+    // Polytope is as simple as it gets
+    simplify(): Polytope { return this; }
+
+    // Split polytope (arbitrarily) into smaller parts
+    shatter(): Union { throw new NotImplementedError() };
+
+    // Split polytope with halfspace and return both parts
+    split(h: Halfspace): [Polytope, Polytope] {
+        const intersection = this.constructor.intersection;
+        return [
+            intersection([...this.halfspaces, h]),
+            intersection([...this.halfspaces, h.flip()])
+        ];
+    }
+
     // Union with polytope as only member
     toUnion(): Union {
         return new Union(this.dim, [this], true);
     }
 
+    // Polytope translated by vector v
+    translate(v: Vector): Polytope {
+        // TODO: is hull really necessary? Translation should not change the
+        // proper order of vertices...
+        linalg.assertEqualDims(v.length, this.dim);
+        return this.constructor.hull(this.vertices.map(x => linalg.add(x, v)));
+        //return polytopeType(this.dim).noredund(this.halfspaces.map(h => h.translate(v)));
+    }
+
+    // Union of polytope with another Region
     union(other: Region): Union {
         return Union.from([this, ...other.polytopes]);
     }
 
+
+    // Intersection of convex polytopes in H-representation: put all halfspaces
+    // together and reduce to minimal (canonical) form.
+    _intersectPolytope<T: Polytope>(other: T): T {
+        return other.constructor.intersection([...this.halfspaces, ...other.halfspaces]);
+    }
+
     // Fill halfspace cache based on vertices
     _VtoH() { throw new NotImplementedError() };
+
     // Fill vertices cache based on halfspaces
     _HtoV() { throw new NotImplementedError() };
-
-    // Compatibility with Union interface
-    get isDisjunct(): boolean { return true; }
-    disjunctify(): Polytope { return this; }
-    simplify(): Polytope { return this; }
-    hull(): Polytope { return this; }
 
 }
 
@@ -586,6 +621,11 @@ export class Interval extends Polytope {
     constructor(vertices: ?Vector[], halfspaces: ?Halfspace[]): void {
         super(vertices, halfspaces);
         this.dim = 1;
+    }
+
+
+    static empty(): Interval {
+        return new Interval([], []);
     }
 
     static hull(ps: Vector[]): Interval {
@@ -643,8 +683,15 @@ export class Interval extends Polytope {
         }
     }
 
-    static empty(): Interval {
-        return new Interval([], []);
+
+    // Every interval is its own bounding box.
+    get boundingBox(): Interval {
+        return this;
+    }
+
+    get centroid(): Vector {
+        const [l, r] = this.vertices;
+        return [(l[0] + r[0]) / 2];
     }
 
     get volume(): number {
@@ -653,15 +700,6 @@ export class Interval extends Polytope {
         return vs[1][0] - vs[0][0];
     }
 
-    get centroid(): Vector {
-        const [l, r] = this.vertices;
-        return [(l[0] + r[0]) / 2];
-    }
-
-    // Every interval is its own bounding box.
-    get boundingBox(): Interval {
-        return this;
-    }
 
     shatter(): Union {
         const vertices = this.vertices;
@@ -671,6 +709,7 @@ export class Interval extends Polytope {
             Interval.hull([centroid, vertices[1]])
         ], true);
     }
+
 
     _HtoV(): void {
         if (this._halfspaces == null) {
@@ -700,6 +739,7 @@ export class Polygon extends Polytope {
         super(vertices, halfspaces);
         this.dim = 2;
     }
+
 
     static empty(): Polygon {
         return new Polygon([], []);
@@ -876,10 +916,6 @@ export class Polygon extends Polytope {
         return new Polygon(null, out);
     }
 
-    // https://en.wikipedia.org/wiki/Centroid#Of_a_polygon
-    get volume(): number {
-        return 0.5 * iter.sum(arr.cyc2map((a, b) => a[0]*b[1] - b[0]*a[1], this.vertices));
-    }
 
     // https://en.wikipedia.org/wiki/Centroid#Of_a_polygon
     get centroid(): Vector {
@@ -888,6 +924,12 @@ export class Polygon extends Polytope {
         const y = iter.sum(arr.cyc2map((a, b) => (a[1] + b[1]) * (a[0]*b[1] - b[0]*a[1]), this.vertices));
         return [x / 6 / vol, y / 6 / vol];
     }
+
+    // https://en.wikipedia.org/wiki/Centroid#Of_a_polygon
+    get volume(): number {
+        return 0.5 * iter.sum(arr.cyc2map((a, b) => a[0]*b[1] - b[0]*a[1], this.vertices));
+    }
+
 
     shatter(): Union {
         const c = this.centroid;
@@ -909,6 +951,7 @@ export class Polygon extends Polytope {
         }
         return new Union(this.dim, polys.map(Polygon.hull), true);
     }
+
 
     // Custom intersect implementation for 2D: make use of absolute canonical
     // ordering and use merge to achieve linear computational complexity
@@ -973,6 +1016,15 @@ export class Union {
         this._isDisjunct = this.polytopes.length < 2 || isDisjunct;
     }
 
+
+    static deserialize(json: JSONUnion): Union {
+        return new Union(json.dim, json.polytopes.map(Polytope.deserialize), null);
+    }
+
+    static empty(dim: number): Union {
+        return new Union(dim, [], true);
+    }
+
     static from(polytopes: Polytope[]): Union {
         if (polytopes.length < 1) throw new ValueError(
             "Unable to determine dimension from empty set of polytopes"
@@ -982,22 +1034,6 @@ export class Union {
         return new Union(dim, polytopes, null);
     }
 
-    static empty(dim: number): Union {
-        return new Union(dim, [], true);
-    }
-
-    static deserialize(json: JSONUnion): Union {
-        return new Union(json.dim, json.polytopes.map(Polytope.deserialize), null);
-    }
-
-    get isDisjunct(): boolean {
-        return this._isDisjunct != null && this._isDisjunct; // TODO: find out if null
-    }
-
-    get volume(): number {
-        const polytopes = this.isDisjunct ? this.polytopes : this.disjunctify().polytopes;
-        return iter.sum(polytopes.map(_ => _.volume));
-    }
 
     get boundingBox(): Polytope {
         return Polytope.ofDim(this.dim).hull(cartesian(...this.extent));
@@ -1012,20 +1048,22 @@ export class Union {
         });
     }
 
-    isSameAs(other: Region): boolean {
-        return this.covers(other) && other.covers(this);
+    get isDisjunct(): boolean {
+        return this._isDisjunct != null && this._isDisjunct; // TODO: find out if null
     }
 
-    covers(other: Region): boolean {
-        if (this.isEmpty) return other.isEmpty;
-        return other.remove(this).isEmpty;
+    get volume(): number {
+        const polytopes = this.isDisjunct ? this.polytopes : this.disjunctify().polytopes;
+        return iter.sum(polytopes.map(_ => _.volume));
     }
 
-    intersects(other: Region): boolean {
-        for (let p of this.polytopes) {
-            if (p.intersects(other)) return true;
-        }
-        return false;
+
+    apply(m: Matrix): Union {
+        return new Union(this.dim, this.polytopes.map(_ => _.apply(m)), this._isDisjunct);
+    }
+
+    applyRight(m: Matrix): Union {
+        return new Union(this.dim, this.polytopes.map(_ => _.applyRight(m)), this._isDisjunct);
     }
 
     contains(v: Vector): boolean {
@@ -1035,34 +1073,62 @@ export class Union {
         return false;
     }
 
+    covers(other: Region): boolean {
+        if (this.isEmpty) return other.isEmpty;
+        return other.remove(this).isEmpty;
+    }
+
+    disjunctify(): Union {
+        // Sort by volume in ascending order and then take from the large end
+        // first. This should favour the removal of small polytopes.
+        const ps = this.polytopes.slice().sort((x, y) => x.volume - y.volume);
+        const out = [];
+        while (ps.length > 0) {
+            const p = ps.pop();
+            out.push(...p.remove(new Union(this.dim, out, true)).polytopes);
+        }
+        return new Union(this.dim, out, true);
+    }
+
     fulfils(h: Halfspace): boolean {
         return iter.every(this.polytopes.map(_ => _.fulfils(h)));
     }
 
-    sample(): Vector {
-        if (this.polytopes.length >= 1) { // TODO
-            return this.polytopes[0].sample();
+    hull(): Polytope {
+        const vertices = [];
+        for (let polytope of this.polytopes) {
+            vertices.push(...polytope.vertices);
         }
-        throw new NotImplementedError();
-        // disjunctify
-        // choose polygon weighted by volume
-        // sample from polygon
+        return Polytope.ofDim(this.dim).hull(vertices);
     }
 
-    translate(v: Vector): Union {
-        return new Union(this.dim, this.polytopes.map(_ => _.translate(v)), this._isDisjunct);
+    intersect(other: Region): Region {
+        const out = [];
+        for (let x of this.polytopes) {
+            for (let y of other.polytopes) {
+                const intersection = x.intersect(y);
+                if (!intersection.isEmpty) {
+                    out.push(intersection);
+                }
+            }
+        }
+        // If this was not disjunct before intersection, it might be after
+        return out.length === 1 ? out[0] : new Union(this.dim, out, this._isDisjunct ? true : null);
+    }
+
+    intersects(other: Region): boolean {
+        for (let p of this.polytopes) {
+            if (p.intersects(other)) return true;
+        }
+        return false;
     }
 
     invert(): Union {
         return new Union(this.dim, this.polytopes.map(_ => _.invert()), this._isDisjunct);
     }
 
-    apply(m: Matrix): Union {
-        return new Union(this.dim, this.polytopes.map(_ => _.apply(m)), this._isDisjunct);
-    }
-
-    applyRight(m: Matrix): Union {
-        return new Union(this.dim, this.polytopes.map(_ => _.applyRight(m)), this._isDisjunct);
+    isSameAs(other: Region): boolean {
+        return this.covers(other) && other.covers(this);
     }
 
     minkowski(other: Polytope): Union {
@@ -1085,28 +1151,6 @@ export class Union {
         return bbox.pontryagin(other).remove(complement.minkowski(other.invert()));
     }
 
-    shatter(): Union {
-        const pieces = [];
-        for (let x of this.polytopes) {
-            pieces.push(...x.shatter().polytopes);
-        }
-        return new Union(this.dim, pieces, this._isDisjunct);
-    }
-
-    intersect(other: Region): Region {
-        const out = [];
-        for (let x of this.polytopes) {
-            for (let y of other.polytopes) {
-                const intersection = x.intersect(y);
-                if (!intersection.isEmpty) {
-                    out.push(intersection);
-                }
-            }
-        }
-        // If this was not disjunct before intersection, it might be after
-        return out.length === 1 ? out[0] : new Union(this.dim, out, this._isDisjunct ? true : null);
-    }
-
     remove(other: Region): Union {
         const out = [];
         for (let p of this.polytopes) {
@@ -1116,29 +1160,26 @@ export class Union {
         return new Union(this.dim, out, this._isDisjunct ? true : null);
     }
 
-    union(other: Region): Union {
-        linalg.assertEqualDims(this.dim, other.dim);
-        return new Union(this.dim, [...this.polytopes, ...other.polytopes], null);
+    sample(): Vector {
+        if (this.polytopes.length >= 1) { // TODO
+            return this.polytopes[0].sample();
+        }
+        throw new NotImplementedError();
+        // disjunctify
+        // choose polygon weighted by volume
+        // sample from polygon
     }
 
-    hull(): Polytope {
-        const vertices = [];
-        for (let polytope of this.polytopes) {
-            vertices.push(...polytope.vertices);
-        }
-        return Polytope.ofDim(this.dim).hull(vertices);
+    serialize(): JSONUnion {
+        return { dim: this.dim, polytopes: this.polytopes.map(_ => _.serialize()) };
     }
 
-    disjunctify(): Union {
-        // Sort by volume in ascending order and then take from the large end
-        // first. This should favour the removal of small polytopes.
-        const ps = this.polytopes.slice().sort((x, y) => x.volume - y.volume);
-        const out = [];
-        while (ps.length > 0) {
-            const p = ps.pop();
-            out.push(...p.remove(new Union(this.dim, out, true)).polytopes);
+    shatter(): Union {
+        const pieces = [];
+        for (let x of this.polytopes) {
+            pieces.push(...x.shatter().polytopes);
         }
-        return new Union(this.dim, out, true);
+        return new Union(this.dim, pieces, this._isDisjunct);
     }
 
     simplify(): Region {
@@ -1146,19 +1187,26 @@ export class Union {
             return this.polytopes[0];
         }
         const hull = this.hull();
-        if (this.covers(hull)) {
+        const rest = hull.remove(this);
+        if (rest.isEmpty) {
             return hull;
+        } else {
+            // For X subset of Y: X = Y \ (Y \ X).
+            return hull.remove(rest);
         }
-        // TODO: merging of individual polytopes?
-        return this.disjunctify();
     }
 
     toUnion(): Union {
         return this;
     }
 
-    serialize(): JSONUnion {
-        return { dim: this.dim, polytopes: this.polytopes.map(_ => _.serialize()) };
+    translate(v: Vector): Union {
+        return new Union(this.dim, this.polytopes.map(_ => _.translate(v)), this._isDisjunct);
+    }
+
+    union(other: Region): Union {
+        linalg.assertEqualDims(this.dim, other.dim);
+        return new Union(this.dim, [...this.polytopes, ...other.polytopes], null);
     }
 
 }

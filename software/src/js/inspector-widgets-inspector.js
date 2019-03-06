@@ -190,12 +190,11 @@ export class SystemInspector {
         const model = new SystemModel(system, objective, log, analyseOnStartup);
         // Main views
         const systemViewCtrl = new SystemViewCtrl(model);
-        const systemViewCtrlCtrl = new SystemViewCtrlCtrl(systemViewCtrl, keys);
         const randomSpaceView = new RandomSpaceView(model);
         const controlSpaceView = new ControlSpaceView(model);
         const automatonViewCtrl = new AutomatonViewCtrl(model, systemViewCtrl, keys);
         // State tab
-        const stateView = new StateView(model);
+        const stateViewOpCtrl = new StateViewOpCtrl(model, systemViewCtrl, keys);
         const stateRefinementCtrl = new StateRefinementCtrl(model);
         const actionViewCtrl = new ActionViewCtrl(model);
         // System tab
@@ -205,6 +204,8 @@ export class SystemInspector {
         // Control tab
         const traceCtrl = new TraceCtrl(model);
         const traceViewStepCtrl = new TraceViewStepCtrl(model);
+        // Info tab
+        const systemViewCtrlCtrl = new SystemViewCtrlCtrl(systemViewCtrl, keys);
 
         /* Debug: connectivity
         //const appLinks = dom.P(); TODO: create connectivity widget for Info tab
@@ -232,7 +233,7 @@ export class SystemInspector {
 
         const tabs = new TabbedView();
         const stateTab = tabs.newTab("State", [
-            stateView,
+            stateViewOpCtrl,
             stateRefinementCtrl,
             actionViewCtrl
         ]);
@@ -246,6 +247,7 @@ export class SystemInspector {
             traceViewStepCtrl,
         ]);
         const infoTab = tabs.newTab("Info", [
+            systemViewCtrlCtrl,
             log
         ]);
         tabs.select("System");
@@ -265,12 +267,7 @@ export class SystemInspector {
                             "Control and Random Space",
                             dom.DIV({ "class": "icons" }, [dom.infoBox("info-control")])
                         ]),
-                        controlSpaceView.node, randomSpaceView.node,
-                        dom.H3({}, [
-                            "View Settings",
-                            dom.DIV({ "class": "icons" }, [dom.infoBox("info-settings")])
-                        ]),
-                        systemViewCtrlCtrl.node
+                        controlSpaceView.node, randomSpaceView.node
                     ]),
                     dom.DIV({ "class": "right" }, [
                         dom.H3({}, [
@@ -623,7 +620,7 @@ class SystemViewCtrl {
             label:          fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle", "transform": "translate(0 3)" }),
             interaction:    fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#FFF", "fill-opacity": "0" })
         };
-        this._plot = new InteractivePlot([660, 440], fig, autoProjection(3/2, ...this._model.lss.xx.extent));
+        this._plot = new InteractivePlot([660, 500], fig, autoProjection(660/500, ...this._model.lss.xx.extent));
         this.node = this._plot.node;
     }
 
@@ -819,56 +816,6 @@ class SystemViewCtrl {
         return window.btoa(JSON.stringify(data));
     }
 */
-
-}
-
-
-type OperatorWrapper = (SystemModel, StateData, JSONUnion) => Promise<OperatorData>;
-// Settings panel for the main view
-class SystemViewCtrlCtrl {
-
-    +node: HTMLDivElement;
-
-    constructor(systemViewCtrl: SystemViewCtrl, keys: dom.Keybindings): void {
-        // Operator highlight
-        const operator = new DropdownInput({
-            "None": null,
-            "Posterior": (model, state, us) => model.getOperator("post", state.label, us),
-            "Predecessor": (model, state, us) => model.getOperator("pre", state.label, us),
-            "Robust Predecessor": (model, state, us) => model.getOperator("preR", state.label, us),
-            "Attractor": (model, state, us) => model.getOperator("attr", state.label, us),
-            "Robust Attractor": (model, state, us) => model.getOperator("attrR", state.label, us)
-        }, "None");
-        operator.attach(() => {
-            systemViewCtrl.operator = operator.value;
-        });
-        // View configuration
-        const labels = new CheckboxInput(false, dom.SPAN({}, [
-            "State ", dom.create("u", {}, ["L"]), "abels"
-        ]));
-        labels.attach(() => {
-            systemViewCtrl.showLabels = labels.value;
-        });
-        const vectors = new CheckboxInput(false, dom.SPAN({}, [
-            dom.create("u", {}, ["V"]), "ector Field"
-        ]));
-        vectors.attach(() => {
-            systemViewCtrl.showVectors = vectors.value;
-        });
-        // Assemble
-        this.node = dom.DIV({ "id": "view-ctrl" }, [
-            dom.P({ "class": "highlight" }, [
-                operator.node, " ", dom.create("u", {}, ["h"]), "ighlight" 
-            ]),
-            dom.P({}, [labels.node, dom.create("br"), vectors.node])
-        ]);
-        // Keybindings
-        keys.bind("l", inputTextRotation(labels, ["t", "f"]));
-        keys.bind("v", inputTextRotation(vectors, ["t", "f"]));
-        keys.bind("h", inputTextRotation(operator, [
-            "None", "Posterior", "Predecessor", "Robust Predecessor", "Attractor", "Robust Attractor"
-        ]));
-    }
 
 }
 
@@ -1214,27 +1161,48 @@ class WidgetPlus implements TabWidget {
 
 
 // Tab: Game
-// - StateView
+// - StateViewOpCtrl
 // - StateRefinementCtrl
 // - ActionViewCtrl
 
-class StateView extends WidgetPlus {
+type OperatorWrapper = (SystemModel, StateData, JSONUnion) => Promise<OperatorData>;
 
-    +node: HTMLDivElement;
+class StateViewOpCtrl extends WidgetPlus {
+
     +_model: SystemModel;
     +_lines: HTMLDivElement[];
 
-    constructor(model: SystemModel): void {
+    constructor(model: SystemModel, systemViewCtrl: SystemViewCtrl, keys: dom.Keybindings): void {
         super("Selection", "info-state");
         this._model = model;
         this._model.attach((mc) => this.handleModelChange(mc));
+        // Operator highlight
+        const operator = new DropdownInput({
+            "None": null,
+            "Posterior": (model, state, us) => model.getOperator("post", state.label, us),
+            "Predecessor": (model, state, us) => model.getOperator("pre", state.label, us),
+            "Robust Predecessor": (model, state, us) => model.getOperator("preR", state.label, us),
+            "Attractor": (model, state, us) => model.getOperator("attr", state.label, us),
+            "Robust Attractor": (model, state, us) => model.getOperator("attrR", state.label, us)
+        }, "None");
+        operator.attach(() => {
+            systemViewCtrl.operator = operator.value;
+        });
         this._lines = [dom.DIV({ "class": "selection" }), dom.DIV(), dom.DIV(), dom.DIV()];
+        // Assemble
         this.node = dom.DIV({ "id": "state-view" }, [
-            dom.DIV({}, [dom.DIV({ "class": "label" }, ["State:"]), this._lines[0]]),
-            dom.DIV({}, [dom.DIV({ "class": "label" }, ["Actions:"]), this._lines[1]]),
-            dom.DIV({}, [dom.DIV({ "class": "label" }, ["Analysis:"]), this._lines[2]]),
-            dom.DIV({}, [dom.DIV({ "class": "label" }, ["Predicates:"]), this._lines[3]]),
+            dom.DIV({ "class": "div-table" }, [
+                dom.DIV({}, [dom.DIV({}, ["State:"]), this._lines[0]]),
+                dom.DIV({}, [dom.DIV({}, ["Actions:"]), this._lines[1]]),
+                dom.DIV({}, [dom.DIV({}, ["Analysis:"]), this._lines[2]]),
+                dom.DIV({}, [dom.DIV({}, ["Predicates:"]), this._lines[3]])
+            ]),
+            dom.P({ "class": "highlight" }, [operator.node])
         ]);
+        // Keybindings
+        keys.bind("o", inputTextRotation(operator, [
+            "None", "Posterior", "Predecessor", "Robust Predecessor", "Attractor", "Robust Attractor"
+        ]));
     }
 
     handleModelChange(mc: ?ModelChange): void {
@@ -1593,8 +1561,8 @@ class LayerRefinementCtrl extends WidgetPlus {
         this._generations = new DropdownInput(DropdownInput.rangeOptions(1, 10, 1), "2");
         // Assemble
         this._button = dom.createButton({}, ["refine"], () => this.refine())
-        this.node = dom.DIV({}, [
-            dom.DIV({ "id": "layer-refinement-ctrl" }, [
+        this.node = dom.DIV({"id": "layer-refinement-ctrl" }, [
+            dom.DIV({ "class": "div-table" }, [
                 dom.DIV({}, [
                     dom.DIV({}, ["Origin"]),
                     dom.DIV({}, [this._origin.node])
@@ -1906,7 +1874,39 @@ class TraceViewStepCtrl extends WidgetPlus {
 
 
 // Tab: Info
+// - SystemViewCtrlCtrl
 // - Logger
+
+// Settings panel for the main view
+class SystemViewCtrlCtrl extends WidgetPlus {
+
+    constructor(systemViewCtrl: SystemViewCtrl, keys: dom.Keybindings): void {
+        super("View Settings", "info-view-settings");
+        // State label toggle
+        const labels = new CheckboxInput(false, dom.SPAN({}, [
+            "State ", dom.create("u", {}, ["L"]), "abels"
+        ]));
+        labels.attach(() => {
+            systemViewCtrl.showLabels = labels.value;
+        });
+        // Vector field toggle
+        const vectors = new CheckboxInput(false, dom.SPAN({}, [
+            dom.create("u", {}, ["V"]), "ector Field"
+        ]));
+        vectors.attach(() => {
+            systemViewCtrl.showVectors = vectors.value;
+        });
+        // Assemble
+        this.node = dom.DIV({}, [
+            dom.P({}, [labels.node, vectors.node])
+        ]);
+        // Keybindings
+        keys.bind("l", inputTextRotation(labels, ["t", "f"]));
+        keys.bind("v", inputTextRotation(vectors, ["t", "f"]));
+    }
+
+}
+
 
 type LogKind = "analysis" | "refinement" | "error";
 

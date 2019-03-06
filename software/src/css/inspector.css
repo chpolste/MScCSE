@@ -338,6 +338,21 @@ a:hover {
     text-align: center;
 }
 
+.div-table {
+    display: table;
+    margin: 0 0 10px 0;
+}
+.div-table > div {
+    display: table-row;
+}
+.div-table > div > div {
+    display: table-cell;
+}
+.div-table > div > div:first-child {
+    padding-right: 1em;
+    margin-right: 1em;
+}
+
 .polytope-builder {
     display: flex;
     vertical-align: top;
@@ -377,11 +392,6 @@ a:hover {
     fill: #F60;
 }
 
-#view-ctrl .highlight {
-    margin-left: 2px;
-    padding-left: 6px;
-    border-left: 10px solid #FC0;
-}
 
 span.yes {
     color: #093;
@@ -396,36 +406,19 @@ span.unreachable {
     color: #933;
 }
 
-#state-view {
-    display: table;
-}
-#state-view > div {
-    display: table-row;
+#state-view .div-table > div {
     height: 1.4em;
 }
-#state-view > div > div {
-    display: table-cell;
-}
-#state-view .label {
-    text-align: right;
-    padding-right: 1em;
-    margin-right: 1em;
-}
-#state-view .predicates {
-    cursor: default;
-    width: 100%;
-}
-#state-view .predicates > span:hover {
-    padding: 2px;
-    margin: -2px;
-    background-color: rgba(0, 0, 0 , 0.2);
-}
-#state-view .selection {
+#state-view .div-table .selection {
     color: #069;
+}
+#state-view .highlight {
+    padding-left: 6px;
+    border-left: 10px solid #FC0;
 }
 
 #action-view {
-    max-height: 500px;
+    max-height: 400px;
     overflow-y: auto;
 }
 #action-view > div {
@@ -475,17 +468,7 @@ span.unreachable {
     line-height: 23px;
 }
 
-#layer-refinement-ctrl {
-    display: table;
-    margin: 0 0 8px 0;
-}
-#layer-refinement-ctrl > div {
-    display: table-row;
-}
-#layer-refinement-ctrl > div > div {
-    display: table-cell;
-}
-#layer-refinement-ctrl > div > div:first-child {
+#layer-refinement-ctrl .div-table > div > div:first-child {
     padding-right: 1em;
     line-height: 28px;
 }
@@ -517,7 +500,7 @@ span.unreachable {
 }
 
 #logger .log-entries {
-    height: 550px;
+    max-height: 400px;
     overflow-y: auto;
 }
 #logger .log-entries > div {

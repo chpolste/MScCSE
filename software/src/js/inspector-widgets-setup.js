@@ -224,7 +224,7 @@ class SystemPreview {
         this.terms = terms;
         this._system = null;
         let fig = new Figure();
-        this.plot = new AxesPlot([660, 440], fig, autoProjection(3/2));
+        this.plot = new AxesPlot([660, 500], fig, autoProjection(660/500));
         this.layers = {
             objective: fig.newLayer({ "stroke": COLORS.stateRegion, "fill": COLORS.stateRegion }),
             state:     fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill-opacity": "0" }),
@@ -244,7 +244,7 @@ class SystemPreview {
         // initial decomposition and mark outer states
         if (this.setup.systemIsValid) {
             const system = this.setup.system;
-            this.plot.projection = autoProjection(3/2, ...system.extent);
+            this.plot.projection = autoProjection(660/500, ...system.extent);
             for (let state of system.states.values()) {
                 (state.isOuter ? outerShapes : stateShapes).push({
                     kind: "polytope", vertices: state.polytope.vertices

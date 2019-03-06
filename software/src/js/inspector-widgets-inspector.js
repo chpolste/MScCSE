@@ -206,31 +206,8 @@ export class SystemInspector {
         const traceViewStepCtrl = new TraceViewStepCtrl(model);
         // Info tab
         const systemViewCtrlCtrl = new SystemViewCtrlCtrl(systemViewCtrl, keys);
-
-        /* Debug: connectivity
-        //const appLinks = dom.P(); TODO: create connectivity widget for Info tab
-        // Link that opens polytopic calculator with basic problem setup loaded
-        const calcData = {
-            "A": JSON.stringify(system.lss.A),
-            "B": JSON.stringify(system.lss.B),
-            "X": JSON.stringify(system.lss.xx.vertices),
-            "U": JSON.stringify(system.lss.uu.polytopes[0].vertices),
-            "Y": "",
-            "W": JSON.stringify(system.lss.ww.vertices)
-        };
-        dom.appendChildren(appLinks, [
-            dom.A({ "href": "polytopic-calculator.html#" + window.btoa(JSON.stringify(calcData)), "target": "_blank" }, ["Polytopic Calculator"])
-        ]);
-        // Link that opens view in plotter-2d if dimension matches
-        if (system.lss.dim === 2) {
-            const plotterLink = dom.A({ "href": "plotter-2d.html", "target": "_blank" }, ["Plotter 2D"]);
-            plotterLink.addEventListener("click", () => {
-                plotterLink.href = "plotter-2d.html#"// TODO + lssViewCtrl.toExportURL();
-            });
-            dom.appendChildren(appLinks, [" :: ", plotterLink]);
-        }
-        */
-
+        const connectivity = new Connectivity(model, systemViewCtrl);
+        // Assemble tabs
         const tabs = new TabbedView();
         const stateTab = tabs.newTab("State", [
             stateViewOpCtrl,
@@ -248,6 +225,7 @@ export class SystemInspector {
         ]);
         const infoTab = tabs.newTab("Info", [
             systemViewCtrlCtrl,
+            connectivity,
             log
         ]);
         tabs.select("System");
@@ -257,6 +235,7 @@ export class SystemInspector {
             if (kind === "error") tabs.highlight("Info");
         });
 
+        // Assemble inspector
         this.node = dom.DIV({ "id": "inspector" }, [
             // System and automaton views on the left
             dom.DIV({ "class": "left" }, [
@@ -803,19 +782,17 @@ class SystemViewCtrl {
         }];
     }
 
-/* TODO: reimplement this functionality
-
     toExportURL(): string {
-        if (this._data == null) throw new Error("..."); // TODO
+        if (this._data == null) return "[]";
         const data: JSONPolygonItem[] = this._data.map(_ => [
             _.polytope,
-            [this.viewCtrl.toggleLabel.value, _.label],
-            [this.viewCtrl.toggleKind.value, stateColorSimple(_)], // TODO: analysis coloring
+            [this._showLabels, _.label],
+            [false, "#FFFFFF"],
             [true, "#000000"]
         ]);
         return window.btoa(JSON.stringify(data));
+        // TODO: also export operator, selection, analysis colors, ...
     }
-*/
 
 }
 
@@ -1903,6 +1880,38 @@ class SystemViewCtrlCtrl extends WidgetPlus {
         // Keybindings
         keys.bind("l", inputTextRotation(labels, ["t", "f"]));
         keys.bind("v", inputTextRotation(vectors, ["t", "f"]));
+    }
+
+}
+
+
+// Export to other applications
+class Connectivity extends WidgetPlus {
+
+    constructor(model: SystemModel, systemViewCtrl: SystemViewCtrl): void {
+        super("Connectivity", "info-connectivity");
+        // Open polytopic calculator with basic problem setup loaded
+        const calculator = dom.createButton({}, ["Polytopic Calculator"], () => {
+            const [y, _] = model.state;
+            const calcData = {
+                "A": JSON.stringify(model.lss.A),
+                "B": JSON.stringify(model.lss.B),
+                "X": JSON.stringify(model.lss.xx.vertices),
+                "U": JSON.stringify(model.lss.uu.polytopes[0].vertices),
+                "Y": (y == null) ? "" : JSON.stringify(y.polytope.vertices),
+                "W": JSON.stringify(model.lss.ww.vertices)
+            };
+            window.open("polytopic-calculator.html#" + window.btoa(JSON.stringify(calcData)));
+        });
+        // Open view in plotter-2d if dimension matches
+        const plotter2d = dom.createButton({}, ["Plotter 2D"], () => {
+            window.open("plotter-2d.html#" + systemViewCtrl.toExportURL());
+        });
+        plotter2d.disabled = (model.lss.dim !== 2); // only for 2-dimensional systems
+        // Assemble
+        this.node = dom.DIV({}, [
+            dom.P({}, [calculator, " ", plotter2d])
+        ]);
     }
 
 }

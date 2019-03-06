@@ -1805,9 +1805,9 @@ class TraceCtrl extends WidgetPlus {
         this._initial = dom.SPAN();
         // Control elements
         const controller = new DropdownInput({
-            "Random Controller": "random",
-            "Round-robin Controller": "round-robin"
-        }, "Random Controller");
+            "Round-robin Controller": "round-robin",
+            "Random Controller": "random"
+        }, "Round-robin Controller");
         const sampleButton = dom.createButton({}, ["sample"], () => {
             this.pushLoad();
             this._model.getTrace(controller.value).then((data: TraceData) => {

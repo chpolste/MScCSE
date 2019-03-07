@@ -4,7 +4,7 @@
 import type { StateID, ActionID, SupportID, PredicateID, RefinementMap } from "./system.js";
 
 import { Objective } from "./logic.js";
-import { iter, sets, hashString, UniqueCollection } from "./tools.js";
+import { just, iter, sets, hashString, UniqueCollection } from "./tools.js";
 
 
 /* Game graph navigation interface
@@ -143,8 +143,8 @@ export class AnalysisResults extends Map<StateID, AnalysisResult> {
     // In-place remapping of results after refinement
     remap(refinementMap: RefinementMap): void {
         for (let [xOld, xNews] of refinementMap) {
-            const result = this.get(xOld.label);
-            if (result == null) throw new Error(
+            const result = just(
+                this.get(xOld.label),
                 "Remapping analysis results failed: state '" + xOld.label + "' does not exists"
             );
             // Remove results of refined states
@@ -334,8 +334,8 @@ export class TwoPlayerProbabilisticGame {
         for (let state of this.p1States) {
             // Ignore dead-end states
             if (state.systemState === "") continue;
-            const result = results.get(state.systemState);
-            if (result == null) throw new Error(
+            const result = just(
+                results.get(state.systemState),
                 "result mismatch for state (" + state.systemState + ", " + state.automatonState + ")"
             );
             // Player 1 cannot win

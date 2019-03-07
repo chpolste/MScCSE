@@ -7,7 +7,7 @@ import type { Vector } from "./linalg.js";
 import type { Objective, AutomatonState, AutomatonStateID } from "./logic.js";
 import type { State, StateID, Action, ActionID, AbstractedLSS } from "./system.js";
 
-import { NotImplementedError } from "./tools.js";
+import { just, NotImplementedError } from "./tools.js";
 
 
 
@@ -72,8 +72,8 @@ export class Trace {
         const target = this.system.lss.eval(origin, u, w);
         // Determine the state to which the target belongs. Every inner state
         // must lead to another valid state.
-        const xNext = this.system.stateOf(target);
-        if (xNext == null) throw new Error(
+        const xNext = just(
+            this.system.stateOf(target),
             "Non-outer state " + x.label + " has successor outside of system"
         );
         // Step is valid, add to the end of the trace and return it
@@ -183,13 +183,13 @@ export class RoundRobinController extends Controller {
     control(origin: Vector, x: State, q: AutomatonState): Vector {
         const actions = x.actions;
         const n = actions.length;
-        const qNext = q.successor(this.objective.valuationFor(x.predicates));
         // No-action and no-automaton-transition states should have been taken
         // care of in Trace.step
         if (n === 0) throw new Error(
             "Cannot compute control for state " + x.label + " without actions"
         );
-        if (qNext == null) throw new Error(
+        const qNext = just(
+            q.successor(this.objective.valuationFor(x.predicates)),
             "Cannot compute control for state (" + x.label + ", " + q.label + ") without a transition"
         );
         // Start searching for action after the last one that was picked for

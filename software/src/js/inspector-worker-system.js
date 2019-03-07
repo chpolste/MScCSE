@@ -16,7 +16,7 @@ import { Objective } from "./logic.js";
 import { StateRefinery, LayerRefinery } from "./refinement.js";
 import { SnapshotTree } from "./snapshot.js";
 import { AbstractedLSS } from "./system.js";
-import { iter, sets, obj } from "./tools.js";
+import { just, iter, sets, obj } from "./tools.js";
 import { Communicator } from "./worker.js";
 
 
@@ -58,17 +58,11 @@ class SystemManager {
     // Basic accessors
 
     get objective(): Objective {
-        if (this._objective == null) throw new Error(
-            "system worker is not initialized yet (objective is not set)"
-        );
-        return this._objective;
+        return just(this._objective, "system worker is not initialized yet (objective is not set)");
     }
 
     get system(): AbstractedLSS {
-        if (this._system == null) throw new Error(
-            "system worker is not initialized yet (system is not set)"
-        );
-        return this._system;
+        return just(this._system, "system worker is not initialized yet (system is not set)");
     }
 
     get lss(): LSS {
@@ -128,13 +122,9 @@ class SystemManager {
     }
 
     refineState(x: State, method: string, settings: StateRefinerySettings): Set<State> {
-        const analysis = this.analysis;
-        if (analysis == null) throw new Error(
-            "Refinement requires an analysed system"
-        );
+        const analysis = just(this.analysis, "Refinement requires an analysed system");
         // Initialize refinement method
-        const Cls = StateRefinery.builtIns()[method];
-        if (Cls == null) throw new Error(); // TODO
+        const Cls = just(StateRefinery.builtIns()[method]); // TODO: error message
         const refinery = new Cls(this.system, this.objective, analysis, settings);
         // Apply partitioning to system (in-place)
         const refinementMap = x.refine(refinery.partition(x));
@@ -316,8 +306,8 @@ export type TraceData = JSONTrace;
 inspector.onRequest("get-trace", function (data: TraceRequest): TraceData {
     const [controllerName, xLabel, qLabel] = data;
     // ...
-    const Cls = Controller.builtIns()[controllerName];
-    if (Cls == null) throw new Error(
+    const Cls = just(
+        Controller.builtIns()[controllerName],
         "Controller '" + controllerName + "' not found in built-in controllers"
     );
     const controller = new Cls($.system, $.objective, $.analysis);

@@ -8,7 +8,7 @@ import type { Matrix, Vector } from "./linalg.js";
 
 import { Polytope, Halfspace, Union } from "./geometry.js";
 import * as linalg from "./linalg.js";
-import { iter, arr, sets, ValueError } from "./tools.js";
+import { just, iter, arr, sets } from "./tools.js";
 
 
 // Partitioning that keeps track of items causing the partition. Used for
@@ -321,20 +321,18 @@ export class AbstractedLSS implements GameGraph {
 
     // Obtain state by label, throws an error if it does not exist
     getState(label: StateID): State {
-        const state = this.states.get(label);
-        if (state == null) throw new Error(
+        return just(
+            this.states.get(label),
             "A state with label '" + label + "' does not exist"
         );
-        return state;
     }
 
     // Obtain predicate by label, throws an error if it does not exist
     getPredicate(label: PredicateID): Halfspace {
-        const pred = this.predicates.get(label);
-        if (pred == null) throw new Error(
+        return just(
+            this.predicates.get(label),
             "A predicate with label '" + label + "' does not exist"
         );
-        return pred;
     }
 
     // Get state which contains the point in state space
@@ -425,32 +423,29 @@ export class AbstractedLSS implements GameGraph {
     }
 
     predicateLabelsOf(stateLabel: StateID): Set<PredicateID> {
-        const state = this.states.get(stateLabel);
-        if (state == null) throw new ValueError(
+        return just(
+            this.states.get(stateLabel),
             "State with label '" + stateLabel + "' not found."
-        );
-        return state.predicates;
+        ).predicates;
     }
 
     actionCountOf(stateLabel: StateID): number {
-        const state = this.states.get(stateLabel);
-        if (state == null) throw new ValueError(
+        return just(
+            this.states.get(stateLabel),
             "State with label '" + stateLabel + "' not found."
-        );
-        return state.actions.length;
+        ).actions.length;
     }
 
     supportCountOf(stateLabel: StateID, actionId: ActionID): number {
-        const state = this.states.get(stateLabel);
-        if (state == null) throw new ValueError(
+        return just(
+            this.states.get(stateLabel),
             "State with label '" + stateLabel + "' not found."
-        );
-        return state.actions[actionId].supports.length;
+        ).actions[actionId].supports.length;
     }
 
     targetLabelsOf(stateLabel: StateID, actionId: ActionID, supportId: SupportID): Set<string> {
-        const state = this.states.get(stateLabel);
-        if (state == null) throw new ValueError(
+        const state = just(
+            this.states.get(stateLabel),
             "State with label '" + stateLabel + "' not found."
         );
         return new Set(iter.map(s => s.label, state.actions[actionId].supports[supportId].targets));

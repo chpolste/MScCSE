@@ -9,7 +9,7 @@ import * as dom from "./dom.js";
 import { Figure, autoProjection } from "./figure.js";
 import { Halfspace, Polytope } from "./geometry.js";
 import { minkowski, apply } from "./linalg.js";
-import { ObservableMixin, n2s, arr } from "./tools.js";
+import { just, ObservableMixin, n2s, arr } from "./tools.js";
 import { DropdownInput, MatrixInput } from "./widgets-input.js";
 import { ShapePlot, AxesPlot } from "./widgets-plot.js";
 
@@ -510,8 +510,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Initialize
     widgets.notify();
 
-    const contentNode = document.getElementById("content");
-    if (contentNode == null) throw new Error();
+    const contentNode = just(document.getElementById("content"));
     dom.replaceChildren(contentNode, [
         viewer.node,
         dom.DIV({ "class": "widget" }, [widgets.node]),

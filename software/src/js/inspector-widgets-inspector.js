@@ -926,8 +926,7 @@ class AutomatonViewCtrl {
             })
         };
         // Display the automaton plot
-        const extent = this._shapes.extent;
-        if (extent == null) throw new Error("No automaton plot extent given by objective");
+        const extent = just(this._shapes.extent, "No automaton plot extent given by objective");
         // Padding is introduced by Objective.toShapes, don't use
         // autoProjection which would add even more (relative) padding
         const proj = new Cartesian2D(...extent);
@@ -1013,12 +1012,12 @@ class AutomatonViewCtrl {
         if (step == null) {
             this._layers.traceStep.shapes = [];
         } else {
-            const transitions = this._shapes.transitions.get(step.xOrigin[2]);
-            if (transitions == null) throw new Error(
+            const transitions = just(
+                this._shapes.transitions.get(step.xOrigin[2]),
                 "Trace takes transition which does not exist: " + step.xOrigin[2] + " → " + step.xTarget[2]
             );
-            const shapes = transitions.get(step.xTarget[2]);
-            if (shapes == null) throw new Error(
+            const shapes = just(
+                transitions.get(step.xTarget[2]),
                 "Trace takes transition which does not exist: " + step.xOrigin[2] + " → " + step.xTarget[2]
             );
             this._layers.traceStep.shapes = [shapes[0]];
@@ -1058,16 +1057,14 @@ class TabbedView {
         if (oldTab != null) {
             oldTab.title.className = ""; // TODO
         }
-        const tab = this._tabs.get(name);
-        if (tab == null) throw new Error(); // TODO
+        const tab = just(this._tabs.get(name));
         dom.replaceChildren(this._content, tab.children);
         tab.title.className = "selection";
         this._selection = tab;
     }
 
     highlight(name: string): void {
-        const tab = this._tabs.get(name);
-        if (tab == null) throw new Error(); // TODO
+        const tab = just(this._tabs.get(name));
         if (tab !== this._selection) tab.title.className = "highlight";
     }
 

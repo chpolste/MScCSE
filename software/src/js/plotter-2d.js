@@ -8,7 +8,7 @@ import type { Input } from "./widgets-input.js";
 import * as dom from "./dom.js";
 import { Figure, autoProjection } from "./figure.js";
 import { Polytope, Polygon, Union } from "./geometry.js";
-import { ObservableMixin, n2s, arr } from "./tools.js";
+import { just, ObservableMixin, n2s, arr } from "./tools.js";
 import { LineInput, DropdownInput, MatrixInput } from "./widgets-input.js";
 import { ShapePlot, InteractivePlot } from "./widgets-plot.js";
 
@@ -77,12 +77,7 @@ export class SelectableNodes<T> extends ObservableMixin<boolean> {
             }
         }
         if (item != null) {
-            let selNode = this.nodeMap.get(item);
-            if (selNode != null) {
-                selNode.className = "item selection";
-            } else {
-                throw new Error();
-            }
+            just(this.nodeMap.get(item)).className = "item selection";
         }
         this._selection = item;
         this.notify(true);
@@ -608,8 +603,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const input = new PolygonInput(polygons, itemView);
 
     // Build application
-    const contentNode = document.getElementById("content");
-    if (contentNode == null) throw new Error();
+    const contentNode = just(document.getElementById("content"));
     dom.replaceChildren(contentNode, [
         dom.DIV({ "class": "left" }, [
             plotView.node,

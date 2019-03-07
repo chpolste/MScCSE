@@ -1,16 +1,16 @@
 // @flow
 "use strict";
 
-import * as presets from "./presets.js";
 import * as dom from "./dom.js";
 import { SessionManager, ProblemSetup } from "./inspector-widgets-setup.js"
 import { ProblemSummary, SystemInspector } from "./inspector-widgets-inspector.js";
+import * as presets from "./presets.js";
+import { just } from "./tools.js";
 
 
 document.addEventListener("DOMContentLoaded", function () {
 
-    const contentNode = document.getElementById("application");
-    if (contentNode == null) throw new Error();
+    const contentNode = just(document.getElementById("application"));
 
     const keybindings = new dom.Keybindings();
 
@@ -24,7 +24,6 @@ document.addEventListener("DOMContentLoaded", function () {
         const problem = new ProblemSummary(system, objective);
         const inspector = new SystemInspector(system, objective, keybindings, analyseWhenReady);
 
-        if (contentNode == null) throw new Error();
         dom.replaceChildren(contentNode, [problem.node, inspector.node]);
         contentNode.scrollIntoView();
 

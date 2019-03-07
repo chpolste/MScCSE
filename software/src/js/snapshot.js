@@ -6,6 +6,7 @@ import type { JSONAbstractedLSS } from "./system.js";
 
 import { AnalysisResults } from "./game.js";
 import { AbstractedLSS } from "./system.js";
+import { just } from "./tools.js";
 
 
 type Snapshot = {
@@ -40,15 +41,15 @@ export class SnapshotTree {
     }
 
     get current(): number {
-        if (this._current == null) throw new Error(
+        return just(
+            this._current,
             "Cannot obtain current snapshot ID from SnapshotTree: no snapshot has been taken yet"
         );
-        return this._current;
     }
 
     get root(): number {
-        const nullChildren = this._tree.get(null);
-        if (nullChildren == null) throw new Error(
+        const nullChildren = just(
+            this._tree.get(null),
             "Cannot obtain root of SnapshotTree: no snapshot has been taken yet"
         );
         if (nullChildren.length !== 1) throw new Error(
@@ -61,11 +62,10 @@ export class SnapshotTree {
 
     getSnapshot(id?: number): Snapshot {
         if (id == null) id = this.current;
-        const snapshot = this._snapshots.get(id);
-        if (snapshot == null) throw new Error(
+        return just(
+            this._snapshots.get(id),
             "A snapshot with ID " + id + " does not exist"
         );
-        return snapshot;
     }
 
     getSystem(id?: number): AbstractedLSS {
@@ -131,8 +131,8 @@ export class SnapshotTree {
     }
 
     rename(id: number, name: string): void {
-        const snapshot = this._snapshots.get(id);
-        if (snapshot == null) throw new Error(
+        const snapshot = just(
+            this._snapshots.get(id),
             "A snapshot with ID " + id + " does not exist"
         );
         snapshot.name = name;

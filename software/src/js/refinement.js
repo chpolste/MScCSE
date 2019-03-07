@@ -7,7 +7,7 @@ import type { Objective, AutomatonStateID } from "./logic.js";
 import type { AbstractedLSS, State } from "./system.js";
 
 import { Polytope, Union } from "./geometry.js";
-import { iter, PriorityQueue, ValueError, NotImplementedError } from "./tools.js";
+import { just, iter, PriorityQueue, ValueError, NotImplementedError } from "./tools.js";
 
 
 export class Refinery {
@@ -57,9 +57,7 @@ export class Refinery {
     }
 
     getResult(x: State): AnalysisResult {
-        const result = this.results.get(x.label);
-        if (result == null) throw new Error("TODO477"); // TODO
-        return result;
+        return just(this.results.get(x.label));
     }
 
     getEmpty(): Region {

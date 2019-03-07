@@ -6,7 +6,7 @@ import type { ASTNode } from "./parser.js";
 import type { PredicateID } from "./system.js";
 
 import { ASTParser, ParseError } from "./parser.js";
-import { obj, iter, arr, sets, hashString, replaceAll } from "./tools.js";
+import { just, obj, iter, arr, sets, hashString, replaceAll } from "./tools.js";
 
 
 /* Objective specification
@@ -61,19 +61,17 @@ export class Objective {
     }
 
     getState(label: AutomatonStateID): AutomatonState {
-        const state = this.automaton.states.get(label);
-        if (state == null) throw new Error(
+        return just(
+            this.automaton.states.get(label),
             "automaton state " + label + " does not exist"
         );
-        return state;
     }
 
     getProposition(symbol: string): Proposition {
-        const formula = this.propositions.get(symbol);
-        if (formula == null) throw new Error(
+        return just(
+            this.propositions.get(symbol),
             "no formula for symbol " + symbol + " exists"
         );
-        return formula;
     }
 
     // Take a set of predicate labels and return a valuation that can be used

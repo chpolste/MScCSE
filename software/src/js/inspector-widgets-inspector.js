@@ -5,7 +5,7 @@ import type { JSONTraceStep } from "./controller.js";
 import type { FigureLayer, Shape } from "./figure.js";
 import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
-import type { StateData, StatesData, ActionsData, SupportData, OperatorData, TraceData,
+import type { StateData, StatesData, ActionsData, SupportData, TraceData,
               AnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
               SnapshotData, SystemSummaryData } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
@@ -19,6 +19,7 @@ import type { Input, OptionsInput } from "./widgets-input.js";
 
 import * as dom from "./dom.js";
 import { Figure, autoProjection, Cartesian2D, Horizontal1D } from "./figure.js";
+import { Polytope, Union } from "./geometry.js";
 import * as linalg from "./linalg.js";
 import { AtomicProposition, Objective, texifyProposition } from "./logic.js";
 import { just, iter, arr, obj, sets, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
@@ -464,7 +465,6 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
-    // TODO
     getSupports(state: StateID, action: ActionID): Promise<SupportData[]> {
         return this._comm.request("get-supports", [state, action]).catch((e) => {
             this.log.writeError(e);
@@ -472,15 +472,6 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
-    // TODO
-    getOperator(op: string, state: StateID, us: JSONUnion): Promise<OperatorData> {
-        return this._comm.request("get-operator", [op, state, us]).catch((e) => {
-            this.log.writeError(e);
-            throw e;
-        });
-    }
-
-    // TODO
     getTrace(controller: string): Promise<TraceData> {
         const [x, qLabel] = this.state;
         const xLabel = x == null ? null : x.label;
@@ -527,7 +518,6 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
-    // TODO
     getSystemSummary(): Promise<SystemSummaryData> {
         return this._comm.request("get-system-summary", null).catch((e) => {
             this.log.writeError(e);
@@ -589,7 +579,7 @@ class SystemViewCtrl {
     // View settings and highlights
     _showLabels: boolean;
     _showVectors: boolean;
-    _operator: ?OperatorWrapper;
+    _operator: ?string;
     _stateRegion: ?_StateRegionTest;
 
     constructor(model: SystemModel): void {
@@ -632,7 +622,7 @@ class SystemViewCtrl {
         this.drawVectors();
     }
 
-    set operator(op: ?OperatorWrapper): void {
+    set operator(op: ?string): void {
         this._operator = op;
         this.drawOperator();
     }
@@ -714,23 +704,35 @@ class SystemViewCtrl {
     }
 
     drawOperator(): void {
+        const op = this._operator;
+        const lss = this._model.lss;
         const [x, _] = this._model.state;
-        if (this._operator == null || x == null) {
-            this._layers.highlight1.shapes = [];
-            this._layers.highlight2.shapes = [];
-        } else {
-            const action = this._model.action;
-            const control = (action == null) ? this._model.lss.uu.toUnion().serialize() : action.controls;
-            this._operator(this._model, x, control).then((data) => {
-                // Only update if state has not changed since
-                if (this._model.state[0] !== x) return;
-                const shapes = data.polytopes.map(
-                    (poly) => ({ kind: "polytope", vertices: poly.vertices })
-                );
-                this._layers.highlight1.shapes = shapes;
-                this._layers.highlight2.shapes = shapes;
-            });
+        let shapes = [];
+        // ...
+        if (op != null && x != null) {
+            const p = Polytope.deserialize(x.polytope);
+            let region = Polytope.ofDim(lss.dim).empty();
+            // Posterior adapts to action selection
+            if (op === "post" && !x.isOuter) {
+                const act = this._model.action;
+                const u = (act == null) ? lss.uu : Union.deserialize(act.controls);
+                region = lss.post(p, u);
+            // Other operators always use the entire control space
+            } else if (op === "pre") {
+                region = lss.pre(lss.xx, lss.uu, p);
+            } else if (op === "preR") {
+                region = lss.preR(lss.xx, lss.uu, p);
+            } else if (op === "attr") {
+                region = lss.attr(lss.xx, lss.uu, p);
+            } else if (op === "attrR") {
+                region = lss.attrR(lss.xx, lss.uu, p);
+            } else {
+                throw new Error("Unknown operator '" + op + "'");
+            }
+            shapes = region.polytopes.map(_ => ({ kind: "polytope", vertices: _.vertices }));
         }
+        this._layers.highlight1.shapes = shapes;
+        this._layers.highlight2.shapes = shapes;
     }
 
     drawAnalysis(): void {
@@ -1156,8 +1158,6 @@ class WidgetPlus implements TabWidget {
 // - StateRefinementCtrl
 // - ActionViewCtrl
 
-type OperatorWrapper = (SystemModel, StateData, JSONUnion) => Promise<OperatorData>;
-
 class StateViewOpCtrl extends WidgetPlus {
 
     +_model: SystemModel;
@@ -1170,11 +1170,11 @@ class StateViewOpCtrl extends WidgetPlus {
         // Operator highlight
         const operator = new DropdownInput({
             "None": null,
-            "Posterior": (model, state, us) => model.getOperator("post", state.label, us),
-            "Predecessor": (model, state, us) => model.getOperator("pre", state.label, us),
-            "Robust Predecessor": (model, state, us) => model.getOperator("preR", state.label, us),
-            "Attractor": (model, state, us) => model.getOperator("attr", state.label, us),
-            "Robust Attractor": (model, state, us) => model.getOperator("attrR", state.label, us)
+            "Posterior": "post",
+            "Predecessor": "pre",
+            "Robust Predecessor": "preR",
+            "Attractor": "attr",
+            "Robust Attractor": "attrR"
         }, "None");
         operator.attach(() => {
             systemViewCtrl.operator = operator.value;

@@ -282,25 +282,7 @@ inspector.onRequest("get-supports", function (data: SupportRequest): SupportData
 });
 
 
-// Operator of a state
-export type OperatorRequest = [string, StateID, JSONUnion];
-export type OperatorData = JSONUnion;
-const OPERATORS: { [string]: (State, Union) => Region } = {
-    "post":  (state, us) => state.isOuter ? Polytope.ofDim($.lss.dim).empty() : state.post(us),
-    "pre":   (state, us) => $.lss.pre($.lss.xx, us, state.polytope),
-    "preR":  (state, us) => $.lss.preR($.lss.xx, us, state.polytope),
-    "attr":  (state, us) => $.lss.attr($.lss.xx, us, state.polytope),
-    "attrR": (state, us) => $.lss.attrR($.lss.xx, us, state.polytope)
-};
-inspector.onRequest("get-operator", function (data: OperatorRequest): OperatorData {
-    const [operator, stateLabel, control] = data;
-    const state = $.system.getState(stateLabel);
-    const us = Union.deserialize(control);
-    return OPERATORS[operator](state, us).toUnion().serialize();
-});
-
-
-// TODO: Trace Sampling
+// Trace Sampling
 export type TraceRequest = [string, ?StateID, AutomatonStateID];
 export type TraceData = JSONTrace;
 inspector.onRequest("get-trace", function (data: TraceRequest): TraceData {

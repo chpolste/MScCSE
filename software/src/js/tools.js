@@ -7,6 +7,16 @@ export class NotImplementedError extends Error {}
 export class ValueError extends Error {}
 
 
+/* Unpack possible null-value */
+export function just<T>(val: ?T, err?: string): T {
+    if (val == null) throw new ValueError(
+        err == null ? "Value is null but shouldn't be" : err
+    );
+    return val;
+}
+
+
+
 /* Logical Connectives */
 
 export function xor(p: boolean, q: boolean): boolean {

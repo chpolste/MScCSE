@@ -5,7 +5,7 @@ import type { JSONTraceStep } from "./controller.js";
 import type { FigureLayer, Shape } from "./figure.js";
 import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
-import type { StateData, StateDataPlus, StatesData, ActionData, SupportData, OperatorData, TraceData,
+import type { StateData, StatesData, ActionsData, SupportData, OperatorData, TraceData,
               AnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
               SnapshotData, SystemSummaryData } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
@@ -21,7 +21,7 @@ import * as dom from "./dom.js";
 import { Figure, autoProjection, Cartesian2D, Horizontal1D } from "./figure.js";
 import * as linalg from "./linalg.js";
 import { AtomicProposition, Objective, texifyProposition } from "./logic.js";
-import { iter, arr, obj, sets, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
+import { just, iter, arr, obj, sets, n2s, t2s, replaceAll, ObservableMixin } from "./tools.js";
 import { CheckboxInput, DropdownInput, RadioInput, inputTextRotation } from "./widgets-input.js";
 import { InteractivePlot, AxesPlot, ShapePlot } from "./widgets-plot.js";
 import { Communicator } from "./worker.js";
@@ -265,7 +265,18 @@ export class SystemInspector {
 }
 
 
+// The ActionData from the worker is translated to a custom ActionData type
+// that links the StateIDs to the cached StateData objects
+type ActionData = {
+    id: ActionID,
+    controls: JSONUnion,
+    origin: StateData,
+    targets: StateData[]
+};
+
+// SystemModel notification types
 type ModelChange = "state" | "action" | "support" | "trace" | "trace-step" | "system" | "snapshot"; 
+
 // System access, centralized selection storage and change notifications
 class SystemModel extends ObservableMixin<ModelChange> {
 
@@ -277,10 +288,10 @@ class SystemModel extends ObservableMixin<ModelChange> {
     +_system: AbstractedLSS;
     // Caches
     states: StatesData;
-    _actions: null; // TODO
+    _actions: Map<StateID, ActionData[]>;
     // Selections (application state)
-    _stateX: ?StateDataPlus;
-    _stateQ: AutomatonStateID;
+    _xState: ?StateData;
+    _qState: AutomatonStateID;
     _action: ?ActionData;
     _support: ?SupportData;
     _trace: JSONTraceStep[];
@@ -323,91 +334,69 @@ class SystemModel extends ObservableMixin<ModelChange> {
         }
         // Initialize data caches
         this.states = new Map();
-        this._actions = null;
+        this._actions = new Map();
         // Initialize selections
-        this._stateX = null;
-        this._stateQ = objective.automaton.initialState.label;
+        this._xState = null;
+        this._qState = objective.automaton.initialState.label;
         this._action = null;
         this._support = null;
         this._trace = [];
         this._traceStep = null;
     }
 
-    // Getters for selections
+    // Getters and setters for selections
 
-    get state(): [?StateDataPlus, AutomatonStateID] {
-        return [this._stateX, this._stateQ];
+    get state(): [?StateData, AutomatonStateID] {
+        return [this._xState, this._qState];
+    }
+
+    set xState(state: ?StateID): void {
+        this._xState = (state == null) ? null : just(this.states.get(state));
+        this.notify("state");
+    }
+
+    set qState(state: AutomatonStateID): void {
+        if (!this.objective.automaton.states.has(state)) throw new Error(
+            "" // TODO
+        );
+        this._qState = state;
+        this.notify("state");
     }
 
     get action(): ?ActionData {
         return this._action;
     }
 
+    set action(a: ?ActionData): void {
+        this._action = a;
+        this.notify("action");
+    }
+
     get support(): ?SupportData {
         return this._support;
+    }
+
+    set support(s: ?SupportData): void {
+        this._support = s;
+        this.notify("support");
     }
 
     get trace(): TraceData {
         return this._trace;
     }
 
-    get traceStep(): ?JSONTraceStep {
-        return this._traceStep;
-    }
-
-    // Setters for selections
-
-    setStateX(label: ?StateID): void {
-        if (label == null) {
-            this._stateX = null;
-        } else {
-            const x = this.states.get(label);
-            if (x == null) throw new Error(
-                "" // TODO
-            );
-            this._stateX = x;
-        }
-        this.notify("state");
-    }
-
-    setStateQ(label: AutomatonStateID): void {
-        if (!this.objective.automaton.states.has(label)) throw new Error(
-            "" // TODO
-        );
-        this._stateQ = label;
-        this.notify("state");
-    }
-
-    // TODO
-    set action(a: ?ActionData): void {
-        this._action = a;
-        this.notify("action");
-    }
-
-    // TODO
-    set support(s: ?SupportData): void {
-        this._support = s;
-        this.notify("support");
-    }
-
-    // TODO
     set trace(t: TraceData): void {
         this._trace = t;
         this.notify("trace");
     }
 
-    // TODO
+    get traceStep(): ?JSONTraceStep {
+        return this._traceStep;
+    }
+
     set traceStep(s: ?JSONTraceStep): void {
         this._traceStep = s;
         this.notify("trace-step");
-    }
-
-    setAction(foo: null): void {
-
-    }
-
-    setSupport(foo: null): void {
-
     }
 
     // System information convenience accessors (static information)
@@ -435,25 +424,41 @@ class SystemModel extends ObservableMixin<ModelChange> {
         return this._comm.request("update-states", null).then((data: StatesData) => {
             // Update states cache
             this.states = data;
+            // Clear action cache
+            this._actions = new Map();
             // Re-select the current state if it still exists, drop action and
             // support selection (TODO). Change needs to be propagated to
             // state, action and support selection.
-            const xOld = this._stateX;
+            const xOld = this._xState;
             try {
-                this.setStateX(xOld == null ? null : xOld.label);
+                this.xState = (xOld == null) ? null : xOld.label;
             } catch {
-                this.setStateX(null);
+                this.xState = null;
             }
-            this.setAction(null);
-            this.setSupport(null);
+            this.action = null;
+            this.support = null;
             this.notify("system");
             return null;
         })
     }
 
-    // TODO
     getActions(state: StateID): Promise<ActionData[]> {
-        return this._comm.request("get-actions", state).catch((e) => {
+        const cached = this._actions.get(state);
+        // Action is already in the cache
+        if (cached != null) return Promise.resolve(cached);
+        // Action has to be retrieved from worker
+        return this._comm.request("get-actions", state).then((data: ActionsData) => {
+            // Translate to own ActionData type
+            const actions = data.map((action) => ({
+                id: action.id,
+                controls: action.controls,
+                origin: just(this.states.get(action.origin)),
+                targets: action.targets.map(_ => just(this.states.get(_)))
+            }));
+            // Cache the result
+            this._actions.set(state, actions);
+            return actions;
+        }).catch((e) => {
             this.log.writeError(e);
             throw e;
         });
@@ -572,7 +577,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
 // Left Column: Basic Views
 
-type _StateRegionTest = (StateDataPlus) => boolean;
+type _StateRegionTest = (StateData) => boolean;
 
 // Main view: LSS visualization and state selection
 class SystemViewCtrl {
@@ -586,8 +591,6 @@ class SystemViewCtrl {
     _showVectors: boolean;
     _operator: ?OperatorWrapper;
     _stateRegion: ?_StateRegionTest;
-    // Data caches
-    _centroid: { [string]: Vector };
 
     constructor(model: SystemModel): void {
         this._model = model;
@@ -642,20 +645,14 @@ class SystemViewCtrl {
     // Redraw elements when changes happen
     handleModelChange(mc: ?ModelChange): void {
         if (mc === "system") {
-            // Centroids are cached in a direct access data structure, as they
-            // are important for positioning arrows (action/support targets
-            // don't contain geometry)
-            this._centroid = {};
             // Redraw interactive states
             const shapes = [];
             for (let [label, state] of this._model.states) {
-                this._centroid[label] = state.centroid;
                 // ...
                 const click = () => {
                     const [x, _] = this._model.state;
-                    this._model.setStateX(x != null && label === x.label ? null : label);
+                    this._model.xState = (x != null && label === x.label) ? null : label;
                 };
-                // ...
                 shapes.push({
                     kind: "polytope", vertices: state.polytope.vertices,
                     events: { "click": click }
@@ -697,8 +694,8 @@ class SystemViewCtrl {
             const polys = support != null ? support.targets : action.targets;
             this._layers.action.shapes = polys.map((target) => ({
                 kind: "arrow",
-                origin: this._centroid[action.origin.label],
-                target: this._centroid[target.label]
+                origin: action.origin.centroid,
+                target: target.centroid
             }));
         }
         this.drawOperator();
@@ -947,7 +944,7 @@ class AutomatonViewCtrl {
             ])
         ]);
         // Keybindings
-        keys.bind("i", () => this._model.setStateQ(init));
+        keys.bind("i", () => { this._model.qState = init; });
         // Draw labels once now, they never change
         this._layers.stateLabels.shapes = iter.map(_ => _[1], this._shapes.states.values());
         // Transitions have to be flattened
@@ -956,7 +953,7 @@ class AutomatonViewCtrl {
             const qState = this._model.objective.getState(q);
             for (let [qNext, shapes] of transitions) {
                 const qNextState = this._model.objective.getState(qNext);
-                const highlighter = (x: StateDataPlus) => {
+                const highlighter = (x: StateData) => {
                     const valuation = this._model.objective.valuationFor(x.predicates);
                     const proposition = qState.proposition(qNextState);
                     return !x.isOuter && proposition != null && proposition.evalWith(valuation);
@@ -990,7 +987,7 @@ class AutomatonViewCtrl {
         const ss = [];
         for (let [state, [s, l]] of this._shapes.states) {
             s = obj.clone(s);
-            s.events = { "click": () => this._model.setStateQ(state) };
+            s.events = { "click": () => { this._model.qState = state; } };
             if (state === q) {
                 s.style = { "stroke": COLORS.selection };
             }
@@ -1330,6 +1327,9 @@ class ActionViewCtrl extends WidgetPlus {
             if (x != null && this._model.transitionTo(x, q) != null
                           && analysisKind(q, x.analysis) !== "unreachable") {
                 this.pushLoad();
+                // Clear displayed actions
+                dom.replaceChildren(this.node, []);
+                // Load actions from model
                 this._model.getActions(x.label).then((actions) => {
                     // Only update if state has not changed since
                     if (this._model.state[0] !== x) return;

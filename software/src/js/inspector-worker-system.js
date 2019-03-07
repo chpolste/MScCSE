@@ -216,18 +216,16 @@ export type StateData = {
     label: StateID,
     isOuter: boolean,
     predicates: Set<PredicateID>,
-    analysis: ?AnalysisResult
-};
-export type StateDataPlus = StateData & {
+    analysis: ?AnalysisResult,
     polytope: JSONPolytope,
     centroid: number[]
 };
 export type StatesRequest = null;
-export type StatesData = Map<StateID, StateDataPlus>;
+export type StatesData = Map<StateID, StateData>;
 inspector.onRequest("update-states", function (data: StatesRequest): StatesData {
     const out = new Map();
     for (let [label, state] of $.system.states) {
-        out.set(label, stateDataPlusOf(state));
+        out.set(label, stateDataOf(state));
     }
     return out;
 });
@@ -237,17 +235,9 @@ function stateDataOf(state: State): StateData {
         label: state.label,
         isOuter: state.isOuter,
         predicates: state.predicates,
-        analysis: $.getAnalysis(state)
-    };
-}
-function stateDataPlusOf(state: State): StateDataPlus {
-    return {
-        label: state.label,
-        isOuter: state.isOuter,
         analysis: $.getAnalysis(state),
         polytope: state.polytope.serialize(),
-        centroid: state.polytope.centroid,
-        predicates: state.predicates
+        centroid: state.polytope.centroid
     };
 }
 
@@ -264,19 +254,20 @@ inspector.onRequest("get-system-summary", function (data: SystemSummaryRequest):
 
 
 // Actions of a state
-export type ActionRequest = StateID;
+export type ActionsRequest = StateID;
 export type ActionData = {
-    origin: StateData,
     id: ActionID,
     controls: JSONUnion,
-    targets: StateData[]
+    origin: StateID,
+    targets: StateID[]
 };
-inspector.onRequest("get-actions", function (data: ActionRequest): ActionData[] {
+export type ActionsData = ActionData[];
+inspector.onRequest("get-actions", function (data: ActionsRequest): ActionsData {
     return $.system.getState(data).actions.map((action, id) => ({
-        origin: stateDataOf(action.origin),
+        origin: action.origin.label,
         id: id,
         controls: action.controls.toUnion().serialize(),
-        targets: action.targets.map(stateDataOf)
+        targets: action.targets.map(_ => _.label)
     }));
 });
 

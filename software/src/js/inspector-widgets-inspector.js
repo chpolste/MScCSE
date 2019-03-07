@@ -5,7 +5,7 @@ import type { JSONTraceStep } from "./controller.js";
 import type { FigureLayer, Shape } from "./figure.js";
 import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
-import type { StateData, StateDataPlus, ActionData, SupportData, OperatorData, TraceData,
+import type { StateData, StateDataPlus, StatesData, ActionData, SupportData, OperatorData, TraceData,
               AnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
               SnapshotData, SystemSummaryData } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
@@ -271,11 +271,16 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
     +_comm: Communicator<Worker>;
     +log: Logger;
+    // Objective does not change
     +objective: Objective;
+    // Initial system is kept for predicate and LSS access
+    +_system: AbstractedLSS;
+    // Caches
+    states: StatesData;
+    _actions: null; // TODO
     // Selections (application state)
-    _system: AbstractedLSS;
-    _xState: ?StateDataPlus;
-    _qState: AutomatonStateID;
+    _stateX: ?StateDataPlus;
+    _stateQ: AutomatonStateID;
     _action: ?ActionData;
     _support: ?SupportData;
     _trace: JSONTraceStep[];
@@ -299,12 +304,9 @@ class SystemModel extends ObservableMixin<ModelChange> {
             ]);
             // The worker signals "ready" when everything is set up
             this._comm.onRequest("ready", (data: null) => {
+                this.updateStates();
                 this.notify("snapshot");
-                this.notify("state");
-                this.notify("action");
-                this.notify("support");
                 this.notify("trace");
-                this.notify("system");
             });
             const worker = new Worker("./js/inspector-worker-system.js");
             worker.onerror = () => {
@@ -319,84 +321,93 @@ class SystemModel extends ObservableMixin<ModelChange> {
             }
             throw e;
         }
+        // Initialize data caches
+        this.states = new Map();
+        this._actions = null;
         // Initialize selections
-        this._xState = null;
-        this._qState = objective.automaton.initialState.label;
+        this._stateX = null;
+        this._stateQ = objective.automaton.initialState.label;
         this._action = null;
         this._support = null;
         this._trace = [];
         this._traceStep = null;
     }
 
-    // After changes to the system's states, the selections have to be updated
-    refreshSelection(): void {
-        const [xOld, _] = this.state;
-        if (xOld != null) {
-            // Re-select the given state if it still exists, drop action and
-            // support selection (TODO). System change needs to be propagated
-            // to state, action and support selection.
-            this.getState(xOld.label).then((data) => {
-                this.xState = data;
-                this.action = null;
-                this.support = null;
-            }).catch((e) => {
-                this.xState = null;
-                this.action = null;
-                this.support = null;
-            });
-        }
-    }
-
-    // Getters and setters for selections
+    // Getters for selections
 
     get state(): [?StateDataPlus, AutomatonStateID] {
-        return [this._xState, this._qState];
-    }
-
-    set xState(x: ?StateDataPlus): void {
-        this._xState = x;
-        this.notify("state");
-    }
-
-    set qState(q: AutomatonStateID): void {
-        this._qState = q;
-        this.notify("state");
+        return [this._stateX, this._stateQ];
     }
 
     get action(): ?ActionData {
         return this._action;
     }
 
-    set action(a: ?ActionData): void {
-        this._action = a;
-        this.notify("action");
-    }
-
     get support(): ?SupportData {
         return this._support;
-    }
-
-    set support(s: ?SupportData): void {
-        this._support = s;
-        this.notify("support");
     }
 
     get trace(): TraceData {
         return this._trace;
     }
 
+    get traceStep(): ?JSONTraceStep {
+        return this._traceStep;
+    }
+
+    // Setters for selections
+
+    setStateX(label: ?StateID): void {
+        if (label == null) {
+            this._stateX = null;
+        } else {
+            const x = this.states.get(label);
+            if (x == null) throw new Error(
+                "" // TODO
+            );
+            this._stateX = x;
+        }
+        this.notify("state");
+    }
+
+    setStateQ(label: AutomatonStateID): void {
+        if (!this.objective.automaton.states.has(label)) throw new Error(
+            "" // TODO
+        );
+        this._stateQ = label;
+        this.notify("state");
+    }
+
+    // TODO
+    set action(a: ?ActionData): void {
+        this._action = a;
+        this.notify("action");
+    }
+
+    // TODO
+    set support(s: ?SupportData): void {
+        this._support = s;
+        this.notify("support");
+    }
+
+    // TODO
     set trace(t: TraceData): void {
         this._trace = t;
         this.notify("trace");
     }
 
-    get traceStep(): ?JSONTraceStep {
-        return this._traceStep;
-    }
-
+    // TODO
     set traceStep(s: ?JSONTraceStep): void {
         this._traceStep = s;
         this.notify("trace-step");
+    }
+
+    setAction(foo: null): void {
+
+    }
+
+    setSupport(foo: null): void {
+
     }
 
     // System information convenience accessors (static information)
@@ -420,108 +431,114 @@ class SystemModel extends ObservableMixin<ModelChange> {
     // Worker request interface. Occuring errors are logged and re-thrown so
     // they can be handled by the caller too.
 
-    getState(state: StateID): Promise<StateDataPlus> {
-        return this._comm.request("getState", state).catch((e) => {
-            // Individual state requests are currently only used by
-            // refreshSelection which uses the error to detect changes
-            //this.log.writeError(e);
-            throw e;
-        });
+    updateStates(): Promise<null> {
+        return this._comm.request("update-states", null).then((data: StatesData) => {
+            // Update states cache
+            this.states = data;
+            // Re-select the current state if it still exists, drop action and
+            // support selection (TODO). Change needs to be propagated to
+            // state, action and support selection.
+            const xOld = this._stateX;
+            try {
+                this.setStateX(xOld == null ? null : xOld.label);
+            } catch {
+                this.setStateX(null);
+            }
+            this.setAction(null);
+            this.setSupport(null);
+            this.notify("system");
+            return null;
+        })
     }
 
-    getStates(): Promise<StateDataPlus[]> {
-        return this._comm.request("getStates", null).catch((e) => {
-            this.log.writeError(e);
-            throw e;
-        });
-    }
-
+    // TODO
     getActions(state: StateID): Promise<ActionData[]> {
-        return this._comm.request("getActions", state).catch((e) => {
+        return this._comm.request("get-actions", state).catch((e) => {
             this.log.writeError(e);
             throw e;
         });
     }
 
+    // TODO
     getSupports(state: StateID, action: ActionID): Promise<SupportData[]> {
-        return this._comm.request("getSupports", [state, action]).catch((e) => {
+        return this._comm.request("get-supports", [state, action]).catch((e) => {
             this.log.writeError(e);
             throw e;
         });
     }
 
+    // TODO
     getOperator(op: string, state: StateID, us: JSONUnion): Promise<OperatorData> {
-        return this._comm.request("getOperator", [op, state, us]).catch((e) => {
+        return this._comm.request("get-operator", [op, state, us]).catch((e) => {
             this.log.writeError(e);
             throw e;
         });
     }
 
+    // TODO
     getTrace(controller: string): Promise<TraceData> {
         const [x, qLabel] = this.state;
         const xLabel = x == null ? null : x.label;
-        return this._comm.request("getTrace", [controller, xLabel, qLabel]).catch((e) => {
+        return this._comm.request("get-trace", [controller, xLabel, qLabel]).catch((e) => {
             this.log.writeError(e);
             throw e;
         });
     }
 
-    analyse(): Promise<AnalysisData> {
-        return this._comm.request("analyse", null).then((data) => {
+    analyse(): Promise<null> {
+        return this._comm.request("analyse", null).then((data: AnalysisData) => {
             this.log.writeAnalysis(data);
-            this.notify("system");
-            this.refreshSelection();
-            return data;
+            // ...
+            return this.updateStates();
         }).catch((e) => {
             this.log.writeError(e);
             throw e;
         });
     }
 
-    refineState(state: StateID, method: string, settings: StateRefinerySettings): Promise<RefineData> {
-        return this._comm.request("refineState", [state, method, settings]).then((data: RefineData) => {
+    refineState(state: StateID, method: string, settings: StateRefinerySettings): Promise<null> {
+        return this._comm.request("refine-state", [state, method, settings]).then((data: RefineData) => {
             if (data.states.size > 0) {
                 this.log.writeRefinement(data);
-                this.notify("system");
-                this.refreshSelection();
+                return this.updateStates();
             }
-            return data;
+            return null;
         }).catch((e) => {
             this.log.writeError(e);
             throw e;
         });
     }
 
-    refineLayer(settings: LayerRefinerySettings): Promise<RefineData> {
-        return this._comm.request("refineLayer", settings).then((data: RefineData) => {
+    refineLayer(settings: LayerRefinerySettings): Promise<null> {
+        return this._comm.request("refine-layer", settings).then((data: RefineData) => {
             if (data.states.size > 0) {
                 this.log.writeRefinement(data);
-                this.notify("system");
-                this.refreshSelection();
+                return this.updateStates();
             }
-            return data;
+            return null;
         }).catch((e) => {
             this.log.writeError(e);
             throw e;
         });
     }
 
+    // TODO
     getSystemSummary(): Promise<SystemSummaryData> {
-        return this._comm.request("getSystemSummary", null).catch((e) => {
+        return this._comm.request("get-system-summary", null).catch((e) => {
             this.log.writeError(e);
             throw e;
         });
     }
 
     getSnapshots(): Promise<SnapshotData> {
-        return this._comm.request("getSnapshots", null).catch((e) => {
+        return this._comm.request("get-snapshots", null).catch((e) => {
             this.log.writeError(e);
             throw e;
         });
     }
 
     takeSnapshot(name: string): Promise<TakeSnapshotData> {
-        return this._comm.request("takeSnapshot", name).then((data) => {
+        return this._comm.request("take-snapshot", name).then((data) => {
             this.notify("snapshot");
             return data;
         }).catch((e) => {
@@ -530,12 +547,10 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
-    loadSnapshot(id: number): Promise<LoadSnapshotData> {
-        return this._comm.request("loadSnapshot", id).then((data) => {
+    loadSnapshot(id: number): Promise<null> {
+        return this._comm.request("load-snapshot", id).then((data) => {
             this.notify("snapshot");
-            this.notify("system");
-            this.refreshSelection();
-            return data;
+            return this.updateStates();
         }).catch((e) => {
             this.log.writeError(e);
             throw e;
@@ -543,7 +558,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
     }
 
     nameSnapshot(id: number, name: string): Promise<NameSnapshotData> {
-        return this._comm.request("nameSnapshot", [id, name]).then((data) => {
+        return this._comm.request("name-snapshot", [id, name]).then((data) => {
             this.notify("snapshot");
             return data;
         }).catch((e) => {
@@ -572,7 +587,6 @@ class SystemViewCtrl {
     _operator: ?OperatorWrapper;
     _stateRegion: ?_StateRegionTest;
     // Data caches
-    _data: ?StateDataPlus[];
     _centroid: { [string]: Vector };
 
     constructor(model: SystemModel): void {
@@ -628,18 +642,28 @@ class SystemViewCtrl {
     // Redraw elements when changes happen
     handleModelChange(mc: ?ModelChange): void {
         if (mc === "system") {
-            this._model.getStates().then((data) => {
-                this._data = data;
-                // Centroids are cached in a direct access data structure, as
-                // they are important for positioning arrows (action/support
-                // targets don't contain geometry)
-                this._centroid = {};
-                for (let state of data) {
-                    this._centroid[state.label] = state.centroid;
-                }
-                // Redraw interactive states
-                this.drawSystem(data);
-            });
+            // Centroids are cached in a direct access data structure, as they
+            // are important for positioning arrows (action/support targets
+            // don't contain geometry)
+            this._centroid = {};
+            // Redraw interactive states
+            const shapes = [];
+            for (let [label, state] of this._model.states) {
+                this._centroid[label] = state.centroid;
+                // ...
+                const click = () => {
+                    const [x, _] = this._model.state;
+                    this._model.setStateX(x != null && label === x.label ? null : label);
+                };
+                // ...
+                shapes.push({
+                    kind: "polytope", vertices: state.polytope.vertices,
+                    events: { "click": click }
+                });
+            }
+            this._layers.interaction.shapes = shapes;
+            this.drawAnalysis();
+            this.drawLabels();
         } else if (mc === "state") {
             this.drawState();
             this.drawAnalysis();
@@ -652,21 +676,6 @@ class SystemViewCtrl {
         } else if (mc === "trace-step") {
             this.drawTraceStep();
         }
-    }
-
-    drawSystem(states: StateDataPlus[]): void {
-        this._layers.interaction.shapes = states.map((state) => {
-            const click = () => {
-                const [x, _] = this._model.state;
-                this._model.xState = (x != null && state.label === x.label) ? null : state;
-            };
-            return {
-                kind: "polytope", vertices: state.polytope.vertices,
-                events: { click: click }
-            };
-        });
-        this.drawAnalysis();
-        this.drawLabels();
     }
 
     drawState(): void {
@@ -728,24 +737,31 @@ class SystemViewCtrl {
     }
 
     drawAnalysis(): void {
-        if (this._data != null) {
-            const [_, q] = this._model.state;
-            this._layers.kind.shapes = this._data.map((state) => ({
+        // Show analysis in currently selected automaton state
+        const [_, q] = this._model.state;
+        const shapes = [];
+        for (let state of this._model.states.values()) {
+             shapes.push({
                 kind: "polytope",
                 vertices: state.polytope.vertices,
                 style: { fill: stateColor(state, q) }
-            }));
+            });
         }
+        this._layers.kind.shapes = shapes;
     }
 
     drawLabels(): void {
-        let labels = [];
-        if (this._data != null && this._showLabels) {
-            labels = this._data.map(
-                (state) => ({ kind: "label", coords: state.centroid, text: state.label })
-            );
+        let shapes = [];
+        if (this._showLabels) {
+            for (let [label, state] of this._model.states) {
+                shapes.push({
+                    kind: "label",
+                    coords: state.centroid,
+                    text: state.label
+                });
+            }
         }
-        this._layers.label.shapes = labels;
+        this._layers.label.shapes = shapes;
     }
 
     drawVectors(): void {
@@ -758,15 +774,17 @@ class SystemViewCtrl {
     }
 
     drawStateRegion(): void {
+        const shapes = [];
         const test = this._stateRegion;
-        if (test == null || this._data == null) {
-            this._layers.stateRegion.shapes = [];
-        } else {
-            this._layers.stateRegion.shapes = this._data.filter(test).map((x) => ({
-                kind: "polytope",
-                vertices: x.polytope.vertices
-            }));
+        if (test != null) {
+            for (let state of this._model.states.values()) {
+                if (test(state)) shapes.push({
+                    kind: "polytope",
+                    vertices: state.polytope.vertices
+                });
+            }
         }
+        this._layers.stateRegion.shapes = shapes;
     }
 
     drawTrace(): void {
@@ -783,13 +801,15 @@ class SystemViewCtrl {
     }
 
     toExportURL(): string {
-        if (this._data == null) return "[]";
-        const data: JSONPolygonItem[] = this._data.map(_ => [
-            _.polytope,
-            [this._showLabels, _.label],
-            [false, "#FFFFFF"],
-            [true, "#000000"]
-        ]);
+        const data = [];
+        for (let [label, state] of this._model.states) {
+            data.push([
+                state.polytope,
+                [this._showLabels, label],
+                [false, "#FFFFFF"],
+                [true, "#000000"]
+            ]);
+        }
         return window.btoa(JSON.stringify(data));
         // TODO: also export operator, selection, analysis colors, ...
     }
@@ -927,7 +947,7 @@ class AutomatonViewCtrl {
             ])
         ]);
         // Keybindings
-        keys.bind("i", () => { this._model.qState = init; });
+        keys.bind("i", () => this._model.setStateQ(init));
         // Draw labels once now, they never change
         this._layers.stateLabels.shapes = iter.map(_ => _[1], this._shapes.states.values());
         // Transitions have to be flattened
@@ -970,7 +990,7 @@ class AutomatonViewCtrl {
         const ss = [];
         for (let [state, [s, l]] of this._shapes.states) {
             s = obj.clone(s);
-            s.events = { "click": () => { this._model.qState = state; } };
+            s.events = { "click": () => this._model.setStateQ(state) };
             if (state === q) {
                 s.style = { "stroke": COLORS.selection };
             }
@@ -1165,14 +1185,13 @@ class StateViewOpCtrl extends WidgetPlus {
         operator.attach(() => {
             systemViewCtrl.operator = operator.value;
         });
-        this._lines = [dom.DIV({ "class": "selection" }), dom.DIV(), dom.DIV(), dom.DIV()];
+        this._lines = [dom.DIV(), dom.DIV(), dom.DIV()];
         // Assemble
         this.node = dom.DIV({ "id": "state-view" }, [
             dom.DIV({ "class": "div-table" }, [
                 dom.DIV({}, [dom.DIV({}, ["State:"]), this._lines[0]]),
-                dom.DIV({}, [dom.DIV({}, ["Actions:"]), this._lines[1]]),
-                dom.DIV({}, [dom.DIV({}, ["Analysis:"]), this._lines[2]]),
-                dom.DIV({}, [dom.DIV({}, ["Predicates:"]), this._lines[3]])
+                dom.DIV({}, [dom.DIV({}, ["Analysis:"]), this._lines[1]]),
+                dom.DIV({}, [dom.DIV({}, ["Predicates:"]), this._lines[2]])
             ]),
             dom.P({ "class": "highlight" }, [operator.node])
         ]);
@@ -1187,33 +1206,31 @@ class StateViewOpCtrl extends WidgetPlus {
         const [x, q] = this._model.state;
         if (x != null) {
             const analysis = x.analysis;
-            // Line 1: system and automaton labels
-            dom.replaceChildren(this._lines[0], [
-                dom.snLabel.toHTML(x.label), ", ", dom.snLabel.toHTML(q)
-            ]);
-            // Line 2: action and automaton transition
+            // Line 1: system and automaton labels, transition information
             const qNext = this._model.transitionTo(x, q);
+            const text = [dom.SPAN({ "class": "selection" }, [
+                dom.snLabel.toHTML(x.label), ", ", dom.snLabel.toHTML(q)
+            ])];
             if (x.isOuter) {
-                dom.replaceChildren(this._lines[1], ["0 (outer state)"]);
+                text.push(" (outer state)");
             } else if (analysisKind(q, analysis) === "unreachable") {
-                dom.replaceChildren(this._lines[1], ["0 (unreachable state)"]);
+                text.push(" (unreachable state)");
             } else if (qNext == null) {
-                dom.replaceChildren(this._lines[1], ["0 (dead end state)"]);
+                text.push(" (dead end state)");
             } else {
-                dom.replaceChildren(this._lines[1], [
-                    x.numberOfActions.toString(), " (transition to ", automatonLabel(qNext, null), ")"
-                ]);
+                text.push(" (transition to ", automatonLabel(qNext, null), ")");
             }
-            // Line 3: analysis kinds
+            dom.replaceChildren(this._lines[0], text); 
+            // Line 2: analysis kinds
             if (analysis == null) {
-                dom.replaceChildren(this._lines[2], ["?"]);
+                dom.replaceChildren(this._lines[1], ["?"]);
             } else {
-                dom.replaceChildren(this._lines[2], arr.intersperse(
+                dom.replaceChildren(this._lines[1], arr.intersperse(
                     ", ", iter.map(_ => automatonLabel(_, analysis), this._model.qAll)
                 ));
             };
-            // Line 4: linear predicates
-            dom.replaceChildren(this._lines[3], x.predicates.size < 1 ? ["-"] : arr.intersperse(
+            // Line 3: linear predicates
+            dom.replaceChildren(this._lines[2], x.predicates.size < 1 ? ["-"] : arr.intersperse(
                 ", ", iter.map(_ => predicateLabel(_, this._model.getPredicate(_)), x.predicates)
             ));
         } else {
@@ -1269,9 +1286,7 @@ class StateRefinementCtrl extends WidgetPlus {
             approximation: this._approximation.value
         };
         this.pushLoad();
-        this._model.refineState(x.label, method, settings).then((data: RefineData) => {
-            // Result logging is done in SystemModel
-        }).catch(() => {
+        this._model.refineState(x.label, method, settings).catch(() => {
             // Error logging is done in SystemModel
         }).finally(() => {
             this.popLoad();
@@ -1435,9 +1450,7 @@ class AnalysisViewCtrl extends WidgetPlus{
     analyse(): void {
         if (this.isLoading) return; // TODO
         this.pushLoad();
-        this._model.analyse().then((data: AnalysisData) => {
-            // Result logging is done in SystemModel
-        }).catch((e) => {
+        this._model.analyse().catch((e) => {
             // Error logging is done in SystemModel
         }).finally(() => {
             this.popLoad();
@@ -1576,8 +1589,6 @@ class LayerRefinementCtrl extends WidgetPlus {
             generator: this._generator.value,
             range: [this._rangeStart.value, this._rangeEnd.value],
             generations: this._generations.value
-        }).then((data: RefineData) => {
-            // Result logging is done in SystemModel
         }).catch(() => {
             // Error logging is done in SystemModel
         }).finally(() => {

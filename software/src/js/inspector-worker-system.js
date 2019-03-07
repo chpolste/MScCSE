@@ -212,13 +212,6 @@ const $ = new SystemManager();
 const inspector = new Communicator("2W");
 
 // States of the system
-export type StateRequest = StateID;
-export type StatesRequest = null;
-type StateAnalysis = {
-    yes: Set<StateID>,
-    no: Set<StateID>,
-    maybe: Set<StateID>
-};
 export type StateData = {
     label: StateID,
     isOuter: boolean,
@@ -227,14 +220,16 @@ export type StateData = {
 };
 export type StateDataPlus = StateData & {
     polytope: JSONPolytope,
-    centroid: number[],
-    numberOfActions: number
+    centroid: number[]
 };
-inspector.onRequest("getState", function (data: StateRequest): StateDataPlus {
-    return stateDataPlusOf($.system.getState(data));
-});
-inspector.onRequest("getStates", function (data: StatesRequest): StateDataPlus[] {
-    return Array.from(iter.map(stateDataPlusOf, $.system.states.values()));
+export type StatesRequest = null;
+export type StatesData = Map<StateID, StateDataPlus>;
+inspector.onRequest("update-states", function (data: StatesRequest): StatesData {
+    const out = new Map();
+    for (let [label, state] of $.system.states) {
+        out.set(label, stateDataPlusOf(state));
+    }
+    return out;
 });
 
 function stateDataOf(state: State): StateData {
@@ -252,8 +247,7 @@ function stateDataPlusOf(state: State): StateDataPlus {
         analysis: $.getAnalysis(state),
         polytope: state.polytope.serialize(),
         centroid: state.polytope.centroid,
-        predicates: state.predicates,
-        numberOfActions: state.actions.length
+        predicates: state.predicates
     };
 }
 
@@ -261,7 +255,7 @@ function stateDataPlusOf(state: State): StateDataPlus {
 // System information summary
 export type SystemSummaryRequest = null;
 export type SystemSummaryData = Map<AutomatonStateID, { count: SystemStats, volume: SystemStats }>;
-inspector.onRequest("getSystemSummary", function (data: SystemSummaryRequest): SystemSummaryData {
+inspector.onRequest("get-system-summary", function (data: SystemSummaryRequest): SystemSummaryData {
     return new Map(iter.map(
         q => [q, { count: $.getCountStats(q), volume: $.getVolumeStats(q) }],
         $.objective.allStates
@@ -277,7 +271,7 @@ export type ActionData = {
     controls: JSONUnion,
     targets: StateData[]
 };
-inspector.onRequest("getActions", function (data: ActionRequest): ActionData[] {
+inspector.onRequest("get-actions", function (data: ActionRequest): ActionData[] {
     return $.system.getState(data).actions.map((action, id) => ({
         origin: stateDataOf(action.origin),
         id: id,
@@ -295,7 +289,7 @@ export type SupportData = {
     origins: JSONUnion,
     targets: StateData[]
 };
-inspector.onRequest("getSupports", function (data: SupportRequest): SupportData[] {
+inspector.onRequest("get-supports", function (data: SupportRequest): SupportData[] {
     const [stateLabel, actionId] = data;
     const state = $.system.getState(stateLabel);
     return state.actions[actionId].supports.map((support, id) => ({
@@ -317,7 +311,7 @@ const OPERATORS: { [string]: (State, Union) => Region } = {
     "attr":  (state, us) => $.lss.attr($.lss.xx, us, state.polytope),
     "attrR": (state, us) => $.lss.attrR($.lss.xx, us, state.polytope)
 };
-inspector.onRequest("getOperator", function (data: OperatorRequest): OperatorData {
+inspector.onRequest("get-operator", function (data: OperatorRequest): OperatorData {
     const [operator, stateLabel, control] = data;
     const state = $.system.getState(stateLabel);
     const us = Union.deserialize(control);
@@ -328,7 +322,7 @@ inspector.onRequest("getOperator", function (data: OperatorRequest): OperatorDat
 // TODO: Trace Sampling
 export type TraceRequest = [string, ?StateID, AutomatonStateID];
 export type TraceData = JSONTrace;
-inspector.onRequest("getTrace", function (data: TraceRequest): TraceData {
+inspector.onRequest("get-trace", function (data: TraceRequest): TraceData {
     const [controllerName, xLabel, qLabel] = data;
     // ...
     const Cls = Controller.builtIns()[controllerName];
@@ -366,7 +360,7 @@ export type RefineData = {
 };
 // State-based
 export type RefineStateRequest = [StateID, string, StateRefinerySettings];
-inspector.onRequest("refineState", function (data: RefineStateRequest): RefineData {
+inspector.onRequest("refine-state", function (data: RefineStateRequest): RefineData {
     const [label, method, settings] = data;
     const x = $.system.getState(label);
     const t0 = performance.now();
@@ -379,7 +373,7 @@ inspector.onRequest("refineState", function (data: RefineStateRequest): RefineDa
 });
 // Layer-based
 export type RefineLayerRequest = LayerRefinerySettings;
-inspector.onRequest("refineLayer", function (settings: RefineLayerRequest): RefineData {
+inspector.onRequest("refine-layer", function (settings: RefineLayerRequest): RefineData {
     const t0 = performance.now();
     const states = sets.map(_ => _.label, $.refineLayer(settings));
     const t1 = performance.now();
@@ -398,27 +392,27 @@ export type SnapshotData = {
     children: Set<SnapshotData>,
     isCurrent: boolean
 };
-inspector.onRequest("getSnapshots", function (data: SnapshotsRequest): SnapshotData {
+inspector.onRequest("get-snapshots", function (data: SnapshotsRequest): SnapshotData {
     return $.snapshotTree;
 });
 
 export type TakeSnapshotRequest = string;
 export type TakeSnapshotData = null;
-inspector.onRequest("takeSnapshot", function (data: TakeSnapshotRequest): TakeSnapshotData {
+inspector.onRequest("take-snapshot", function (data: TakeSnapshotRequest): TakeSnapshotData {
     $.takeSnapshot(data);
     return null;
 });
 
 export type LoadSnapshotRequest = number;
 export type LoadSnapshotData = null;
-inspector.onRequest("loadSnapshot", function (data: LoadSnapshotRequest): LoadSnapshotData {
+inspector.onRequest("load-snapshot", function (data: LoadSnapshotRequest): LoadSnapshotData {
     $.loadSnapshot(data);
     return null;
 });
 
 export type NameSnapshotRequest = [number, string];
 export type NameSnapshotData = null;
-inspector.onRequest("nameSnapshot", function (data: NameSnapshotRequest): NameSnapshotData {
+inspector.onRequest("name-snapshot", function (data: NameSnapshotRequest): NameSnapshotData {
     $.nameSnapshot(...data);
     return null;
 });

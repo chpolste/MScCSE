@@ -140,6 +140,51 @@ export class AnalysisResults extends Map<StateID, AnalysisResult> {
         return json;
     }
 
+    // In-place update of results, combining previous analysis results with the
+    // current ones, taking care of complications that arise due to game
+    // simplification based on the existing analysis results (misclassification
+    // of previously decided states as non-reachable)
+    transferFromPrevious(results: ?AnalysisResults): null {
+        if (results == null) {
+            // TODO: only compute statistics
+        } else {
+            // Transfer previous results to states rendered unreachable by the
+            // game simplification
+            for (let [state, oldResult] of results) {
+                const newResult = this.get(state);
+                // State does not exist anymore, skip transfer
+                if (newResult == null) continue;
+                // States that were determined to be satisfying stay satisfying
+                // in any subsequent analysis
+                for (let q of oldResult.yes) {
+                    if (newResult.no.has(q) || newResult.maybe.has(q)) throw new Error(
+                        "State (" + state + ", " + q + ") changed its analysis result illegally (was satisfying)"
+                    );
+                    newResult.yes.add(q);
+                }
+                // States that were determined to be non-satisfying stay
+                // non-satisfying in any subsequent analysis
+                for (let q of oldResult.no) {
+                    if (newResult.yes.has(q) || newResult.maybe.has(q)) throw new Error(
+                        "State (" + state + ", " + q + ") changed its analysis result illegally (was non-satisfying)"
+                    );
+                    newResult.no.add(q);
+                }
+                // As soon as there exists a strategy to win from a given
+                // state, its successors will not be explored in subsequent
+                // analyses, even if they are still undecided. I cannot see
+                // a way to resolve this issue or a way to distinguish between
+                // still undecided states and now unreachable states without
+                // doing a full analysis (without simplifications). There will
+                // be maybe states that are misclassified as nonreachable. This
+                // does not affect analysis results in the automaton initial
+                // state but will influence the strategy-synthesis.
+            }
+        }
+        // TODO: compute and return statistics
+        return null;
+    }
+
     // In-place remapping of results after refinement
     remap(refinementMap: RefinementMap): void {
         for (let [xOld, xNews] of refinementMap) {

@@ -114,6 +114,7 @@ class SystemManager {
         const results = game.analyse();
         const t2 = performance.now();
         // TODO: analysis statistics
+        const stats = results.transferFromPrevious(this._analysis);
         this._analysis = results;
         return {
             tGame: (t1 - t0),

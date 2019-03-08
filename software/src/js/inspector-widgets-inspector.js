@@ -1540,12 +1540,13 @@ class LayerRefinementCtrl extends WidgetPlus {
         );
         // Layer generating function
         this._generator = new DropdownInput({
+            "Attractor": "Attr",
             "Predecessor": "Pre",
-            "Robust Predecessor": "PreR"
+            "Robust Predecessor": "PreR",
         }, "Robust Predecessor");
         this._rangeStart = new DropdownInput(DropdownInput.rangeOptions(1, 10, 1), "1");
         this._rangeEnd = new DropdownInput({ "9": 9 }, "9");
-        this._generations = new DropdownInput(DropdownInput.rangeOptions(1, 10, 1), "2");
+        this._generations = new DropdownInput(DropdownInput.rangeOptions(0, 10, 1), "2");
         // Assemble
         this._button = dom.createButton({}, ["refine"], () => this.refine())
         this.node = dom.DIV({"id": "layer-refinement-ctrl" }, [

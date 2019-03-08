@@ -191,7 +191,7 @@ export class PosAttrRRefinery extends StateRefinery {
 // Target region
 export type LayerRefineryTarget = "__yes" | "__no" | AutomatonStateID;
 // Polytopic operator from which the layers are iteratively generated
-export type LayerRefineryGenerator = "PreR" | "Pre";
+export type LayerRefineryGenerator = "PreR" | "Pre" | "Attr";
 // Which layers participate in the refinement (inclusive range)
 export type LayerRefineryRange = [number, number];
 // How many generations of refinement are executed?
@@ -239,6 +239,8 @@ export class LayerRefinery extends Refinery {
     _generateLayer(target: Region): Region {
         const lss = this.system.lss;
         switch (this.settings.generator) {
+            case "Attr":
+                return lss.attr(lss.xx, lss.uu, target);
             case "PreR":
                 return lss.preR(lss.xx, lss.uu, target);
             case "Pre":

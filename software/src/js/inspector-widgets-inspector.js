@@ -492,6 +492,16 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
+    resetAnalysis(): Promise<null> {
+        return this._comm.request("reset-analysis", null).then(() => {
+            this.log.write("analysis", "analysis results reset");
+            return this.updateStates();
+        }).catch((e) => {
+            this.log.writeError(e);
+            throw e;
+        });
+    }
+
     refineState(state: StateID, method: string, settings: StateRefinerySettings): Promise<null> {
         return this._comm.request("refine-state", [state, method, settings]).then((data: RefineData) => {
             if (data.states.size > 0) {
@@ -1421,7 +1431,8 @@ class ActionViewCtrl extends WidgetPlus {
 class AnalysisViewCtrl extends WidgetPlus{
 
     +_model: SystemModel;
-    +_button: HTMLButtonElement;
+    +_analyse: HTMLButtonElement;
+    +_reset: HTMLButtonElement;
     +_info: HTMLSpanElement;
     _bar: HTMLDivElement;
     _summary: ?SystemSummaryData;
@@ -1431,24 +1442,38 @@ class AnalysisViewCtrl extends WidgetPlus{
         this._model = model;
         this._model.attach((mc) => this.handleModelChange(mc));
         // Button to start analysis
-        this._button = dom.createButton({}, [dom.create("u", {}, ["a"]), "nalyse"], () => this.analyse());
+        this._analyse = dom.createButton({}, [
+            dom.create("u", {}, ["a"]), "nalyse"
+        ], () => this.analyse());
+        // Button to reset analysis results
+        this._reset = dom.createButton({}, ["reset"], () => this.reset());
         // Text information display
         this._info = dom.SPAN({ "class": "count-stats" });
         // Progress bar
         this._bar = percentageBar({ "please wait...": 1 });
         // Widget
         this.node = dom.DIV({ "id": "analysis-view-ctrl"}, [
-            dom.P({}, [this._button, this._info]),
+            dom.P({}, [this._analyse, " ", this._reset, this._info]),
             this._bar
         ]);
         keys.bind("a", () => this.analyse());
     }
 
     analyse(): void {
-        if (this.isLoading) return; // TODO
+        if (this.isLoading) return;
         this.pushLoad();
         this._model.analyse().catch((e) => {
             // Error logging is done in SystemModel
+        }).finally(() => {
+            this.popLoad();
+        });
+    }
+
+    reset(): void {
+        if (this.isLoading) return;
+        this.pushLoad();
+        this._model.resetAnalysis().catch((e) => {
+            // ...
         }).finally(() => {
             this.popLoad();
         });
@@ -1504,7 +1529,8 @@ class AnalysisViewCtrl extends WidgetPlus{
     
     handleLoadingChange(): void {
         super.handleLoadingChange();
-        this._button.disabled = this.isLoading;
+        this._analyse.disabled = this.isLoading;
+        this._reset.disabled = this.isLoading;
     }
 
 }

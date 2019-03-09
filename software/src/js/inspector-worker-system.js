@@ -122,6 +122,10 @@ class SystemManager {
         };
     }
 
+    resetAnalysis(): void {
+        this._analysis = null;
+    }
+
     refineState(x: State, method: string, settings: StateRefinerySettings): Set<State> {
         const analysis = just(this.analysis, "Refinement requires an analysed system");
         // Initialize refinement method
@@ -314,6 +318,14 @@ export type AnalysisData = {
 };
 inspector.onRequest("analyse", function (data: AnalysisRequest): AnalysisData {
     return $.analyse();
+});
+
+// Reset the analysis state
+export type ResetAnalysisRequest = null;
+export type ResetAnalysisData = null;
+inspector.onRequest("reset-analysis", function (data: ResetAnalysisRequest): ResetAnalysisData {
+    $.resetAnalysis();
+    return null;
 });
 
 

@@ -1424,7 +1424,7 @@ class ActionViewCtrl extends WidgetPlus {
 
 // Tab: System
 // - AnalysisViewCtrl
-// - RefinementCtrl TODO
+// - LayerRefinementCtrl
 // - SnapshotViewCtrl
 
 
@@ -1543,6 +1543,7 @@ class LayerRefinementCtrl extends WidgetPlus {
     +_origin: OptionsInput<AutomatonStateID>;
     +_target: OptionsInput<LayerRefineryTarget>;
     +_generator: OptionsInput<LayerRefineryGenerator>;
+    +_shrink: Input<boolean>;
     +_rangeStart: OptionsInput<number>;
     +_rangeEnd: OptionsInput<number>;
     +_generations: OptionsInput<number>;
@@ -1570,6 +1571,7 @@ class LayerRefinementCtrl extends WidgetPlus {
             "Predecessor": "Pre",
             "Robust Predecessor": "PreR",
         }, "Robust Predecessor");
+        this._shrink = new CheckboxInput(true, "shrink control space");
         this._rangeStart = new DropdownInput(DropdownInput.rangeOptions(1, 10, 1), "1");
         this._rangeEnd = new DropdownInput({ "9": 9 }, "9");
         this._generations = new DropdownInput(DropdownInput.rangeOptions(0, 10, 1), "2");
@@ -1587,7 +1589,7 @@ class LayerRefinementCtrl extends WidgetPlus {
                 ]),
                 dom.DIV({}, [
                     dom.DIV({}, ["Generator"]),
-                    dom.DIV({}, [this._generator.node])
+                    dom.DIV({}, [this._generator.node, " ", this._shrink.node])
                 ]),
                 dom.DIV({}, [
                     dom.DIV({}, ["Layers"]),
@@ -1611,6 +1613,7 @@ class LayerRefinementCtrl extends WidgetPlus {
             origin: this._origin.value,
             target: this._target.value,
             generator: this._generator.value,
+            scaling: (this._shrink.value ? 0.95 : 1),
             range: [this._rangeStart.value, this._rangeEnd.value],
             generations: this._generations.value
         }).catch(() => {

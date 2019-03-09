@@ -201,6 +201,7 @@ export type LayerRefinerySettings = {
     origin: AutomatonStateID,
     target: LayerRefineryTarget,
     generator: LayerRefineryGenerator,
+    scaling: number,
     range: LayerRefineryRange,
     generations: LayerRefineryGenerations
 };
@@ -238,13 +239,14 @@ export class LayerRefinery extends Refinery {
 
     _generateLayer(target: Region): Region {
         const lss = this.system.lss;
+        const uu = lss.uu.scale(this.settings.scaling);
         switch (this.settings.generator) {
             case "Attr":
-                return lss.attr(lss.xx, lss.uu, target);
+                return lss.attr(lss.xx, uu, target);
             case "PreR":
-                return lss.preR(lss.xx, lss.uu, target);
+                return lss.preR(lss.xx, uu, target);
             case "Pre":
-                return lss.pre(lss.xx, lss.uu, target);
+                return lss.pre(lss.xx, uu, target);
             default:
                 throw new NotImplementedError(
                     "layer generator '" + this.settings.generator + "' does not exist"

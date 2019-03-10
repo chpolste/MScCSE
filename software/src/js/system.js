@@ -166,16 +166,18 @@ export class LSS {
 
     // Action polytope
     act(x: Polytope, y: Region): Region {
-        const Axpws = linalg.minkowski.axpy(this.A, x.vertices, this.ww.vertices);
-        const poly = Polytope.ofDim(this.dim).hull(Axpws).invert();
-        return y.minkowski(poly).applyRight(this.B).intersect(this.uu);
+        const Axpw = Polytope.ofDim(this.dim).hull(
+            linalg.minkowski.axpy(this.A, x.vertices, this.ww.vertices)
+        );
+        return y.minkowski(Axpw.invert()).applyRight(this.B).intersect(this.uu);
     }
 
     // Robust action polytope
     actR(x: Polytope, y: Region): Region {
-        const Axpws = linalg.minkowski.axpy(this.A, x.vertices, this.ww.vertices);
-        const poly = Polytope.ofDim(this.dim).hull(Axpws);
-        return y.pontryagin(poly).applyRight(this.B).intersect(this.uu);
+        const Axpw = Polytope.ofDim(this.dim).hull(
+            linalg.minkowski.axpy(this.A, x.vertices, this.ww.vertices)
+        );
+        return y.pontryagin(Axpw).applyRight(this.B).intersect(this.uu);
     }
 
     zNonZero(xs: Region): Region {

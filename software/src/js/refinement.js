@@ -7,7 +7,8 @@ import type { Objective, AutomatonStateID } from "./logic.js";
 import type { AbstractedLSS, State } from "./system.js";
 
 import { Polytope, Union } from "./geometry.js";
-import { just, iter, PriorityQueue, ValueError, NotImplementedError } from "./tools.js";
+import * as linalg from "./linalg.js";
+import { just, iter, ValueError, NotImplementedError } from "./tools.js";
 
 
 export class Refinery {
@@ -43,11 +44,11 @@ export class Refinery {
         return this.asRegion(this.getStates(which, q));
     }
 
+    // States that have a transition from q to qTarget (only inner states)
     getTransitionStates(qTarget: AutomatonStateID, q: AutomatonStateID): Iterable<State> {
         const origin = this.objective.getState(q);
-        const target = this.objective.getState(qTarget);
         return iter.filter(
-            (state) => (this.qNext(state, q) === qTarget),
+            (state) => (!state.isOuter && this.qNext(state, q) === qTarget),
             this.system.states.values()
         );
     }
@@ -214,7 +215,7 @@ export class LayerRefinery extends Refinery {
     constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
                 settings: LayerRefinerySettings): void {
         super(system, objective, results);
-        this.settings = settings; // TODO: value sanity checks (e.g. range start > 0, ...)
+        this.settings = settings;
         // Settings sanity checks
         if (settings.range[0] < 1 || settings.range[1] < settings.range[0]) throw new ValueError(
             "settings.range = [" + settings.range.join(", ") + "] is invalid"
@@ -235,6 +236,7 @@ export class LayerRefinery extends Refinery {
             const previous = this.layers[this.layers.length - 1];
             this.layers.push(this._generateLayer(previous).simplify());
         }
+        console.log(this.layers);
     }
 
     _generateLayer(target: Region): Region {
@@ -274,12 +276,11 @@ export class LayerRefinery extends Refinery {
             const target = this.layers[i - 1];
             // Refine this:
             const intersection = rest.intersect(this.layers[i]).simplify();
-            // Priority queue of polytopes: first out are largest polytopes
-            const queue = new PriorityQueue((a, b) => (a[0].volume - b[0].volume));
-            // Initialize queue with intersection polytopes (generation 0)
-            queue.enqueue(...intersection.polytopes.map(_ => [_, 0]));
-            while (queue.size > 0) {
-                const [part, gen] = queue.dequeue();
+            // Initialize queue of remaining polytopes with intersection
+            // polytopes (generation 0)
+            const remaining = intersection.polytopes.map(_ => [_, 0]);
+            while (remaining.length > 0) {
+                const [part, gen] = remaining.shift();
                 // If generation exceeds limit, don't refine the part further
                 if (gen >= this.settings.generations) {
                     done = done.union(part);
@@ -292,14 +293,46 @@ export class LayerRefinery extends Refinery {
                     done = done.union(part);
                     continue;
                 }
-                // Compute action polytope to target
-                const u = lss.act(part, target);
-                // Shatter this action polytope, for every part compute the
-                // robust attractor wrt the target region an pick the control
-                // polytope that decides the largets area of the origin part
+                // If part cannot be targeted individually (and is therefore
+                // guaranteed to have no self-loop), add to decided parts
+                if (part.pontryagin(lss.ww).isEmpty) {
+                    done = done.union(part);
+                    continue;
+                }
+                // Sample points from the part for the refinement control input
+                // selection: start with vertices of part, and add a few random
+                // points from within the polytope
+                const zs = Array.from(part.vertices);
+                for (let j = 0; j < (10 * lss.dim); j++) {
+                    zs.push(part.sample());
+                }
+                // Find control input clusters based on sampled points
+                const us = [];
+                for (let z of zs) {
+                    // Compute robust action of origin point
+                    const Axpw = lss.ww.translate(linalg.apply(lss.A, z));
+                    const u = target.pontryagin(Axpw).applyRight(lss.B).intersect(lss.uu);
+                    if (u.isEmpty) continue;
+                    // Merge with (first) overlapping cluster, reduce cluster
+                    // to intersection of both
+                    let k = 0;
+                    while (k < us.length) {
+                        const uu = us[k].intersect(u);
+                        if (!uu.isEmpty) {
+                            us[k] = uu;
+                            break;
+                        }
+                        k++;
+                    }
+                    // No overlapping cluster found, create new one
+                    if (k >= us.length) {
+                        us.push(u);
+                    }
+                }
+                // Refine with largest AttrR based on control input clusters
                 let attrR = iter.argmax(
                     _ => _.volume,
-                    u.shatter().polytopes.map((u) => lss.attrR(part, u, target))
+                    us.map((u) => lss.attrR(part, u, target))
                 );
                 // If a non-empty AttrR exists, split part: put the AttrR into
                 // the decided collection, the rest into the queue. Increase
@@ -307,13 +340,11 @@ export class LayerRefinery extends Refinery {
                 if (attrR != null && !attrR.isEmpty) {
                     attrR = attrR.simplify();
                     done = done.union(attrR);
-                    queue.enqueue(...part.remove(attrR).polytopes.map(_ => [_, gen + 1]));
+                    remaining.push(...part.remove(attrR).polytopes.map(_ => [_, gen + 1]));
                 // No usable action found, just shatter polytope and hope for
                 // the best in the next iteration.
-                // TODO: do something far more clever here (self loop removal?
-                //       better selection of u?)
                 } else {
-                    queue.enqueue(...part.shatter().polytopes.map(_ => [_, gen + 1]));
+                    remaining.push(...part.shatter().polytopes.map(_ => [_, gen + 1]));
                 }
             }
             // Entire layer is considered as done

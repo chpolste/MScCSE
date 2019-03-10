@@ -157,9 +157,9 @@ export class ProblemSummary {
         this.node = dom.DIV({ "id": "problem-summary" }, [
             dom.renderTeX("x_{t+1} = " + matrixToTeX(system.lss.A) + " x_t + " + matrixToTeX(system.lss.B) + " u_t + w_t", dom.P()),
             dom.DIV({ "class": "boxes" }, [
-                dom.DIV({}, [dom.H3({}, ["Control Space Polytope"]), cs.node]),
-                dom.DIV({}, [dom.H3({}, ["Random Space Polytope"]), rs.node]),
-                dom.DIV({}, [dom.H3({}, ["State Space Polytope"]), ss.node]),
+                dom.DIV({}, [dom.H3({}, ["Control Space Polytope (", dom.renderTeX("U", dom.SPAN()), ")"]), cs.node]),
+                dom.DIV({}, [dom.H3({}, ["Random Space Polytope (", dom.renderTeX("W", dom.SPAN()), ")"]), rs.node]),
+                dom.DIV({}, [dom.H3({}, ["State Space Polytope (", dom.renderTeX("X", dom.SPAN()), ")"]), ss.node]),
                 dom.DIV({}, [
                     dom.H3({}, ["Labeled Predicates"]),
                     ...Array.from(system.predicates.entries()).map(
@@ -1543,10 +1543,11 @@ class LayerRefinementCtrl extends WidgetPlus {
     +_origin: OptionsInput<AutomatonStateID>;
     +_target: OptionsInput<LayerRefineryTarget>;
     +_generator: OptionsInput<LayerRefineryGenerator>;
-    +_shrink: Input<boolean>;
+    +_scale: OptionsInput<number>;
     +_rangeStart: OptionsInput<number>;
     +_rangeEnd: OptionsInput<number>;
-    +_generations: OptionsInput<number>;
+    +_iterations: OptionsInput<number>;
+    +_dontRefineSmall: Input<boolean>;
     +_button: HTMLButtonElement;
 
     constructor(model: SystemModel, keys: dom.Keybindings): void {
@@ -1571,33 +1572,42 @@ class LayerRefinementCtrl extends WidgetPlus {
             "Predecessor": "Pre",
             "Robust Predecessor": "PreR",
         }, "Robust Predecessor");
-        this._shrink = new CheckboxInput(true, "shrink control space");
+        this._scale = new DropdownInput(DropdownInput.rangeOptions(80, 125, 5), "95");
         this._rangeStart = new DropdownInput(DropdownInput.rangeOptions(1, 10, 1), "1");
         this._rangeEnd = new DropdownInput({ "9": 9 }, "9");
-        this._generations = new DropdownInput(DropdownInput.rangeOptions(0, 10, 1), "2");
+        this._iterations = new DropdownInput(DropdownInput.rangeOptions(0, 10, 1), "2");
+        this._dontRefineSmall = new CheckboxInput(true, "don't refine small polytopes");
         // Assemble
-        this._button = dom.createButton({}, ["refine"], () => this.refine())
+        this._button = dom.createButton({}, ["refine system"], () => this.refine())
         this.node = dom.DIV({"id": "layer-refinement-ctrl" }, [
             dom.DIV({ "class": "div-table" }, [
                 dom.DIV({}, [
-                    dom.DIV({}, ["Origin"]),
-                    dom.DIV({}, [this._origin.node])
+                    dom.DIV({}, ["Origin:"]),
+                    dom.DIV({}, [
+                        dom.P({}, [this._origin.node])
+                    ])
                 ]),
                 dom.DIV({}, [
-                    dom.DIV({}, ["Target"]),
-                    dom.DIV({}, [this._target.node]),
+                    dom.DIV({}, ["Target:"]),
+                    dom.DIV({}, [
+                        dom.P({}, [this._target.node])
+                    ]),
                 ]),
                 dom.DIV({}, [
-                    dom.DIV({}, ["Generator"]),
-                    dom.DIV({}, [this._generator.node, " ", this._shrink.node])
+                    dom.DIV({}, ["Layers:"]),
+                    dom.DIV({}, [this._rangeStart.node, " to ", this._rangeEnd.node, " of ", this._generator.node])
                 ]),
                 dom.DIV({}, [
-                    dom.DIV({}, ["Layers"]),
-                    dom.DIV({}, [this._rangeStart.node, " to ", this._rangeEnd.node])
+                    dom.DIV(),
+                    dom.DIV({}, ["scale generating ", dom.renderTeX("U", dom.SPAN()), " to ", this._scale.node, "%"])
                 ]),
                 dom.DIV({}, [
-                    dom.DIV({}, ["Generations"]),
-                    dom.DIV({}, [this._generations.node])
+                    dom.DIV({}, ["Inner:"]),
+                    dom.DIV({}, [this._iterations.node, " iteration(s)"]),
+                ]),
+                dom.DIV({}, [
+                    dom.DIV({}, [" "]),
+                    dom.DIV({}, [this._dontRefineSmall.node])
                 ])
             ]),
             dom.P({}, [this._button])
@@ -1613,9 +1623,10 @@ class LayerRefinementCtrl extends WidgetPlus {
             origin: this._origin.value,
             target: this._target.value,
             generator: this._generator.value,
-            scaling: (this._shrink.value ? 0.95 : 1),
+            scaling: (this._scale.value / 100),
             range: [this._rangeStart.value, this._rangeEnd.value],
-            generations: this._generations.value
+            iterations: this._iterations.value,
+            dontRefineSmall: this._dontRefineSmall.value
         }).catch(() => {
             // Error logging is done in SystemModel
         }).finally(() => {

@@ -53,6 +53,9 @@ h1 {
     display: inline-block;
     vertical-align: top;
 }
+#application h3 .katex {
+    font-size: 1em;
+}
 .info-button {
     height: 14px;
     width: 14px;
@@ -340,17 +343,17 @@ a:hover {
 
 .div-table {
     display: table;
-    margin: 0 0 10px 0;
+    margin: 0 0 8px 0;
 }
 .div-table > div {
     display: table-row;
 }
 .div-table > div > div {
     display: table-cell;
+    padding: 2px 0 2px 0;
 }
 .div-table > div > div:first-child {
-    padding-right: 1em;
-    margin-right: 1em;
+    padding-right: 16px;
 }
 
 .polytope-builder {
@@ -406,9 +409,6 @@ span.unreachable {
     color: #933;
 }
 
-#state-view .div-table > div {
-    height: 1.4em;
-}
 #state-view .div-table .selection {
     color: #069;
 }
@@ -466,11 +466,6 @@ span.unreachable {
 #analysis-view-ctrl .count-stats {
     float: right;
     line-height: 23px;
-}
-
-#layer-refinement-ctrl .div-table > div > div:first-child {
-    padding-right: 1em;
-    line-height: 28px;
 }
 
 #snapshot-ctrl .right {

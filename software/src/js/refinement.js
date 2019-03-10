@@ -195,8 +195,6 @@ export type LayerRefineryTarget = "__yes" | "__no" | AutomatonStateID;
 export type LayerRefineryGenerator = "PreR" | "Pre" | "Attr";
 // Which layers participate in the refinement (inclusive range)
 export type LayerRefineryRange = [number, number];
-// How many generations of refinement are executed?
-export type LayerRefineryGenerations = number;
 // Settings object
 export type LayerRefinerySettings = {
     origin: AutomatonStateID,
@@ -204,7 +202,8 @@ export type LayerRefinerySettings = {
     generator: LayerRefineryGenerator,
     scaling: number,
     range: LayerRefineryRange,
-    generations: LayerRefineryGenerations
+    iterations: number,
+    dontRefineSmall: boolean
 };
 
 export class LayerRefinery extends Refinery {
@@ -277,12 +276,12 @@ export class LayerRefinery extends Refinery {
             // Refine this:
             const intersection = rest.intersect(this.layers[i]).simplify();
             // Initialize queue of remaining polytopes with intersection
-            // polytopes (generation 0)
+            // polytopes (iteration 0)
             const remaining = intersection.polytopes.map(_ => [_, 0]);
             while (remaining.length > 0) {
-                const [part, gen] = remaining.shift();
-                // If generation exceeds limit, don't refine the part further
-                if (gen >= this.settings.generations) {
+                const [part, it] = remaining.shift();
+                // If iteration count exceeds limit, don't refine the part
+                if (it >= this.settings.iterations) {
                     done = done.union(part);
                     continue;
                 }
@@ -295,7 +294,7 @@ export class LayerRefinery extends Refinery {
                 }
                 // If part cannot be targeted individually (and is therefore
                 // guaranteed to have no self-loop), add to decided parts
-                if (part.pontryagin(lss.ww).isEmpty) {
+                if (this.settings.dontRefineSmall && part.pontryagin(lss.ww).isEmpty) {
                     done = done.union(part);
                     continue;
                 }
@@ -336,15 +335,15 @@ export class LayerRefinery extends Refinery {
                 );
                 // If a non-empty AttrR exists, split part: put the AttrR into
                 // the decided collection, the rest into the queue. Increase
-                // generation count of all parts.
+                // iteration count of all parts.
                 if (attrR != null && !attrR.isEmpty) {
                     attrR = attrR.simplify();
                     done = done.union(attrR);
-                    remaining.push(...part.remove(attrR).polytopes.map(_ => [_, gen + 1]));
+                    remaining.push(...part.remove(attrR).polytopes.map(_ => [_, it + 1]));
                 // No usable action found, just shatter polytope and hope for
                 // the best in the next iteration.
                 } else {
-                    remaining.push(...part.shatter().polytopes.map(_ => [_, gen + 1]));
+                    remaining.push(...part.shatter().polytopes.map(_ => [_, it + 1]));
                 }
             }
             // Entire layer is considered as done

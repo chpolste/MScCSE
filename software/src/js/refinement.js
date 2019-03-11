@@ -117,15 +117,15 @@ export class StateRefinery extends Refinery {
 
     static builtIns(): { [string]: Class<StateRefinery> } {
         return {
-            "Attr-": NegAttrRefinery,
-            "AttrR+": PosAttrRRefinery
+            "Attr-": NegAttrStateRefinery,
+            "AttrR+": PosAttrRStateRefinery
         };
     }
 
 }
 
 // Remove attractor of non-satisfying states
-export class NegAttrRefinery extends StateRefinery {
+export class NegAttrStateRefinery extends StateRefinery {
 
     partition(x: State): Region {
         const q = this.settings.q;
@@ -148,7 +148,7 @@ export class NegAttrRefinery extends StateRefinery {
 }
 
 // Case 1 of the Positive AttrR refinement from Svorenova et al. (2017)
-export class PosAttrRRefinery extends StateRefinery {
+export class PosAttrRStateRefinery extends StateRefinery {
 
     partition(x: State): Region {
         const q = this.settings.q;
@@ -187,18 +187,51 @@ export class PosAttrRRefinery extends StateRefinery {
 }
 
 
-/* (Global) layer-based refinement procedures */
 
-// Target region
-export type LayerRefineryTarget = "__yes" | "__no" | AutomatonStateID;
+/* Global Negative Attr refinement */
+
+export type OuterAttrRefinerySettings = {
+    iterations: number
+};
+
+export class OuterAttrRefinery extends Refinery {
+
+    +_attr: Region;
+
+    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
+                settings: OuterAttrRefinerySettings): void {
+        super(system, objective, results);
+        const lss = system.lss;
+        const iterations = settings.iterations;
+        const outer = this.asRegion(iter.filter(_ => _.isOuter, this.system.states.values()));
+        // Precompute Attractor of outer states in entire system
+        let attr = this.getEmpty();
+        for (let i = 0; i < iterations; i++) {
+            attr = lss.attr(lss.xx, lss.uu, attr.union(outer)).simplify();
+        }
+        this._attr = attr;
+    }
+
+    partition(x: State): Region {
+        const attr = x.polytope.intersect(this._attr).simplify();
+        const rest = x.polytope.remove(attr).simplify();
+        return attr.union(rest);
+    }
+
+}
+
+
+
+/* Layer-based refinement procedures */
+
 // Polytopic operator from which the layers are iteratively generated
-export type LayerRefineryGenerator = "PreR" | "Pre" | "Attr";
+export type LayerRefineryGenerator = "PreR" | "Pre";
 // Which layers participate in the refinement (inclusive range)
 export type LayerRefineryRange = [number, number];
 // Settings object
 export type LayerRefinerySettings = {
     origin: AutomatonStateID,
-    target: LayerRefineryTarget,
+    target: AutomatonStateID,
     generator: LayerRefineryGenerator,
     scaling: number,
     range: LayerRefineryRange,
@@ -220,14 +253,7 @@ export class LayerRefinery extends Refinery {
             "settings.range = [" + settings.range.join(", ") + "] is invalid"
         );
         // Target region
-        let target;
-        if (settings.target === "__yes") {
-            target = this.getStateRegion("yes", settings.origin);
-        } else if (settings.target === "__no") {
-            target = this.getStateRegion("no", settings.origin);
-        } else {
-            target = this.getTransitionRegion(settings.target, settings.origin);
-        }
+        const target = this.getTransitionRegion(settings.target, settings.origin);;
         // Iteratively generate layers starting from target
         this.layers = [target];
         for (let i = 0; i <= settings.range[1]; i++) {
@@ -242,8 +268,6 @@ export class LayerRefinery extends Refinery {
         const lss = this.system.lss;
         const uu = lss.uu.scale(this.settings.scaling);
         switch (this.settings.generator) {
-            case "Attr":
-                return lss.attr(lss.xx, uu, target);
             case "PreR":
                 return lss.preR(lss.xx, uu, target);
             case "Pre":

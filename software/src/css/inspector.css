@@ -350,7 +350,10 @@ a:hover {
 }
 .div-table > div > div {
     display: table-cell;
-    padding: 2px 0 2px 0;
+    padding: 2px 0 6px 0;
+}
+.div-table > div.rowspan > div {
+    padding-bottom: 2px;
 }
 .div-table > div > div:first-child {
     padding-right: 16px;

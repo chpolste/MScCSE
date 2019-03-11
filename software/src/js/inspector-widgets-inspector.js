@@ -12,7 +12,7 @@ import type { Vector, Matrix } from "./linalg.js";
 import type { Proposition, AutomatonStateID, AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
 import type { StateRefinerySettings, StateRefineryApproximation, LayerRefinerySettings,
-              LayerRefineryGenerator, LayerRefineryTarget } from "./refinement.js";
+              LayerRefineryGenerator, OuterAttrRefinerySettings } from "./refinement.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input, OptionsInput } from "./widgets-input.js";
@@ -196,11 +196,12 @@ export class SystemInspector {
         const automatonViewCtrl = new AutomatonViewCtrl(model, systemViewCtrl, keys);
         // State tab
         const stateViewOpCtrl = new StateViewOpCtrl(model, systemViewCtrl, keys);
-        const stateRefinementCtrl = new StateRefinementCtrl(model);
+        const stateReachRefinementCtrl = new StateReachRefinementCtrl(model);
         const actionViewCtrl = new ActionViewCtrl(model);
         // System tab
         const analysisViewCtrl = new AnalysisViewCtrl(model, keys);
         const layerRefinementCtrl = new LayerRefinementCtrl(model, keys);
+        const systemReachRefinementCtrl = new SystemReachRefinementCtrl(model);
         const snapshotViewCtrl = new SnapshotViewCtrl(model);
         // Control tab
         const traceCtrl = new TraceCtrl(model);
@@ -212,12 +213,13 @@ export class SystemInspector {
         const tabs = new TabbedView();
         const stateTab = tabs.newTab("State", [
             stateViewOpCtrl,
-            stateRefinementCtrl,
+            stateReachRefinementCtrl,
             actionViewCtrl
         ]);
         const systemTab = tabs.newTab("System", [
             analysisViewCtrl,
             layerRefinementCtrl,
+            systemReachRefinementCtrl,
             snapshotViewCtrl
         ]);
         const controlTab = tabs.newTab("Control", [
@@ -504,11 +506,8 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
     refineState(state: StateID, method: string, settings: StateRefinerySettings): Promise<null> {
         return this._comm.request("refine-state", [state, method, settings]).then((data: RefineData) => {
-            if (data.states.size > 0) {
-                this.log.writeRefinement(data);
-                return this.updateStates();
-            }
-            return null;
+            this.log.writeRefinement(data);
+            return data.states.size > 0 ? this.updateStates() : null;
         }).catch((e) => {
             this.log.writeError(e);
             throw e;
@@ -517,11 +516,18 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
     refineLayer(settings: LayerRefinerySettings): Promise<null> {
         return this._comm.request("refine-layer", settings).then((data: RefineData) => {
-            if (data.states.size > 0) {
-                this.log.writeRefinement(data);
-                return this.updateStates();
-            }
-            return null;
+            this.log.writeRefinement(data);
+            return data.states.size > 0 ? this.updateStates() : null;
+        }).catch((e) => {
+            this.log.writeError(e);
+            throw e;
+        });
+    }
+
+    refineOuterAttr(settings: OuterAttrRefinerySettings): Promise<null> {
+        return this._comm.request("refine-outer-attr", settings).then((data: RefineData) => {
+            this.log.writeRefinement(data);
+            return data.states.size > 0 ? this.updateStates() : null;
         }).catch((e) => {
             this.log.writeError(e);
             throw e;
@@ -1165,7 +1171,7 @@ class WidgetPlus implements TabWidget {
 
 // Tab: Game
 // - StateViewOpCtrl
-// - StateRefinementCtrl
+// - StateReachRefinementCtrl
 // - ActionViewCtrl
 
 class StateViewOpCtrl extends WidgetPlus {
@@ -1193,8 +1199,8 @@ class StateViewOpCtrl extends WidgetPlus {
         // Assemble
         this.node = dom.DIV({ "id": "state-view" }, [
             dom.DIV({ "class": "div-table" }, [
-                dom.DIV({}, [dom.DIV({}, ["State:"]), this._lines[0]]),
-                dom.DIV({}, [dom.DIV({}, ["Analysis:"]), this._lines[1]]),
+                dom.DIV({ "class": "rowspan" }, [dom.DIV({}, ["State:"]), this._lines[0]]),
+                dom.DIV({ "class": "rowspan" }, [dom.DIV({}, ["Analysis:"]), this._lines[1]]),
                 dom.DIV({}, [dom.DIV({}, ["Predicates:"]), this._lines[2]])
             ]),
             dom.P({ "class": "highlight" }, [operator.node])
@@ -1245,7 +1251,7 @@ class StateViewOpCtrl extends WidgetPlus {
 }
 
 
-class StateRefinementCtrl extends WidgetPlus {
+class StateReachRefinementCtrl extends WidgetPlus {
 
     +_model: SystemModel;
     +_negAttr: HTMLButtonElement;
@@ -1253,17 +1259,17 @@ class StateRefinementCtrl extends WidgetPlus {
     +_approximation: Input<StateRefineryApproximation>;
 
     constructor(model: SystemModel): void {
-        super("State Refinement", "info-state-refinement");
+        super("Reachability Refinement", "info-state-reach-refinement");
         this._model = model;
         this._model.attach((mc) => this.handleModelChange(mc));
         this._negAttr = dom.createButton({}, ["Attr-"], () => this.refine("Attr-"));
         this._posAttrR = dom.createButton({}, ["AttrR+"], () => this.refine("AttrR+"));
         this._approximation = new DropdownInput({
             "no approximation": "none",
-            "convex hull": "hull"
+            "hull approximation": "hull"
         }, "no approximation");
         this.node = dom.DIV({}, [
-            dom.P({}, [this._negAttr, " ", this._posAttrR, " :: ", this._approximation.node])
+            dom.P({}, [this._negAttr, " ", this._posAttrR, " with ", this._approximation.node])
         ]);
     }
 
@@ -1541,7 +1547,7 @@ class LayerRefinementCtrl extends WidgetPlus {
     +_model: SystemModel;
     // Form elements
     +_origin: OptionsInput<AutomatonStateID>;
-    +_target: OptionsInput<LayerRefineryTarget>;
+    +_target: OptionsInput<AutomatonStateID>;
     +_generator: OptionsInput<LayerRefineryGenerator>;
     +_scale: OptionsInput<number>;
     +_rangeStart: OptionsInput<number>;
@@ -1556,19 +1562,10 @@ class LayerRefinementCtrl extends WidgetPlus {
         // Origin and target automaton state selection
         const automaton = model.objective.automaton;
         const qAllObj = obj.fromMap(_ => _, model.qAll)
-        this._origin = new RadioInput(
-            qAllObj,
-            automaton.initialState.label,
-            automatonLabel
-        );
-        this._target = new RadioInput(
-            obj.merge(qAllObj, { "yes": "__yes", "no": "__no" }),
-            automaton.initialState.label,
-            (_) => _.startsWith("__") ? _ : automatonLabel(_)
-        );
+        this._origin = new RadioInput(qAllObj, automaton.initialState.label, automatonLabel);
+        this._target = new RadioInput(qAllObj, automaton.initialState.label, automatonLabel);
         // Layer generating function
         this._generator = new DropdownInput({
-            "Attractor": "Attr",
             "Predecessor": "Pre",
             "Robust Predecessor": "PreR",
         }, "Robust Predecessor");
@@ -1578,22 +1575,18 @@ class LayerRefinementCtrl extends WidgetPlus {
         this._iterations = new DropdownInput(DropdownInput.rangeOptions(0, 10, 1), "2");
         this._dontRefineSmall = new CheckboxInput(true, "don't refine small polytopes");
         // Assemble
-        this._button = dom.createButton({}, ["refine system"], () => this.refine())
+        this._button = dom.createButton({}, ["refine"], () => this.refine())
         this.node = dom.DIV({"id": "layer-refinement-ctrl" }, [
             dom.DIV({ "class": "div-table" }, [
                 dom.DIV({}, [
                     dom.DIV({}, ["Origin:"]),
-                    dom.DIV({}, [
-                        dom.P({}, [this._origin.node])
-                    ])
+                    dom.DIV({}, [this._origin.node])
                 ]),
                 dom.DIV({}, [
                     dom.DIV({}, ["Target:"]),
-                    dom.DIV({}, [
-                        dom.P({}, [this._target.node])
-                    ]),
+                    dom.DIV({}, [this._target.node])
                 ]),
-                dom.DIV({}, [
+                dom.DIV({ "class": "rowspan" }, [
                     dom.DIV({}, ["Layers:"]),
                     dom.DIV({}, [this._rangeStart.node, " to ", this._rangeEnd.node, " of ", this._generator.node])
                 ]),
@@ -1601,12 +1594,12 @@ class LayerRefinementCtrl extends WidgetPlus {
                     dom.DIV(),
                     dom.DIV({}, ["scale generating ", dom.renderTeX("U", dom.SPAN()), " to ", this._scale.node, "%"])
                 ]),
-                dom.DIV({}, [
+                dom.DIV({ "class": "rowspan" }, [
                     dom.DIV({}, ["Inner:"]),
-                    dom.DIV({}, [this._iterations.node, " iteration(s)"]),
+                    dom.DIV({}, [this._iterations.node, " iteration(s) of AttrR+ refinement"]),
                 ]),
                 dom.DIV({}, [
-                    dom.DIV({}, [" "]),
+                    dom.DIV(),
                     dom.DIV({}, [this._dontRefineSmall.node])
                 ])
             ]),
@@ -1644,6 +1637,40 @@ class LayerRefinementCtrl extends WidgetPlus {
         const upper = this._rangeEnd.value;
         const init = String(Math.max(lower, upper));
         this._rangeEnd.setOptions(DropdownInput.rangeOptions(lower, 10, 1), init);
+    }
+
+}
+
+
+class SystemReachRefinementCtrl extends WidgetPlus {
+
+    +_model: SystemModel;
+    +_origin: Input<AutomatonStateID>;
+    +_outerAttr: HTMLButtonElement;
+    +_outerAttrIterations: OptionsInput<number>;
+
+    constructor(model: SystemModel): void {
+        super("Reachability Refinement", "info-system-reach-refinement");
+        this._model = model;
+        // Negative Attractor
+        this._outerAttr = dom.createButton({}, ["Outer Attr"], () => this.refineOuterAttr());
+        this._outerAttrIterations = new DropdownInput(DropdownInput.rangeOptions(1, 10, 1), "5");
+        // TODO: Positive Static Control
+        // Assemble
+        this.node = dom.DIV({}, [
+            dom.P({}, [this._outerAttr, " with ", this._outerAttrIterations.node, " iteration(s)"])
+        ]);
+    }
+
+    refineOuterAttr(): void {
+        this.pushLoad();
+        this._model.refineOuterAttr({
+            iterations: this._outerAttrIterations.value
+        }).catch(() => {
+            // Error logging is done in SystemModel
+        }).finally(() => {
+            this.popLoad();
+        });
     }
 
 }

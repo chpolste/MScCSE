@@ -5,7 +5,7 @@ import type { JSONTrace } from "./controller.js";
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
 import type { JSONObjective, AutomatonStateID } from "./logic.js";
-import type { StateRefinerySettings, LayerRefinerySettings } from "./refinement.js";
+import type { StateRefinerySettings, LayerRefinerySettings, OuterAttrRefinerySettings } from "./refinement.js";
 import type { StateID, ActionID, SupportID, PredicateID, LSS, State,
               JSONAbstractedLSS } from "./system.js";
 
@@ -13,7 +13,7 @@ import { Controller, Trace } from "./controller.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Polytope, Union } from "./geometry.js";
 import { Objective } from "./logic.js";
-import { StateRefinery, LayerRefinery } from "./refinement.js";
+import { StateRefinery, LayerRefinery, OuterAttrRefinery } from "./refinement.js";
 import { SnapshotTree } from "./snapshot.js";
 import { AbstractedLSS } from "./system.js";
 import { just, iter, sets, obj } from "./tools.js";
@@ -145,6 +145,19 @@ class SystemManager {
             "Refinement requires an analysed system" // TODO: analysis generally not required for layer-based refinement
         );
         const refinery = new LayerRefinery(this.system, this.objective, analysis, settings)
+        const refinementMap = this.system.refine(refinery.partitionAll(this.system.states.values()));
+        // Update analysis results
+        analysis.remap(refinementMap);
+        // Return set of states that were refined
+        return new Set(refinementMap.keys());
+    }
+
+    refineOuterAttr(settings: OuterAttrRefinerySettings): Set<State> {
+        const analysis = this.analysis;
+        if (analysis == null) throw new Error(
+            "Refinement requires an analysed system" // TODO: analysis generally not required for outer attr refinement
+        );
+        const refinery = new OuterAttrRefinery(this.system, this.objective, analysis, settings)
         const refinementMap = this.system.refine(refinery.partitionAll(this.system.states.values()));
         // Update analysis results
         analysis.remap(refinementMap);
@@ -358,7 +371,17 @@ inspector.onRequest("refine-layer", function (settings: RefineLayerRequest): Ref
         states: states
     };
 });
-
+// System-wide reachability-based
+export type RefineOuterAttrRequest = OuterAttrRefinerySettings;
+inspector.onRequest("refine-outer-attr", function (settings: RefineOuterAttrRequest): RefineData {
+    const t0 = performance.now();
+    const states = sets.map(_ => _.label, $.refineOuterAttr(settings));
+    const t1 = performance.now();
+    return {
+        elapsed: (t1 - t0),
+        states: states
+    };
+});
 
 export type SnapshotsRequest = null;
 export type SnapshotData = {

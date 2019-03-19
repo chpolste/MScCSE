@@ -728,11 +728,14 @@ class SystemViewCtrl {
         if (op != null && x != null) {
             const p = Polytope.deserialize(x.polytope);
             let region = Polytope.ofDim(lss.dim).empty();
-            // Posterior adapts to action selection
-            if (op === "post" && !x.isOuter) {
-                const act = this._model.action;
-                const u = (act == null) ? lss.uu : Union.deserialize(act.controls);
-                region = lss.post(p, u);
+            // Posterior adapts to action selection and is only drawn for inner
+            // states where it makes sense
+            if (op === "post") {
+                if (!x.isOuter) {
+                    const act = this._model.action;
+                    const u = (act == null) ? lss.uu : Union.deserialize(act.controls);
+                    region = lss.post(p, u);
+                }
             // Other operators always use the entire control space
             } else if (op === "pre") {
                 region = lss.pre(lss.xx, lss.uu, p);
@@ -1337,8 +1340,11 @@ class ActionViewCtrl extends WidgetPlus {
         // somewhere other than itself
         if (mc === "state") {
             const [x, q] = this._model.state;
-            if (x != null && this._model.transitionTo(x, q) != null
-                          && analysisKind(q, x.analysis) !== "unreachable") {
+            if (x == null || x.isOuter
+                          || this._model.transitionTo(x, q) == null
+                          || analysisKind(q, x.analysis) === "unreachable") {
+                dom.replaceChildren(this.node, ["-"]);
+            } else {
                 this.pushLoad();
                 // Clear displayed actions
                 dom.replaceChildren(this.node, []);
@@ -1353,8 +1359,6 @@ class ActionViewCtrl extends WidgetPlus {
                 }).finally(() => {
                     this.popLoad();
                 });
-            } else {
-                dom.replaceChildren(this.node, ["-"]);
             }
             this._action = null;
             this._model.action = null;

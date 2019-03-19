@@ -486,7 +486,9 @@ class SystemModel extends ObservableMixin<ModelChange> {
     analyse(): Promise<null> {
         return this._comm.request("analyse", null).then((data: AnalysisData) => {
             this.log.writeAnalysis(data);
-            // ...
+            // Automatically take a snapshot after an analysis (TODO: only if there was change)
+            return this.takeSnapshot("After Analysis");
+        }).then((data) => {
             return this.updateStates();
         }).catch((e) => {
             this.log.writeError(e);

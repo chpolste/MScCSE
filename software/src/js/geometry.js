@@ -321,6 +321,7 @@ export class Polytope {
 
     // Axis-aligned minimum bounding box
     get boundingBox(): Polytope {
+        if (this.isEmpty) return this;
         let bbox = cartesian(...this.extent);
         return this.constructor.hull(bbox);
     }
@@ -1036,16 +1037,21 @@ export class Union {
 
 
     get boundingBox(): Polytope {
+        if (this.isEmpty) return this;
         return Polytope.ofDim(this.dim).hull(cartesian(...this.extent));
     }
 
     get extent(): [number, number][] {
+        // Empty Polytope has extent [Infinity, -Infinity], copy this behaviour
+        const init = new Array(this.dim);
+        init.fill([Infinity, -Infinity]);
+        // Find largest extent in each dimension
         return this.polytopes.map(_ => _.extent).reduce((ext, cur) => {
             return arr.zip2map((a, b) => [
                 a[0] < b[0] ? a[0] : b[0],
                 a[1] < b[1] ? b[1] : a[1]
             ], ext, cur);
-        });
+        }, init);
     }
 
     get isDisjunct(): boolean {
@@ -1183,9 +1189,8 @@ export class Union {
     }
 
     simplify(): Region {
-        if (this.polytopes.length === 1) {
-            return this.polytopes[0];
-        }
+        if (this.isEmpty) return this;
+        if (this.polytopes.length === 1) return this.polytopes[0];
         const hull = this.hull();
         const rest = hull.remove(this);
         if (rest.isEmpty) {

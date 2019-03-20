@@ -924,6 +924,13 @@ describe("geometry.Union", function () {
         assert(Union.from([p2, p1]).boundingBox.isSameAs(bbox));
     });
 
+    it("boundingBox of empty Union returns empty", function () {
+        assert(pe.toUnion().boundingBox.isEmpty);
+        assert(pe.toUnion().boundingBox.isEmpty);
+        assert(Union.from([], 1).boundingBox.isEmpty);
+        assert(Union.from([], 2).boundingBox.isEmpty);
+    });
+
     it("extent", function () {
         assert.deepEqual(p1.toUnion().extent, [[0, 1], [0, 1]]);
         assert.deepEqual(p2.toUnion().extent, [[0, 2], [0, 1]]);

@@ -121,7 +121,7 @@ export class LSS {
             const Bupws = linalg.minkowski.axpy(this.B, u.vertices, wvs);
             posts.push(Polytope.ofDim(this.dim).hull(linalg.minkowski.axpy(this.A, xvs, Bupws)));
         }
-        return Union.from(posts).disjunctify();
+        return Union.from(posts, this.dim).disjunctify();
     }
 
     // Predecessor: Pre(x, {u0, ...}, {y0, ...})
@@ -134,7 +134,7 @@ export class LSS {
                 pres.push(x.intersect(pre.applyRight(this.A)));
             }
         }
-        return Union.from(pres).disjunctify();
+        return Union.from(pres, this.dim).disjunctify();
     }
 
     // Robust Predecessor: PreR(x, {u0, ...}, {y0, ...})
@@ -151,7 +151,7 @@ export class LSS {
                 prers.push(x.intersect(poly.applyRight(this.A)));
             }
         }
-        return Union.from(prers).disjunctify();
+        return Union.from(prers, this.dim).disjunctify();
     }
 
     // Attractor: Attr(x, {u0, ...}, {y0, ...})
@@ -387,19 +387,19 @@ export class AbstractedLSS implements GameGraph {
     }
 
     pre(x: State, us: Region, ys: State[]): Region {
-        return this.lss.pre(x.polytope, us, Union.from(ys.map(y => y.polytope)));
+        return this.lss.pre(x.polytope, us, Union.from(ys.map(y => y.polytope), this.lss.dim));
     }
 
     preR(x: State, us: Region, ys: State[]): Region {
-        return this.lss.preR(x.polytope, us, Union.from(ys.map(y => y.polytope)));
+        return this.lss.preR(x.polytope, us, Union.from(ys.map(y => y.polytope), this.lss.dim));
     }
 
     attr(x: State, us: Region, ys: State[]): Region {
-        return this.lss.attr(x.polytope, us, Union.from(ys.map(y => y.polytope)));
+        return this.lss.attr(x.polytope, us, Union.from(ys.map(y => y.polytope), this.lss.dim));
     }
 
     attrR(x: State, us: Region, ys: State[]): Region {
-        return this.lss.attrR(x.polytope, us, Union.from(ys.map(y => y.polytope)));
+        return this.lss.attrR(x.polytope, us, Union.from(ys.map(y => y.polytope), this.lss.dim));
     }
 
     act(x: State, y: State): Region {
@@ -411,11 +411,11 @@ export class AbstractedLSS implements GameGraph {
     }
 
     zNonZero(xs: State[]): Region {
-        return this.lss.zNonZero(Union.from(xs.map(x => x.polytope)));
+        return this.lss.zNonZero(Union.from(xs.map(x => x.polytope), this.lss.dim));
     }
 
     zOne(xs: State[]): Region {
-        return this.lss.zOne(Union.from(xs.map(x => x.polytope)));
+        return this.lss.zOne(Union.from(xs.map(x => x.polytope), this.lss.dim));
     }
 
     /* GameGraph Interface */

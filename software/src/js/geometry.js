@@ -1025,11 +1025,11 @@ export class Union {
         return new Union(dim, [], true);
     }
 
-    static from(polytopes: Polytope[]): Union {
-        if (polytopes.length < 1) throw new ValueError(
-            "Unable to determine dimension from empty set of polytopes"
+    static from(polytopes: Polytope[], fallbackDim?: number): Union {
+        const dim = polytopes.length > 0 ? polytopes[0].dim : fallbackDim;
+        if (dim == null) throw new ValueError(
+            "Unable to determine dimension from empty set of polytopes (no fallback provided)"
         );
-        const dim = polytopes[0].dim;
         polytopes.forEach(_ => linalg.assertEqualDims(_.dim, dim));
         return new Union(dim, polytopes, null);
     }

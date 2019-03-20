@@ -787,8 +787,12 @@ class SystemViewCtrl {
     drawVectors(): void {
         const shapes = [];
         if (this._showVectors) {
-            const fun = (x) => linalg.apply(this._model.lss.A, x);
-            shapes.push({ kind: "vectorField", fun: fun, n: [12, 12] });
+            shapes.push({
+                kind: "vectorField",
+                fun: (x) => linalg.apply(this._model.lss.A, x),
+                scaling: 0.25,
+                n: [12, 12]
+            });
         }
         this._layers.vectorField.shapes = shapes;
     }

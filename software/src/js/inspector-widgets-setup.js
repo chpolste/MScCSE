@@ -1,21 +1,22 @@
 // @flow
 "use strict";
 
-import type { Proposition, ObjectiveKind } from "./logic.js";
 import type { FigureLayer } from "./figure.js";
+import type { Proposition, ObjectiveKind } from "./logic.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
 
-import * as presets from "./presets.js";
 import * as dom from "./dom.js";
-import { iter, ObservableMixin } from "./tools.js";
-import { Halfspace, Polytope, Union } from "./geometry.js";
-import { Objective, OnePairStreettAutomaton, AtomicProposition, parseProposition, traverseProposition } from "./logic.js";
 import { Figure, autoProjection } from "./figure.js";
-import { AxesPlot } from "./widgets-plot.js";
-import { ValidationError, CheckboxInput, DropdownInput, MultiLineInput, MatrixInput, LineInput } from "./widgets-input.js";
-import { LSS, AbstractedLSS } from "./system.js";
+import { Halfspace, Polytope, Union } from "./geometry.js";
 import { VAR_NAMES, COLORS } from "./inspector-widgets-inspector.js";
+import * as linalg from "./linalg.js";
+import { Objective, OnePairStreettAutomaton, AtomicProposition, parseProposition, traverseProposition } from "./logic.js";
+import * as presets from "./presets.js";
+import { LSS, AbstractedLSS } from "./system.js";
+import { iter, ObservableMixin } from "./tools.js";
+import { ValidationError, CheckboxInput, DropdownInput, MultiLineInput, MatrixInput, LineInput } from "./widgets-input.js";
+import { AxesPlot } from "./widgets-plot.js";
 
 
 /* Session Management
@@ -109,7 +110,7 @@ export class ProblemSetup extends ObservableMixin<null> {
         this.cs = new PolytopeInput(this.csDim, false);
         this.predicates = new PredicatesInput(this.ssDim);
         this.objective = new ObjectiveInput(this.predicates);
-        this.preview = new SystemPreview(this, this.objective.terms);
+        this.preview = new SystemPreview(this, this.equation, this.objective.terms);
 
         const columns = dom.DIV({ "id": "inspector" }, [
             dom.DIV({ "class": "left" }, [
@@ -150,11 +151,11 @@ export class ProblemSetup extends ObservableMixin<null> {
                 this.submit();
             }
         });
-        this.analyseWhenReady = new CheckboxInput(true, "analyse at startup");
+        this.analyseWhenReady = new CheckboxInput(true, "Analyse at startup");
         this.node = dom.FORM({}, [
             dom.H3({}, ["Dimensions"]),
-            dom.P({}, [this.ssDim.node, " state space"]),
-            dom.P({}, [this.csDim.node, " control space"]),
+            dom.P({}, [this.ssDim.node, " State Space"]),
+            dom.P({}, [this.csDim.node, " Control Space"]),
             dom.H3({}, ["Evolution Equation"]), this.equation.node,
             columns,
             dom.H3({}, ["Continue"]),
@@ -213,26 +214,30 @@ class SystemPreview {
 
     +node: HTMLDivElement;
     +setup: ProblemSetup;
+    +equation: EvolutionEquationInput;
     +terms: ObjectiveTermsInput;
     +plot: Plot;
     +layers: { [string]: FigureLayer };
     // Cache the last drawn system for easier proposition preview
     _system: ?AbstractedLSS;
 
-    constructor(setup: ProblemSetup, terms: ObjectiveTermsInput): void {
+    constructor(setup: ProblemSetup, equation: EvolutionEquationInput, terms: ObjectiveTermsInput): void {
         this.setup = setup;
+        this.equation = equation;
         this.terms = terms;
         this._system = null;
         let fig = new Figure();
         this.plot = new AxesPlot([660, 500], fig, autoProjection(660/500));
         this.layers = {
-            objective: fig.newLayer({ "stroke": COLORS.stateRegion, "fill": COLORS.stateRegion }),
-            state:     fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill-opacity": "0" }),
-            outer:     fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": COLORS.no })
+            objective:   fig.newLayer({ "stroke": COLORS.stateRegion, "fill": COLORS.stateRegion }),
+            state:       fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill-opacity": "0" }),
+            outer:       fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": COLORS.no }),
+            vectorField: fig.newLayer({ "stroke": COLORS.vectorField, "stroke-width": "1", "fill": COLORS.vectorField })
         };
         this.node = dom.DIV({ "class": "plot" }, [this.plot.node]);
         // Initialize and keep system preview updated
         this.setup.attach(() => this.drawSystem(), true);
+        this.equation.showVectorField.attach(() => this.drawVectorField(), true);
         this.terms.attach(() => this.drawObjectiveTerm(), true);
     }
 
@@ -255,17 +260,36 @@ class SystemPreview {
         // space polytope and mark outer states
         } else if (this.setup.lssIsValid) {
             const lss = this.setup.lss;
-            this.plot.projection = autoProjection(6/5, ...lss.extent);
+            this.plot.projection = autoProjection(660/500, ...lss.extent);
             stateShapes.push({ kind: "polytope", vertices: lss.xx.vertices });
             outerShapes.push(...lss.oneStepReachable.remove(lss.xx).polytopes.map(
                 poly => ({ kind: "polytope", vertices: poly.vertices })
             ));
         // Form is not filled out sufficiently to preview a system
         } else {
-            this.plot.projection = autoProjection(6/5);
+            this.plot.projection = autoProjection(660/500);
         }
         this.layers.state.shapes = stateShapes;
         this.layers.outer.shapes = outerShapes;
+        // Update vector field here instead of by attaching to changes in
+        // this.equation.A directly because on dimension change A updates
+        // before the entire setup and the projection will not have updated in
+        // time, rejecting the now differently shaped A
+        this.drawVectorField();
+    }
+
+    drawVectorField(): void {
+        const shapes = [];
+        if (this.equation.showVectorField.value && this.equation.A.isValid) {
+            const A = this.equation.A.value;
+            shapes.push({
+                kind: "vectorField",
+                fun: (x) => linalg.apply(A, x),
+                scaling: 0.25,
+                n: [15, 15],
+            });
+        }
+        this.layers.vectorField.shapes = shapes;
     }
 
     drawObjectiveTerm(): void {
@@ -290,11 +314,12 @@ class SystemPreview {
 // Recognize non-NaN numeric entries.
 class EvolutionEquationInput {
 
-    +node: HTMLParagraphElement;
+    +node: HTMLDivElement;
     +ssDim: Input<number>;
     +csDim: Input<number>;
     +A: MatrixInput<number>;
     +B: MatrixInput<number>;
+    +showVectorField: Input<boolean>;
     +isValid: boolean;
 
     constructor(ssDim: Input<number>, csDim: Input<number>) {
@@ -302,12 +327,17 @@ class EvolutionEquationInput {
         this.csDim = csDim;
         this.A = new MatrixInput(EvolutionEquationInput.parseNumber, [2, 2], 5);
         this.B = new MatrixInput(EvolutionEquationInput.parseNumber, [2, 2], 5);
-        this.node = dom.P({}, [
-            dom.renderTeX("x_{t+1} =", dom.SPAN()),
-            this.A.node,
-            dom.renderTeX("x_t +", dom.SPAN()),
-            this.B.node,
-            dom.renderTeX("u_t + w_t", dom.SPAN())
+        this.showVectorField = new CheckboxInput(false, "Show Vector Field");
+        this.showVectorField.node.title = "scaling: x0.25";
+        this.node = dom.DIV({}, [
+            dom.P({}, [
+                dom.renderTeX("x_{t+1} =", dom.SPAN()),
+                this.A.node,
+                dom.renderTeX("x_t +", dom.SPAN()),
+                this.B.node,
+                dom.renderTeX("u_t + w_t", dom.SPAN())
+            ]),
+            dom.P({}, [this.showVectorField.node])
         ]);
         ssDim.attach(() => {
             this.A.shape = [ssDim.value, ssDim.value];
@@ -488,7 +518,7 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
     constructor(predicates: Input<[Halfspace[], string[]]>): void {
         super();
         this.kind = new DropdownInput(presets.objectives, "Reachability");
-        this.coSafe = new CheckboxInput(false, "co-safe interpretation");
+        this.coSafe = new CheckboxInput(false, "Co-safe Interpretation");
         this.coSafeLine = dom.P();
         this.terms = new ObjectiveTermsInput(this.kind, predicates);
         this.formula = dom.SPAN();

@@ -14,7 +14,7 @@ export type Shape = ({ kind: "polytope", vertices: Point[] } & ShapeExt)
                   | ({ kind: "marker", coords: Point, size: number } & ShapeExt)
                   | ({ kind: "label", coords: Point, text: string } & ShapeExt)
                   | ({ kind: "halfspace", normal: Point, offset: number } & ShapeExt)
-                  | ({ kind: "vectorField", fun: (Point) => Point, n?: number[] } & ShapeExt)
+                  | ({ kind: "vectorField", fun: (Point) => Point, scaling?: number, n?: number[] } & ShapeExt)
                   | ({ kind: "state", coords: Point, member: string } & ShapeExt)
                   | ({ kind: "transition", origin: Point, target: Point } & ShapeExt)
                   | ({ kind: "transitionLabel", origin: Point, target: Point, text: string } & ShapeExt)
@@ -215,12 +215,16 @@ export class Cartesian2D implements Projection {
             });
         // Vector fields are displayed as arrows and sampled using linearTicks
         } else if (shape.kind === "vectorField") {
+            const s = shape.scaling == null ? 1 : shape.scaling;
             for (let x of linearTicks(this.minX, this.maxX, shape.n == null ? 10 : shape.n[0])) {
                 for (let y of linearTicks(this.minY, this.maxY, shape.n == null ? 10 : shape.n[1])) {
+                    // Scaling should happen in figure space
+                    const o = this.fwd([x, y]);
+                    const t = this.fwd(shape.fun([x, y]));
                     primitives.push({
                         kind: "arrow",
-                        origin: this.fwd([x, y]),
-                        target: this.fwd(shape.fun([x, y]))
+                        origin: o,
+                        target: linalg.add(o, linalg.sub(t, o).map(_ => s * _))
                     });
                 }
             }
@@ -361,11 +365,15 @@ export class Horizontal1D implements Projection {
             }
         // Vector fields are displayed with arrows
         } else if (shape.kind === "vectorField") {
+            const s = shape.scaling == null ? 1 : shape.scaling;
             for (let x of linearTicks(this.minX, this.maxX, shape.n == null ? 10 : shape.n[0])) {
+                // Scaling should happen in figure space
+                const o = this.fwd([x]);
+                const t = this.fwd(shape.fun([x]));
                 primitives.push({
                     kind: "arrow",
-                    origin: this.fwd([x]),
-                    target: this.fwd(shape.fun([x]))
+                    origin: o,
+                    target: linalg.add(o, linalg.sub(t, o).map(_ => s * _))
                 });
             }
         // Automata are not implemented for 1D Projection

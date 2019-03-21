@@ -9,7 +9,7 @@ import { AbstractedLSS } from "./system.js";
 import { just } from "./tools.js";
 
 
-type Snapshot = {
+export type Snapshot = {
     name: string,
     system: JSONAbstractedLSS,
     analysis: ?JSONAnalysisResults

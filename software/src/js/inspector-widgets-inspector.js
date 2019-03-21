@@ -125,6 +125,11 @@ function percentageBar(xs: { [string]: number }, omit?: string[]): HTMLDivElemen
     return bar;
 }
 
+// Counts with the associated word in the singular/plural
+function pluralize(n: number, word: string): string {
+    return n + " " + word + (n === 1 ? "" : "s");
+}
+
 
 
 export class ProblemSummary {
@@ -292,6 +297,8 @@ class SystemModel extends ObservableMixin<ModelChange> {
     // Caches
     states: StatesData;
     _actions: Map<StateID, ActionData[]>;
+    // Automatic snapshot numbering
+    _autoSnapID: number;
     // Selections (application state)
     _xState: ?StateData;
     _qState: AutomatonStateID;
@@ -338,6 +345,8 @@ class SystemModel extends ObservableMixin<ModelChange> {
         // Initialize data caches
         this.states = new Map();
         this._actions = new Map();
+        // Start counting from 1
+        this._autoSnapID = 1;
         // Initialize selections
         this._xState = null;
         this._qState = objective.automaton.initialState.label;
@@ -487,7 +496,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
         return this._comm.request("analyse", null).then((data: AnalysisData) => {
             this.log.writeAnalysis(data);
             // Automatically take a snapshot after an analysis (TODO: only if there was change)
-            return this.takeSnapshot("After Analysis");
+            return this.takeSnapshot("Automatic Snapshot " + (this._autoSnapID++));
         }).then((data) => {
             return this.updateStates();
         }).catch((e) => {
@@ -522,7 +531,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
                 "Layers " + settings.range[0] +  "-" + settings.range[1] + " of "
                           + n2s(settings.scaling * 100, 0) + "% " + settings.generator,
                 settings.origin + " → " + settings.target,
-                settings.iterations + " iterations"
+                pluralize(settings.iterations, "iteration")
             ], data);
             return data.removed.length > 0 ? this.updateStates() : null;
         }).catch((e) => {
@@ -533,7 +542,10 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
     refineOuterAttr(settings: OuterAttrRefinerySettings): Promise<null> {
         return this._comm.request("refine-outer-attr", settings).then((data: RefineData) => {
-            this.log.writeRefinement(["Outer Attr", settings.iterations + " iterations"], data);
+            this.log.writeRefinement([
+                "Outer Attr",
+                pluralize(settings.iterations, "iteration")
+            ], data);
             return data.removed.length > 0 ? this.updateStates() : null;
         }).catch((e) => {
             this.log.writeError(e);
@@ -567,6 +579,10 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
     loadSnapshot(id: number): Promise<null> {
         return this._comm.request("load-snapshot", id).then((data) => {
+            this.log.write(
+                ["Snapshot"],
+                "Loaded snapshot '" + data.name + "' with " + pluralize(data.states, "state") + "."
+            );
             this.notify("snapshot");
             return this.updateStates();
         }).catch((e) => {
@@ -1525,7 +1541,7 @@ class AnalysisViewCtrl extends WidgetPlus{
         );
         dom.replaceChildren(this._info, [
             automatonLabel(q), " :: ",
-            ...arr.intersperse(" + ", nodes), " = ", totalCount + " states"
+            ...arr.intersperse(" + ", nodes), " = ", pluralize(totalCount, "state")
         ]);
         const bar = percentageBar(volume);
         this.node.replaceChild(bar, this._bar);
@@ -1738,10 +1754,10 @@ class SnapshotViewCtrl extends WidgetPlus {
     }
 
     loadSnapshot(): void {
-        const selection = this._selection;
-        if (selection != null) {
+        const id = this._selection;
+        if (id != null) {
             this.pushLoad();
-            this._model.loadSnapshot(selection).catch((e) => {
+            this._model.loadSnapshot(id).catch((e) => {
                 // Error logging is done in SystemModel
             }).finally(() => {
                 this.popLoad();
@@ -1798,7 +1814,7 @@ class SnapshotViewCtrl extends WidgetPlus {
                            + (snapshot.id === this._selection ? " selection" : "");
         const node = dom.DIV({ "class": cls }, [
             snapshot.name,
-            dom.SPAN({}, [snapshot.states + " states"])
+            dom.SPAN({}, [pluralize(snapshot.states, "state")])
         ]);
         node.addEventListener("click", () => this._select(snapshot.id));
         nodes.push(node);
@@ -2020,6 +2036,7 @@ class Logger extends ObservableMixin<boolean> implements TabWidget {
         this._filters = {
             analysis: new CheckboxInput(true, "Analysis"),
             refinement: new CheckboxInput(true, "Refinement"),
+            snapshot: new CheckboxInput(true, "Snapshot"),
             error: new CheckboxInput(true, "Error")
         };
         obj.forEach((_, input) => input.attach(() => this.handleFilterChange()), this._filters);
@@ -2028,6 +2045,7 @@ class Logger extends ObservableMixin<boolean> implements TabWidget {
             dom.P({ "class": "log-filter" }, [
                 this._filters.analysis.node,
                 this._filters.refinement.node,
+                this._filters.snapshot.node,
                 this._filters.error.node
             ]),
             this._entries
@@ -2068,10 +2086,10 @@ class Logger extends ObservableMixin<boolean> implements TabWidget {
     writeRefinement(params: string[], data: RefineData): void {
         this._write(["Refinement", ...params], dom.DIV({}, [
             "Removed ", dom.SPAN({ "title": data.removed.join(", ") }, [
-                data.removed.length + " " + (data.removed.length === 1 ? "state" : "states")
+                pluralize(data.removed.length, "state")
             ]), ".", dom.create("br"),
             "Created ", dom.SPAN({ "title": data.created.join(", ") }, [
-                data.created.length + " " + (data.created.length === 1 ? "state" : "states")
+                pluralize(data.created.length, "state")
             ]), ".", dom.create("br"),
             "Elapsed time: " + t2s(data.elapsed) + "."
         ]));
@@ -2080,8 +2098,8 @@ class Logger extends ObservableMixin<boolean> implements TabWidget {
     handleFilterChange(): void {
         let cls = "log-entries";
         for (let kind in this._filters) {
-            if (this._filters[kind].value) {
-                cls += " show-" + kind;
+            if (!this._filters[kind].value) {
+                cls += " hide-" + kind;
             }
         }
         this._entries.className = cls;

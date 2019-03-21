@@ -503,10 +503,13 @@ span.unreachable {
 }
 #logger .log-entries > div {
     margin: 0 0 8px 0;
-    display: none;
-}
-#logger .show-analysis .log-analysis, #logger .show-error .log-error, #logger .show-refinement .log-refinement {
     display: block;
+}
+#logger .hide-analysis .log-analysis,
+#logger .hide-error .log-error,
+#logger .hide-refinement .log-refinement,
+#logger .hide-snapshot .log-snapshot {
+    display: none;
 }
 #logger .log-heading {
     font-size: 0.8em;

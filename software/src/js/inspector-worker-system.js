@@ -6,6 +6,7 @@ import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
 import type { JSONObjective, AutomatonStateID } from "./logic.js";
 import type { StateRefinerySettings, LayerRefinerySettings, OuterAttrRefinerySettings } from "./refinement.js";
+import type { Snapshot } from "./snapshot.js";
 import type { StateID, ActionID, SupportID, PredicateID, LSS, State, RefinementMap,
               JSONAbstractedLSS } from "./system.js";
 
@@ -95,10 +96,11 @@ class SystemManager {
         this._snapshots.take(name, this.system, this.analysis, true);
     }
 
-    loadSnapshot(id: number): void {
+    loadSnapshot(id: number): Snapshot {
         this._snapshots.select(id);
         this._system = this._snapshots.getSystem();
         this._analysis = this._snapshots.getAnalysis();
+        return this._snapshots.getSnapshot();
     }
 
     nameSnapshot(id: number, name: string): void {
@@ -406,10 +408,16 @@ inspector.onRequest("take-snapshot", function (data: TakeSnapshotRequest): TakeS
 });
 
 export type LoadSnapshotRequest = number;
-export type LoadSnapshotData = null;
+export type LoadSnapshotData = {
+    name: string,
+    states: number
+};
 inspector.onRequest("load-snapshot", function (data: LoadSnapshotRequest): LoadSnapshotData {
-    $.loadSnapshot(data);
-    return null;
+    const snap = $.loadSnapshot(data);
+    return {
+        name: snap.name,
+        states: snap.system.states.filter(_ => !_.isOuter).length
+    };
 });
 
 export type NameSnapshotRequest = [number, string];

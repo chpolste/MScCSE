@@ -498,7 +498,7 @@ span.unreachable {
 }
 
 #logger .log-entries {
-    max-height: 400px;
+    max-height: 450px;
     overflow-y: auto;
 }
 #logger .log-entries > div {

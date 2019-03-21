@@ -234,8 +234,8 @@ export class SystemInspector {
         tabs.select("System");
 
         // Highlight Info tab on error to notify user about error message
-        log.attach((kind) => {
-            if (kind === "error") tabs.highlight("Info");
+        log.attach((isError) => {
+            if (isError) tabs.highlight("Info");
         });
 
         // Assemble inspector
@@ -324,7 +324,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
             });
             const worker = new Worker("./js/inspector-worker-system.js");
             worker.onerror = () => {
-                this.log.write("error", "unable to start system worker");
+                this.log.write(["error"], "unable to start system worker");
             };
             this._comm.host = worker;
         } catch (e) {
@@ -498,7 +498,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
     resetAnalysis(): Promise<null> {
         return this._comm.request("reset-analysis", null).then(() => {
-            this.log.write("analysis", "analysis results reset");
+            this.log.write(["Analysis"], "Analysis results have been reset.");
             return this.updateStates();
         }).catch((e) => {
             this.log.writeError(e);
@@ -508,8 +508,8 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
     refineState(state: StateID, method: string, settings: StateRefinerySettings): Promise<null> {
         return this._comm.request("refine-state", [state, method, settings]).then((data: RefineData) => {
-            this.log.writeRefinement(data);
-            return data.states.size > 0 ? this.updateStates() : null;
+            this.log.writeRefinement([method + " of " + state], data);
+            return data.removed.length > 0 ? this.updateStates() : null;
         }).catch((e) => {
             this.log.writeError(e);
             throw e;
@@ -518,8 +518,13 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
     refineLayer(settings: LayerRefinerySettings): Promise<null> {
         return this._comm.request("refine-layer", settings).then((data: RefineData) => {
-            this.log.writeRefinement(data);
-            return data.states.size > 0 ? this.updateStates() : null;
+            this.log.writeRefinement([
+                "Layers " + settings.range[0] +  "-" + settings.range[1] + " of "
+                          + n2s(settings.scaling * 100, 0) + "% " + settings.generator,
+                settings.origin + " → " + settings.target,
+                settings.iterations + " iterations"
+            ], data);
+            return data.removed.length > 0 ? this.updateStates() : null;
         }).catch((e) => {
             this.log.writeError(e);
             throw e;
@@ -528,8 +533,8 @@ class SystemModel extends ObservableMixin<ModelChange> {
 
     refineOuterAttr(settings: OuterAttrRefinerySettings): Promise<null> {
         return this._comm.request("refine-outer-attr", settings).then((data: RefineData) => {
-            this.log.writeRefinement(data);
-            return data.states.size > 0 ? this.updateStates() : null;
+            this.log.writeRefinement(["Outer Attr", settings.iterations + " iterations"], data);
+            return data.removed.length > 0 ? this.updateStates() : null;
         }).catch((e) => {
             this.log.writeError(e);
             throw e;
@@ -2003,9 +2008,7 @@ class Connectivity extends WidgetPlus {
 }
 
 
-type LogKind = "analysis" | "refinement" | "error";
-
-class Logger extends ObservableMixin<LogKind> implements TabWidget {
+class Logger extends ObservableMixin<boolean> implements TabWidget {
 
     +node: HTMLDivElement;
     +heading: HTMLHeadingElement;
@@ -2015,9 +2018,9 @@ class Logger extends ObservableMixin<LogKind> implements TabWidget {
     constructor(): void {
         super();
         this._filters = {
-            analysis: new CheckboxInput(true, "analysis"),
-            refinement: new CheckboxInput(true, "refinement"),
-            error: new CheckboxInput(true, "error")
+            analysis: new CheckboxInput(true, "Analysis"),
+            refinement: new CheckboxInput(true, "Refinement"),
+            error: new CheckboxInput(true, "Error")
         };
         obj.forEach((_, input) => input.attach(() => this.handleFilterChange()), this._filters);
         this._entries = dom.DIV()
@@ -2033,35 +2036,44 @@ class Logger extends ObservableMixin<LogKind> implements TabWidget {
         this.handleFilterChange();
     }
 
-    _write(kind: LogKind, content: HTMLDivElement): void {
+    _write(params: string[], content: HTMLDivElement): void {
         content.className = "log-content";
+        const attrs = params.length === 0 ? {} : {
+            "class": "log-" + params[0].toLowerCase()
+        };
         const now = new Date(Date.now());
-        const entry = dom.DIV({ "class": "log-" + kind }, [
-            dom.DIV({ "class": "log-heading" }, [now.toLocaleTimeString(), " :: ", kind]),
+        const entry = dom.DIV(attrs, [
+            dom.DIV({ "class": "log-heading" }, [now.toLocaleTimeString(), " :: ", params.join(" :: ")]),
             content
         ]);
         this._entries.insertBefore(entry, this._entries.firstChild);
-        this.notify(kind);
+        this.notify(params.length > 0 && params[0] === "Error");
     }
 
-    write(kind: LogKind, text: string): void {
-        this._write(kind, dom.DIV({}, [text]));
+    write(params: string[], text: string): void {
+        this._write(params, dom.DIV({}, [text]));
     }
 
     writeError(e: Error): void {
         console.log(e);
-        this.write("error", e.message);
+        this.write(["Error"], e.message);
     }
 
     writeAnalysis(data: AnalysisData): void {
-        this._write("analysis", dom.DIV({}, [
+        this._write(["Analysis"], dom.DIV({}, [
             "game abstraction (" + t2s(data.tGame) + "), analysis (" + t2s(data.tAnalysis) + ")."
         ]));
     }
 
-    writeRefinement(data: RefineData): void {
-        this._write("refinement", dom.DIV({}, [
-            "refined " + data.states.size + " states in " + t2s(data.elapsed) + "."
+    writeRefinement(params: string[], data: RefineData): void {
+        this._write(["Refinement", ...params], dom.DIV({}, [
+            "Removed ", dom.SPAN({ "title": data.removed.join(", ") }, [
+                data.removed.length + " " + (data.removed.length === 1 ? "state" : "states")
+            ]), ".", dom.create("br"),
+            "Created ", dom.SPAN({ "title": data.created.join(", ") }, [
+                data.created.length + " " + (data.created.length === 1 ? "state" : "states")
+            ]), ".", dom.create("br"),
+            "Elapsed time: " + t2s(data.elapsed) + "."
         ]));
     }
     

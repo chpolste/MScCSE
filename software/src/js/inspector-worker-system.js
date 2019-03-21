@@ -6,7 +6,7 @@ import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
 import type { JSONObjective, AutomatonStateID } from "./logic.js";
 import type { StateRefinerySettings, LayerRefinerySettings, OuterAttrRefinerySettings } from "./refinement.js";
-import type { StateID, ActionID, SupportID, PredicateID, LSS, State,
+import type { StateID, ActionID, SupportID, PredicateID, LSS, State, RefinementMap,
               JSONAbstractedLSS } from "./system.js";
 
 import { Controller, Trace } from "./controller.js";
@@ -126,7 +126,7 @@ class SystemManager {
         this._analysis = null;
     }
 
-    refineState(x: State, method: string, settings: StateRefinerySettings): Set<State> {
+    refineState(x: State, method: string, settings: StateRefinerySettings): RefinementMap {
         const analysis = just(this.analysis, "Refinement requires an analysed system");
         // Initialize refinement method
         const Cls = just(StateRefinery.builtIns()[method]); // TODO: error message
@@ -135,11 +135,10 @@ class SystemManager {
         const refinementMap = x.refine(refinery.partition(x));
         // Update analysis results
         analysis.remap(refinementMap);
-        // Return set of states that were refined
-        return new Set(refinementMap.keys());
+        return refinementMap;
     }
 
-    refineLayer(settings: LayerRefinerySettings): Set<State> {
+    refineLayer(settings: LayerRefinerySettings): RefinementMap {
         const analysis = this.analysis;
         if (analysis == null) throw new Error(
             "Refinement requires an analysed system" // TODO: analysis generally not required for layer-based refinement
@@ -148,11 +147,10 @@ class SystemManager {
         const refinementMap = this.system.refine(refinery.partitionAll(this.system.states.values()));
         // Update analysis results
         analysis.remap(refinementMap);
-        // Return set of states that were refined
-        return new Set(refinementMap.keys());
+        return refinementMap;
     }
 
-    refineOuterAttr(settings: OuterAttrRefinerySettings): Set<State> {
+    refineOuterAttr(settings: OuterAttrRefinerySettings): RefinementMap {
         const analysis = this.analysis;
         if (analysis == null) throw new Error(
             "Refinement requires an analysed system" // TODO: analysis generally not required for outer attr refinement
@@ -161,8 +159,7 @@ class SystemManager {
         const refinementMap = this.system.refine(refinery.partitionAll(this.system.states.values()));
         // Update analysis results
         analysis.remap(refinementMap);
-        // Return set of states that were refined
-        return new Set(refinementMap.keys());
+        return refinementMap;
     }
 
     // System status
@@ -345,42 +342,48 @@ inspector.onRequest("reset-analysis", function (data: ResetAnalysisRequest): Res
 // Refinement
 export type RefineData = {
     elapsed: number,
-    states: Set<StateID>
+    removed: StateID[],
+    created: StateID[]
 };
+function refineData(elapsed, refinementMap): RefineData {
+    const removed = [];
+    const created = [];
+    for (let [r, cs] of refinementMap) {
+        removed.push(r.label);
+        for (let c of cs) created.push(c.label);
+    }
+    return {
+        elapsed: elapsed,
+        removed: removed,
+        created: created
+    };
+}
 // State-based
 export type RefineStateRequest = [StateID, string, StateRefinerySettings];
 inspector.onRequest("refine-state", function (data: RefineStateRequest): RefineData {
     const [label, method, settings] = data;
     const x = $.system.getState(label);
     const t0 = performance.now();
-    const states = sets.map(_ => _.label, $.refineState(x, method, settings));
+    const refinementMap = $.refineState(x, method, settings);
     const t1 = performance.now();
-    return {
-        elapsed: (t1 - t0),
-        states: states
-    };
+    // Statistics for the refinement report
+    return refineData((t1 - t0), refinementMap);
 });
 // Layer-based
 export type RefineLayerRequest = LayerRefinerySettings;
 inspector.onRequest("refine-layer", function (settings: RefineLayerRequest): RefineData {
     const t0 = performance.now();
-    const states = sets.map(_ => _.label, $.refineLayer(settings));
+    const refinementMap = $.refineLayer(settings);
     const t1 = performance.now();
-    return {
-        elapsed: (t1 - t0),
-        states: states
-    };
+    return refineData((t1 - t0), refinementMap);
 });
 // System-wide reachability-based
 export type RefineOuterAttrRequest = OuterAttrRefinerySettings;
 inspector.onRequest("refine-outer-attr", function (settings: RefineOuterAttrRequest): RefineData {
     const t0 = performance.now();
-    const states = sets.map(_ => _.label, $.refineOuterAttr(settings));
+    const refinementMap = $.refineOuterAttr(settings);
     const t1 = performance.now();
-    return {
-        elapsed: (t1 - t0),
-        states: states
-    };
+    return refineData((t1 - t0), refinementMap);
 });
 
 export type SnapshotsRequest = null;

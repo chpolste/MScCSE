@@ -495,8 +495,12 @@ class SystemModel extends ObservableMixin<ModelChange> {
     analyse(): Promise<null> {
         return this._comm.request("analyse", null).then((data: AnalysisData) => {
             this.log.writeAnalysis(data);
-            // Automatically take a snapshot after an analysis (TODO: only if there was change)
-            return this.takeSnapshot("Automatic Snapshot " + (this._autoSnapID++));
+            // Automatically take a snapshot after an analysis if there was change
+            if (data.updated.length > 0) {
+                return this.takeSnapshot("Automatic Snapshot " + (this._autoSnapID++));
+            } else {
+                return null;
+            }
         }).then((data) => {
             return this.updateStates();
         }).catch((e) => {
@@ -2079,7 +2083,16 @@ class Logger extends ObservableMixin<boolean> implements TabWidget {
 
     writeAnalysis(data: AnalysisData): void {
         this._write(["Analysis"], dom.DIV({}, [
-            "game abstraction (" + t2s(data.tGame) + "), analysis (" + t2s(data.tAnalysis) + ")."
+            "Player 1: " + pluralize(data.states[0], " state") + ", " + pluralize(data.actions[0], "action") + ".", dom.create("br"),
+            "Player 2: " + pluralize(data.states[1], " state") + ", " + pluralize(data.actions[1], "action") + ".", dom.create("br"),
+            "Updated ", dom.SPAN({ "title": data.updated.join(", ") }, [
+                pluralize(data.updated.length, "state")
+            ]), ".", dom.create("br"),
+            "Elapsed time: ", dom.SPAN({ "title": "game abstraction" }, [
+                t2s(data.tGame)
+            ]), " + ", dom.SPAN({ "title": "game analysis" }, [
+                t2s(data.tAnalysis)
+            ]), " = " + t2s(data.tGame + data.tAnalysis) + "."
         ]));
     }
 

@@ -115,10 +115,20 @@ class SystemManager {
         const t1 = performance.now();
         const results = game.analyse();
         const t2 = performance.now();
-        // TODO: analysis statistics
-        const stats = results.transferFromPrevious(this._analysis);
+        // Transfer old analysis results if available
+        if (this._analysis != null) results.transferFromPrevious(this._analysis);
+        // Which system states have changed?
+        const updated = results.updated(this._analysis);
+        // Save analysis results
         this._analysis = results;
+        // Statistics
         return {
+            states: [game.p1States.size, game.p2States.size],
+            actions: [
+                iter.sum(iter.map(_ => _.actions.length, game.p1States)),
+                iter.sum(iter.map(_ => _.actions.length, game.p2States))
+            ],
+            updated: Array.from(updated),
             tGame: (t1 - t0),
             tAnalysis: (t2 - t1)
         };
@@ -325,6 +335,9 @@ inspector.onRequest("get-trace", function (data: TraceRequest): TraceData {
 // Analyse the system
 export type AnalysisRequest = null;
 export type AnalysisData = {
+    states: [number, number],
+    actions: [number, number],
+    updated: StateID[],
     tGame: number,
     tAnalysis: number
 };

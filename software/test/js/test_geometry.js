@@ -375,7 +375,6 @@ describe("geometry.Polygon with square", function () {
         let fromVtoH = new geometry.Polygon(null, poly.halfspaces);
         let fromHtoV = new geometry.Polygon(fromVtoH.vertices, null);
         assert(poly.isSameAs(fromHtoV));
-        assert.deepEqual(poly.vertices, fromHtoV.vertices);
     });
 
     it("dim", function () {
@@ -864,6 +863,10 @@ describe("geometry problem cases", function () {
     });
 
     it("Vertex ordering float edge case", function () {
+        // This was a problem when vertices had to be ordered absolutely, not
+        // just relatively in counterclockwise order. To resolve the problem,
+        // rounding all vertices was tried but created lots of additional
+        // problems, so the ordering was reverted to relative.
         const vs = [
             [ 0.8661111111111112, -1.9338888888888892 ],
             [ 1.0661111111111112, -1.9338888888888892 ],

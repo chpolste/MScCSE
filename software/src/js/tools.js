@@ -127,33 +127,6 @@ export const arr = {
         return zs;
     },
 
-    // cyc2map but with wrap-around at the start
-    cyc2mapl: function <A,B>(fun: (x: A, y: A) => B, xs: A[]): B[] {
-        if (xs.length == 0) return [];
-        const zs = [fun(xs[xs.length - 1], xs[0])];
-        for (let i = 0; i < xs.length - 1; i++) {
-            zs.push(fun(xs[i], xs[i + 1]));
-        }
-        return zs;
-    },
-
-    // Merge two sorted arrays into a sorted array
-    merge: function <T>(comp: (x: T, y: T) => number, xs: T[], ys: T[]): T[] {
-        let i = 0;
-        let j = 0;
-        const merged = [];
-        while (i < xs.length && j < ys.length) {
-            if (comp(xs[i], ys[j]) <= 0) {
-                merged.push(xs[i++]);
-            } else {
-                merged.push(ys[j++]);
-            }
-        }
-        while (i < xs.length) merged.push(xs[i++]);
-        while (j < ys.length) merged.push(ys[j++]);
-        return merged;
-    },
-
     // Put a delimiter between elements of an array
     intersperse: function <T>(delim: T, items: Iterable<T>): T[] {
         const out = [];

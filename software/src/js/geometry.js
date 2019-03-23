@@ -37,19 +37,7 @@ function cartesian<T>(...tuples: [T, T][]): T[][] {
 
 /* 2D helpers */
 
-// Canonical ordering in 2D:
-// Vertices: ascending x then descending y
-// Halfspaces: counterclockwise by angle wrt normal [-1, 0] with angleCCW
-//             behaviour as tiebreaker
-// /!\ This is carefully tuned so that canonical sets of halfspaces can be
-//     combined into a canonical set with a single merge operation.
-
-// Halfspace comparator for use with sort()
-function halfspaceOrdering2D(g: Halfspace, h: Halfspace): number {
-    const gOrder = angleOrder(g.normal);
-    const hOrder = angleOrder(h.normal);
-    return gOrder == hOrder ? angleCCW(g.normal, h.normal) - Math.PI : gOrder - hOrder;
-}
+// Canonical ordering in 2D: counterclockwise vertices and halfspaces
 
 // CCW angle wrt to [-1, 0]. Only used for sorting, so no remapping to [0, 2π)
 // required like for angleCCW
@@ -70,11 +58,6 @@ function angleCCW(g, h) {
     // Because of float arithmetic, (angle + 2 * Math.PI) for angle < 0 can
     // still be 2 * Math.PI if angle is very small
     return angle === 2 * Math.PI ? 0 : angle;
-}
-
-// Vertex comparator for use with sort()
-function vertexOrdering2D(p: Vector, q: Vector): number {
-    return p[0] == q[0] ? q[1] - p[1] : p[0] - q[0];
 }
 
 // Is the turn described by the points p, q, r counterclockwise? The zero
@@ -191,12 +174,7 @@ export class Halfspace {
             offset = offset === 0 ? Infinity : Math.sign(offset) * Infinity
             norm = 1;
         }
-        // Round to the precision of 32-bit floats, avoiding float-imprecision
-        // errors when comparing halfspaces, constructing intersections, etc.
-        return new Halfspace(
-            normal.map(x => Math.fround(x / norm)),
-            Math.fround(offset / norm)
-        );
+        return new Halfspace(normal.map(x => x / norm), offset / norm);
     }
 
     // Parse expressions such as "x + 4y < 3".
@@ -464,12 +442,21 @@ export class Polytope {
             if (this.dim !== other.dim || vs.length !== ws.length) {
                 return false;
             }
-            // Test if two polytopes are identical by comparing vertices. Because
-            // of canonical ordering vertices can be directly compared in order.
-            for (let i = 0; i < vs.length; i++) {
-                if (!linalg.areClose(vs[i], ws[i])) return false;
+            // Find common vertex
+            let idxoff = 0;
+            while (idxoff < vs.length) {
+                if (linalg.areClose(vs[idxoff], ws[0])) {
+                    break;
+                }
+                idxoff++;
             }
-            return true;
+            // Check if same vertices appear in same same order
+            for (let i = 0; i < vs.length; i++) {
+                if (!linalg.areClose(vs[(idxoff + i) % vs.length], ws[i])) {
+                    return false;
+                }
+            }
+            return idxoff < vs.length;
         }
     }
 
@@ -636,24 +623,21 @@ export class Interval extends Polytope {
 
     static hull(ps: Vector[]): Interval {
         ps.forEach(p => linalg.assertEqualDims(p.length, 1));
-        // Round to the precision of 32-bit floats, avoiding float-imprecision
-        // errors when comparing halfspaces, constructing intersections, etc.
-        const points = ps.map(linalg.fround);
         // Find the left- and rightmost vertices
         let leftIdx = 0;
         let rightIdx = 0;
-        for (let idx = 1; idx < points.length; idx++) {
-            if (points[idx][0] < points[leftIdx][0]) {
+        for (let idx = 1; idx < ps.length; idx++) {
+            if (ps[idx][0] < ps[leftIdx][0]) {
                 leftIdx = idx;
             }
-            if (points[idx][0] > points[rightIdx][0]) {
+            if (ps[idx][0] > ps[rightIdx][0]) {
                 rightIdx = idx;
             }
         }
-        if (points.length < 2 || linalg.areClose(points[leftIdx], points[rightIdx])) {
+        if (ps.length < 2 || linalg.areClose(ps[leftIdx], ps[rightIdx])) {
             return Interval.empty();
         } else {
-            return new Interval([points[leftIdx], points[rightIdx]], null);
+            return new Interval([ps[leftIdx], ps[rightIdx]], null);
         }
     }
 
@@ -759,9 +743,7 @@ export class Polygon extends Polytope {
     static hull(ps: Vector[]): Polygon {
         ps.forEach(p => linalg.assertEqualDims(p.length, 2));
         // Sort a copy of points by x-coordinate (ascending, y as fallback).
-        // Round to the precision of 32-bit floats, avoiding float-imprecision
-        // errors when comparing halfspaces, constructing intersections, etc.
-        const points = ps.map(linalg.fround).sort(vertexOrdering2D);
+        const points = ps.slice().sort((p, q) => (p[0] == q[0] ? q[1] - p[1] : p[0] - q[0]));
         // Lower part of convex hull: start with leftmost point and pick
         // vertices such that each angle between 3 vertices makes
         // a counterclockwise angle.
@@ -798,14 +780,8 @@ export class Polygon extends Polytope {
         reduceHullPart(vs, vs[0], TOL);
         // Reduce wrap-around at the start
         while (vs.length > 1 && !isCCWTurn(vs[vs.length - 1], vs[0], vs[1], TOL)) {
-            // vs[0] must be removed, either delete it by shifting or replace it
-            // with the last element (which is then popped) if necessary to
-            // preserve canonical ordering
-            if (vertexOrdering2D(vs[vs.length - 1], vs[1]) < 0) {
-                vs[0] = vs.pop();
-            } else {
-                vs.shift();
-            }
+            // vs[0] must be removed
+            vs.shift();
         }
         // Return empty if less than 3 vertices remain after reduction
         return vs.length < 3 ? Polygon.empty() : new Polygon(vs, null);
@@ -822,8 +798,14 @@ export class Polygon extends Polytope {
             }
             hs.push(h);
         }
-        // Order halfspaces properly for noredund
-        return Polygon.noredund(hs.sort(halfspaceOrdering2D));
+        // Order halfspaces properly for noredund: sort by angle wrt normal
+        // [-1, 0], use angleCCW behaviour as tiebreaker
+        return Polygon.noredund(hs.sort((g, h) => {
+            const gOrder = angleOrder(g.normal);
+            const hOrder = angleOrder(h.normal);
+            return gOrder == hOrder ? angleCCW(g.normal, h.normal) - Math.PI : gOrder - hOrder;
+        }));
+
     }
 
     // noredund expects cleaned input, i.e. a list of halfplanes in canonical
@@ -964,31 +946,17 @@ export class Polygon extends Polytope {
     }
 
 
-    // Custom intersect implementation for 2D: make use of absolute canonical
-    // ordering and use merge to achieve linear computational complexity
-    _intersectPolytope<T: Polytope>(other: T): T {
-        // Because Polytopes maintain canonical ordering of halfspaces, all
-        // that's necessary to produce a joint set of halfspaces with canonical
-        // ordering is one merge step.
-        return other.constructor.noredund(arr.merge(halfspaceOrdering2D, this.halfspaces, other.halfspaces));
-    }
-
     _HtoV(): void {
         if (this._halfspaces == null) {
             throw new ValueError();
         } else {
-            // To maintain consistency between canonical vertex and halfspace
-            // ordering, the intersection between the first and last halfspace
-            // must be the first vertex. Therefore cyc2mapl is used.
-            this._vertices = arr.cyc2mapl(function (v, w) {
+            // Find intersections of halfspaces
+            this._vertices = arr.cyc2map(function (v, w) {
                 const cut = halfplaneIntersection(v, w);
                 if (cut == null) {
                     throw {};
                 } else {
-                    // Round to the precision of 32-bit floats, avoiding
-                    // float-imprecision errors when comparing halfspaces,
-                    // constructing intersections, etc.
-                    return linalg.fround(cut);
+                    return cut;
                 }
             }, this._halfspaces);
         }
@@ -998,8 +966,7 @@ export class Polygon extends Polytope {
         if (this._vertices == null) {
             throw new ValueError();
         } else {
-            // Turn each edge into a halfspace. Use cyc2map to obtain
-            // halfspaces in proper canonical order.
+            // Turn each edge into a halfspace
             this._halfspaces = arr.cyc2map(function (v, w) {
                 return Halfspace.normalized([w[1] - v[1], v[0] - w[0]], v[0]*w[1] - w[0]*v[1]);
             }, this._vertices);

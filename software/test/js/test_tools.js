@@ -94,19 +94,6 @@ describe("tools.arr", function () {
         assert.deepEqual(arr.cyc2map(sum, []), []);
     });
 
-    it("cyc2mapl", function () {
-        assert.deepEqual(arr.cyc2mapl(sum, [1, 2, 3]), [4, 3, 5]);
-        assert.deepEqual(arr.cyc2mapl(sum, [1]), [2]);
-        assert.deepEqual(arr.cyc2mapl(sum, []), []);
-    });
-
-    it("merge", function () {
-        let xs = [0, 2, 4, 6];
-        let ys = [-1, 1, 2, 3];
-        assert.deepEqual(arr.merge((a, b) => a - b, xs, ys), [-1, 0, 1, 2, 2, 3, 4, 6]);
-        assert.deepEqual(arr.merge((a, b) => a - b, ys, xs), [-1, 0, 1, 2, 2, 3, 4, 6]);
-    });
-
     it("intersperse", function () {
         assert.deepEqual(arr.intersperse(0, [1, 2, 3]), [1, 0, 2, 0, 3]);
         assert.deepEqual(arr.intersperse(0, [2, 3]), [2, 0, 3]);

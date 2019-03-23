@@ -4,17 +4,17 @@
 import { arr, NotImplementedError } from "./tools.js";
 
 
+// Exceptions
+export class DimensionMismatch extends Error {}
+export class MathError extends Error {}
+
 // No special types for vectors or matrices
 export type Vector = number[];
 export type Matrix = number[][];
 
 // Robust floating point arithmetic requires a small tolerance value for
 // comparisons involving zero, here an absolute value is chosen.
-export const TOL = 1.0e-8;
-
-// Exceptions
-export class DimensionMismatch extends Error {}
-export class MathError extends Error {}
+export const TOL = 1.0e-6;
 
 
 export function assertEqualDims(n: number, m: number): void {
@@ -25,6 +25,10 @@ export function assertEqualDims(n: number, m: number): void {
 
 
 /* Vector operations */
+
+export function fround(v: Vector): Vector {
+    return v.map(Math.fround);
+}
 
 export function norm2(v: Vector): number {
     let squares = 0;

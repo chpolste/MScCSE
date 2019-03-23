@@ -863,6 +863,20 @@ describe("geometry problem cases", function () {
         assert.equal(vPoly.vertices.length, 3);
     });
 
+    it("Vertex ordering float edge case", function () {
+        const vs = [
+            [ 0.8661111111111112, -1.9338888888888892 ],
+            [ 1.0661111111111112, -1.9338888888888892 ],
+            [ 1.147753743760399, -1.852246256239601 ],
+            [ 1.147753743760399, -1.452246256239601 ],
+            [ 1.0661111111111115, -1.2291235334713606 ],
+            [ 0.8661111111111114, -1.2291235334713606 ]
+        ];
+        const vPoly = geometry.Polygon.hull(vs);
+        const hPoly = geometry.Polygon.intersection(vPoly.halfspaces);
+        assert(vPoly.isSameAs(hPoly));
+    });
+
 });
 
 

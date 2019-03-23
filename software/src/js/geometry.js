@@ -191,7 +191,12 @@ export class Halfspace {
             offset = offset === 0 ? Infinity : Math.sign(offset) * Infinity
             norm = 1;
         }
-        return new Halfspace(normal.map(x => x / norm), offset / norm);
+        // Round to the precision of 32-bit floats, avoiding float-imprecision
+        // errors when comparing halfspaces, constructing intersections, etc.
+        return new Halfspace(
+            normal.map(x => Math.fround(x / norm)),
+            Math.fround(offset / norm)
+        );
     }
 
     // Parse expressions such as "x + 4y < 3".
@@ -630,22 +635,25 @@ export class Interval extends Polytope {
     }
 
     static hull(ps: Vector[]): Interval {
-        ps.map(p => linalg.assertEqualDims(p.length, 1));
+        ps.forEach(p => linalg.assertEqualDims(p.length, 1));
+        // Round to the precision of 32-bit floats, avoiding float-imprecision
+        // errors when comparing halfspaces, constructing intersections, etc.
+        const points = ps.map(linalg.fround);
         // Find the left- and rightmost vertices
         let leftIdx = 0;
         let rightIdx = 0;
-        for (let idx = 1; idx < ps.length; idx++) {
-            if (ps[idx][0] < ps[leftIdx][0]) {
+        for (let idx = 1; idx < points.length; idx++) {
+            if (points[idx][0] < points[leftIdx][0]) {
                 leftIdx = idx;
             }
-            if (ps[idx][0] > ps[rightIdx][0]) {
+            if (points[idx][0] > points[rightIdx][0]) {
                 rightIdx = idx;
             }
         }
-        if (ps.length < 2 || linalg.areClose(ps[leftIdx], ps[rightIdx])) {
+        if (points.length < 2 || linalg.areClose(points[leftIdx], points[rightIdx])) {
             return Interval.empty();
         } else {
-            return new Interval([ps[leftIdx].slice(), ps[rightIdx].slice()], null);
+            return new Interval([points[leftIdx], points[rightIdx]], null);
         }
     }
 
@@ -749,9 +757,11 @@ export class Polygon extends Polytope {
     // Algorithm based on
     // https://en.wikibooks.org/wiki/Algorithm_Implementation/Geometry/Convex_hull/Monotone_chain
     static hull(ps: Vector[]): Polygon {
-        ps.map(p => linalg.assertEqualDims(p.length, 2));
+        ps.forEach(p => linalg.assertEqualDims(p.length, 2));
         // Sort a copy of points by x-coordinate (ascending, y as fallback).
-        const points = ps.slice().sort(vertexOrdering2D);
+        // Round to the precision of 32-bit floats, avoiding float-imprecision
+        // errors when comparing halfspaces, constructing intersections, etc.
+        const points = ps.map(linalg.fround).sort(vertexOrdering2D);
         // Lower part of convex hull: start with leftmost point and pick
         // vertices such that each angle between 3 vertices makes
         // a counterclockwise angle.
@@ -954,12 +964,6 @@ export class Polygon extends Polytope {
     }
 
 
-    /* TODO: there is a remaining float-edge case somewhere in the library that
-             can lead to incorrectly sorted halfspaces/vertices. For now,
-             always sorting halfspaces seems to fix the bug. This is only
-             a temporary fix until the actual issue causing the problematic
-             ordering is found and resolved.
-
     // Custom intersect implementation for 2D: make use of absolute canonical
     // ordering and use merge to achieve linear computational complexity
     _intersectPolytope<T: Polytope>(other: T): T {
@@ -968,7 +972,6 @@ export class Polygon extends Polytope {
         // ordering is one merge step.
         return other.constructor.noredund(arr.merge(halfspaceOrdering2D, this.halfspaces, other.halfspaces));
     }
-    */
 
     _HtoV(): void {
         if (this._halfspaces == null) {
@@ -982,7 +985,10 @@ export class Polygon extends Polytope {
                 if (cut == null) {
                     throw {};
                 } else {
-                    return cut;
+                    // Round to the precision of 32-bit floats, avoiding
+                    // float-imprecision errors when comparing halfspaces,
+                    // constructing intersections, etc.
+                    return linalg.fround(cut);
                 }
             }, this._halfspaces);
         }

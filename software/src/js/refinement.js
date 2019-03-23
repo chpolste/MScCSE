@@ -261,7 +261,6 @@ export class LayerRefinery extends Refinery {
             const previous = this.layers[this.layers.length - 1];
             this.layers.push(this._generateLayer(previous).simplify());
         }
-        console.log(this.layers);
     }
 
     _generateLayer(target: Region): Region {

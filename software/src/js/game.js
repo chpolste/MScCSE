@@ -186,7 +186,6 @@ export class AnalysisResults extends Map<StateID, AnalysisResult> {
             for (let state of this.keys()) updated.add(state);
         } else {
             for (let [state, newResult] of this) {
-                console.log(state, newResult);
                 const oldResult = results.get(state);
                 if (oldResult == null || !sets.areEqual(oldResult.yes, newResult.yes)
                                       || !sets.areEqual(oldResult.no, newResult.no)

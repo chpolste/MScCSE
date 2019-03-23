@@ -954,6 +954,12 @@ export class Polygon extends Polytope {
     }
 
 
+    /* TODO: there is a remaining float-edge case somewhere in the library that
+             can lead to incorrectly sorted halfspaces/vertices. For now,
+             always sorting halfspaces seems to fix the bug. This is only
+             a temporary fix until the actual issue causing the problematic
+             ordering is found and resolved.
+
     // Custom intersect implementation for 2D: make use of absolute canonical
     // ordering and use merge to achieve linear computational complexity
     _intersectPolytope<T: Polytope>(other: T): T {
@@ -962,6 +968,7 @@ export class Polygon extends Polytope {
         // ordering is one merge step.
         return other.constructor.noredund(arr.merge(halfspaceOrdering2D, this.halfspaces, other.halfspaces));
     }
+    */
 
     _HtoV(): void {
         if (this._halfspaces == null) {
@@ -1037,8 +1044,10 @@ export class Union {
 
 
     get boundingBox(): Polytope {
-        if (this.isEmpty) return this;
-        return Polytope.ofDim(this.dim).hull(cartesian(...this.extent));
+        const Poly = Polytope.ofDim(this.dim);
+        return this.isEmpty
+             ? Poly.empty()
+             : Poly.hull(cartesian(...this.extent));
     }
 
     get extent(): [number, number][] {

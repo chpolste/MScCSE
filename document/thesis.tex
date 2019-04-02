@@ -1,5 +1,7 @@
 \usecolors[xwi]
 
+% Fixes for broken rendering
+\input{inputs/fixes}
 % Custom TeX-commands
 \input{inputs/commands}
 
@@ -31,7 +33,7 @@
 % Fonts
 % Text uses serif font
 \setupbodyfont[11pt,serif]
-\definebodyfontenvironment[11pt][a=12pt,b=13pt,c=14pt,d=20pt]
+\definebodyfontenvironment[11pt][a=12pt,b=13pt,c=14pt,d=9pt]
 
 % Headings etc. are sans-serif
 \definefontfamily[titlefont][sans][dejavusans]
@@ -262,14 +264,19 @@
     \stopsectionblock
 
     \startfrontmatter
+
         \startchapter[title=Acknowledgements]
             ...
-        \stoptitle
+        \stopchapter
+
         \page[even,empty]
-        \startchapter[title=Preface]
+
+        \startchapter[title=Notation]
             ...
-        \stoptitle
+        \stopchapter
+
         \page[even,empty]
+
     \stopfrontmatter
 
     \startbodymatter

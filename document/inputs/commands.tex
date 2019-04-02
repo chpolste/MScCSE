@@ -1,3 +1,4 @@
+
 % CamelCase for custom commands
 
 \define\DocTitleFooter{Refinement for game-based abstractions of continuous-space LSSs} % TODO
@@ -5,8 +6,6 @@
 \define\YearOfCompletion{2019}
 \define\DateOfCompletion{\YearOfCompletion-??-??} % TODO
 
-% Vertical position of default coloncolon command is not right
-\definemathcommand[coloncolon][rel]{\colon\!\colon}
 % Tall version of \mid
 \definemathcommand[Bigmid][rel]{\mathrel{\Big|}}
 
@@ -14,6 +13,9 @@
 \define\EndComma{\;\text{,}}
 \define\EndPeriod{\;\text{.}}
 \define\EndAnd{\;\text{and}}
+% Inline connectors
+\define\MidComma{\text{,}\;}
+\define\MidAnd{\;\text{and}\;}
 
 
 % General math
@@ -40,6 +42,26 @@
 \define\MatB{\Mat{B}}
 \define\MatU{\Mat{U}}
 
+
+% https://mailman.ntg.nl/pipermail/ntg-context/2017/089631.html
+%\unprotect
+%
+%\def\math_matrix_stop
+%  {\crcr
+% % \ifgridsnapping \else
+%     \mathstrut\crcr
+%     \noalign{\vskip-\baselineskip}%
+% % \fi
+%   \egroup
+%  %\popmacro\math_matrix_NC % Too early!
+%   \egroup
+%   \mathmatrixright
+%   \endgroup
+%   \popmacro\math_matrix_NC} % ungrouped!
+%
+%\protect
+
+
 % Vectors and matrices with square brackets
 \definemathmatrix[sqmatrix][left={\left\lbrack\,},right={\,\right\rbrack},strut=0.8,distance=0.8em]
 \define[4]\TwoByTwo{ \startsqmatrix[n=2,align={middle,middle}] \NC #1 \NC #2 \NR \NC #3 \NC #4 \NR \stopsqmatrix }
@@ -52,36 +74,59 @@
 \define[2]\TwoByOneSmall{ \startssqmatrix[n=1,align={middle}] \NC #1 \NR \NC #2 \NR \stopssqmatrix }
 
 % Sets and Intervals
-\define[1]\Set{\{ {#1} \}}
-\define[1]\BigSet{\Big\{ {#1} \Big\}}
+\define[1]\Set{{\{ {#1} \}}}
+\define[1]\BigSet{{\Big\{ {#1} \Big\}}}
 \define[2]\IndexedSet{\Set{#1}_{#2}}
 \define[2]\ClosedInterval{\left[\, #1,\, #2 \,\right]}
 
+% N-Tuples
+\define[2]\Tuple{({#1},\,{#2})}
+\define[2]\BigTuple{\Big({#1},\,{#2}\Big)}
+\define[3]\Triple{({#1},\,{#2},\,{#3})}
+\define[3]\BigTriple{\Big({#1},\,{#2},\,{#3}\Big)}
+
+% Inline multiline aligned blocks (http://dl.contextgarden.net/myway/mathalign.pdf)
+\definemathmatrix[gathered][n=1,align=left,style=\displaystyle]
 
 % Polytopic Computations
 % ----------------------
 
-% Custom function names
+% Polytope components
 \definemathcommand[Hull][nolop]{\mfunction{hull}}
 \definemathcommand[Vertices][nolop]{\mfunction{vert}}
+% Posterior
 \definemathcommand[Post][nolop]{\mfunction{Post}}
+% Predecessors
 \definemathcommand[Pre][nolop]{\mfunction{Pre}}
 \definemathcommand[PreR][nolop]{\mfunction{PreR}}
 \definemathcommand[PreP][nolop]{\mfunction{PreP}}
+% Attractors
 \definemathcommand[Attr][nolop]{\mfunction{Attr}}
 \definemathcommand[AttrR][nolop]{\mfunction{AttrR}}
+% Action Polytopes
+\definemathcommand[Act][nolop]{\mfunction{Act}}
+\definemathcommand[ActR][nolop]{\mfunction{ActR}}
+\definemathcommand[ActC][nolop]{\mfunction{ActC}}
 
 % States
 \define\StateSpace{X}
+\define\StateRegion{X'}
+\define\ExtendedStateSpace{\StateSpace_{ext}}
+\define\InitStateSpace{\StateSpace_{init}}
+\define\VecState{\VecX}
 \define[1]\State{X_{#1}}
+\define[2]\IndexedStates{\IndexedSet{\State{#1}}{{#1} \in {#2}}}
+\define\Predicates{\Pi}
+\define[1]\PredicatesOf{\pi({#1})}
 
 % Control
 \define\ControlSpace{U}
-\define[2]\Action{U_{#1}^{\{#2\}}}
-\define[2]\ActionPolytope{U^{#1 \rightarrow #2}}
+\define\VecControl{\VecU}
+\define[2]\Action{\Act({#1},\, {#2})}
 
 % Random
 \define\RandomSpace{W}
+\define\VecRandom{\VecW}
 
 % Polytopic Operators
 \define[2]\Posterior{\Post({#1},\, {#2})}
@@ -90,6 +135,9 @@
 \define[3]\PrecisePredecessor{\PreP({#1},\, {#2},\, {#3})}
 \define[3]\Attractor{\Attr({#1},\, {#2},\, {#3})}
 \define[3]\RobustAttractor{\AttrR({#1},\, {#2},\, {#3})}
+\define[2]\Action{\Act({#1},\, {#2})}
+\define[2]\RobustAction{\ActR({#1},\, {#2})}
+\define[2]\ConcreteAction{\ActC({#1},\, {#2})}
 
 
 % Logic and Automata
@@ -99,7 +147,10 @@
 \define[1]\InfinitelyOften{\Inf(#1)}
 
 % Words
+\define\Automaton{{\mathcal A}}
 \define\Language{{\mathcal L}}
+\define\Condition{{\mathcal C}}
+\define\Transition{\delta}
 \define[1]\RepeatFinitely{{#1}^{\ast}}
 \define[1]\RepeatInfinitely{{#1}^{\omega}}
 
@@ -115,9 +166,32 @@
 
 \definemathcommand[AlmostSure][nolop]{\mfunction{Almost}}
 
-\define\GameGraph{\mathcal{G}}
+\define\GameGraph{{\mathcal G}}
 \define[2]\Strategy{S_{#2}^{#1}}
 \define[1]\Almost{\AlmostSure_{#1}}
 \define[1]\AlmostCoop{\AlmostSure_{#1}^{coop}}
 \define[1]\ProbDist{\mathcal{D}(#1)}
+
+\define\ProductGame{{\mathcal P}}
+\define[2]\PlayerOneAction{{#1}\rightarrow{#2}}
+\define[3]\PlayerTwoAction{\Tuple{#1}{#2}\rightarrow{#3}}
+
+
+% Physics
+% -------
+
+\define\DDt{\frac{{\mathrm d}}{{\mathrm d}t}}
+
+\define\Angle{\alpha}
+\define\AngularMomentum{L}
+\define\Torque{\tau}
+\define\Force{F}
+\define\MaxForce{\tilde\Force}
+\define\MomentOfInertia{I}
+\define\Mass{m}
+\define\Length{l}
+\define\Gravity{g}
+\define\Friction{\mu}
+\define\Thrust{u}
+\define\Deltat{\Delta t}
 

@@ -232,7 +232,6 @@ export class SystemInspector {
             traceViewStepCtrl,
         ]);
         const infoTab = tabs.newTab("Info", [
-            systemViewCtrlCtrl,
             connectivity,
             log
         ]);
@@ -251,17 +250,22 @@ export class SystemInspector {
                 dom.DIV({"class": "cols"}, [
                     dom.DIV({ "class": "left" }, [
                         dom.H3({}, [
-                            "Control and Random Space",
-                            dom.DIV({ "class": "icons" }, [dom.infoBox("info-control")])
-                        ]),
-                        controlSpaceView.node, randomSpaceView.node
-                    ]),
-                    dom.DIV({ "class": "right" }, [
-                        dom.H3({}, [
                             "Objective Automaton",
                             dom.DIV({ "class": "icons" }, [dom.infoBox("info-automaton")])
                         ]),
                         automatonViewCtrl.node
+                    ]),
+                    dom.DIV({ "class": "right" }, [
+                        dom.H3({}, [
+                            "Control and Random Space",
+                            dom.DIV({ "class": "icons" }, [dom.infoBox("info-control")])
+                        ]),
+                        controlSpaceView.node, randomSpaceView.node,
+                        dom.H3({}, [
+                            "View Settings",
+                            dom.DIV({ "class": "icons" }, [dom.infoBox("info-view-settings")])
+                        ]),
+                        systemViewCtrlCtrl.node
                     ])
                 ])
             ]),
@@ -941,6 +945,38 @@ class RandomSpaceView {
 }
 
 
+// Settings panel for the main view
+class SystemViewCtrlCtrl {
+
+    +node: HTMLDivElement;
+
+    constructor(systemViewCtrl: SystemViewCtrl, keys: dom.Keybindings): void {
+        // State label toggle
+        const labels = new CheckboxInput(false, dom.SPAN({}, [
+            "State ", dom.create("u", {}, ["L"]), "abels"
+        ]));
+        labels.attach(() => {
+            systemViewCtrl.showLabels = labels.value;
+        });
+        // Vector field toggle
+        const vectors = new CheckboxInput(false, dom.SPAN({}, [
+            dom.create("u", {}, ["V"]), "ector Field"
+        ]));
+        vectors.attach(() => {
+            systemViewCtrl.showVectors = vectors.value;
+        });
+        // Assemble
+        this.node = dom.DIV({}, [
+            dom.P({}, [labels.node, vectors.node])
+        ]);
+        // Keybindings
+        keys.bind("l", inputTextRotation(labels, ["t", "f"]));
+        keys.bind("v", inputTextRotation(vectors, ["t", "f"]));
+    }
+
+}
+
+
 class AutomatonViewCtrl {
 
     +node: HTMLDivElement;
@@ -985,7 +1021,7 @@ class AutomatonViewCtrl {
         // Width is given by layout, height scales with automaton extent
         const width = Math.abs(extent[0][1] - extent[0][0]);
         const height = Math.abs(extent[1][1] - extent[1][0]);
-        const plot = new ShapePlot([330, (330 / width) * height], fig, proj, false);
+        const plot = new ShapePlot([330, height + Math.max(1 - 330 / width, 0)], fig, proj, false);
         // Assemble
         this.node = dom.DIV({ "id": "automaton-view-ctrl" }, [
             plot.node,
@@ -1962,38 +1998,8 @@ class TraceViewStepCtrl extends WidgetPlus {
 
 
 // Tab: Info
-// - SystemViewCtrlCtrl
+// - Connectivity
 // - Logger
-
-// Settings panel for the main view
-class SystemViewCtrlCtrl extends WidgetPlus {
-
-    constructor(systemViewCtrl: SystemViewCtrl, keys: dom.Keybindings): void {
-        super("View Settings", "info-view-settings");
-        // State label toggle
-        const labels = new CheckboxInput(false, dom.SPAN({}, [
-            "State ", dom.create("u", {}, ["L"]), "abels"
-        ]));
-        labels.attach(() => {
-            systemViewCtrl.showLabels = labels.value;
-        });
-        // Vector field toggle
-        const vectors = new CheckboxInput(false, dom.SPAN({}, [
-            dom.create("u", {}, ["V"]), "ector Field"
-        ]));
-        vectors.attach(() => {
-            systemViewCtrl.showVectors = vectors.value;
-        });
-        // Assemble
-        this.node = dom.DIV({}, [
-            dom.P({}, [labels.node, vectors.node])
-        ]);
-        // Keybindings
-        keys.bind("l", inputTextRotation(labels, ["t", "f"]));
-        keys.bind("v", inputTextRotation(vectors, ["t", "f"]));
-    }
-
-}
 
 
 // Export to other applications

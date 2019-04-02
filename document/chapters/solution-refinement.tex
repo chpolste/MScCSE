@@ -1,0 +1,74 @@
+Refinement necessary component due to introduction of abstraction.
+Combines analysis results and knowledge of dynamics into useful heuristics.
+Presented here are a few heuristics.
+
+Why reachability is the only problem that needs to be solved: in product automaton, for each copy of the LSS abstraction states a reachability problem can be solved with the target of reaching a region that enables an automaton transition.
+By targeting individual transitions, the refinement decomposes into a series of reachability problems.
+Therefore, presentation of refinement here for reachability only.
+Problem of selection of transitions for refinement is complex, automaton is hard, pops up again in controller synthesis.
+
+
+\startsubsection[title={One-step Refinement}]
+
+    Single-step lookahead.
+    Attr-, AttrR+, by \cite[Svorenova2017]
+    Progress guarantees.
+    Prove that Attr- is best negative refinement possible for reachability.
+    AttrR+ treats system like it is deterministic.
+    Waste of probabilistic properties.
+    No progress possible if deterministic transition cannot be found, approximations do not deliver same guarantees.
+
+\stopsubsection
+
+
+\startsubsection[title={Multi-step Refinement}]
+
+    One-step refinement gets stuck if refined region is not analysed differently or need to keep track of progress between analyses.
+    Multi-step refinement tries to make additional progress by continuing after refinement step until nothing more can be decided/guaranteed anymore.
+    Requires progress guarantees during refinement.
+    LTL (except for $\Next$) does not care how long until goal is reached.
+    In practice of almost-sure analysis this can be used for analysis but may lead to inefficient controller synthesis.
+
+    Attr- in multi-step mode can lead to reduced number of states created.
+    Requires (self-) loop removal.
+
+    Static control reduces system by removing player 1 and therefore enabling more efficient analysis of system at the cost of introduction of a piecewise dynamics.
+    Removing bad is more important than ensuring good. As long as bad is avoided and no loops, good will happen eventually.
+    Discuss theoretical successes and practical problems of static control.
+
+    Discuss purely deterministic refinement and refinement that takes probabilistic aspect into account.
+    Actions as basis of refinement in AttrR+ and Static Control have proved to be non-optimal.
+    "Jagged" progress due to piecewise dynamics lead no much non-convexness which is computationally demanding.
+    More sophisticated action selection could resolve this, but fixed dynamics without recomputation after some steps will always have its limits.
+    
+    Another multi-step approach, less guarantees but simpler: layered refinement.
+
+\stopsubsection
+
+
+\startsubsection[title={Layered Refinement}]
+
+    Layer idea outlined by \cite[Svorenova2017].
+    Refinement decouples into separate subproblems.
+    Problem of \cite[Svorenova2017]: Pre is not the ideal operator for procedure.
+
+    Innovation: PreR, shrinking of layer-generating control space (show graphic/example that illustrates "convergence" behaviour at edges).
+    Outline algorithm (layer generation, removal of known no-states, control selection and AttrR in inner iterations, small-state supression because states smaller W will always transition away, loops impossible), discuss tuning parameters.
+    Discuss probabilistic aspect of approach (steps are deterministic, but no overall guarantee since solution for outer layers depends on solution of inner layers) but mention that at core it is deterministic.
+    Non-optimality of layers in terms of numbers of states generated (PreR is deterministic transition).
+    Problem: PreR does not exists if X - W = 0, extension by minkowski sum with origin-centered W.
+    Layer 0 and safety transitions.
+
+\stopsubsection
+
+
+\startsubsection[title={General Remarks}]
+
+    Summarize approach to refinement, lessons learned:
+    Everything can be decomposed into reachability at the cost of additional problems (transition selection and refinement coordination).
+    Actions of game abstraction usable for refinement purposes but better choices available at little extra cost.
+    Deterministic vs probabilistic refinement, missed potential but cost of deeper analysis required in probabilistic approaches.
+    Progress guarantees in practice.
+
+\stopsection
+

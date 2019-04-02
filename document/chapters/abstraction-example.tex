@@ -1,0 +1,113 @@
+Example: 1D variant of illustrative example and recurrence
+
+\startformula
+    x_{t+1} = x + u + w
+\stopformula
+
+Game graph:
+Non-empty concrete actions for $\State{4} = \ClosedInterval{0}{2}$:
+
+\startformula
+    \startalign[n=3,align={left,left,left}]
+        \NC \ConcreteAction{\State{4}}{\Set{\State{3},\State{4}}}
+        \NC = \ClosedInterval{0.1}{1}
+        \NC = U_4^\Set{3, 4} \EndComma
+        \NR
+        \NC \ConcreteAction{\State{4}}{\Set{\State{1},\State{3},\State{4}}}
+        \NC = \ClosedInterval{-0.1}{0.1}
+        \NC = U_4^\Set{1, 3, 4} \EndComma
+        \NR
+        \NC \ConcreteAction{\State{4}}{\Set{\State{1},\State{4}}}
+        \NC = \ClosedInterval{-1}{-0.1}
+        \NC = U_4^\Set{1, 4} \EndPeriod
+        \NR
+    \stopalign
+\stopformula
+
+Therefore, we obtain 3 player 1 actions for this state: $\PlayerOneAction{4}{\Set{1, 4}}$, $\PlayerOneAction{4}{\Set{1, 3, 4}}$ and $\PlayerOneAction{4}{\Set{3, 4}}$.
+So e.g. action $\PlayerOneAction{4}{\Set{1, 3, 4}}$ leads (determinisitically) to state $\Tuple{\State{4}}{\Set{1, 3, 4}}$, where one finds these non-empty precise predecessors:
+
+\startformula
+    \startalign[n=2,align={left,left}]
+        \NC \PrecisePredecessor{\State{4}}{U_4^\Set{1, 3, 4}}{\Set{\State{1},\State{4}}}
+        \NC = \ClosedInterval{0}{0.2}
+        \NR
+        \NC \PrecisePredecessor{\State{4}}{U_4^\Set{1, 3, 4}}{\Set{\State{3},\State{4}}}
+        \NC = \ClosedInterval{1.8}{2}
+        \NR
+        \NC \PrecisePredecessor{\State{4}}{U_4^\Set{1, 3, 4}}{\Set{\State{4}}}
+        \NC = \ClosedInterval{0}{2}
+        \NR
+    \stopalign
+\stopformula
+
+From that one finds that player 2 has actions $\PlayerTwoAction{4}{\Set{1, 3, 4}}{\Set{1, 4}}$, $\PlayerTwoAction{4}{\Set{1, 3, 4}}{\Set{3, 4}}$ and $\PlayerTwoAction{4}{\Set{1, 3, 4}}{\Set{4}}$ available.
+
+Product game:
+Assume in state $\Tuple{\State{4}}{q}$, automaton transition to $q'$.
+Then a play of one player 1 turn and one player 2 turn can take these paths:
+
+\startreusableMPgraphic{example-play-paths}
+    with spacing((45,60)) matrix.a(6,9);
+    % Player 1 states (origin)
+    with fixedboxwidth(50) with fixedboxheight(30) with shape(fixedbox) node.a[0][4](btex $\Tuple{\State{4}}{q}$ etex);
+    % Player 2 states
+    with fixedboxwidth(90) with fixedboxheight(30) with shape(fixedbox) with filling(solid) with fillingcolor(lightgray) node.a[2][1](btex $\Triple{\State{4}}{\Set{1, 4}}{q'}$ etex);
+    with fixedboxwidth(90) with fixedboxheight(30) with shape(fixedbox) with filling(solid) with fillingcolor(lightgray) node.a[2][4](btex $\Triple{\State{4}}{\Set{1, 3, 4}}{q'}$ etex);
+    with fixedboxwidth(90) with fixedboxheight(30) with shape(fixedbox) with filling(solid) with fillingcolor(lightgray) node.a[2][7](btex $\Triple{\State{4}}{\Set{3, 4}}{q'}$ etex);
+    % Player 1 states (target)
+    with fixedboxwidth(50) with fixedboxheight(30) with shape(fixedbox) node.a[5][1](btex $\Tuple{\State{1}}{q'}$ etex);
+    with fixedboxwidth(50) with fixedboxheight(30) with shape(fixedbox) node.a[5][4](btex $\Tuple{\State{4}}{q'}$ etex);
+    with fixedboxwidth(50) with fixedboxheight(30) with shape(fixedbox) node.a[5][7](btex $\Tuple{\State{3}}{q'}$ etex);
+    % Player 1 actions
+    with shape(circle) with size(35) node.a[1][1](btex \ssd $\Set{1, 4}$ etex);
+    with shape(circle) with size(35) node.a[1][4](btex \ssd $\Set{1, 3, 4}$ etex);
+    with shape(circle) with size(35) node.a[1][7](btex \ssd $\Set{3, 4}$ etex);
+    % Player 2 actions
+    with shape(circle) with filling(solid) with fillingcolor(lightgray) with size(35) node.a[3][0](btex \ssd $\Set{1}$ etex);
+    with shape(circle) with filling(solid) with fillingcolor(lightgray) with size(35) node.a[3][1](btex \ssd $\Set{1, 4}$ etex);
+    with shape(circle) with filling(solid) with fillingcolor(lightgray) with size(35) node.a[3][2](btex \ssd $\Set{4}$ etex);
+    with shape(circle) with filling(solid) with fillingcolor(lightgray) with size(35) node.a[3][3](btex \ssd $\Set{1, 4}$ etex);
+    with shape(circle) with filling(solid) with fillingcolor(lightgray) with size(35) node.a[3][4](btex \ssd $\Set{4}$ etex);
+    with shape(circle) with filling(solid) with fillingcolor(lightgray) with size(35) node.a[3][5](btex \ssd $\Set{3, 4}$ etex);
+    with shape(circle) with filling(solid) with fillingcolor(lightgray) with size(35) node.a[3][6](btex \ssd $\Set{4}$ etex);
+    with shape(circle) with filling(solid) with fillingcolor(lightgray) with size(35) node.a[3][7](btex \ssd $\Set{3, 4}$ etex);
+    with shape(circle) with filling(solid) with fillingcolor(lightgray) with size(35) node.a[3][8](btex \ssd $\Set{3}$ etex);
+    % Arrows (player 1)
+    with tipsize(0) arrow.top(.9, "") (a[0][4],a[1][1]) a[0][4].c..a[1][1].c;
+    with tipsize(0) arrow.rt(.9, "") (a[0][4],a[1][4]) a[0][4].c..a[1][4].c;
+    with tipsize(0) arrow.top(.9, "") (a[0][4],a[1][7]) a[0][4].c..a[1][7].c;
+    arrow.rt(.5, "1") (a[1][1],a[2][1]) a[1][1].c..a[2][1].c;
+    arrow.rt(.5, "1") (a[1][4],a[2][4]) a[1][4].c..a[2][4].c;
+    arrow.rt(.5, "1") (a[1][7],a[2][7]) a[1][7].c..a[2][7].c;
+    % Arrows (player 2)
+    with tipsize(0) arrow.top(.9, "") (a[2][1],a[3][0]) a[2][1].c..a[3][0].c;
+    with tipsize(0) arrow.top(.9, "") (a[2][1],a[3][1]) a[2][1].c..a[3][1].c;
+    with tipsize(0) arrow.top(.9, "") (a[2][1],a[3][2]) a[2][1].c..a[3][2].c;
+    with tipsize(0) arrow.top(.9, "") (a[2][4],a[3][3]) a[2][4].c..a[3][3].c;
+    with tipsize(0) arrow.top(.9, "") (a[2][4],a[3][4]) a[2][4].c..a[3][4].c;
+    with tipsize(0) arrow.top(.9, "") (a[2][4],a[3][5]) a[2][4].c..a[3][5].c;
+    with tipsize(0) arrow.top(.9, "") (a[2][7],a[3][6]) a[2][7].c..a[3][6].c;
+    with tipsize(0) arrow.top(.9, "") (a[2][7],a[3][7]) a[2][7].c..a[3][7].c;
+    with tipsize(0) arrow.top(.9, "") (a[2][7],a[3][8]) a[2][7].c..a[3][8].c;
+    arrow.rt(.6, btex $1$ etex) (a[3][0],a[5][1]) a[3][0].c..a[5][1].c;
+    arrow.rt(.6, btex $\frac{1}{2}$ etex) (a[3][1],a[5][1]) a[3][1].c..a[5][1].c;
+    arrow.rt(.6, btex $\frac{1}{2}$ etex) (a[3][1],a[5][4]) a[3][1].c..a[5][4].c;
+    arrow.rt(.6, btex $1$ etex) (a[3][2],a[5][4]) a[3][2].c..a[5][4].c;
+    arrow.rt(.6, btex $\frac{1}{2}$ etex) (a[3][3],a[5][1]) a[3][3].c..a[5][1].c;
+    arrow.rt(.6, btex $\frac{1}{2}$ etex) (a[3][3],a[5][4]) a[3][3].c..a[5][4].c;
+    arrow.rt(.6, btex $1$ etex) (a[3][4],a[5][4]) a[3][4].c..a[5][4].c;
+    arrow.rt(.6, btex $\frac{1}{2}$ etex) (a[3][5],a[5][7]) a[3][5].c..a[5][7].c;
+    arrow.rt(.6, btex $\frac{1}{2}$ etex) (a[3][5],a[5][4]) a[3][5].c..a[5][4].c;
+    arrow.rt(.6, btex $1$ etex) (a[3][6],a[5][4]) a[3][6].c..a[5][4].c;
+    arrow.rt(.6, btex $\frac{1}{2}$ etex) (a[3][7],a[5][7]) a[3][7].c..a[5][7].c;
+    arrow.rt(.6, btex $\frac{1}{2}$ etex) (a[3][7],a[5][4]) a[3][7].c..a[5][4].c;
+    arrow.rt(.6, btex $1$ etex) (a[3][8],a[5][7]) a[3][8].c..a[5][7].c;
+\stopreusableMPgraphic
+
+\placefigure[top][fig:example-play-paths]{
+    TODO
+}{
+    \framed[width=\textwidth,frame=off]{\reuseMPgraphic{example-play-paths}}
+}
+

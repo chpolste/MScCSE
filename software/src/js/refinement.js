@@ -252,14 +252,20 @@ export class LayerRefinery extends Refinery {
         if (settings.range[0] < 1 || settings.range[1] < settings.range[0]) throw new ValueError(
             "settings.range = [" + settings.range.join(", ") + "] is invalid"
         );
+        // States already known to be non-satisfying (e.g. due to a safety
+        // objective) are removed from the layers as they should not be
+        // targeted
+        const noRegion = this.getStateRegion("no", settings.origin).simplify();
         // Target region
-        const target = this.getTransitionRegion(settings.target, settings.origin);;
+        const target = this.getTransitionRegion(settings.target, settings.origin);
         // Iteratively generate layers starting from target
-        this.layers = [target];
+        const layer0 = target.remove(noRegion).simplify();
+        this.layers = [layer0];
         for (let i = 0; i <= settings.range[1]; i++) {
             // Target of next layer is previous layer
             const previous = this.layers[this.layers.length - 1];
-            this.layers.push(this._generateLayer(previous).simplify());
+            const layer = this._generateLayer(previous).remove(noRegion).simplify();
+            this.layers.push(layer);
         }
     }
 

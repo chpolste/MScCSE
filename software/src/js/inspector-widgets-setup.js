@@ -48,13 +48,13 @@ export class SessionManager {
 
     +node: HTMLDivElement;
     +problemSetup: ProblemSetup;
+    +presetSelect: Input<*>;
 
     constructor(problemSetup: ProblemSetup): void {
         this.node = dom.DIV();
         this.problemSetup = problemSetup;
-        let presetSelect = new DropdownInput(presets.setups);
-        let presetButton = dom.INPUT({"type": "button", "value": "fill in"});
-        presetButton.addEventListener("click", () => this.problemSetup.load(presetSelect.value));
+        this.presetSelect = new DropdownInput(presets.setups);
+        const presetButton = dom.createButton({}, ["fill in"], () => this.loadPreset());
         dom.appendChildren(this.node, [
             /*
             dom.H3({}, ["Load session from file"]),
@@ -65,8 +65,12 @@ export class SessionManager {
             ]),
             */
             dom.P({}, ["Start from a preset:"]),
-            dom.P({}, [presetSelect.node, " ", presetButton])
+            dom.P({}, [this.presetSelect.node, " ", presetButton])
         ]);
+    }
+
+    loadPreset(): void {
+        this.problemSetup.load(this.presetSelect.value);
     }
 
 }

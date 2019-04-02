@@ -31,8 +31,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const sessionManager = new SessionManager(problemSetup);
 
     dom.replaceChildren(contentNode, [sessionManager.node, problemSetup.node]);
-    // Temporarily start inspector with preset 2 immediately TODO
-    problemSetup.load(presets.setups["Svorenova et al. (2017)'s Double Integrator"]);
+    sessionManager.loadPreset();
 
     // Render all math on the page
     for (let node of document.querySelectorAll(".math")) {

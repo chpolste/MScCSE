@@ -31,9 +31,9 @@ export const objectives = {
 
     "Eventual Safety": {
         name: "Eventual Safety",
-        formula: "\\mathsf{F} \\mathsf{G} \\varphi",
-        variables: ["\\varphi"],
-        automaton: "q0>(\\varphi)>q1,q0>>q0,q1>(\\varphi)>q1,q1>>q0 | q0 | q0 | ",
+        formula: "\\mathsf{F} \\mathsf{G} \\neg \\pi",
+        variables: ["\\pi"],
+        automaton: "q0>(!\\pi)>q1,q0>>q0,q1>(!\\pi)>q1,q1>>q0 | q0 | q0 | ",
         automatonPlacement: { "q0": [0, 0, 0], "q1": [300, 0, 0] }
     },
 

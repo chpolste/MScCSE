@@ -1613,12 +1613,15 @@ class AnalysisViewCtrl extends WidgetPlus{
 }
 
 
+const MAX_LAYER_RANGE_END = 20;
 class LayerRefinementCtrl extends WidgetPlus {
 
     +_model: SystemModel;
     // Form elements
     +_origin: OptionsInput<AutomatonStateID>;
     +_target: OptionsInput<AutomatonStateID>;
+    +_expandSmallTarget: Input<boolean>;
+    +_invertTarget: Input<boolean>;
     +_generator: OptionsInput<LayerRefineryGenerator>;
     +_scale: OptionsInput<number>;
     +_rangeStart: OptionsInput<number>;
@@ -1633,17 +1636,21 @@ class LayerRefinementCtrl extends WidgetPlus {
         // Origin and target automaton state selection
         const automaton = model.objective.automaton;
         const qAllObj = obj.fromMap(_ => _, model.qAll)
+        // Origin automaton state
         this._origin = new RadioInput(qAllObj, automaton.initialState.label, automatonLabel);
+        // Target automaton state with transition region modifiers
         this._target = new RadioInput(qAllObj, automaton.initialState.label, automatonLabel);
+        this._expandSmallTarget = new CheckboxInput(false, "expand if small");
+        this._invertTarget = new CheckboxInput(false, "invert");
         // Layer generating function
         this._generator = new DropdownInput({
             "Predecessor": "Pre",
             "Robust Predecessor": "PreR",
         }, "Robust Predecessor");
         this._scale = new DropdownInput(DropdownInput.rangeOptions(80, 125, 5), "95");
-        this._rangeStart = new DropdownInput(DropdownInput.rangeOptions(1, 10, 1), "1");
-        this._rangeEnd = new DropdownInput({ "9": 9 }, "9");
-        this._iterations = new DropdownInput(DropdownInput.rangeOptions(0, 10, 1), "2");
+        this._rangeStart = new DropdownInput(DropdownInput.rangeOptions(1, 20, 1), "1");
+        this._rangeEnd = new DropdownInput({ "10": 10 }, "10");
+        this._iterations = new DropdownInput(DropdownInput.rangeOptions(0, 20, 1), "2");
         this._dontRefineSmall = new CheckboxInput(true, "don't refine small polytopes");
         // Assemble
         this._button = dom.createButton({}, ["refine"], () => this.refine())
@@ -1653,11 +1660,15 @@ class LayerRefinementCtrl extends WidgetPlus {
                     dom.DIV({}, ["Origin:"]),
                     dom.DIV({}, [this._origin.node])
                 ]),
-                dom.DIV({}, [
+                dom.DIV({ }, [
                     dom.DIV({}, ["Target:"]),
                     dom.DIV({}, [this._target.node])
                 ]),
-                dom.DIV({ "class": "rowspan" }, [
+                dom.DIV({}, [
+                    dom.DIV(),
+                    dom.DIV({}, [this._invertTarget.node, this._expandSmallTarget.node])
+                ]),
+                dom.DIV({}, [
                     dom.DIV({}, ["Layers:"]),
                     dom.DIV({}, [this._rangeStart.node, " to ", this._rangeEnd.node, " of ", this._generator.node])
                 ]),
@@ -1665,7 +1676,7 @@ class LayerRefinementCtrl extends WidgetPlus {
                     dom.DIV(),
                     dom.DIV({}, ["scale generating ", dom.renderTeX("U", dom.SPAN()), " to ", this._scale.node, "%"])
                 ]),
-                dom.DIV({ "class": "rowspan" }, [
+                dom.DIV({}, [
                     dom.DIV({}, ["Inner:"]),
                     dom.DIV({}, [this._iterations.node, " iteration(s) of AttrR+ refinement"]),
                 ]),
@@ -1690,6 +1701,9 @@ class LayerRefinementCtrl extends WidgetPlus {
             scaling: (this._scale.value / 100),
             range: [this._rangeStart.value, this._rangeEnd.value],
             iterations: this._iterations.value,
+            // Modifiers
+            expandSmallTarget: this._expandSmallTarget.value,
+            invertTarget: this._invertTarget.value,
             dontRefineSmall: this._dontRefineSmall.value
         }).catch(() => {
             // Error logging is done in SystemModel
@@ -1707,7 +1721,7 @@ class LayerRefinementCtrl extends WidgetPlus {
         const lower = this._rangeStart.value;
         const upper = this._rangeEnd.value;
         const init = String(Math.max(lower, upper));
-        this._rangeEnd.setOptions(DropdownInput.rangeOptions(lower, 10, 1), init);
+        this._rangeEnd.setOptions(DropdownInput.rangeOptions(lower, MAX_LAYER_RANGE_END, 1), init);
     }
 
 }

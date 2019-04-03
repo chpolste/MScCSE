@@ -236,7 +236,10 @@ export type LayerRefinerySettings = {
     scaling: number,
     range: LayerRefineryRange,
     iterations: number,
-    dontRefineSmall: boolean
+    // Modifiers with default = false
+    expandSmallTarget?: boolean,
+    invertTarget?: boolean,
+    dontRefineSmall?: boolean
 };
 
 export class LayerRefinery extends Refinery {
@@ -257,7 +260,17 @@ export class LayerRefinery extends Refinery {
         // targeted
         const noRegion = this.getStateRegion("no", settings.origin).simplify();
         // Target region
-        const target = this.getTransitionRegion(settings.target, settings.origin);
+        let target = this.getTransitionRegion(settings.target, settings.origin);
+        // Invert target region if desired
+        if (this.settings.invertTarget === true) {
+            target = system.lss.xx.remove(target);
+        }
+        // If the target region is small, expand (if desired) such that
+        // pontragin with ww is guaranteed to exist (required for PreR)
+        if (this.settings.expandSmallTarget === true && target.pontryagin(system.lss.ww).isEmpty) {
+            const wwTrans = system.lss.ww.translate(system.lss.ww.centroid.map(_ => -_));
+            target = target.minkowski(wwTrans).intersect(system.lss.xx);
+        }
         // Iteratively generate layers starting from target
         const layer0 = target.remove(noRegion).simplify();
         this.layers = [layer0];
@@ -267,6 +280,10 @@ export class LayerRefinery extends Refinery {
             const layer = this._generateLayer(previous).remove(noRegion).simplify();
             this.layers.push(layer);
         }
+    }
+
+    get _dontRefineSmall(): boolean {
+        return this.settings.dontRefineSmall === true;
     }
 
     _generateLayer(target: Region): Region {
@@ -323,7 +340,7 @@ export class LayerRefinery extends Refinery {
                 }
                 // If part cannot be targeted individually (and is therefore
                 // guaranteed to have no self-loop), add to decided parts
-                if (this.settings.dontRefineSmall && part.pontryagin(lss.ww).isEmpty) {
+                if (this._dontRefineSmall && part.pontryagin(lss.ww).isEmpty) {
                     done = done.union(part);
                     continue;
                 }

@@ -182,7 +182,9 @@ export class DropdownInput<T> extends ObservableMixin<null> implements OptionsIn
     }
 
     set text(text: string): void {
-        if (!this._options.hasOwnProperty(text)) throw new Error("text not in options");
+        if (!this._options.hasOwnProperty(text)) throw new Error(
+            "text '" + text + "' not in options: " + obj.keys(this._options).join(", ")
+        );
         this.node.value = text;
         this.handleChange();
     }
@@ -245,7 +247,9 @@ export class RadioInput<T> extends ObservableMixin<null> implements OptionsInput
     }
 
     set text(text: string): void {
-        if (!this._options.hasOwnProperty(text)) throw new Error("text not in options");
+        if (!this._options.hasOwnProperty(text)) throw new Error(
+            "text '" + text + "' not in options: " + obj.keys(this._options).join(", ")
+        );
         for (let radio of this._radios) {
             radio.checked = (radio.value === text);
         }

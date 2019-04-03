@@ -1,0 +1,39 @@
+\startreusableMPgraphic{flowchart-approach}
+    with spacing((25,10)) matrix.a(11,15);
+    with shape(none) node.a[0][0](btex \ssd \strut LSS etex);
+    with shape(none) node.a[0][3](btex \ssd \strut linear predicates etex);
+    with shape(none) node.a[0][9](btex \ssd \strut objective etex);
+    with shape(circle) with size(3) node.a[1][0]("");
+    with shape(circle) with size(3) node.a[1][2]("");
+    with shape(circle) with size(3) node.a[1][9]("");
+    with shape(boxed) with border(none) node.a[3][12]("");
+    with shape(boxed) with border(none) node.a[3][12]("");
+    with shape(boxed) with border(none) node.a[5][12]("");
+    with fixedboxwidth(80) with fixedboxheight(30) with shape(roundfixedbox) with filling(solid) with fillingcolor(lightgray) node.a[4][1](btex \ss Abstraction etex);
+    with fixedboxwidth(80) with fixedboxheight(30) with shape(roundfixedbox) with filling(solid) with fillingcolor(lightgray) node.a[4][9](btex \ss Analysis etex);
+    with fixedboxwidth(80) with fixedboxheight(30) with shape(roundfixedbox) with filling(solid) with fillingcolor(lightgray) node.a[10][5](btex \ss Refinement etex);
+    arrow.rt(.5, "") (a[1][0],a[4][1]) a[1][0].c..a[4][0].c;
+    arrow.rt(.5, "") (a[1][2],a[4][1]) a[1][2].c..a[4][2].c;
+    arrow.rt(.5, "") (a[1][9],a[4][9]) a[1][9].c..a[4][9].c;
+    arrow.top(.5, btex \ssd game graph etex) (a[4][1],a[4][9]) a[4][1].c..a[4][9].c;
+    arrow.bot(.5, btex \ssd undecided states etex) (a[4][9],a[10][5]) a[4][9].c---a[10][9].c---a[10][5].c;
+    arrow.bot(.5, btex \ssd state space partition etex) (a[10][5],a[4][1]) a[10][5].c---a[10][1].c---a[4][1].c;
+    arrow.rt(1, btex \ssd part of ${\InitStateSpace}$ etex) (a[4][9],a[3][12]) a[3][9].c---a[3][12].c;
+    arrow.rt(1, btex \ssd part of ${\StateSpace \setminus \InitStateSpace}$ etex) (a[4][9],a[5][12]) a[5][9].c---a[5][12].c;
+\stopreusableMPgraphic
+
+
+\placefigure[top][fig:review-flowchart-approach]{
+    TODO
+}{
+    \framed[width=\textwidth,frame=off]{\reuseMPgraphic{flowchart-approach}}
+}
+
+The solution approach to the analysis problem is depicted in Figure \in[fig:review-flowchart-approach].
+
+Convex discretization, initially with linear predicates.
+LSS is continuous-space MDP, suitable abstraction is 2-player probabilistic game, second player represents non-determinism introduced by abstracted states (one doesn't know where exactly in the state one is).
+Almost-sure analysis: product of automaton and game, convert to parity objective, adversarial and cooperative solution.
+Iterative refinement with heuristics informed by dynamics and analysis results.
+Strategy synthesis makes use of player 1 actions of the abstraction and analysis results to select control inputs.
+

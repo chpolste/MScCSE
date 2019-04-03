@@ -1,0 +1,17 @@
+Double integrator, the example of \cite[Svorenova2017].
+
+\startformula
+    \VecX_{t+1} = ...
+\stopformula
+
+Shown here again, to demonstrate improvements in the refinement.
+Challenge: limit-behaviour at edge.
+TODO: proof that at boundary of Outer Attr, only a single control input point is usable, therefore procedure can never terminate.
+Motivate shrinking of PreR again, which avoids this issue.
+Explain why boundary behaviour inside the polytope is not as problematic and how random sampling is used to solve this.
+
+Performance comparison: single-step Attr-/AttrR+ vs multi-step Attr- and layered refinement (vs multi-step static control?).
+Layer-by-layer analysis with game simplification faster than one analysis for everything?
+
+Also demonstrate with recurrence objective and how layered refinement overcomes the yes-states issues of AttrR+ refinement.
+

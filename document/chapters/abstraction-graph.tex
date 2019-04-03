@@ -1,0 +1,82 @@
+Build game graph as introduced in section \in[sec:theory-games-games].
+
+\startformula
+    \GameGraph = (G_1, G_2, Act, \delta_\GameGraph)
+\stopformula
+
+Player 1 states are called like the indices of their corresponding polytopes $\State{i}$ from the state space partition.
+A set of outer states, from $\ExtendedStateSpace \setminus \StateSpace$ (states from $\StateSpace$ being called inner states) is added to the game graph to simplify handling of transitions out of the state space.
+
+\startformula
+    G_1 = \IndexedStates{i}{J}
+\stopformula
+
+where $\State{i} \subseteq \ExtendedStateSpace$ and disjunct $\State{i} \cap \State{j} = \emptyset$ for all $i \neq j$.  
+It should be clear from context if state of associated polytope is meant.
+If not, it will be clarified explicitly.
+Player 2 states.
+
+\startformula
+    G_2 = \BigSet{\Tuple{\State{i}}{J} \Bigmid i \in I \MidAnd J \subseteq I}
+\stopformula
+
+Player 1 actions represent the control that is excerted externally on the evolution on a trace, they correspond to disjunct regions of the control space that can be selected as control input.
+Transitions are deterministic, i.e. there is only one possible successor for every player 1 action picked.
+Player 2 actions represent ...
+
+\startformula
+    Act = \BigSet{\PlayerOneAction{i}{J} \Bigmid i \in I \MidComma J \subseteq I} \,\cup\,
+          \BigSet{\PlayerTwoAction{i}{J}{K} \Bigmid i \in I \MidComma K \subseteq J \subseteq I}
+\stopformula
+
+Now the transition relation $\delta_\GameGraph$ can be defined.
+For player 1 states and actions:
+
+\startformula
+    \delta_\GameGraph
+        \Big( \State{i}, \PlayerOneAction{i'}{J'} \Big)
+        \Big( \Tuple{\State{i}}{J} \Big)
+    = \startmathcases
+        \NC 1
+        \MC \startgathered
+                \NC i = i' \MidAnd J = J'
+                \NR
+                \NC \quad \MidAnd \ConcreteAction{\State{i}}{\IndexedStates{j}{J}} \neq \emptyset
+                \NR
+            \stopgathered
+        \NR
+        \NC 0
+        \NC otherwise \EndPeriod
+        \NR
+    \stopmathcases
+\stopformula
+
+For player 2 states and actions:
+
+\startformula
+    \delta_\GameGraph
+        \Big( \Tuple{\State{i}}{J}, \PlayerTwoAction{i'}{J'}{K} \Big)
+        \Big( \State{k} \Big)
+    = \startmathcases
+        \NC \displaystyle\frac{1}{|K|}
+        \MC \startgathered
+                \NC i = i' \MidAnd J = J' \MidAnd k \in K
+                \NR
+                \NC \quad \MidAnd \PrecisePredecessor{\State{i}}{U_i^J}{\IndexedStates{k}{K}} \neq \emptyset
+                \NR
+            \stopgathered
+        \NR
+        \NC 0
+        \NC otherwise \EndComma
+        \NR
+    \stopmathcases
+\stopformula
+
+Relation between player 2 actions and supports.
+
+where $U_i^J = \ConcreteAction{\State{i}}{\IndexedStates{j}{J}}$ is the control input associated with the player 1 action $\PlayerOneAction{i}{J}$ that lead to the player 2 state from player 1 state $\State{i}$.
+Simplified probability distribution: don't care about the actual transition probabilities since only almost sure analysis is considered here, where all non-zero probabilities are equivalent.
+Outer states have no actions but can be used as transition targets for inner states.
+
+While finding the solution to a given problem on the LSS, the partition will be subject to change when refinement takes place.
+

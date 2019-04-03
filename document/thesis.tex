@@ -1,5 +1,7 @@
 \usecolors[xwi]
 
+% Fixes for broken rendering
+\input{inputs/fixes}
 % Custom TeX-commands
 \input{inputs/commands}
 
@@ -31,7 +33,7 @@
 % Fonts
 % Text uses serif font
 \setupbodyfont[11pt,serif]
-\definebodyfontenvironment[11pt][a=12pt,b=13pt,c=14pt,d=20pt]
+\definebodyfontenvironment[11pt][a=12pt,b=13pt,c=14pt,d=9pt]
 
 % Headings etc. are sans-serif
 \definefontfamily[titlefont][sans][dejavusans]
@@ -262,17 +264,40 @@
     \stopsectionblock
 
     \startfrontmatter
+
         \startchapter[title=Acknowledgements]
             ...
-        \stoptitle
+        \stopchapter
+
         \page[even,empty]
-        \startchapter[title=Preface]
+
+        \startchapter[title=Notation]
             ...
-        \stoptitle
+        \stopchapter
+
         \page[even,empty]
+
     \stopfrontmatter
 
     \startbodymatter
+
+        \startchapter[title={Introduction}]
+
+            \input{chapters/introduction}
+
+            \startsection[title={Model Checking of Hybrid Systems}]
+                \input{chapters/introduction-topic}
+            \stopsection
+
+            \startsection[title={Review of Related Work}]
+                \input{chapters/introduction-review}
+            \stopsection
+
+            \startsection[title={Goals of This Work}]
+                \input{chapters/introduction-goals}
+            \stopsection
+
+        \stopchapter
 
         \startchapter[title={Theoretical Foundations}]
 
@@ -308,6 +333,112 @@
 
             \startsection[title={Temporal Logic}]
                 \input{chapters/theory-logic}
+            \stopsection
+
+        \stopchapter
+
+        \startchapter[title={Problem Formulation}]
+
+            \input{chapters/problem}
+
+            \startsection[title={Setup}]
+                \input{chapters/problem-setup}
+            \stopsection
+
+            \startsection[title={Satisfiability Analysis}]
+                \input{chapters/problem-analysis}
+            \stopsection
+
+            \startsection[title={Controller Synthesis}]
+                \input{chapters/problem-synthesis}
+            \stopsection
+
+            \startsection[title={Approach Overview}]
+                \input{chapters/problem-approach}
+            \stopsection
+
+        \stopchapter
+
+        \startchapter[title={Game-based Abstraction}]
+
+            \input{chapters/abstraction}
+
+            \startsection[title={Dynamics Operators}]
+                \input{chapters/abstraction-operators}
+            \stopsection
+
+            \startsection[title={Game Graph}]
+                \input{chapters/abstraction-graph}
+            \stopsection
+
+            \startsection[title={Objective Automaton}]
+                \input{chapters/abstraction-objective}
+            \stopsection
+
+            \startsection[title={Product Game}]
+                \input{chapters/abstraction-product}
+            \stopsection
+
+            \startsection[title={Example}]
+                \input{chapters/abstraction-example}
+            \stopsection
+
+        \stopchapter
+
+        \startchapter[title={Solution}]
+
+            \input{chapters/solution}
+
+            \startsection[title={Game Analysis}]
+                \input{chapters/solution-analysis}
+            \stopsection
+
+            \startsection[title={Controller Synthesis}]
+                \input{chapters/solution-synthesis}
+            \stopsection
+
+            \startsection[title={Abstraction Refinement}]
+                \input{chapters/solution-refinement}
+            \stopsection
+
+            \startsection[title={Solution Properties}]
+                \input{chapters/solution-properties}
+            \stopsection
+
+        \stopchapter
+
+        \startchapter[title={Case Studies}]
+
+            \input{chapters/cases}
+
+            \startsection[title={An Interactive Implementation}]
+                \input{chapters/cases-app}
+            \stopsection
+
+            \startsection[title={Double Integrator}]
+                \input{chapters/cases-integrator}
+            \stopsection
+
+            \startsection[title={Corridor}]
+                \input{chapters/cases-corridor}
+            \stopsection
+
+            \startsection[title={Inverted Pendulum}]
+                \input{chapters/cases-pendulum}
+            \stopsection
+
+        \stopchapter
+
+        \startchapter[title={Discussion}]
+
+            \input{chapters/discussion}
+
+            \startsection[title={Conclusions}]
+                \input{chapters/discussion-conclusions}
+            \stopsection
+
+            \startsection[title={Outlook}]
+                \input{chapters/discussion-outlook}
             \stopsection
 
         \stopchapter

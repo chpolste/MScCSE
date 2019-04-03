@@ -1,0 +1,59 @@
+Putting it all together, full system.
+
+\startformula
+    \ProductGame = ( P_1, P_2, Act, \Transition, \Condition ) \EndComma
+\stopformula
+
+where $P_1 = G_1 \times Q$ and $P_2 = G_2 \times Q$ (flattened into tuples/triples), the actions are taken from the game graph $\GameGraph$,
+
+\startformula
+    \Transition
+        \Big( \Tuple{\State{i}}{q}, \PlayerOneAction{i}{J} \Big)
+        \Big( \Triple{\State{i}}{J}{q'} \Big)
+    = \startmathcases
+        \NC \Transition_\GameGraph
+        \Big( \State{i}, \PlayerOneAction{i}{J} \Big)
+        \Big( \Tuple{\State{i}}{J} \Big)
+        \MC \Transition_\Automaton(q, \PredicatesOf{\State{i}}) = q'
+        \NR
+        \NC 0
+        \NC otherwise
+        \NR
+    \stopmathcases
+\stopformula
+
+and
+
+\startformula
+    \Transition
+        \Big( \Triple{\State{i}}{J}{q}, \PlayerTwoAction{i}{J}{K} \Big)
+        \Big( \Tuple{\State{k}}{q'} \Big)
+    = \startmathcases
+        \NC \Transition_\GameGraph
+        \Big( \Tuple{\State{i}}{J}, \PlayerTwoAction{i}{J}{K} \Big)
+        \Big( \State{k} \Big)
+        \MC q = q'
+        \NR
+        \NC 0
+        \NC otherwise.
+        \NR
+    \stopmathcases
+\stopformula
+
+Winning condition is parity 3.
+Equivalent to one-pair Streett and can be easily translated.
+$\Condition = \Tuple{E}{F} = \Tuple{(G_1 \cup G_2) \times E_\Automaton}{(G_1 \cup G_2) \times F_\Automaton}$ and therefore assign parity 0 to ..., parity 1 to ..., parity 2 to ....
+
+Handling of deadlock states (outer states, incomplete automaton).
+
+Switching bewteen infinite and co-safe interpretation.
+If co-safe objective interpretation is desired, redirect to dedicated sat state once terminal state is reached.
+
+Product game simplification strategies:
+Only construct reachable states.
+If partial results are already available stop once decided or undecided state is reached.
+
+Finally, repeat traces.
+Abstraction can do everything that LSS can do, but also more.
+Automaton transitions happen only in player 1 actions.
+

@@ -252,7 +252,7 @@ export class LayerRefinery extends Refinery {
         super(system, objective, results);
         this.settings = settings;
         // Settings sanity checks
-        if (settings.range[0] < 1 || settings.range[1] < settings.range[0]) throw new ValueError(
+        if (settings.range[0] < 0 || settings.range[1] < settings.range[0]) throw new ValueError(
             "settings.range = [" + settings.range.join(", ") + "] is invalid"
         );
         // States already known to be non-satisfying (e.g. due to a safety
@@ -274,7 +274,7 @@ export class LayerRefinery extends Refinery {
         // Iteratively generate layers starting from target
         const layer0 = target.remove(noRegion).simplify();
         this.layers = [layer0];
-        for (let i = 0; i <= settings.range[1]; i++) {
+        for (let i = 1; i <= settings.range[1]; i++) {
             // Target of next layer is previous layer
             const previous = this.layers[this.layers.length - 1];
             const layer = this._generateLayer(previous).remove(noRegion).simplify();
@@ -309,16 +309,19 @@ export class LayerRefinery extends Refinery {
         }
         const lss = this.system.lss;
         const [start, end] = this.settings.range;
-        // Remove inner target
-        let done = x.polytope.intersect(this.layers[start - 1]).simplify();
+        // Remove inner target for all layers > 0.  Layer 0 is special to
+        // enable self-targeting for safety objectives and expanded targets.
+        let done = start === 0
+                 ? this.getEmpty()
+                 : x.polytope.intersect(this.layers[start - 1]).simplify();
         // Refine rest
         let rest = x.polytope.remove(done).simplify();
         // For every active layer:
         for (let i = start; i <= end; i++) {
             // Return if nothing remains to be refined
             if (rest.isEmpty) return done;
-            // Target this:
-            const target = this.layers[i - 1];
+            // Target this (0th layer targets itself):
+            const target = this.layers[Math.max(0, i - 1)];
             // Refine this:
             const intersection = rest.intersect(this.layers[i]).simplify();
             // Initialize queue of remaining polytopes with intersection

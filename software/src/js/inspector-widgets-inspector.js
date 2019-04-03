@@ -1648,7 +1648,7 @@ class LayerRefinementCtrl extends WidgetPlus {
             "Robust Predecessor": "PreR",
         }, "Robust Predecessor");
         this._scale = new DropdownInput(DropdownInput.rangeOptions(80, 125, 5), "95");
-        this._rangeStart = new DropdownInput(DropdownInput.rangeOptions(1, 20, 1), "1");
+        this._rangeStart = new DropdownInput(DropdownInput.rangeOptions(0, 20, 1), "1");
         this._rangeEnd = new DropdownInput({ "10": 10 }, "10");
         this._iterations = new DropdownInput(DropdownInput.rangeOptions(0, 20, 1), "2");
         this._dontRefineSmall = new CheckboxInput(true, "don't refine small polytopes");

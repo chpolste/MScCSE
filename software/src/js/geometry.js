@@ -1051,7 +1051,8 @@ export class Union {
     }
 
     applyRight(m: Matrix): Union {
-        return new Union(this.dim, this.polytopes.map(_ => _.applyRight(m)), this._isDisjunct);
+        linalg.assertEqualDims(m.length, this.dim);
+        return new Union(m[0].length, this.polytopes.map(_ => _.applyRight(m)), this._isDisjunct);
     }
 
     contains(v: Vector): boolean {

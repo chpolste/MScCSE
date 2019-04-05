@@ -8,6 +8,7 @@ import type { AbstractedLSS, State } from "./system.js";
 
 import { Polytope, Union } from "./geometry.js";
 import * as linalg from "./linalg.js";
+import { itemizedOperatorPartition } from "./system.js";
 import { just, iter, ValueError, NotImplementedError } from "./tools.js";
 
 
@@ -351,37 +352,26 @@ export class LayerRefinery extends Refinery {
                 // selection: start with vertices of part, and add a few random
                 // points from within the polytope
                 const zs = Array.from(part.vertices);
-                for (let j = 0; j < (10 * lss.dim); j++) {
+                for (let j = 0; j < (3 * lss.dim); j++) {
                     zs.push(part.sample());
                 }
-                // Find control input clusters based on sampled points
-                const us = [];
-                for (let z of zs) {
-                    // Compute robust action of origin point
-                    const Axpw = lss.ww.translate(linalg.apply(lss.A, z));
-                    const u = target.pontryagin(Axpw).applyRight(lss.B).intersect(lss.uu);
-                    if (u.isEmpty) continue;
-                    // Merge with (first) overlapping cluster, reduce cluster
-                    // to intersection of both
-                    let k = 0;
-                    while (k < us.length) {
-                        const uu = us[k].intersect(u);
-                        if (!uu.isEmpty) {
-                            us[k] = uu;
-                            break;
-                        }
-                        k++;
-                    }
-                    // No overlapping cluster found, create new one
-                    if (k >= us.length) {
-                        us.push(u);
-                    }
-                }
-                // Refine with largest AttrR based on control input clusters
-                let attrR = iter.argmax(
-                    _ => _.volume,
-                    us.map((u) => lss.attrR(part, u, target))
+                // Use ActRs of sample points wrt to target region to determine
+                // a control input to refine with
+                const actR = (x) => {
+                    const Axpw = lss.ww.translate(linalg.apply(lss.A, x));
+                    return target.pontryagin(Axpw).applyRight(lss.B).intersect(lss.uu);
+                };
+                // Intersect all control inputs with one another to find
+                // a subregion that most points can use. The exponential
+                // complexity of itemizedOperatorPartition makes this quite
+                // expensive so a simpler clustering should be chosen if this
+                // is ever applied to higher dimensions.
+                const u = iter.argmax(
+                    _ => _.items.length,
+                    itemizedOperatorPartition(zs, actR).filter(_ => !_.region.isEmpty)
                 );
+                // Compute the AttrR wrt to the chosen control input
+                let attrR = u == null ? null : lss.attrR(part, u.region, target);
                 // If a non-empty AttrR exists, split part: put the AttrR into
                 // the decided collection, the rest into the queue. Increase
                 // iteration count of all parts.

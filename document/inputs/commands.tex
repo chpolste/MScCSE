@@ -42,26 +42,6 @@
 \define\MatB{\Mat{B}}
 \define\MatU{\Mat{U}}
 
-
-% https://mailman.ntg.nl/pipermail/ntg-context/2017/089631.html
-%\unprotect
-%
-%\def\math_matrix_stop
-%  {\crcr
-% % \ifgridsnapping \else
-%     \mathstrut\crcr
-%     \noalign{\vskip-\baselineskip}%
-% % \fi
-%   \egroup
-%  %\popmacro\math_matrix_NC % Too early!
-%   \egroup
-%   \mathmatrixright
-%   \endgroup
-%   \popmacro\math_matrix_NC} % ungrouped!
-%
-%\protect
-
-
 % Vectors and matrices with square brackets
 \definemathmatrix[sqmatrix][left={\left\lbrack\,},right={\,\right\rbrack},strut=0.8,distance=0.8em]
 \define[4]\TwoByTwo{ \startsqmatrix[n=2,align={middle,middle}] \NC #1 \NC #2 \NR \NC #3 \NC #4 \NR \stopsqmatrix }

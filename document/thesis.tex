@@ -383,26 +383,52 @@
                 \input{chapters/abstraction-example}
             \stopsection
 
-        \stopchapter
-
-        \startchapter[title={Solution}]
-
-            \input{chapters/solution}
-
-            \startsection[title={Game Analysis}]
-                \input{chapters/solution-analysis}
+            \startsection[title={Analysis}]
+                \input{chapters/abstraction-analysis}
             \stopsection
 
             \startsection[title={Controller Synthesis}]
-                \input{chapters/solution-synthesis}
+                \input{chapters/abstraction-synthesis}
             \stopsection
 
-            \startsection[title={Abstraction Refinement}]
-                \input{chapters/solution-refinement}
+            \startsection[title={Properties}]
+                \input{chapters/abstraction-properties}
             \stopsection
 
-            \startsection[title={Solution Properties}]
-                \input{chapters/solution-properties}
+        \stopchapter
+
+        \startchapter[title={Abstraction Refinement}]
+
+            \input{chapters/refinement}
+
+            \startsection[title={Reachability Decomposition}]
+                \input{chapters/refinement-reachability}
+            \stopsection
+
+            \startsection[title={Negative Refinement}]
+                \input{chapters/refinement-negative}
+            \stopsection
+
+            \startsection[title={Positive Refinement}]
+                \input{chapters/refinement-positive}
+            \stopsection
+
+            \startsection[title={A Reduction Approach}]
+                \input{chapters/refinement-reduction}
+            \stopsection
+
+        \stopchapter
+
+        \startchapter[title={An Interactive Implementation}]
+
+            \input{chapters/implementation}
+
+            \startsection[title={The Case for Interactive Exploration}]
+                ?
+            \stopsection
+
+            \startsection[title={Functionality}]
+                ?
             \stopsection
 
         \stopchapter
@@ -410,10 +436,6 @@
         \startchapter[title={Case Studies}]
 
             \input{chapters/cases}
-
-            \startsection[title={An Interactive Implementation}]
-                \input{chapters/cases-app}
-            \stopsection
 
             \startsection[title={Double Integrator}]
                 \input{chapters/cases-integrator}
@@ -432,6 +454,10 @@
         \startchapter[title={Discussion}]
 
             \input{chapters/discussion}
+
+            \startsection[title={Summary of Contributions}]
+                \input{chapters/discussion-contributions}
+            \stopsection
 
             \startsection[title={Conclusions}]
                 \input{chapters/discussion-conclusions}

@@ -5,7 +5,8 @@ import type { JSONTrace } from "./controller.js";
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
 import type { JSONObjective, AutomatonStateID } from "./logic.js";
-import type { StateRefinerySettings, LayerRefinerySettings, OuterAttrRefinerySettings } from "./refinement.js";
+import type { StateRefinerySettings, LayerRefinerySettings, NegativeAttrRefinerySettings,
+              SafetyRefinerySettings, SelfLoopRefinerySettings } from "./refinement.js";
 import type { Snapshot } from "./snapshot.js";
 import type { StateID, ActionID, SupportID, PredicateID, LSS, State, RefinementMap,
               JSONAbstractedLSS } from "./system.js";
@@ -14,7 +15,7 @@ import { Controller, Trace } from "./controller.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Polytope, Union } from "./geometry.js";
 import { Objective } from "./logic.js";
-import { StateRefinery, LayerRefinery, OuterAttrRefinery } from "./refinement.js";
+import { StateRefinery, LayerRefinery, NegativeAttrRefinery } from "./refinement.js";
 import { SnapshotTree } from "./snapshot.js";
 import { AbstractedLSS } from "./system.js";
 import { just, iter, sets, obj } from "./tools.js";
@@ -162,12 +163,12 @@ class SystemManager {
         return refinementMap;
     }
 
-    refineOuterAttr(settings: OuterAttrRefinerySettings): RefinementMap {
+    refineNegativeAttr(settings: NegativeAttrRefinerySettings): RefinementMap {
         const analysis = this.analysis;
         if (analysis == null) throw new Error(
             "Refinement requires an analysed system" // TODO: analysis generally not required for outer attr refinement
         );
-        const refinery = new OuterAttrRefinery(this.system, this.objective, analysis, settings)
+        const refinery = new NegativeAttrRefinery(this.system, this.objective, analysis, settings)
         const refinementMap = this.system.refine(refinery.partitionAll(this.system.states.values()));
         // Update analysis results
         analysis.remap(refinementMap);
@@ -392,11 +393,22 @@ inspector.onRequest("refine-layer", function (settings: RefineLayerRequest): Ref
     const t1 = performance.now();
     return refineData((t1 - t0), refinementMap);
 });
-// System-wide reachability-based
-export type RefineOuterAttrRequest = OuterAttrRefinerySettings;
-inspector.onRequest("refine-outer-attr", function (settings: RefineOuterAttrRequest): RefineData {
+// Negative Refinement
+export type RefineNegativeRequest = { method: "Attractor", settings: NegativeAttrRefinerySettings }
+                                  | { method: "Safety", settings: SafetyRefinerySettings }
+                                  | { method: "SelfLoop", settings: SelfLoopRefinerySettings };
+inspector.onRequest("refine-negative", function (data: RefineNegativeRequest): RefineData {
     const t0 = performance.now();
-    const refinementMap = $.refineOuterAttr(settings);
+    let refinementMap;
+    if (data.method === "Attractor") {
+        refinementMap = $.refineNegativeAttr(data.settings);
+    } else if (data.method === "Safety") {
+        refinementMap = new Map();
+    } else if (data.method === "SelfLoop") {
+        refinementMap = new Map();
+    } else throw new Error(
+        "Unknown negative refinement method '" + data.method + "'"
+    );
     const t1 = performance.now();
     return refineData((t1 - t0), refinementMap);
 });

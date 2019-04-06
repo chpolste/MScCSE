@@ -189,18 +189,20 @@ export class PosAttrRStateRefinery extends StateRefinery {
 
 
 
-/* Global Negative Attr refinement */
+/* Negative Attractor refinement */
 
-export type OuterAttrRefinerySettings = {
-    iterations: number
+export type NegativeAttrRefinerySettings = {
+    origin: AutomatonStateID,
+    iterations: number,
+    simplify?: boolean
 };
 
-export class OuterAttrRefinery extends Refinery {
+export class NegativeAttrRefinery extends Refinery {
 
     +_attr: Region;
 
     constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
-                settings: OuterAttrRefinerySettings): void {
+                settings: NegativeAttrRefinerySettings): void {
         super(system, objective, results);
         const lss = system.lss;
         const iterations = settings.iterations;
@@ -219,6 +221,22 @@ export class OuterAttrRefinery extends Refinery {
         return attr.union(rest);
     }
 
+}
+
+
+/* Safety refinement */
+
+export type SafetyRefinerySettings = {
+    origin: AutomatonStateID,
+    iterations: number
+}
+
+
+/* Self-Loop removal refinement */
+
+export type SelfLoopRefinerySettings = {
+    origin: AutomatonStateID,
+    iterations: number
 }
 
 

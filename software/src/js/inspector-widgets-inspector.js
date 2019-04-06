@@ -7,12 +7,12 @@ import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
 import type { StateData, StatesData, ActionsData, SupportData, TraceData,
               AnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
-              SnapshotData, SystemSummaryData } from "./inspector-worker-system.js";
+              SnapshotData, SystemSummaryData, RefineNegativeRequest } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
 import type { Proposition, AutomatonStateID, AutomatonShapeCollection } from "./logic.js";
 import type { JSONPolygonItem } from "./plotter-2d.js";
 import type { StateRefinerySettings, StateRefineryApproximation, LayerRefinerySettings,
-              LayerRefineryGenerator, OuterAttrRefinerySettings } from "./refinement.js";
+              LayerRefineryGenerator, NegativeAttrRefinerySettings } from "./refinement.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input, OptionsInput } from "./widgets-input.js";
@@ -205,8 +205,8 @@ export class SystemInspector {
         const actionViewCtrl = new ActionViewCtrl(model);
         // System tab
         const analysisViewCtrl = new AnalysisViewCtrl(model, keys);
+        const negativeRefinementCtrl = new NegativeRefinementCtrl(model);
         const layerRefinementCtrl = new LayerRefinementCtrl(model, keys);
-        const systemReachRefinementCtrl = new SystemReachRefinementCtrl(model);
         const snapshotViewCtrl = new SnapshotViewCtrl(model);
         // Control tab
         const traceCtrl = new TraceCtrl(model);
@@ -223,8 +223,8 @@ export class SystemInspector {
         ]);
         const systemTab = tabs.newTab("System", [
             analysisViewCtrl,
+            negativeRefinementCtrl,
             layerRefinementCtrl,
-            systemReachRefinementCtrl,
             snapshotViewCtrl
         ]);
         const controlTab = tabs.newTab("Control", [
@@ -548,11 +548,12 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
-    refineOuterAttr(settings: OuterAttrRefinerySettings): Promise<null> {
-        return this._comm.request("refine-outer-attr", settings).then((data: RefineData) => {
+    refineNegative(request: RefineNegativeRequest): Promise<null> {
+        return this._comm.request("refine-negative", request).then((data: RefineData) => {
             this.log.writeRefinement([
-                "Outer Attr",
-                pluralize(settings.iterations, "iteration")
+                "Negative (" + request.method + ")",
+                request.settings.origin,
+                pluralize(request.settings.iterations, "iteration")
             ], data);
             return data.removed.length > 0 ? this.updateStates() : null;
         }).catch((e) => {
@@ -1501,7 +1502,8 @@ class ActionViewCtrl extends WidgetPlus {
 
 // Tab: System
 // - AnalysisViewCtrl
-// - LayerRefinementCtrl
+// - NegativeRefinementCtrl
+// - PositiveRefinementCtrl
 // - SnapshotViewCtrl
 
 
@@ -1608,6 +1610,77 @@ class AnalysisViewCtrl extends WidgetPlus{
         super.handleLoadingChange();
         this._analyse.disabled = this.isLoading;
         this._reset.disabled = this.isLoading;
+    }
+
+}
+
+
+class NegativeRefinementCtrl extends WidgetPlus {
+
+    +_model: SystemModel;
+    +_origin: OptionsInput<AutomatonStateID>;
+    +_negAttrIterations: Input<number>;
+    +_negAttrSimplify: Input<boolean>;
+
+    constructor(model: SystemModel): void {
+        super("Negative Refinement", "info-negative-refinement");
+        this._model = model;
+        // Origin automaton state selection
+        const automaton = model.objective.automaton;
+        const qAllObj = obj.fromMap(_ => _, model.qAll)
+        this._origin = new RadioInput(qAllObj, automaton.initialState.label, automatonLabel);
+        // Negative Attractor
+        const negAttrRefine = dom.createButton({}, ["refine"], () => this.refineNegAttr());
+        this._negAttrIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "10");
+        this._negAttrSimplify = new CheckboxInput(true, "simplify");
+        // Safety
+        const safetyRefine = dom.createButton({}, ["refine"], () => this.refineSafety());
+        const safetyIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "5");
+        // Self-loop removal
+        const loopsRefine = dom.createButton({}, ["refine"], () => this.refineLoops());
+        const loopsIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "1");
+        this.node = dom.DIV({ "class": "div-table" }, [
+            dom.DIV({}, [
+                dom.DIV({}, ["Origin"]),
+                dom.DIV({}, [this._origin.node])
+            ]),
+            dom.DIV({}, [
+                dom.DIV({}, ["Attractor"]),
+                dom.DIV({}, [negAttrRefine, " with up to ", this._negAttrIterations.node, " iteration(s) and ", this._negAttrSimplify.node])
+            ]),
+            dom.DIV({}, [
+                dom.DIV({}, ["Safety"]),
+                dom.DIV({}, [safetyRefine, " with up to ", safetyIterations.node, " iteration(s)"])
+            ]),
+            dom.DIV({}, [
+                dom.DIV({}, ["Self-loops"]),
+                dom.DIV({}, [loopsRefine, " with up to ", loopsIterations.node, " iteration(s)"])
+            ])
+        ]);
+    }
+
+    refineNegAttr(): void {
+        this.pushLoad();
+        this._model.refineNegative({
+            method: "Attractor",
+            settings: {
+                origin: this._origin.value,
+                iterations: this._negAttrIterations.value,
+                simplify: this._negAttrSimplify.value
+            }
+        }).catch(() => {
+            // Error logging is done in SystemModel
+        }).finally(() => {
+            this.popLoad();
+        });
+    }
+
+    refineSafety(): void {
+
+    }
+
+    refineLoops(): void {
+
     }
 
 }
@@ -1748,14 +1821,6 @@ class SystemReachRefinementCtrl extends WidgetPlus {
     }
 
     refineOuterAttr(): void {
-        this.pushLoad();
-        this._model.refineOuterAttr({
-            iterations: this._outerAttrIterations.value
-        }).catch(() => {
-            // Error logging is done in SystemModel
-        }).finally(() => {
-            this.popLoad();
-        });
     }
 
 }

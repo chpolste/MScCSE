@@ -1637,7 +1637,7 @@ class NegativeRefinementCtrl extends WidgetPlus {
         this._negAttrSimplify = new CheckboxInput(true, "simplify");
         // Safety
         const safetyRefine = dom.createButton({}, ["refine"], () => this.refineSafety());
-        this._safetyIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "5");
+        this._safetyIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "1");
         // Self-loop removal
         const loopsRefine = dom.createButton({}, ["refine"], () => this.refineLoops());
         this._loopsIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "1");

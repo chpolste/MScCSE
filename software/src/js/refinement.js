@@ -281,16 +281,23 @@ export class SafetyRefinery extends Refinery {
             return x.polytope;
         }
         const lss = this.system.lss;
-        // TODO iterations
-        // State is unsafe if for every possible control input the probability
-        // of reaching the no-region after one step is non-zero
-        const act = lss.act(x.polytope, this._no);
-        if (act.isSameAs(lss.uu)) {
-            return x.polytope.shatter(); // TODO positive refinement wrt xx\no
-        // State is already safe, do nothing
-        } else {
-            return x.polytope;
+        const maxIter = this.settings.iterations;
+        // Refine partition until all polytopes are safe or max number of
+        // iterations is exceeded
+        const done = [];
+        const polys = [[x.polytope, 0]];
+        while (polys.length > 0) {
+            const [poly, iter] = polys.pop();
+            // State is unsafe if for every possible control input the
+            // probability of reaching the no-region after one step is non-zero
+            const act = lss.act(poly, this._no);
+            if (iter < maxIter && act.isSameAs(lss.uu)) {
+                polys.push(...poly.shatter().polytopes.map(_ => [_, iter + 1]));
+            } else {
+                done.push(poly);
+            }
         }
+        return Union.from(done);
     }
 
 }

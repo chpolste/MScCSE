@@ -4,12 +4,56 @@
 import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Region } from "./geometry.js";
 import type { Objective, AutomatonStateID } from "./logic.js";
-import type { AbstractedLSS, State } from "./system.js";
+import type { LSS, AbstractedLSS, State } from "./system.js";
 
 import { Polytope, Union } from "./geometry.js";
 import * as linalg from "./linalg.js";
 import { itemizedOperatorPartition } from "./system.js";
 import { just, iter, ValueError, NotImplementedError } from "./tools.js";
+
+
+// Positive AttrR refinement kernel: return [AttrR, rest]
+function refineAttrR(lss: LSS, origin: Polytope, target: Region): [Region, Region] {
+    // Select a control input to refine with
+    const u = sampleControl(lss, origin, target);
+    // Compute the Robust Attractor in origin wrt to the target region and
+    // selected control input
+    const attrR = (u == null) ? null : lss.attrR(origin, u, target).simplify();
+    // A usable Robust Attractor is available
+    if (attrR != null && !attrR.isEmpty) {
+        return [attrR, origin.remove(attrR)];
+    // Refinement step could not be executed, fallback: shatter the origin
+    } else {
+        return [Polytope.ofDim(lss.dim).empty(), origin.shatter()];
+    }
+}
+
+// Monte-Carlo sampling of control inputs for positive refinement
+function sampleControl(lss: LSS, origin: Polytope, target: Region): ?Region {
+    // Sample points from the part for the refinement control input
+    // selection: start with vertices of part, and add a few random points
+    // from within the polytope
+    const xs = Array.from(origin.vertices);
+    for (let i = 0; i < (3 * lss.dim); i++) {
+        xs.push(origin.sample());
+    }
+    // Use ActRs of sample points wrt to target region to determine
+    // a control input to refine with
+    const actR = (x) => {
+        const Axpw = lss.ww.translate(linalg.apply(lss.A, x));
+        return target.pontryagin(Axpw).applyRight(lss.B).intersect(lss.uu);
+    };
+    // Intersect all control inputs with one another to find
+    // a subregion that most points can use. The exponential
+    // complexity of itemizedOperatorPartition makes this quite
+    // expensive so a simpler clustering should be chosen if this
+    // is ever applied to higher dimensions.
+    const u = iter.argmax(
+        _ => _.items.length,
+        itemizedOperatorPartition(xs, actR).filter(_ => !_.region.isEmpty)
+    );
+    return (u == null) ? null : u.region;
+}
 
 
 export class Refinery {
@@ -265,14 +309,16 @@ export class SafetyRefinery extends Refinery {
 
     +settings: SafetyRefinerySettings;
     +_no: Region;
+    +_ok: Region;
 
     constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
                 settings: SafetyRefinerySettings): void {
         super(system, objective, results);
         // Settings required later for origin and simplify
         this.settings = settings;
-        // Cache no-region
+        // Cache no-region and its complement
         this._no = this.getStateRegion("no", settings.origin).simplify();
+        this._ok = system.lss.xx.remove(this._no).simplify();
     }
 
     partition(x: State): Region {
@@ -285,14 +331,18 @@ export class SafetyRefinery extends Refinery {
         // Refine partition until all polytopes are safe or max number of
         // iterations is exceeded
         const done = [];
-        const polys = [[x.polytope, 0]];
-        while (polys.length > 0) {
-            const [poly, iter] = polys.pop();
+        const rest = [[x.polytope, 0]];
+        while (rest.length > 0) {
+            const [poly, iter] = rest.pop();
             // State is unsafe if for every possible control input the
             // probability of reaching the no-region after one step is non-zero
             const act = lss.act(poly, this._no);
             if (iter < maxIter && act.isSameAs(lss.uu)) {
-                polys.push(...poly.shatter().polytopes.map(_ => [_, iter + 1]));
+                // Positive refinement wrt complement of no-region
+                const [safe, other] = refineAttrR(lss, poly, this._ok);
+                // Push pices into rest with increased iteration counter
+                done.push(...safe.polytopes);
+                rest.push(...other.polytopes.map(_ => [_, iter + 1]));
             } else {
                 done.push(poly);
             }
@@ -452,42 +502,10 @@ export class LayerRefinery extends Refinery {
                     done = done.union(part);
                     continue;
                 }
-                // Sample points from the part for the refinement control input
-                // selection: start with vertices of part, and add a few random
-                // points from within the polytope
-                const zs = Array.from(part.vertices);
-                for (let j = 0; j < (3 * lss.dim); j++) {
-                    zs.push(part.sample());
-                }
-                // Use ActRs of sample points wrt to target region to determine
-                // a control input to refine with
-                const actR = (x) => {
-                    const Axpw = lss.ww.translate(linalg.apply(lss.A, x));
-                    return target.pontryagin(Axpw).applyRight(lss.B).intersect(lss.uu);
-                };
-                // Intersect all control inputs with one another to find
-                // a subregion that most points can use. The exponential
-                // complexity of itemizedOperatorPartition makes this quite
-                // expensive so a simpler clustering should be chosen if this
-                // is ever applied to higher dimensions.
-                const u = iter.argmax(
-                    _ => _.items.length,
-                    itemizedOperatorPartition(zs, actR).filter(_ => !_.region.isEmpty)
-                );
-                // Compute the AttrR wrt to the chosen control input
-                let attrR = u == null ? null : lss.attrR(part, u.region, target);
-                // If a non-empty AttrR exists, split part: put the AttrR into
-                // the decided collection, the rest into the queue. Increase
-                // iteration count of all parts.
-                if (attrR != null && !attrR.isEmpty) {
-                    attrR = attrR.simplify();
-                    done = done.union(attrR);
-                    remaining.push(...part.remove(attrR).polytopes.map(_ => [_, it + 1]));
-                // No usable action found, just shatter polytope and hope for
-                // the best in the next iteration.
-                } else {
-                    remaining.push(...part.shatter().polytopes.map(_ => [_, it + 1]));
-                }
+                // AttrR refinement step
+                const [good, other] = refineAttrR(lss, part, target);
+                done = done.union(good);
+                remaining.push(...other.polytopes.map(_ => [_, it + 1]));
             }
             // Entire layer is considered as done
             rest = rest.remove(intersection).simplify();

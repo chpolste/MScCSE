@@ -1621,6 +1621,8 @@ class NegativeRefinementCtrl extends WidgetPlus {
     +_origin: OptionsInput<AutomatonStateID>;
     +_negAttrIterations: Input<number>;
     +_negAttrSimplify: Input<boolean>;
+    +_safetyIterations: Input<number>;
+    +_loopsIterations: Input<number>;
 
     constructor(model: SystemModel): void {
         super("Negative Refinement", "info-negative-refinement");
@@ -1635,10 +1637,10 @@ class NegativeRefinementCtrl extends WidgetPlus {
         this._negAttrSimplify = new CheckboxInput(true, "simplify");
         // Safety
         const safetyRefine = dom.createButton({}, ["refine"], () => this.refineSafety());
-        const safetyIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "5");
+        this._safetyIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "5");
         // Self-loop removal
         const loopsRefine = dom.createButton({}, ["refine"], () => this.refineLoops());
-        const loopsIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "1");
+        this._loopsIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "1");
         this.node = dom.DIV({ "class": "div-table" }, [
             dom.DIV({}, [
                 dom.DIV({}, ["Origin"]),
@@ -1650,11 +1652,11 @@ class NegativeRefinementCtrl extends WidgetPlus {
             ]),
             dom.DIV({}, [
                 dom.DIV({}, ["Safety"]),
-                dom.DIV({}, [safetyRefine, " with up to ", safetyIterations.node, " iteration(s)"])
+                dom.DIV({}, [safetyRefine, " with up to ", this._safetyIterations.node, " iteration(s)"])
             ]),
             dom.DIV({}, [
                 dom.DIV({}, ["Self-loops"]),
-                dom.DIV({}, [loopsRefine, " with up to ", loopsIterations.node, " iteration(s)"])
+                dom.DIV({}, [loopsRefine, " with up to ", this._loopsIterations.node, " iteration(s)"])
             ])
         ]);
     }
@@ -1676,11 +1678,27 @@ class NegativeRefinementCtrl extends WidgetPlus {
     }
 
     refineSafety(): void {
-
+        this.pushLoad();
+        this._model.refineNegative({
+            method: "Safety",
+            settings: { origin: this._origin.value, iterations: this._safetyIterations.value }
+        }).catch(() => {
+            // Error logging is done in SystemModel
+        }).finally(() => {
+            this.popLoad();
+        });
     }
 
     refineLoops(): void {
-
+        this.pushLoad();
+        this._model.refineNegative({
+            method: "SelfLoop",
+            settings: { origin: this._origin.value, iterations: this._loopsIterations.value }
+        }).catch(() => {
+            // Error logging is done in SystemModel
+        }).finally(() => {
+            this.popLoad();
+        });
     }
 
 }

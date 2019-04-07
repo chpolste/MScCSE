@@ -5,7 +5,7 @@ import type { JSONTrace } from "./controller.js";
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
 import type { JSONObjective, AutomatonStateID } from "./logic.js";
-import type { StateRefinerySettings, LayerRefinerySettings, NegativeAttrRefinerySettings,
+import type { Refinery, StateRefinerySettings, LayerRefinerySettings, NegativeAttrRefinerySettings,
               SafetyRefinerySettings, SelfLoopRefinerySettings } from "./refinement.js";
 import type { Snapshot } from "./snapshot.js";
 import type { StateID, ActionID, SupportID, PredicateID, LSS, State, RefinementMap,
@@ -15,7 +15,7 @@ import { Controller, Trace } from "./controller.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Polytope, Union } from "./geometry.js";
 import { Objective } from "./logic.js";
-import { StateRefinery, LayerRefinery, NegativeAttrRefinery } from "./refinement.js";
+import { StateRefinery, LayerRefinery, NegativeAttrRefinery, SafetyRefinery, SelfLoopRefinery } from "./refinement.js";
 import { SnapshotTree } from "./snapshot.js";
 import { AbstractedLSS } from "./system.js";
 import { just, iter, sets, obj } from "./tools.js";
@@ -151,27 +151,14 @@ class SystemManager {
         return refinementMap;
     }
 
-    refineLayer(settings: LayerRefinerySettings): RefinementMap {
-        const analysis = this.analysis;
-        if (analysis == null) throw new Error(
-            "Refinement requires an analysed system" // TODO: analysis generally not required for layer-based refinement
-        );
-        const refinery = new LayerRefinery(this.system, this.objective, analysis, settings)
-        const refinementMap = this.system.refine(refinery.partitionAll(this.system.states.values()));
+    refine(refinery: Refinery): RefinementMap {
+        const partition = refinery.partitionAll(this.system.states.values());
+        const refinementMap = this.system.refine(partition);
         // Update analysis results
-        analysis.remap(refinementMap);
-        return refinementMap;
-    }
-
-    refineNegativeAttr(settings: NegativeAttrRefinerySettings): RefinementMap {
         const analysis = this.analysis;
-        if (analysis == null) throw new Error(
-            "Refinement requires an analysed system" // TODO: analysis generally not required for outer attr refinement
-        );
-        const refinery = new NegativeAttrRefinery(this.system, this.objective, analysis, settings)
-        const refinementMap = this.system.refine(refinery.partitionAll(this.system.states.values()));
-        // Update analysis results
-        analysis.remap(refinementMap);
+        if (analysis != null) {
+            analysis.remap(refinementMap);
+        }
         return refinementMap;
     }
 
@@ -388,8 +375,11 @@ inspector.onRequest("refine-state", function (data: RefineStateRequest): RefineD
 // Layer-based
 export type RefineLayerRequest = LayerRefinerySettings;
 inspector.onRequest("refine-layer", function (settings: RefineLayerRequest): RefineData {
+    const analysis = just($.analysis, "Refinement requires an analysed system");
     const t0 = performance.now();
-    const refinementMap = $.refineLayer(settings);
+    const refinementMap = $.refine(
+        new LayerRefinery($.system, $.objective, analysis, settings)
+    );
     const t1 = performance.now();
     return refineData((t1 - t0), refinementMap);
 });
@@ -398,17 +388,19 @@ export type RefineNegativeRequest = { method: "Attractor", settings: NegativeAtt
                                   | { method: "Safety", settings: SafetyRefinerySettings }
                                   | { method: "SelfLoop", settings: SelfLoopRefinerySettings };
 inspector.onRequest("refine-negative", function (data: RefineNegativeRequest): RefineData {
+    const analysis = just($.analysis, "Refinement requires an analysed system");
     const t0 = performance.now();
-    let refinementMap;
+    let refinery;
     if (data.method === "Attractor") {
-        refinementMap = $.refineNegativeAttr(data.settings);
+        refinery = new NegativeAttrRefinery($.system, $.objective, analysis, data.settings)
     } else if (data.method === "Safety") {
-        refinementMap = new Map();
+        refinery = new SafetyRefinery($.system, $.objective, analysis, data.settings)
     } else if (data.method === "SelfLoop") {
-        refinementMap = new Map();
+        refinery = new SelfLoopRefinery($.system, $.objective, analysis, data.settings)
     } else throw new Error(
         "Unknown negative refinement method '" + data.method + "'"
     );
+    const refinementMap = $.refine(refinery);
     const t1 = performance.now();
     return refineData((t1 - t0), refinementMap);
 });

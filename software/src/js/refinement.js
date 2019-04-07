@@ -32,7 +32,7 @@ export class Refinery {
 
     // Implement in subclass:
     partition(x: State): Region {
-        throw new NotImplementedError();
+        throw new NotImplementedError("Refinery must override method 'partition'");
     }
 
     // States that have are already decided should not be refined further
@@ -261,12 +261,61 @@ export type SafetyRefinerySettings = {
     iterations: number
 }
 
+export class SafetyRefinery extends Refinery {
+
+    +settings: SafetyRefinerySettings;
+    +_no: Region;
+
+    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
+                settings: SafetyRefinerySettings): void {
+        super(system, objective, results);
+        // Settings required later for origin and simplify
+        this.settings = settings;
+        // Cache no-region
+        this._no = this.getStateRegion("no", settings.origin).simplify();
+    }
+
+    partition(x: State): Region {
+        // Only refine maybe states
+        if (this.isDecided(x, this.settings.origin)) {
+            return x.polytope;
+        }
+        const lss = this.system.lss;
+        // TODO iterations
+        // State is unsafe if for every possible control input the probability
+        // of reaching the no-region after one step is non-zero
+        const act = lss.act(x.polytope, this._no);
+        if (act.isSameAs(lss.uu)) {
+            return x.polytope.shatter(); // TODO positive refinement wrt xx\no
+        // State is already safe, do nothing
+        } else {
+            return x.polytope;
+        }
+    }
+
+}
+
 
 /* Self-Loop removal refinement */
 
 export type SelfLoopRefinerySettings = {
     origin: AutomatonStateID,
     iterations: number
+}
+
+export class SelfLoopRefinery extends Refinery {
+
+    +settings: SelfLoopRefinerySettings;
+
+    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
+                settings: SelfLoopRefinerySettings): void {
+        super(system, objective, results);
+        // Settings required later for origin and simplify
+        this.settings = settings;
+    }
+
+    // TODO
+
 }
 
 

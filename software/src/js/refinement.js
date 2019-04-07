@@ -35,6 +35,11 @@ export class Refinery {
         throw new NotImplementedError();
     }
 
+    // States that have are already decided should not be refined further
+    isDecided(x: State, q: AutomatonStateID): boolean {
+        return !this.getResult(x).maybe.has(q);
+    }
+
     // Convenience accessors
 
     getStates(which: "yes"|"no"|"maybe", q: AutomatonStateID): Iterable<State> {
@@ -133,7 +138,7 @@ export class NegAttrStateRefinery extends StateRefinery {
         // Refine wrt next automaton state
         const qNext = this.qNext(x, q);
         // Only refine maybe states
-        if (!this.getResult(x).maybe.has(q) || qNext == null) {
+        if (this.isDecided(x, q) || qNext == null) {
             return x.polytope;
         }
         // Use entire control space
@@ -156,7 +161,7 @@ export class PosAttrRStateRefinery extends StateRefinery {
         // Refine wrt next automaton state
         const qNext = this.qNext(x, q);
         // Only refine maybe states
-        if (!this.getResult(x).maybe.has(q) || qNext == null) {
+        if (this.isDecided(x, q) || qNext == null) {
             return x.polytope;
         }
         // Estimate which action is "best" by looking at the overlap of each
@@ -199,26 +204,51 @@ export type NegativeAttrRefinerySettings = {
 
 export class NegativeAttrRefinery extends Refinery {
 
-    +_attr: Region;
+    +settings: NegativeAttrRefinerySettings;
+    +_attrs: Region[];
 
     constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
                 settings: NegativeAttrRefinerySettings): void {
         super(system, objective, results);
         const lss = system.lss;
-        const iterations = settings.iterations;
-        const outer = this.asRegion(iter.filter(_ => _.isOuter, this.system.states.values()));
-        // Precompute Attractor of outer states in entire system
-        let attr = this.getEmpty();
-        for (let i = 0; i < iterations; i++) {
-            attr = lss.attr(lss.xx, lss.uu, attr.union(outer)).simplify();
+        // Settings required later for origin and simplify
+        this.settings = settings;
+        // Start with no-region of given origin as target
+        let no = this.getStateRegion("no", settings.origin);
+        // Cache attractors for given number of iterations
+        this._attrs = [];
+        for (let i = 0; i < settings.iterations; i++) {
+            // Attr of no-region in the state space
+            const attr = lss.attr(lss.xx, lss.uu, no).simplify();
+            this._attrs.push(attr);
+            // If Attr has converged, stop
+            const added = attr.remove(no);
+            if (added.isEmpty) break;
+            // Extend no-region with latest Attr
+            no = no.union(added);
         }
-        this._attr = attr;
     }
 
     partition(x: State): Region {
-        const attr = x.polytope.intersect(this._attr).simplify();
-        const rest = x.polytope.remove(attr).simplify();
-        return attr.union(rest);
+        // Only refine maybe states
+        if (this.isDecided(x, this.settings.origin)) {
+            return x.polytope;
+        }
+        // Remove Attr layers
+        let done = this.getEmpty();
+        let rest = x.polytope;
+        for (let attr of this._attrs) {
+            const cut = rest.intersect(attr).simplify();
+            if (!cut.isEmpty) {
+                done = done.union(cut);
+                if (this.settings.simplify === true) {
+                    // TODO
+                    done = done.simplify();
+                }
+                rest = rest.remove(cut).simplify();
+            }
+        }
+        return rest.union(done);
     }
 
 }
@@ -323,7 +353,7 @@ export class LayerRefinery extends Refinery {
     partition(x: State): Region {
         // Only refine maybe states
         const q = this.settings.origin;
-        if (!this.getResult(x).maybe.has(q) || this.qNext(x, q) == null) {
+        if (this.isDecided(x, q) || this.qNext(x, q) == null) {
             return x.polytope;
         }
         const lss = this.system.lss;

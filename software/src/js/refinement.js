@@ -371,7 +371,20 @@ export class SelfLoopRefinery extends Refinery {
         this.settings = settings;
     }
 
-    // TODO
+    partition(x: State): Region {
+        // Only refine maybe states
+        if (this.isDecided(x, this.settings.origin)) {
+            return x.polytope;
+        }
+        const lss = this.system.lss;
+        const post = x.post(lss.uu).intersect(x.polytope);
+        if (!post.pontryagin(lss.ww).isEmpty) {
+            // TODO smarter refinement than shatter
+            return x.polytope.shatter();
+        } else {
+            return x.polytope;
+        }
+    }
 
 }
 

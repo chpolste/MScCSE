@@ -22,14 +22,6 @@
     arrow.rt(1, btex \ssd Part of ${\StateSpace \setminus \InitialStates}$ etex) (a[4][9],a[5][12]) a[5][9].c---a[5][12].c;
 \stopreusableMPgraphic
 
-\placefigure[top][fig:problem-approach-flowchart]{
-    Flowchart representation of the solution approach described in section \in[sec:problem-approach].
-    $\InitialStates$ is the set of states for which a controller can guarantee satisfaction of the objective when a trace originates from within.
-    Adapted from Fig.\ 1 of \cite[Svorenova2017] with inspiration from Fig.\ 1 of \cite[Lahijanian2015].
-}{
-    \framed[width=\textwidth,frame=off]{\reuseMPgraphic{mp:problem-approach-flowchart}}
-}
-
 
 The analysis and synthesis problems for the given problem setup have been solved by \cite[Svorenova2017].
 An overview of their approach is depicted in Figure \in[fig:problem-approach-flowchart] and summarized here.
@@ -57,4 +49,12 @@ However, refinement heuristics can only provide progress guarantees in some circ
 Finally, a controller can be synthesized based on the game graph and analysis results.
 \cite[Svorenova2017] presented a non-randomized (i.e.\ pure), finite-memory controller, but \quotation{better} controllers can be constructed.
 For example, memoryless controllers can be synthesized for reachability objectives through deeper analysis of the game graph \cite[authoryears][TODO].
+
+\placefigure[top][fig:problem-approach-flowchart]{
+    Flowchart representation of the solution approach described in section \in[sec:problem-approach].
+    $\InitialStates$ is the set of states for which a controller can guarantee satisfaction of the objective when a trace originates from within.
+    Adapted from Fig.\ 1 of \cite[Svorenova2017] with inspiration from Fig.\ 1 of \cite[Lahijanian2015].
+}{
+    \framed[width=\textwidth,frame=off]{\reuseMPgraphic{mp:problem-approach-flowchart}}
+}
 

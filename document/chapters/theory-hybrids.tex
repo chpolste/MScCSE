@@ -22,21 +22,21 @@ For the purposes of this work, a special class of hybrid system must be introduc
 
 \startsubsection[title={Linear Stochastic Systems},reference=sec:theory-hybrids-lss]
 
-    A linear stochastic system (LSS) $\mathcal{T}$ is a discrete-time continuous-space stochastic process evolving in traces governed by the evolution equation
+    A linear stochastic system (LSS) $\LSS$ is a discrete-time continuous-space stochastic process evolving in traces governed by the evolution equation
 
     \placeformula[formula:lssevo]
     \startformula
         \VecX_{t+1} = \MatA \VecX_t + \MatB \VecU_t + \VecW_t \EndComma
     \stopformula
 
-    where $\VecX_t \in X \subset \reals^n$ is the state of the trace $\VecX = \VecX_0 \VecX_1 ...$ at time $t \in naturalnumbers_0$,
+    where $\VecX_t \in X \subset \reals^n$ is the state of the trace $\VecX = \VecX_0 \VecX_1 ...$ at time $t \in \naturalnumbers_0$,
     $\VecU_t \in U \subset \reals^m$ is a control input and
     $\VecW_t \in W \subset \reals^n$ is a random perturbation, also at time $t$.
-    For given dimensions $n, m \in \naturalnumbers$, $\reals^n$ is called the state space and $\reals^m$ the control space.
+    The state space $\StateSpace$ and control space $\ControlSpace$ are embedded in Eucledian, real-valued vector spaces of dimensions $n$ and $m$, respectively.
     $X, U, W$ are bounded sets.
-    The probability distribution of the random vector is assumed to have non-zero density everywhere in $W$ for all times $t$.
+    The probability distribution from which the random vector is sampled is assumed to have non-zero density everywhere in $W$ for all times $t$.
 
-    A trace evolves under the influence of matrix $\MatA \in \reals^{n \times n}$ transforming the current state, a stochastic perturbation and external control, which is exerted by a control input and projected into the state space by matrix $\MatB \in \reals^{n \times m}$.
+    A trace evolves under the influence of matrix $\MatA \in \reals^{n \times n}$ transforming the current state $\VecState_t$, a stochastic perturbation $\VecRandom_t$ and external control, which is exerted by a control input $\VecControl_t$ and projected into the state space by matrix $\MatB \in \reals^{n \times m}$.
     The control inputs are chosen every time step by a strategy $\Function{S_\mathcal{T}}{X^+}{U}$ which takes the evolution of the trace up to its current state into account. % TODO: ^+ notation introduced later
     To reason about properties of a trace, it is augmented with discrete events, e.g. entering or exiting some region of the state space.
 

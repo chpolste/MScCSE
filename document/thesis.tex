@@ -121,7 +121,15 @@
 \setupbibtex[database={inputs/references},sort=author]
 \setuppublications[criterium=cite,alternative=apa,sorttype=bbl,refcommand=authoryear]
 \setuppublicationlist[artauthoretallimit=40,criterium=all]
-\setupcite[authoryears][pubsep={; },lastpubsep={; },inbetween={ },compress=no,left={(},right={)}]
+\setupcite[inbetween={\ }] % fix spacing after et al.
+\setupcite[authoryears][
+    pubsep={; },
+    lastpubsep={; },
+    inbetween={\ }, % no comma
+    compress=no,
+    left={(},
+    right={)},
+    ]
 
 % Taken from bibl-apa.tex and added doi
 \setuppublicationlayout[article]{%
@@ -341,19 +349,15 @@
 
             \input{chapters/problem}
 
-            \startsection[title={Setup}]
+            \startsection[title={Problem Setup}]
                 \input{chapters/problem-setup}
             \stopsection
 
-            \startsection[title={Satisfiability Analysis}]
-                \input{chapters/problem-analysis}
+            \startsection[title={Problem Statement}]
+                \input{chapters/problem-statement}
             \stopsection
 
-            \startsection[title={Controller Synthesis}]
-                \input{chapters/problem-synthesis}
-            \stopsection
-
-            \startsection[title={Approach Overview}]
+            \startsection[title={Solution Approach}]
                 \input{chapters/problem-approach}
             \stopsection
 

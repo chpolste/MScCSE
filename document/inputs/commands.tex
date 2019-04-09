@@ -1,10 +1,13 @@
-
-% CamelCase for custom commands
+% Convention: CamelCase for custom commands
 
 \define\DocTitleFooter{Refinement for game-based abstractions of continuous-space LSSs} % TODO
 \define\Author{Christopher Polster}
 \define\YearOfCompletion{2019}
 \define\DateOfCompletion{\YearOfCompletion-??-??} % TODO
+
+
+% Math
+% ----
 
 % Tall version of \mid
 \definemathcommand[Bigmid][rel]{\mathrel{\Big|}}
@@ -17,10 +20,7 @@
 \define\MidComma{\text{,}\;}
 \define\MidAnd{\;\text{and}\;}
 
-
-% General math
-% ------------
-
+% Function definition
 \define[3]\Function{#1:#2\rightarrow#3}
 
 % 2-Norm
@@ -92,7 +92,7 @@
 \define\StateSpace{X}
 \define\StateRegion{X'}
 \define\ExtendedStateSpace{\StateSpace_{ext}}
-\define\InitStateSpace{\StateSpace_{init}}
+\define\InitialStates{\StateSpace_{\mathrm init}}
 \define\VecState{\VecX}
 \define[1]\State{X_{#1}}
 \define[2]\IndexedStates{\IndexedSet{\State{#1}}{{#1} \in {#2}}}

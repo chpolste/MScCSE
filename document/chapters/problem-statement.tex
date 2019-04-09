@@ -1,0 +1,33 @@
+Two related questions are posed about the problem setup.
+The first asks for the existence of controllers that ensure some specified behaviour of traces in the systems.
+The second requires the construction of such controllers.
+These problems were asked before by \cite[Svorenova2017] and are repeated here.
+
+
+\startsubsection[title={Satisfiability Analysis}]
+
+    The first problem considered is an analysis of the system \in[fml:problem-setup-lsseq] with a temporal logic objective $\varphi$.
+    The aim of the analysis is to identify the set of initial states $\InitialStates$ for which a control strategy exists such that the objective $\varphi$ can be fulfilled with probability $1$ when starting a trace from within $\InitialStates$.
+    This is called almost-sure analysis.
+
+    The specification $\varphi$ is formulated using the linear predicates in $\Predicates$ as atomic propositions.
+    Here, objectives are limited to formulas from the extended GR(1) fragment of LTL, i.e. all objectives that can be expressed with an \omega-automaton with one-pair Streett acceptance condition (section \in[sec:theory-logic-fragments]).
+    If a formula allows a co-safe interpretation in addition to an infinite interpretation, both are considered.
+    In the infinite interpretation the trace is never allowed to leave the state space, whereas in the co-safe interpretation the trace can go anywhere once the objective has been satisfied.
+
+    A notable special case is reachability analysis using the co-safe objective $\varphi = \Finally \phi$, where $\phi$ is a proposition over $\Predicates$.
+    The specification is fulfilled when a trace reaches the region specified by $\phi$.
+    Reachability analysis was studied in-depth by \cite[Svorenova2017] and is of great importance here as well.
+    As shown in section \in[sec:refinement-reachability], reachability is the central building block of solutions for more complex problems.
+
+\stopsubsection
+
+
+\startsubsection[title={Controller Synthesis}]
+
+    The second problem considered is the immediate follow-up problem to an almost-sure analysis: controller synthesis.
+    In the analysis, initial states are identified from which traces can be controlled such that the objective is fulfilled with probability 1.
+    The aim of controller synthesis is to constructively find such a controller.
+
+\stopsubsection
+

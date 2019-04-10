@@ -93,8 +93,9 @@
 
 % States
 \define\StateSpace{X}
-\define\StateRegion{X'}
-\define\ExtendedStateSpace{\StateSpace_{ext}}
+\define\StateRegion{\StateSpace'}
+\define\StateTarget{\tilde\StateSpace}
+\define\ExtendedStateSpace{\StateSpace_{\mathrm ext}}
 \define\InitialStates{\StateSpace_{\mathrm init}}
 \define\VecState{\VecX}
 \define[1]\State{X_{#1}}
@@ -105,6 +106,7 @@
 
 % Control
 \define\ControlSpace{U}
+\define\ControlRegion{\ControlSpace'}
 \define\VecControl{\VecU}
 \define[2]\Action{\Act({#1},\, {#2})}
 
@@ -122,6 +124,17 @@
 \define[2]\Action{\Act({#1},\, {#2})}
 \define[2]\RobustAction{\ActR({#1},\, {#2})}
 \define[2]\ConcreteAction{\ActC({#1},\, {#2})}
+% And variants with big parenthesis (I don't like how \left and \right handle some situations
+\define[2]\BigPosterior{\Post\Big({#1},\, {#2}\Big)}
+\define[3]\BigPredecessor{\Pre\Big({#1},\, {#2},\, {#3}\Big)}
+\define[3]\BigRobustPredecessor{\PreR\Big({#1},\, {#2},\, {#3}\Big)}
+\define[3]\BigPrecisePredecessor{\PreP\Big({#1},\, {#2},\, {#3}\Big)}
+\define[3]\BigAttractor{\Attr\Big({#1},\, {#2},\, {#3}\Big)}
+\define[3]\BigRobustAttractor{\AttrR\Big({#1},\, {#2},\, {#3}\Big)}
+\define[2]\BigAction{\Act\Big({#1},\, {#2}\Big)}
+\define[2]\BigRobustAction{\ActR\Big({#1},\, {#2}\Big)}
+\define[2]\BigConcreteAction{\ActC\Big({#1},\, {#2}\Big)}
+
 
 
 % Logic and Automata

@@ -4,6 +4,7 @@ The association of operator and LSS is not written out explicitly.
 It will always be clear from context which system an operator belongs to.
 
 The following sections introduce the operators together with bried descriptions of how to compute them in the polytopic setting assumed here.
+
 %TODO give own section: Decomposition into disjunct $\IndexedSet{\State{i}}{i \in I}$, $I \subseteq \naturalnumbers$ where $\State{i} \subseteq \ExtendedStateSpace$ for all $i \in I$.
 
 
@@ -25,7 +26,7 @@ The following sections introduce the operators together with bried descriptions 
             \NC \Posterior{\VecState'}{\ControlRegion} :=
             \NC \Posterior{\Set{\VecState'}}{\ControlRegion} \EndAnd
             \NR
-            \NC \BigPosterior{\IndexedStates{j}{J}}{\ControlRegion} :=
+            \NC \Posterior{\IndexedStates{j}{J}}{\ControlRegion} :=
             \NC \BigPosterior{\bigcup_{j \in J}\State{j}}{\ControlRegion} \EndPeriod
             \NR
         \stopalign
@@ -95,39 +96,46 @@ The following sections introduce the operators together with bried descriptions 
     \stopformula
 
     Every state in the resulting origin set fulfills the robust predecessor property with respect to the entire target region $\bigcup_{j \in J} \State{j}$ for some $\VecControl' \in \ControlRegion$, while simultaneously fulfilling the predecessor property with respect to every individual part of the target region for the same $\VecControl'$.
-    That means for any state in a $\PreP$ set a control input in $\ControlRegion$ exists such that a state in $\bigcup_{j \in J} \State{j}$ is reached almost surely after one step and the proability of ending up in any one of the target region parts $\IndexedStates{j}{J}$ is non-zero.
-    For single-member target sets, $\PreP = \PreR$
+    In other words, for any state in a $\PreP$ set a control input in $\ControlRegion$ exists such that a state in $\bigcup_{j \in J} \State{j}$ is reached almost surely after one step and the proability of ending up in any one of the target region parts $\IndexedStates{j}{J}$ is non-zero.
+    In general,
+
+    \startformula
+        \RobustPredecessor{\StateSpace'}{\ControlSpace'}{\IndexedSet{\State{j}}{j \in J}} = \bigcup_{\startsubstack \NC J' \subseteq J \NR \NC  J' \ne \emptyset \NR \stopsubstack} \PrecisePredecessor{\StateSpace'}{\ControlSpace'}{\IndexedSet{\State{j}}{j \in J'}} \EndPeriod
+    \stopformula
+
+    The computation of the precise predecessor ... % TODO
 
 \stopsection
 
 
 \startsubsection[title={Attractors}]
 
-    Attractor ($\Attr$) and Robust Attractor ($\AttrR$), where
+    Analogous to the predecessor and robust predecessor operators, the attractor ($\Attr$) and robust attractor $\AttrR$ are defined as
 
     \startformula
         \startalign[n=2,align={right,left}]
             \NC \Attractor{\StateRegion}{\ControlSpace'}{\StateTarget} :=
-            \NC \BigSet{ \VecState \in \StateRegion \Bigmid \forall \VecControl' \in \ControlSpace' : \Posterior{\VecState}{\VecControl'} \cap \StateTarget \neq \emptyset } \EndPeriod
+            \NC \Set{ \VecState \in \StateRegion \mid \forall \VecControl' \in \ControlSpace' : \Posterior{\VecState}{\VecControl'} \cap \StateTarget \neq \emptyset } \EndAnd
             \NR
             \NC \RobustAttractor{\StateRegion}{\ControlSpace'}{\StateTarget} :=
-            \NC \BigSet{ \VecState \in \StateRegion \Bigmid \forall \VecControl' \in \ControlSpace' : \Posterior{\VecState}{\VecControl'} \subseteq \StateTarget } \EndPeriod
+            \NC \Set{ \VecState \in \StateRegion \mid \forall \VecControl' \in \ControlSpace' : \Posterior{\VecState}{\VecControl'} \subseteq \StateTarget } \EndComma
             \NR
         \stopalign
     \stopformula
 
-    The following relations hold:
+    i.e. the predecessor properties hold for all control inputs in $\ControlRegion$ for the attractors, not just some.
+    Therefore, it holds that
 
     \startformula
         \startalign[n=2,align={right,left}]
-            \NC \RobustAttractor{\StateRegion}{\ControlSpace'}{\StateTarget} \subseteq
-            \NC \Attractor{\StateRegion}{\ControlSpace'}{\StateTarget} \EndComma
-            \NR
-            \NC \RobustAttractor{\StateRegion}{\ControlSpace'}{\StateTarget} \subseteq
-            \NC \RobustPredecessor{\StateRegion}{\ControlSpace'}{\StateTarget}
-            \NR
             \NC \Attractor{\StateRegion}{\ControlSpace'}{\StateTarget} \subseteq
             \NC \Predecessor{\StateRegion}{\ControlSpace'}{\StateTarget} \EndComma
+            \NR
+            \NC \RobustAttractor{\StateRegion}{\ControlSpace'}{\StateTarget} \subseteq
+            \NC \RobustPredecessor{\StateRegion}{\ControlSpace'}{\StateTarget} \EndAnd
+            \NR
+            \NC \RobustAttractor{\StateRegion}{\ControlSpace'}{\StateTarget} \subseteq
+            \NC \Attractor{\StateRegion}{\ControlSpace'}{\StateTarget} \EndPeriod
             \NR
         \stopalign
     \stopformula
@@ -150,28 +158,28 @@ The following sections introduce the operators together with bried descriptions 
 
 \startsubsection[title={Actions}]
 
-    Finally, define two operators in the control space: Action Polytope ($\Act$) and Robust Action Polytope ($\ActR$)
+    The last operators defined are control space operators, i.e.\ the resulting sets are subsets of $\ControlSpace$.
+    The action ($\Act$) and robust action ($\ActR$), given by
 
     \startformula
         \startalign[n=2,align={right,left}]
             \NC \Action{\StateRegion}{\StateTarget} =
-            \NC \BigSet{ \VecControl \in \ControlSpace \Bigmid \Posterior{\StateRegion}{\VecControl} \cap \StateTarget \neq \emptyset } \EndComma
+            \NC \Set{ \VecControl \in \ControlSpace \mid \Posterior{\StateRegion}{\VecControl} \cap \StateTarget \neq \emptyset } \EndAnd
             \NR
             \NC \RobustAction{\StateRegion}{\StateTarget} =
-            \NC \BigSet{ \VecControl \in \ControlSpace \Bigmid \Posterior{\StateRegion}{\VecControl} \subseteq \StateTarget } \EndComma
+            \NC \Set{ \VecControl \in \ControlSpace \mid \Posterior{\StateRegion}{\VecControl} \subseteq \StateTarget } \EndComma
             \NR
         \stopalign
     \stopformula
 
-    where $\StateRegion$ is the origin region and $\IndexedSet{\State{j}}{j \in J}$ is the set of target states.
-    Both are adapted from the non-probabilistic setting of \cite[Yordanov2009], who defined the operators $U^{X \rightarrow Y}$ and $U^{X \Rightarrow Y}$, corresponding to $\Action{X}{Y}$ and $\RobustAction{X}{Y}$, respectively.
-
-    For a single origin polytope $\State{i}$ and a target state set containing only one state polytope $\State{j}$, the operators can be computed using the Minkowski sum and Pontryagin difference:
+    return the sets of control inputs with which the probability of transitioning to the target region $\StateTarget$ from origin region $\StateRegion$ in one step is non-zero and 1, respectively.
+    They are adapted from the non-probabilistic setting of \cite[Yordanov2009], who defined the operators $U^{X \rightarrow Y}$ corresponding to $\Action{X}{Y}$ and $U^{X \Rightarrow Y}$ corresponding to $\RobustAction{X}{Y}$.
+    Both operators can be computed using Minkowski sum and Pontryagin difference as
 
     \startformula
         \startalign[n=2,align={right,left}]
             \NC \Action{\State{i}}{\State{j}} =
-            \NC \Big( ( \State{j} \oplus - (\MatA \State{i} \oplus \RandomSpace) ) \MatB \Big) \cap \ControlSpace \EndComma
+            \NC \Big( ( \State{j} \oplus - (\MatA \State{i} \oplus \RandomSpace) ) \MatB \Big) \cap \ControlSpace \EndAnd
             \NR
             \NC \RobustAction{\State{i}}{\State{j}} =
             \NC \Big( ( \State{j} \ominus (\MatA \State{i} \oplus \RandomSpace) ) \MatB \Big) \cap \ControlSpace \EndPeriod
@@ -179,9 +187,13 @@ The following sections introduce the operators together with bried descriptions 
         \stopalign
     \stopformula
 
-    This method can be extended to sets of convex polytopes using the Minkowski sum and Pontryagin difference variants for such sets from section \in[sec:theory-geometry-operations].
+    Due to implementation constraints, the results of the operators can only be non-empty full-dimensional polytopic regions.
+    Lower-dimensional control space regions are therefore not computable by the action operators.
+    This means e.g.\ that it is possible that for some $\VecState \in \Predecessor{\StateRegion}{\ControlSpace}{\StateTarget}$ $\Action{\VecState}{\StateTarget} = \emptyset$, even though this should be true theoretically.
+    % TODO justify omission of lower-dimensional actions for practical purposes
 
-    Finally the concrete action operator for the control space:
+    Finally, the concrete action ($\ActC$) is introduced.
+    As for the precise predecessor, a state space partition is required for the operator to be meaningful:
 
     \startformula
         \startalign[n=2,align={right,left}]
@@ -194,28 +206,29 @@ The following sections introduce the operators together with bried descriptions 
         \stopalign
     \stopformula
 
-    Only fully dimensional polytopic regions of the control space considered here (implementation purposes).
-    Decision not to include single-point actions.
+    Under the resulting control inputs, only $\StateTarget$ can be reached in one step from $\StateRegion$ (first condition) and for every part in the target region a state in $\StateRegion$ can be found so that the probability of reaching the part is non-zero.
+    There is an important difference in how the conditions of $\PreP$ and $\ActC$ work, that should be stressed:
+    The precise predecessor requires some control input for every of its states for which both conditions (subset and part intersection) are fulfilled.
+    The concrete action requires that for every of its control vectors the subset condition is fulfilled for every origin state while the part intersections can be fulfilled independently by different states in $\StateRegion$, as long as every part is reachable from some state.
+    This implies that,
+
+    \startformula
+        \ConcreteAction{\StateRegion}{\IndexedStates{j}{J}} \,\cap\, \ConcreteAction{\StateRegion}{\IndexedStates{j}{J'}} = \emptyset
+    \stopformula
+
+    for all $J \neq J'$.
+    The same does not hold for precise predecessors, which can overlap for different target sets.
+    Concrete actions can therefore be computed directly from actions with
 
     \startformula
         \startalign[n=2,align={right,left}]
-            \NC \ConcreteAction{\StateRegion}{\IndexedSet{\State{j}}{j \in J}} =
-            \NC \bigcap_{j \in J} \Action{\StateRegion}{\Set{\State{j}}} \setminus \bigcup_{i \in I \setminus J} \Action{\StateRegion}{\Set{\State{i}}}\EndPeriod
+            \NC \ConcreteAction{\StateRegion}{\IndexedStates{j}{J}} =
+            \NC \bigcap_{j \in J} \Action{\StateRegion}{\State{j}} \setminus \bigcup_{i \in I \setminus J} \Action{\StateRegion}{\State{i}} \EndPeriod
             \NR
         \stopalign
     \stopformula
 
-    Elaborate on difference between $\Act$ and $\PreR$: Precise Predecessor requires one $\VecControl$ for which both subset and intersection condition is fulfilled.
-    Action requires one $\VecState$ for which intersection condition is fulfilled, but subset condition must be fulfilled for all $\VecX \in \StateRegion$.
-
-    Therefore,
-
-    \startformula
-        \ConcreteAction{\StateRegion}{\IndexedSet{\State{j}}{j \in J}} \,\cap\, \ConcreteAction{\StateRegion}{\IndexedSet{\State{j}}{j \in J'}} = \emptyset
-    \stopformula
-
-    for all $J \neq J'$.
-    The same does not hold for the precise predecessor, whose sets can overlap for different target sets.
+    Note that \cite[Svorenova2017] use the notation $U_i^J$ for the set $\ConcreteAction{\State{i}}{\IndexedStates{j}{J}}$.
 
 \stopsection
 

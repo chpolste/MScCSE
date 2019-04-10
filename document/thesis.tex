@@ -1,4 +1,5 @@
 \usecolors[xwi]
+\usemodule[algorithmic]
 
 % Fixes for broken rendering
 \input{inputs/fixes}
@@ -15,15 +16,15 @@
 
 % Setup links and assign PDF metadata
 \setupinteraction[
-        state=start,
-        color=black,
-        contrastcolor=black,
-        style=,
-        focus=standard,
-        title={}, % TODO
-        subtitle={}, % TODO
-        author={Christopher Polster},
-        ]
+    state=start,
+    color=black,
+    contrastcolor=black,
+    style=,
+    focus=standard,
+    title={}, % TODO
+    subtitle={}, % TODO
+    author={Christopher Polster},
+    ]
 
 % Title of table of content
 \setupheadtext[content={Table of Contents}]
@@ -79,38 +80,41 @@
 \define[1]\footnotebrack{\narrownobreakspace\high{[#1]}}
 \setupnotation[footnote][alternative=text]
 \setupfootnotes[
-        way=bytext,
-        frameoffset=0mm,
-        topframe=on,
-        rule=off,
-        toffset=1mm,
-        roffset=-14cm,
-        before={\blank[7mm]}%,
-        %textcommand=\footnotebrack
-        ] % fixes weird spacing when only one line of footnote
+    way=bytext,
+    frameoffset=0mm,
+    topframe=on,
+    rule=off,
+    toffset=1mm,
+    roffset=-14cm,
+    before={\blank[7mm]},
+    %textcommand=\footnotebrack
+    ] % fixes weird spacing when only one line of footnote
+
+% Float captions
+\setupcaptions[
+    style={FigureStyle},
+    suffix={:},
+    headstyle={FigureCaptionStyle},
+    prefixsegments=none,
+    width=fit,
+    way=bytext,
+    spaceafter=2mm,
+    ]
 
 % Figures
 \setupexternalfigures[directory=figures/]
-\setupcaptions[figure][
-        style={FigureStyle},
-        suffix={:},
-        headstyle={FigureCaptionStyle},
-        prefixsegments=none,
-        width=fit,
-        way=bytext,
-        spaceafter=2mm
-        ]
 
-% Tables
-\setupcaptions[table][
-        style={FigureStyle},
-        suffix={:},
-        headstyle={FigureCaptionStyle},
-        prefixsegments=none,
-        width=fit,
-        way=bytext,
-        spaceafter=2mm
-        ]
+% Algorithms
+\definefloat[algorithm][algorithms]
+\setupalgorithmic[
+    numbering=yes,
+    width=1.2em,
+    numberwidth=2em,
+    margin=3.2em,
+    align=flushright,
+    location=text,
+    ]
+
 % Formulas
 \defineseparatorset[none][][]
 \setupformulas[way=bytext,prefixsegments=none,numberseparatorset=none]

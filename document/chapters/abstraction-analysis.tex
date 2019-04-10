@@ -1,7 +1,91 @@
 Quadratic-complexity algorithm exists, but cubic, fixed-point algorithm much easier to implement.
 TODO Reference.
 
-TODO algorithm steps.
+\placealgorithm[top][fig:abstraction-analysis-solve]{
+    Solver for parity-3 games using fixed-point iteration \cite[authoryears][Svorenova2017]. Cubic complexity.
+}{
+    % https://mailman.ntg.nl/pipermail/ntg-context/2016/087390.html
+    \startframedtext[width=\textwidth,frame=off]
+        \startalgorithmic
+            \FUNCTION{SolveParity3}{$\ProductGame = (TODO)$: Game}
+                \STATE{ $X, {\bar X}, Y, {\bar Y}, Z, {\bar Z}$: Set}
+                \STATE{ ${\bar X} \leftarrow S$ }
+                \STATE{ ${\bar Y} \leftarrow S$ }
+                \STATE{ ${\bar Z} \leftarrow \emptyset$ }
+                \DO
+                    \STATE{ $X \leftarrow {\bar X}$ }
+                    \DO
+                        \STATE{ $Y \leftarrow {\bar Y}$ }
+                        \DO
+                            \STATE{ $Z \leftarrow {\bar Z}$ }
+                            \STATE{ ${\bar Z} \leftarrow (F \cap \Pre_1(X)) \cup (E \cap \Pre_2(X, Y)) \cup (D \cap \Pre_3(X, Y, Z))$ }
+                        \ENDDOWHILE{ $Z \ne {\bar Z}$ }
+                        \STATE{ ${\bar Y} \leftarrow Z$ }
+                        \STATE{ ${\bar Z} \leftarrow S$ }
+                    \ENDDOWHILE{ $Y \ne {\bar Y}$ }
+                    \STATE{ ${\bar X} \leftarrow Y$ }
+                    \STATE{ $Y \leftarrow \emptyset$ }
+                \ENDDOWHILE{ $X \ne {\bar X}$ }
+                \RETURN{ $X$ }
+            \ENDFUNCTION
+        \stopalgorithmic
+    \stopframedtext
+}
+
+Define successor operator for game
+
+\startformula
+    ...
+\stopformula
+
+Define conditions for state-action pairs
+
+\startformula
+    \startalign[n=2,align={right,left}]
+        \NC C_1(X) =
+        \NC \Set{ ...  }
+        \NR
+        \NC C_2(X, Y) =
+        \NC \Set{ ...  }
+        \NR
+        \NC C_3(X, Y, Z) =
+        \NC \Set{ ...  }
+        \NR
+    \stopalign
+\stopformula
+
+
+Predecessor game operators for adversarial analysis
+
+\startformula
+    \startalign[n=2,align={right,left}]
+        \NC \Pre_1(X) =
+        \NC \Set{ ...  } \cup \Set{ ... }
+        \NR
+        \NC \Pre_2(X, Y) =
+        \NC \Set{ ...  } \cup \Set{ ... }
+        \NR
+        \NC \Pre_3(X, Y, Z) =
+        \NC \Set{ ...  } \cup \Set{ ... }
+        \NR
+    \stopalign
+\stopformula
+
+and for cooperative analysis
+
+\startformula
+    \startalign[n=2,align={right,left}]
+        \NC \Pre_1^{\Coop}(X) =
+        \NC \Set{ ...  } \cup \Set{ ... }
+        \NR
+        \NC \Pre_2^{\Coop}(X, Y) =
+        \NC \Set{ ...  } \cup \Set{ ... }
+        \NR
+        \NC \Pre_3^{\Coop}(X, Y, Z) =
+        \NC \Set{ ...  } \cup \Set{ ... }
+        \NR
+    \stopalign
+\stopformula
 
 To decide desired properties, game needs to be analysed twice:
 once with adversarial player 2 (to yield winning states where even in the "worst case", game can be won by player 1) and once with cooperative player 2 (to yield states where winning is possible, but not guaranteed).

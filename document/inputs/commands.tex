@@ -151,9 +151,10 @@
 \definemathcommand[AlmostSure][nolop]{\mfunction{Almost}}
 
 \define\GameGraph{{\mathcal G}}
+\define\Coop{{\mathrm coop}}
 \define[2]\Strategy{S_{#2}^{#1}}
 \define[1]\Almost{\AlmostSure_{#1}}
-\define[1]\AlmostCoop{\AlmostSure_{#1}^{coop}}
+\define[1]\AlmostCoop{\AlmostSure_{#1}^{\Coop}}
 \define[1]\ProbDist{\mathcal{D}(#1)}
 
 \define\ProductGame{{\mathcal P}}
@@ -178,4 +179,41 @@
 \define\Friction{\mu}
 \define\Thrust{u}
 \define\Deltat{\Delta t}
+
+
+% Additional commands for algorithmic
+
+\unprotect
+
+\starttexdefinition algorithmic_function #1#2
+  \par
+  \algorithmic_label{function} {\sc #1}({#2})
+  \algorithmic_begsub
+\stoptexdefinition
+
+\starttexdefinition algorithmic_endfunction
+  \algorithmic_endsub
+  \algorithmic_label{endfunction}
+\stoptexdefinition
+
+\starttexdefinition algorithmic_do
+  \par
+  \algorithmic_label{do}
+  \algorithmic_begsub
+\stoptexdefinition
+
+\starttexdefinition algorithmic_enddowhile #1
+  \algorithmic_endsub
+  \algorithmic_label{while} #1
+\stoptexdefinition
+
+\algorithmic_define[FUNCTION][\algorithmic_function]
+\algorithmic_define[ENDFUNCTION][\algorithmic_endfunction]
+\algorithmic_define[DO][\algorithmic_do]
+\algorithmic_define[ENDDOWHILE][\algorithmic_enddowhile]
+
+\setupalgorithmictext[\s!en][function=function]
+\setupalgorithmictext[\s!en][endfunction=end function]
+
+\protect
 

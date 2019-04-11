@@ -1,10 +1,30 @@
-Putting it all together, full system.
+The game graph constructed in previous section has no winning condition, but in order to analyse the game with respect to a temporal logic specification one is required.
+Translating the specifiction into an \omega-automaton yields an acceptance condition for the automaton which can be transfered to the game through construction of their synchronous product.
+The resulting product game enforces the synchronized evaluation of the objective automaton during plays on the game graph and can be given to a game solver for analysis purposes.
+
+The GR(1) objective formula $\varphi$ from section \in[sec:problem-statement] is formulated over a set of linear predicates $\Predicates$.
+The initial decomposition of the state space (\in[fml:abstraction-graph-decomposition]) uses an equivalence relation based on these linear predicates, so every state of a given $\State{i}$ fulfills and rejects exactly the same set of linear predicates, $\PredicatesOf{\State{i}} \in 2^\Predicates$.
+A play of $\GameGraph$ therefore induces a word over the alphabet $2^\Predicates$.
+Using this alphabet, an \omega-automaton
 
 \startformula
-    \ProductGame = ( P_1, P_2, Act, \Transition, \Condition ) \EndComma
+    \Automaton = (Q,\, 2^\Predicates,\, \Transition_\Automaton,\, q_0,\, \Condition_\Automaton)
 \stopformula
 
-where $P_1 = G_1 \times Q$ and $P_2 = G_2 \times Q$ (flattened into tuples/triples), the actions are taken from the game graph $\GameGraph$,
+corresponding to $\varphi$ can be constructed.
+The restriction to GR(1) formulas allows expression of the acceptance condition with a Streett pair $\Transition_\Automaton = \Tuple{E_\Automaton}{F_\Automaton}$ (see section \in[sec:theory-automata]).
+
+To enforce the evaluation of the automaton synchronized to plays from the game, their synchronous product
+
+\startformula
+    \ProductGame = ( P_1, P_2, Act, \Transition, \Condition )
+\stopformula
+
+is constructed.
+$\ProductGame$ is a 2½-player game with a one-pair Streett winning condition $\Condition$ modeled after $\Condition_\Automaton$.
+Player states are $P_1 = G_1 \ftimes Q$ and $P_2 = G_2 \ftimes Q$, where $\ftimes$ is the normal cartesian product but with flattened result to reduce visual clutter.
+The set of action is taken directly from the game graph $\GameGraph$.
+The synchronous evolution is upheld through the transition relation
 
 \startformula
     \Transition
@@ -14,7 +34,7 @@ where $P_1 = G_1 \times Q$ and $P_2 = G_2 \times Q$ (flattened into tuples/tripl
         \NC \Transition_\GameGraph
         \Big( \State{i}, \PlayerOneAction{i}{J} \Big)
         \Big( \Tuple{\State{i}}{J} \Big)
-        \MC \Transition_\Automaton(q, \PredicatesOf{\State{i}}) = q'
+        \MC \StartIf \Transition_\Automaton(q, \PredicatesOf{\State{i}}) = q'
         \NR
         \NC 0
         \NC otherwise
@@ -22,7 +42,7 @@ where $P_1 = G_1 \times Q$ and $P_2 = G_2 \times Q$ (flattened into tuples/tripl
     \stopmathcases
 \stopformula
 
-and
+for player 1 and
 
 \startformula
     \Transition
@@ -32,17 +52,17 @@ and
         \NC \Transition_\GameGraph
         \Big( \Tuple{\State{i}}{J}, \PlayerTwoAction{i}{J}{K} \Big)
         \Big( \State{k} \Big)
-        \MC q = q'
+        \MC \StartIf q = q'
         \NR
         \NC 0
-        \NC otherwise.
+        \NC otherwise
         \NR
     \stopmathcases
 \stopformula
 
-Winning condition is parity 3.
-Equivalent to one-pair Streett and can be easily translated.
-$\Condition = \Tuple{E}{F} = \Tuple{(G_1 \cup G_2) \times E_\Automaton}{(G_1 \cup G_2) \times F_\Automaton}$ and therefore assign parity 0 to ..., parity 1 to ..., parity 2 to ....
+for player 2.
+The Streett pair is given by $\Transition = \Tuple{E_\Automaton}{F_\Automaton}$ with $E_\Automaton = (G_1 \cup G_2) \ftimes E_\Automaton$ and $F_\Automaton = (G_1 \cup G_2) \ftimes F_\Automaton$.
+Note that automaton transitions occur only with player 1 actions.
 
 Handling of deadlock states (outer states, incomplete automaton).
 
@@ -55,5 +75,4 @@ If partial results are already available stop once decided or undecided state is
 
 Finally, repeat traces.
 Abstraction can do everything that LSS can do, but also more.
-Automaton transitions happen only in player 1 actions.
 

@@ -12,6 +12,9 @@
 % Tall version of \mid
 \definemathcommand[Bigmid][rel]{\mathrel{\Big|}}
 
+% Cartesian product with flattening
+\definemathcommand[ftimes][op]{\mathrel{\check\times}}
+
 % Equation endings
 \define\EndComma{\;\text{,}}
 \define\EndPeriod{\;\text{.}}
@@ -104,9 +107,12 @@
 \define\StateIndices{I}
 \define\StateIndicesInner{I_{\mathrm in}}
 \define\StateIndicesOuter{I_{\mathrm out}}
+
+% Linear Predicates
+\definemathcommand[FulfilledPredicates][nolop]{\mfunction{\pi}}
 \define\Predicates{\Pi}
 \define\Predicate{\pi}
-\define[1]\PredicatesOf{\Predicate({#1})}
+\define[1]\PredicatesOf{\FulfilledPredicates({#1})}
 
 % Control
 \define\ControlSpace{U}

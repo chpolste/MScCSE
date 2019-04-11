@@ -6,6 +6,7 @@ It will always be clear from context which system an operator belongs to.
 The following sections introduce the operators together with bried descriptions of how to compute them in the polytopic setting assumed here.
 
 %TODO give own section: Decomposition into disjunct $\IndexedSet{\State{i}}{i \in I}$, $I \subseteq \naturalnumbers$ where $\State{i} \subseteq \ExtendedStateSpace$ for all $i \in I$.
+%                       While finding the solution to a given problem on the LSS, the partition will be subject to change when refinement takes place.
 
 
 \startsubsection[title={Posterior}]
@@ -18,13 +19,16 @@ The following sections introduce the operators together with bried descriptions 
 
     The posterior allows computation of $\ExtendedStateSpace = \StateSpace \,\cup\, \Posterior{\StateSpace}{\ControlSpace}$, required for the outer states of the system decomposition in \in[sec:abstraction-decomposition].
 
-    While the above definition takes sets as arguments, the notation of the posterior and, where sensible, all following operators is overloaded for vector-valued state-space arguments as well as sets of parts of the state space decomposition.
+    While the above definition takes sets as arguments, the notation of the posterior and, where sensible, all following operators is overloaded for vector-valued state- and control space arguments as well as sets of parts of the state space decomposition.
     Let $\VecState' \in \StateSpace$ and $\State{j} \in \StateSpace$ for all $j \in J$, then
 
     \startformula
         \startalign[n=2,align={right,left}]
             \NC \Posterior{\VecState'}{\ControlRegion} :=
-            \NC \Posterior{\Set{\VecState'}}{\ControlRegion} \EndAnd
+            \NC \Posterior{\Set{\VecState'}}{\ControlRegion} \EndComma
+            \NR
+            \NC \Posterior{\StateRegion}{\VecControl'} :=
+            \NC \Posterior{\StateRegion}{\Set{\VecControl'}} \EndAnd
             \NR
             \NC \Posterior{\IndexedStates{j}{J}}{\ControlRegion} :=
             \NC \BigPosterior{\bigcup_{j \in J}\State{j}}{\ControlRegion} \EndPeriod
@@ -207,7 +211,7 @@ The following sections introduce the operators together with bried descriptions 
     \stopformula
 
     Under the resulting control inputs, only $\StateTarget$ can be reached in one step from $\StateRegion$ (first condition) and for every part in the target region a state in $\StateRegion$ can be found so that the probability of reaching the part is non-zero.
-    There is an important difference in how the conditions of $\PreP$ and $\ActC$ work, that should be stressed:
+    It should be noted that the conditions of $\PreP$ and $\ActC$ work quite differently:
     The precise predecessor requires some control input for every of its states for which both conditions (subset and part intersection) are fulfilled.
     The concrete action requires that for every of its control vectors the subset condition is fulfilled for every origin state while the part intersections can be fulfilled independently by different states in $\StateRegion$, as long as every part is reachable from some state.
     This implies that,

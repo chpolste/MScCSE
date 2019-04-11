@@ -19,6 +19,7 @@
 % Inline connectors
 \define\MidComma{\text{,}\;}
 \define\MidAnd{\;\text{and}\;}
+\define\StartIf{\text{if}\;}
 
 % Function definition
 \define[3]\Function{#1:#2\rightarrow#3}
@@ -100,6 +101,9 @@
 \define\VecState{\VecX}
 \define[1]\State{X_{#1}}
 \define[2]\IndexedStates{\IndexedSet{\State{#1}}{{#1} \in {#2}}}
+\define\StateIndices{I}
+\define\StateIndicesInner{I_{\mathrm in}}
+\define\StateIndicesOuter{I_{\mathrm out}}
 \define\Predicates{\Pi}
 \define\Predicate{\pi}
 \define[1]\PredicatesOf{\Predicate({#1})}

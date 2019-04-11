@@ -5,9 +5,6 @@ It will always be clear from context which system an operator belongs to.
 
 The following sections introduce the operators together with bried descriptions of how to compute them in the polytopic setting assumed here.
 
-%TODO give own section: Decomposition into disjunct $\IndexedSet{\State{i}}{i \in I}$, $I \subseteq \naturalnumbers$ where $\State{i} \subseteq \ExtendedStateSpace$ for all $i \in I$.
-%                       While finding the solution to a given problem on the LSS, the partition will be subject to change when refinement takes place.
-
 
 \startsubsection[title={Posterior}]
 
@@ -17,9 +14,9 @@ The following sections introduce the operators together with bried descriptions 
         \Posterior{\StateRegion}{\ControlRegion} := \Set{ \VecState \in \reals^n \mid \exists \VecState' \in \StateRegion\MidComma \exists \VecControl' \in \ControlRegion\MidComma \exists \VecRandom \in \RandomSpace : \VecState = \MatA \VecState' + \MatB \VecControl' + \VecRandom } \EndPeriod
     \stopformula
 
-    The posterior allows computation of $\ExtendedStateSpace = \StateSpace \,\cup\, \Posterior{\StateSpace}{\ControlSpace}$, required for the outer states of the system decomposition in \in[sec:abstraction-decomposition].
+    The posterior allows the computation of the extended state space $\ExtendedStateSpace = \StateSpace \,\cup\, \Posterior{\StateSpace}{\ControlSpace}$.
 
-    While the above definition takes sets as arguments, the notation of the posterior and, where sensible, all following operators is overloaded for vector-valued state- and control space arguments as well as sets of parts of the state space decomposition.
+    While the above definition takes sets as arguments, the notation of the posterior and, where sensible, all following operators is overloaded for vector-valued state- and control space arguments as well as sets of elements of a state space decomposition.
     Let $\VecState' \in \StateSpace$ and $\State{j} \in \StateSpace$ for all $j \in J$, then
 
     \startformula

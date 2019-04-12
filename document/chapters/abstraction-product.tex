@@ -98,7 +98,7 @@ The resulting product game enforces the synchronized evaluation of the objective
 \startsubsection[title={Dead-end States}]
 
     \placefigure[top][fig:abstraction-product-endloop]{
-        A player 1 state $\Tuple{\State{i}}{q}$ of the product game $\ProductGame$ connected to the dead-end loop.
+        A player 1 state $\Tuple{\State{i}}{q}$ of the product game $\ProductGame$, connected to the dead-end loop.
     }{
         \framed[width=\textwidth,frame=off]{\reuseMPgraphic{mp:abstraction-product-endloop}}
     }
@@ -144,11 +144,18 @@ The resulting product game enforces the synchronized evaluation of the objective
 
 \startsubsection[title={Co-safe Interpretation}]
 
-    There is an exception to the last statement:
-    Traces that have fulfilled a co-safe objective are free to go anywhere, even outside of the state space.
+    There is an exception to the last statement of the previous section:
+    In the co-safe interpretation, traces that have fulfilled their objective are free to go anywhere, even outside of the state space.
+    It is possible to accomodate this interpretation in the product game construction with a postprocessing step analogous to the one that resolves dead-end states.
+    A new player 1 state $\State{\SatEnd1}$ and player 2 state $\State{\SatEnd2}$ is introduced together with an action $\SatEnd$.
+    Final states, i.e.\ states triggering satisfaction of the co-safe objective, are stripped of their actions and then deterministically redirected into a loop constructed exactly as in Figure \in[fig:abstraction-product-endloop] but using $\State{\SatEnd1}$ instead of $\State{\DeadEnd1}$, $\State{\SatEnd2}$ instead of $\State{\DeadEnd2}$ and $\SatEnd$ instead of $\DeadEnd$.
+    The only states occuring infinitely often in a trace trapped in this loop are $\State{\SatEnd1}$ and $\State{\SatEnd2}$ which are not included in either of the acceptance sets of the one-pair Streett condition.
+    Trapped traces will therefore guarantee that player 1 wins the game no matter what happens after the objective has been satisfied.
 
-    Switching bewteen infinite and co-safe interpretation.
-    If co-safe objective interpretation is desired, redirect to dedicated sat state once terminal state is reached.
+    The following requirements are expected for one-pair Streett acceptance conditions $\Tuple{E}{F}$ with co-safe interpretation:
+    $F$ contains all final states of the automaton or game and must not be empty.
+    All other states are members of $E$.
+    Using this convention, automata and games with the these properties can be interpreted in both the infinite framework, where traces must never leave the state space, and the co-safe framework, where this requirement is lifted once a final state has been reached.
 
 \stopsubsection
 

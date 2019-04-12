@@ -2,99 +2,116 @@ Winning condition is parity 3.
 Equivalent to one-pair Streett and can be easily translated.
  and therefore assign parity 0 to ..., parity 1 to ..., parity 2 to ....
 
-Quadratic-complexity algorithm exists, but cubic, fixed-point algorithm much easier to implement.
-TODO Reference.
 
-\placealgorithm[top][fig:abstraction-analysis-solve]{
-    Solver for parity-3 games using fixed-point iteration \cite[authoryears][Svorenova2017]. Cubic complexity.
-}{
-    % https://mailman.ntg.nl/pipermail/ntg-context/2016/087390.html
-    \startframedtext[width=\textwidth,frame=off]
-        \startalgorithmic
-            \FUNCTION{SolveParity3}{$\ProductGame = (TODO)$: Game}
-                \STATE{ $X, {\bar X}, Y, {\bar Y}, Z, {\bar Z}$: Set}
-                \STATE{ ${\bar X} \leftarrow S$ }
-                \STATE{ ${\bar Y} \leftarrow S$ }
-                \STATE{ ${\bar Z} \leftarrow \emptyset$ }
+\startbuffer[buf:abstraction-analysis-solution-algorithm]
+    \startalgorithmic
+        \FUNCTION{SolveParity3}{$\ProductGame = (TODO)$: Game}
+            \STATE{ $X, {\bar X}, Y, {\bar Y}, Z, {\bar Z}$: Set}
+            \STATE{ ${\bar X} \leftarrow S$ }
+            \STATE{ ${\bar Y} \leftarrow S$ }
+            \STATE{ ${\bar Z} \leftarrow \emptyset$ }
+            \DO
+                \STATE{ $X \leftarrow {\bar X}$ }
                 \DO
-                    \STATE{ $X \leftarrow {\bar X}$ }
+                    \STATE{ $Y \leftarrow {\bar Y}$ }
                     \DO
-                        \STATE{ $Y \leftarrow {\bar Y}$ }
-                        \DO
-                            \STATE{ $Z \leftarrow {\bar Z}$ }
-                            \STATE{ ${\bar Z} \leftarrow (F \cap \Pre_1(X)) \cup (E \cap \Pre_2(X, Y)) \cup (D \cap \Pre_3(X, Y, Z))$ }
-                        \ENDDOWHILE{ $Z \ne {\bar Z}$ }
-                        \STATE{ ${\bar Y} \leftarrow Z$ }
-                        \STATE{ ${\bar Z} \leftarrow S$ }
-                    \ENDDOWHILE{ $Y \ne {\bar Y}$ }
-                    \STATE{ ${\bar X} \leftarrow Y$ }
-                    \STATE{ $Y \leftarrow \emptyset$ }
-                \ENDDOWHILE{ $X \ne {\bar X}$ }
-                \RETURN{ $X$ }
-            \ENDFUNCTION
-        \stopalgorithmic
-    \stopframedtext
-}
+                        \STATE{ $Z \leftarrow {\bar Z}$ }
+                        \STATE{ ${\bar Z} \leftarrow (F \cap \Pre_1(X)) \cup (E \cap \Pre_2(X, Y)) \cup (D \cap \Pre_3(X, Y, Z))$ }
+                    \ENDDOWHILE{ $Z \ne {\bar Z}$ }
+                    \STATE{ ${\bar Y} \leftarrow Z$ }
+                    \STATE{ ${\bar Z} \leftarrow S$ }
+                \ENDDOWHILE{ $Y \ne {\bar Y}$ }
+                \STATE{ ${\bar X} \leftarrow Y$ }
+                \STATE{ $Y \leftarrow \emptyset$ }
+            \ENDDOWHILE{ $X \ne {\bar X}$ }
+            \RETURN{ $X$ }
+        \ENDFUNCTION
+    \stopalgorithmic
+\stopbuffer
 
-Define successor operator for game
+\startsubsection[title={Product Game Solution}]
 
-\startformula
-    ...
-\stopformula
+    To decide desired properties, game needs to be analysed twice:
+    once with adversarial player 2 (to yield winning states where even in the "worst case", game can be won by player 1) and once with cooperative player 2 (to yield states where winning is possible, but not guaranteed).
+    From membership in these 2 solution sets, it can be decided if states are satisfying, non-satisfying or if the abstraction is too coarse to decide and further refinement is necessary.
 
-Define conditions for state-action pairs
+    Quadratic-complexity algorithm exists, but cubic, fixed-point algorithm much easier to implement.
+    TODO Reference.
 
-\startformula
-    \startalign[n=2,align={right,left}]
-        \NC C_1(X) =
-        \NC \Set{ ...  }
-        \NR
-        \NC C_2(X, Y) =
-        \NC \Set{ ...  }
-        \NR
-        \NC C_3(X, Y, Z) =
-        \NC \Set{ ...  }
-        \NR
-    \stopalign
-\stopformula
+    Define successor operator for game
+
+    \startformula
+        ...
+    \stopformula
+
+    Define conditions for state-action pairs
+
+    \startformula
+        \startalign[n=2,align={right,left}]
+            \NC C_1(X) =
+            \NC \Set{ ...  }
+            \NR
+            \NC C_2(X, Y) =
+            \NC \Set{ ...  }
+            \NR
+            \NC C_3(X, Y, Z) =
+            \NC \Set{ ...  }
+            \NR
+        \stopalign
+    \stopformula
 
 
-Predecessor game operators for adversarial analysis
+    Predecessor game operators for adversarial analysis
 
-\startformula
-    \startalign[n=2,align={right,left}]
-        \NC \Pre_1(X) =
-        \NC \Set{ ...  } \cup \Set{ ... }
-        \NR
-        \NC \Pre_2(X, Y) =
-        \NC \Set{ ...  } \cup \Set{ ... }
-        \NR
-        \NC \Pre_3(X, Y, Z) =
-        \NC \Set{ ...  } \cup \Set{ ... }
-        \NR
-    \stopalign
-\stopformula
+    \startformula
+        \startalign[n=2,align={right,left}]
+            \NC \Pre_1(X) =
+            \NC \Set{ ...  } \cup \Set{ ... }
+            \NR
+            \NC \Pre_2(X, Y) =
+            \NC \Set{ ...  } \cup \Set{ ... }
+            \NR
+            \NC \Pre_3(X, Y, Z) =
+            \NC \Set{ ...  } \cup \Set{ ... }
+            \NR
+        \stopalign
+    \stopformula
 
-and for cooperative analysis
+    and for cooperative analysis
 
-\startformula
-    \startalign[n=2,align={right,left}]
-        \NC \Pre_1^{\Coop}(X) =
-        \NC \Set{ ...  } \cup \Set{ ... }
-        \NR
-        \NC \Pre_2^{\Coop}(X, Y) =
-        \NC \Set{ ...  } \cup \Set{ ... }
-        \NR
-        \NC \Pre_3^{\Coop}(X, Y, Z) =
-        \NC \Set{ ...  } \cup \Set{ ... }
-        \NR
-    \stopalign
-\stopformula
+    \startformula
+        \startalign[n=2,align={right,left}]
+            \NC \Pre_1^{\Coop}(X) =
+            \NC \Set{ ...  } \cup \Set{ ... }
+            \NR
+            \NC \Pre_2^{\Coop}(X, Y) =
+            \NC \Set{ ...  } \cup \Set{ ... }
+            \NR
+            \NC \Pre_3^{\Coop}(X, Y, Z) =
+            \NC \Set{ ...  } \cup \Set{ ... }
+            \NR
+        \stopalign
+    \stopformula
 
-To decide desired properties, game needs to be analysed twice:
-once with adversarial player 2 (to yield winning states where even in the "worst case", game can be won by player 1) and once with cooperative player 2 (to yield states where winning is possible, but not guaranteed).
-From membership in these 2 solution sets, it can be decided if states are satisfying, non-satisfying or if the abstraction is too coarse to decide and further refinement is necessary.
+    \placealgorithm[top][fig:abstraction-analysis-solve]{
+        Solver for parity-3 games using fixed-point iteration \cite[authoryears][Svorenova2017]. Cubic complexity.
+    }{
+        % https://mailman.ntg.nl/pipermail/ntg-context/2016/087390.html
+        \startframedtext[width=\textwidth,frame=off]
+            \getbuffer[buf:abstraction-analysis-solution-algorithm]
+        \stopframedtext
+    }
 
-Discuss problems with product game simplification and the available compromise.
-Reminder of how to include co-safe switch into game creation.
+
+\stopsubsection
+
+
+\startsubsection[title={Product Game Simplification}]
+
+    Reminder of how to include co-safe switch into game creation.
+
+    Now: If partial results are already available stop construction once decided state is reached.
+    Discuss problems with product game simplification and the available compromise.
+
+\stopsubsection
 

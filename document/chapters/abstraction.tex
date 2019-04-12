@@ -14,3 +14,14 @@ Create player 1 states by partitioning the state space, and associated (determin
 Introduce second player to compensate for non-determinism introduced in partitioning, and associated probabilistic actions.
 Finally, introduce objective by constructing the product of the game abstraction and an objective automaton (here: one-pair Streett) to obtain a 2 1/2 player game with one-pair Streett objective.
 
+
+Example: 1D variant of illustrative example and recurrence
+System $\LSS$ with evolution equation
+
+\placeformula[fml:abstraction-example]
+\startformula
+    x_{t+1} = x_t + u_t + w_t
+\stopformula
+
+where $\StateSpace = \ClosedInterval{0}{4}$, $\RandomSpace = \ClosedInterval{-0.1}{0.1}$ and $\ControlSpace = \ClosedInterval{-1}{1}$.
+

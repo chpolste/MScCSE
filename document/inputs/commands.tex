@@ -22,10 +22,15 @@
 % Inline connectors
 \define\MidComma{\text{,}\;}
 \define\MidAnd{\;\text{and}\;}
+\define\MidOr{\;\text{or}\;}
 \define\StartIf{\text{if}\;}
 
 % Function definition
 \define[3]\Function{#1:#2\rightarrow#3}
+
+% Probability distribution
+\definemathcommand[Supp][nolop]{\mfunction{Supp}}
+\define[1]\Support{\Supp({#1})}
 
 % 2-Norm
 \define[1]\TwoNorm{\lVert{#1}\rVert}
@@ -76,8 +81,8 @@
 % ----------------------
 
 % Polytope components
-\definemathcommand[Hull][nolop]{\mfunction{hull}}
-\definemathcommand[Vertices][nolop]{\mfunction{vert}}
+\definemathcommand[Hull][nolop]{\mfunction{Hull}}
+\definemathcommand[Vertices][nolop]{\mfunction{Vert}}
 % Posterior
 \definemathcommand[Post][nolop]{\mfunction{Post}}
 % Predecessors
@@ -163,7 +168,7 @@
 
 \definemathcommand[True]{{\mathss true}}
 \definemathcommand[Next]{{\mathss X}}
-\definemathcommand[Until]{\,{\mathss U}\,}
+\definemathcommand[Until][op]{{\mathss U}}
 \definemathcommand[Finally]{{\mathss F}}
 \definemathcommand[Globally]{{\mathss G}}
 
@@ -174,16 +179,22 @@
 \definemathcommand[AlmostSure][nolop]{\mfunction{Almost}}
 
 \define\GameGraph{{\mathcal G}}
-\define\Coop{{\mathrm coop}}
+\define\Adversarial{{\mathrm adv}}
+\define\Cooperative{{\mathrm coop}}
 \define[2]\Strategy{S_{#2}^{#1}}
 \define[1]\Almost{\AlmostSure_{#1}}
-\define[1]\AlmostCoop{\AlmostSure_{#1}^{\Coop}}
+\define[1]\AlmostCoop{\AlmostSure_{#1}^{\Cooperative}}
 \define[1]\ProbDist{\mathcal{D}(#1)}
 
 \define\ProductGame{{\mathcal P}}
 \define[2]\PlayerOneAction{{#1}\rightarrow{#2}}
 \define[3]\PlayerTwoAction{\Tuple{#1}{#2}\rightarrow{#3}}
 
+\definemathcommand[Succ][nolop]{\mfunction{Succ}}
+\define[2]\Successor{\Succ({#1},\,{#2})}
+
+\define\DeadEnd{{\mathrm END}}
+\define\SatEnd{{\mathrm SAT}}
 
 % Physics
 % -------

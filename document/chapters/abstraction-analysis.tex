@@ -41,7 +41,7 @@ Equivalent to one-pair Streett and can be easily translated.
     Define successor operator for game
 
     \startformula
-        ...
+        \Successor{s}{a} = \Support{\Transition(s, a)}
     \stopformula
 
     Define conditions for state-action pairs
@@ -49,30 +49,35 @@ Equivalent to one-pair Streett and can be easily translated.
     \startformula
         \startalign[n=2,align={right,left}]
             \NC C_1(X) =
-            \NC \Set{ ...  }
+            \NC \Set{ (s, a) \mid \Successor{s}{a} \subseteq X }
             \NR
             \NC C_2(X, Y) =
-            \NC \Set{ ...  }
-            \NR
-            \NC C_3(X, Y, Z) =
-            \NC \Set{ ...  }
+            \NC \Set{ (s, a) \mid \Successor{s}{a} \subseteq X \MidAnd \Successor{s}{a} \cap Y \ne \emptyset }
             \NR
         \stopalign
     \stopformula
-
 
     Predecessor game operators for adversarial analysis
 
     \startformula
         \startalign[n=2,align={right,left}]
-            \NC \Pre_1(X) =
-            \NC \Set{ ...  } \cup \Set{ ... }
+            \NC \Pre_1^{\Adversarial}(X) =
+            \NC \Set{ s \in S_1 \mid \exists a \in Act : (s, a) \in C_1(X) }
             \NR
-            \NC \Pre_2(X, Y) =
-            \NC \Set{ ...  } \cup \Set{ ... }
+            \NC \empty
+            \NC \quad \cup \Set{ s \in S_2 \mid \forall a \in \Act : (s, a) \in C_1(X) }
             \NR
-            \NC \Pre_3(X, Y, Z) =
-            \NC \Set{ ...  } \cup \Set{ ... }
+            \NC \Pre_2^{\Adversarial}(X, Y) =
+            \NC \Set{ s \in S_1 \mid \exists a \in Act : (s, a) \in C_2(X, Y) }
+            \NR
+            \NC \empty
+            \NC \quad \cup \Set{ s \in S_2 \mid \forall a \in \Act : (s, a) \in C_2(X, Y) }
+            \NR
+            \NC \Pre_3^{\Adversarial}(X, Y, Z) =
+            \NC \Set{ s \in S_1 \mid \exists a \in Act : (s, a) \in C_2(X, Y) \cup C_1(Z) }
+            \NR
+            \NC \empty
+            \NC \quad \cup \Set{ s \in S_2 \mid \forall a \in Act : (s, a) \in C_2(X, Y) \cup C_1(Z) }
             \NR
         \stopalign
     \stopformula
@@ -81,14 +86,14 @@ Equivalent to one-pair Streett and can be easily translated.
 
     \startformula
         \startalign[n=2,align={right,left}]
-            \NC \Pre_1^{\Coop}(X) =
-            \NC \Set{ ...  } \cup \Set{ ... }
+            \NC \Pre_1^{\Cooperative}(X) =
+            \NC \Set{ s \in S_1 \cup S_2 \mid \exists a \in Act : (s, a) \in C_1(X) }
             \NR
-            \NC \Pre_2^{\Coop}(X, Y) =
-            \NC \Set{ ...  } \cup \Set{ ... }
+            \NC \Pre_2^{\Cooperative}(X, Y) =
+            \NC \Set{ s \in S_1 \cup S_2 \mid \exists a \in Act : (s, a) \in C_2(X, Y) }
             \NR
-            \NC \Pre_3^{\Coop}(X, Y, Z) =
-            \NC \Set{ ...  } \cup \Set{ ... }
+            \NC \Pre_3^{\Cooperative}(X, Y, Z) =
+            \NC \Set{ s \in S_1 \cup S_2 \mid \exists a \in Act : (s, a) \in C_2(X, Y) \cup C_1(Z) }
             \NR
         \stopalign
     \stopformula
@@ -107,6 +112,8 @@ Equivalent to one-pair Streett and can be easily translated.
 
 
 \startsubsection[title={Product Game Simplification}]
+
+    Only construct reachable states.
 
     Reminder of how to include co-safe switch into game creation.
 

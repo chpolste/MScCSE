@@ -10,7 +10,6 @@ import type { StateData, StatesData, ActionsData, SupportData, TraceData,
               SnapshotData, SystemSummaryData, RefineNegativeRequest } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
 import type { Proposition, AutomatonStateID, AutomatonShapeCollection } from "./logic.js";
-import type { JSONPolygonItem } from "./plotter-2d.js";
 import type { StateRefinerySettings, StateRefineryApproximation, LayerRefinerySettings,
               LayerRefineryGenerator, NegativeAttrRefinerySettings } from "./refinement.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
@@ -855,9 +854,12 @@ class SystemViewCtrl {
     }
 
     toExportURL(): string {
-        const data = [];
+        const data = {
+            view: {}, // TODO
+            polytopes: []
+        };
         for (let [label, state] of this._model.states) {
-            data.push([
+            data.polytopes.push([
                 state.polytope,
                 [this._showLabels, label],
                 [false, "#FFFFFF"],
@@ -2105,7 +2107,7 @@ class Connectivity extends WidgetPlus {
     constructor(model: SystemModel, systemViewCtrl: SystemViewCtrl): void {
         super("Connectivity", "info-connectivity");
         // Open polytopic calculator with basic problem setup loaded
-        const calculator = dom.createButton({}, ["Polytopic Calculator"], () => {
+        const calculator = dom.createButton({}, ["Calculator"], () => {
             const [y, _] = model.state;
             const calcData = {
                 "A": JSON.stringify(model.lss.A),
@@ -2117,14 +2119,13 @@ class Connectivity extends WidgetPlus {
             };
             window.open("polytopic-calculator.html#" + window.btoa(JSON.stringify(calcData)));
         });
-        // Open view in plotter-2d if dimension matches
-        const plotter2d = dom.createButton({}, ["Plotter 2D"], () => {
-            window.open("plotter-2d.html#" + systemViewCtrl.toExportURL());
+        // Open view in polytopic plotter if dimension matches
+        const plotter = dom.createButton({}, ["Plotter"], () => {
+            window.open("polytopic-plotter.html#" + systemViewCtrl.toExportURL());
         });
-        plotter2d.disabled = (model.lss.dim !== 2); // only for 2-dimensional systems
         // Assemble
         this.node = dom.DIV({}, [
-            dom.P({}, [calculator, " ", plotter2d])
+            dom.P({}, [calculator, " ", plotter])
         ]);
     }
 

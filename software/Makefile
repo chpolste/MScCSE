@@ -54,7 +54,7 @@ JS_MODULES_FILES = $(JS_MODULES)/geometry.js $(JS_MODULES)/linalg.js $(JS_MODULE
 
 .PHONY: all release dist-setup node-setup clean test check inspector
 
-all: $(JS_MODULES_FILES) inspector plotter-2d polytopic-calculator
+all: $(JS_MODULES_FILES) inspector polytopic-plotter polytopic-calculator
 
 release:
 	@make clean
@@ -99,7 +99,7 @@ check:
 inspector: $(DIST_HTML)/inspector.html $(DIST_CSS)/inspector.css $(DIST_JS)/inspector.js \
 		$(DIST_JS)/inspector-worker-system.js $(DIST_SVG)/loading16.svg
 
-plotter-2d: $(DIST_HTML)/plotter-2d.html $(DIST_JS)/plotter-2d.js $(DIST_CSS)/plotter-2d.css
+polytopic-plotter: $(DIST_HTML)/polytopic-plotter.html $(DIST_JS)/polytopic-plotter.js $(DIST_CSS)/polytopic-plotter.css
 
 polytopic-calculator: $(DIST_HTML)/polytopic-calculator.html \
 		$(DIST_CSS)/polytopic-calculator.css $(DIST_JS)/polytopic-calculator.js

@@ -1,9 +1,14 @@
-In order to describe discrete events in and generate discrete abstractions of a continuous space, a discrete representation of that space is necessary. % TODO phrasing
-Convex polygonal descriptions are a popular choice, because convex geometry can be applied to problems of any dimension, has well understood computational properties due to its roots in linear optimization and mature libraries such as MPT \cite[authoryears][Herceg2013] are available. % TODO add CDD, Qhull, ... references
-Furthermore, the concept of halfspaces that is central to the representation of convex polytopes works particularly well in the context of hybrid systems with linear predicates. % TODO explain "predicates"?
+In order to describe events in and generate finite abstractions of a continuous space, a discrete representation of that space is necessary.
+Descriptions in the framework of convex polytopic geometry are popular for such discretizations as they have many advantageous properties.
+Convex geometry can be applied to problems of any dimension, has well understood computational properties due to its roots in linear optimization and mature libraries such as MPT \cite[authoryears][Herceg2013] are freely available. % TODO add CGAL, CDD, Qhull, ... references
+Particularly for control problems involving (piecewise) linear dynamics, convex geometry is established as a commonly used tool \cite[authoryears][Baotic2009].
+It has been used e.g. by \cite[TODO], \cite[TODO], \cite[TODO] and \cite[TODO] and is likewise the foundation on which this work is build.
+The word \quotation{polytope} will always refer to a convex polytope here and all polytopes mentioned are assumed to be convex.
+Furthermore, only full-dimensional polytopes are considered, i.e.\ polytopes into which a non-empty ball of the dimension that the polytope is embedded in can fit.
+All lower-dimensional polytopes (e.g. a line in $\reals^2$) are treated as empty.
 
 
-\startsubsection[title={Polytope Representations}]
+\startsubsection[title={Polytope Representations},reference=sec:theory-geometry-representations]
 
     A (closed) halfspace $H \subset \reals^n$ is the set of points
 
@@ -13,6 +18,7 @@ Furthermore, the concept of halfspaces that is central to the representation of 
 
     that fulfill a linear inequality governed by the normal vector $\VecU \in \reals^n$, $\VecU \neq \Vec{0}$ and an offset $c \in \reals$.
     The normal vector $\VecU$ is pointing away from the halfspace and for convenience and without restriction of generality it will always be assumed that its length is normalized, such that $\TwoNorm{\VecU} = 1$.
+    Due to limitations of floating-point numbers, no distinction between closed and open halfspaces is made in this work and the closed form is generally used in the text.
 
     A bounded intersection of halfspaces $\IndexedSet{H_j}{j \in J}$ is a convex polytope $P$ and can be written as
 
@@ -21,10 +27,10 @@ Furthermore, the concept of halfspaces that is central to the representation of 
     \stopformula
 
     where $\Mat{U}$ is the stack of transposed normal vectors $\VecU_j$ of the halfspaces, $\Mat{C}$ the corresponding stack of offset values $c_j$ and the inequation holds component-wise.
-    This is called the H-representation of a convex polytope.
-    % TODO talk about minimal representation by redundancy removal
+    If the set of halfspaces is minimal, i.e.\ no halfspace can be removed without changing the bounded region, the representation is called the the H-representation of a convex polytope.
+    Removing redundant halfspaces can be done by solving a series of linear programs \cite[authoryears][Baotic2009].
 
-    A convex polytope $P$ can equivalently be defined as the convex hull
+    A convex polytope $P$ can alternatively be defined as the convex hull
 
     \startformula
         P = \Hull(X) = \BigSet{ \sum_{i \in I} \lambda_i x_i \Bigmid \forall i : \lambda_i \in \ClosedInterval{0}{1}, \sum_{i \in I} \lambda_i = 1 }
@@ -36,26 +42,15 @@ Furthermore, the concept of halfspaces that is central to the representation of 
 \stopsubsection
 
 
-\startsubsection[title={Properties of Convex Polytopes}]
-
-    Convex polytopes have advantageous properties making them a popular choice for practical computational problems in geometry:
-    The intersection of two convex polytopes is always a convex polytope and can easily be computed from the H-representations by merging the sets of bounding halfspaces of the polytopes that are intersected.
-    Linear transformations of convex polytopes again yield convex polytopes, as seen in section \in[sec:theory-geometry-operations].
-    Every non-convex, polytopic region can be decomposed into a set of convex polytopes, e.g. by triangulation. % TODO adapt to higher dimensions. Baotic procedure? Reduction to simplices after triangulation of surface?
-    Results based on convex polytopic geometry are therefore applicable to non-convex polytopic geometry after decomposition.
-    % TODO easy to test if points inside, centroid is always inside
-
-    In this work, all polytopes discussed are convex polytopes and the word \quotation{polytope} will always refer to a convex polytope.
-    Furthermore, only full-dimensional polytopes are considered here, i.e. polytopes into which a non-empty ball of the dimension that the polytope is embedded in can fit.
-    All other polytopes are treated as empty, particularly all lower-dimensional polytopes.
-    Due to limitations imposed by computational geometry with floating point numbers, no distinction between closed and open polytopes/halfspaces is made and the closed form is favoured in the text.
-
-\stopsubsection
-
-
 \startsubsection[title={Operations on Convex Polytopes},reference=sec:theory-geometry-operations]
 
-    The following linear transformations of a convex polytope $X \in \reals^n$ are defined:
+    Convex polytopes have advantageous properties making them a popular choice for practical problems in computational geometry.
+    Two important advantages are that operations on convex polytopes often result in more convex polytopes and are usually very easy to express if the right representation is chosen.
+    E.g., intersection of two convex polytopes is always a convex polytope and can easily be computed from the H-representations by merging the sets of bounding halfspaces and reducing to minimal form.
+    The transformations between the representations are called the vertex enumeration problem (H- to V-representation) and facet enumeration problem (V- to H-representation).
+    They can be handled by software packages such as CDD \cite[authoryears][TODO].
+
+    For the purposes of this work, the following linear transformations of a convex polytope $X \subset \reals^n$ are defined:
     application of a matrix $\MatA \in \reals^{m \times n}$ from the left and translation by a vector $\VecV \in \reals^m$
 
     \startformula
@@ -68,10 +63,12 @@ Furthermore, the concept of halfspaces that is central to the representation of 
         X \MatB \colonequals \Set{ \VecY \in \reals^m \mid \MatU \MatB \VecY \leq \VecC } \EndPeriod
     \stopformula
 
-    The identity $X\MatB = \MatB^{-1}X$ holds for all invertible matrices $\MatB$. % TODO: proof (at least a sketch)? relevant at all?
-    Note that the application of a matrix from either side may change the dimension of the polytope.
+    %The identity $X\MatB = \MatB^{-1}X$ holds for all invertible matrices $\MatB$. % TODO proof (at least a sketch)? relevant at all?
+    The shorthand $-X$ is used to express the inversion operation $(-{\mathbb 1})X$, where ${\mathbb 1}$ is an identity matrix of appropropriate size.
+    As evident from the definitions, matrix application from the left is easily computable with the V-representation, while the H-representation is better suited to compute the result of a matrix application from the right.
+    Note that both operations may change the dimension of the polytope.
 
-    Aside from the usual set operations like intersection, union and difference which can be applied to convex polytopes (which are convex sets of points in the embedding vector space), two additional binary operations are defined for polytopes $X, Y \in \reals^n$. The Minkowski sum
+    Two binary operations are defined for convex polytopes $X, Y \subset \reals^n$. The Minkowski sum
 
     \startformula
         X \oplus Y \colonequals \Set{ \VecZ \in \reals^n \mid \exists \VecX \in X, \exists \VecY \in Y : \VecZ = \VecX + \VecY}
@@ -95,13 +92,6 @@ Furthermore, the concept of halfspaces that is central to the representation of 
 
     \cite[authoryears][Baotic2009].
     This is illustrated in Figure \in[fig:theory-geometry-operations], where a concrete counterexample is provided showing that Minkowski sum cannot generally invert a Pontryagin difference operation.
-    It should furthermore be noted that
-
-    \startformula
-        X \ominus Y \neq X \oplus (-Y)
-    \stopformula
-
-    in general.
 
     \placefigure[top][fig:theory-geometry-operations]{
         Illustration of the Pontryagin difference (center) and Minkowski sum (right).
@@ -115,8 +105,48 @@ Furthermore, the concept of halfspaces that is central to the representation of 
         \stopcombination
     }
 
-    TODO: inversion (mirror wrt origin): -X.
-    TODO: extend Minkowski and Pontryagin to sets of polytopes and describe computation -> own section?.
+\stopsubsection
+
+
+\startsubsection[title={Non-convex Polytopic Regions},reference=sec:theory-geometry-nonconvex]
+
+    In practice not every problem encountered is conveniently convex, but every non-convex polytopic region can be decomposed into a set of convex polytopes, e.g. by triangulation of the surface and subsequent decomposition into simplices.
+    Convex polytopic geometry is therefore applicable to non-convex polytopic geometry after decomposition.
+    While many operations on convex polytopes can be extended to general unions of convex polytopes in a straightforward manner, some require special care.
+
+    Intersection can be distributed to the individual convex polytopes by taking the intersection of every polytope of one region with every polytope of the other region and keeping the non-empty intersections as the resulting union.
+    The linear operations introduced above can be applied polytope-wise.
+    The Minkowski sum can be distributed to the polytopes, but the result will generally not be a disjunct set of convex polytopes and may require postprocessing if this is not acceptable.
+    The Pontryagin difference cannot be distributed to the convex polytopes but it is possible to express it using the Minkowski sum and set difference operations in the following way: % TODO reference?
+
+    \startformula
+        \startalign[n=2,align={right,left}]
+            \NC X \ominus Y =
+            \NC \Set{ \VecZ \in \reals^n \mid \forall \VecY \in Y : \VecZ + \VecY \in X }
+            \NR
+            \NC =
+            \NC \Set{ \VecZ \in \reals^n \mid \forall \VecY \in Y : \VecZ + \VecY \notin (\reals^n \setminus X ) }
+            \NR
+            \NC =
+            \NC \reals^n \setminus \Set{ \VecZ \in \reals^n \mid \neg ( \forall \VecY \in Y : \VecZ + \VecY \notin (\reals^n \setminus X ) ) }
+            \NR
+            \NC =
+            \NC \reals^n \setminus \Set{ \VecZ \in \reals^n \mid \exists \VecY \in Y : \VecZ + \VecY \in (\reals^n \setminus X ) }
+            \NR
+            \NC =
+            \NC \reals^n \setminus \Set{ \VecZ \in \reals^n \mid \exists \VecY \in Y \MidComma \exists \VecX \in (\reals^n \setminus X) : \VecZ + \VecY = \VecX }
+            \NR
+            \NC =
+            \NC \reals^n \setminus \Set{ \VecZ \in \reals^n \mid \exists \VecY \in -Y \MidComma \exists \VecX \in (\reals^n \setminus X) : \VecZ = \VecX + \VecY }
+            \NR
+            \NC =
+            \NC \reals^n \setminus ((\reals^n \setminus X) \oplus (-Y)) \EndPeriod
+            \NR
+        \stopalign
+    \stopformula
+    
+    The set difference of two convex polytopes or two polytopic regions is a non-convex region in general.
+    It can be computed using the regiondiff algorithm of \cite[Baotic2009], which returns the difference as set of disjunct convex polytopes.
 
 \stopsubsection
 

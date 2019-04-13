@@ -52,8 +52,8 @@ export class InteractivePlot implements Plot {
         const shapePlot = this.axesPlot.shapePlot
         // Coordinate display
         shapePlot.node.addEventListener("mousemove", (e: MouseEvent) => {
-            const [x, y] = shapePlot.getCoords(e.clientX, e.clientY);
-            dom.replaceChildren(coordsDisplay, [n2s(x, 2) + ", " + n2s(y, 2)]);
+            const coords = shapePlot.getCoords(e.clientX, e.clientY);
+            dom.replaceChildren(coordsDisplay, [coords.map(_ => n2s(_, 2)).join(", ")]);
         });
         // Mousewheel zoom
         shapePlot.node.addEventListener("wheel", (e: WheelEvent) => {

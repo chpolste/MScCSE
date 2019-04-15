@@ -1565,7 +1565,6 @@ class NegativeRefinementCtrl extends WidgetPlus {
         const negAttrRefine = dom.createButton({}, ["refine"], () => this.refineNegAttr());
         // Safety
         const safetyRefine = dom.createButton({}, ["refine"], () => this.refineSafety());
-        this._safetyIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "1");
         // Self-loop removal
         const loopsRefine = dom.createButton({}, ["refine"], () => this.refineLoops());
         this._loopsIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "1");
@@ -1575,12 +1574,12 @@ class NegativeRefinementCtrl extends WidgetPlus {
                 dom.DIV({}, [negAttrRefine])
             ]),
             dom.DIV({}, [
-                dom.DIV({}, ["Origin"]),
-                dom.DIV({}, [this._origin.node])
+                dom.DIV({}, ["Safety"]),
+                dom.DIV({}, [safetyRefine])
             ]),
             dom.DIV({}, [
-                dom.DIV({}, ["Safety"]),
-                dom.DIV({}, [safetyRefine, " with up to ", this._safetyIterations.node, " iteration(s)"])
+                dom.DIV({}, ["Origin"]),
+                dom.DIV({}, [this._origin.node])
             ]),
             dom.DIV({}, [
                 dom.DIV({}, ["Self-loops"]),
@@ -1603,8 +1602,7 @@ class NegativeRefinementCtrl extends WidgetPlus {
     refineSafety(): void {
         this.pushLoad();
         this._model.refineNegative({
-            method: "Safety",
-            settings: { origin: this._origin.value, iterations: this._safetyIterations.value }
+            method: "Safety"
         }).catch(() => {
             // Error logging is done in SystemModel
         }).finally(() => {

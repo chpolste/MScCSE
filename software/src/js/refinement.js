@@ -139,7 +139,7 @@ export class NegativeAttrRefinery extends Refinery {
     constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults): void {
         super(system, objective, results);
         const lss = this.system.lss;
-        // Cache attractors of no-regions for specified target qs
+        // Cache attractors of no-regions for target qs
         this._attr = obj.fromMap(q => {
             const no = this.getStateRegion("no", q);
             return lss.attr(lss.xx, lss.uu, no).simplify();
@@ -174,54 +174,44 @@ export class NegativeAttrRefinery extends Refinery {
 
 /* Safety refinement */
 
-export type SafetyRefinerySettings = {
-    origin: AutomatonStateID,
-    iterations: number
-}
-
 export class SafetyRefinery extends Refinery {
 
-    +settings: SafetyRefinerySettings;
-    +_no: Region;
-    +_ok: Region;
+    +_no: { [AutomatonStateID]: Region };
+    +_ok: { [AutomatonStateID]: Region };
 
-    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
-                settings: SafetyRefinerySettings): void {
+    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults): void {
         super(system, objective, results);
-        // Settings required later for origin and simplify
-        this.settings = settings;
-        // Cache no-region and its complement
-        this._no = this.getStateRegion("no", settings.origin).simplify();
-        this._ok = system.lss.xx.remove(this._no).simplify();
+        const lss = this.system.lss;
+        // Cache unsafe regions for target qs
+        this._no = obj.fromMap(q => this.getStateRegion("no", q).simplify(), objective.allStates);
+        // Cache safe regions for target qs
+        this._ok = obj.map((q, no) => system.lss.xx.remove(no).simplify(), this._no);
     }
 
     partition(x: State): Region {
-        // Only refine maybe states
-        if (this.isDecided(x, this.settings.origin)) {
-            return x.polytope;
-        }
         const lss = this.system.lss;
-        const maxIter = this.settings.iterations;
-        // Refine partition until all polytopes are safe or max number of
-        // iterations is exceeded
-        const done = [];
-        const rest = [[x.polytope, 0]];
-        while (rest.length > 0) {
-            const [poly, iter] = rest.pop();
-            // State is unsafe if for every possible control input the
-            // probability of reaching the no-region after one step is non-zero
-            const act = lss.act(poly, this._no);
-            if (iter < maxIter && act.isSameAs(lss.uu)) {
-                // Positive refinement wrt complement of no-region
-                const [safe, other] = refineAttrR(lss, poly, this._ok);
-                // Push pices into rest with increased iteration counter
-                done.push(...safe.polytopes);
-                rest.push(...other.polytopes.map(_ => [_, iter + 1]));
-            } else {
-                done.push(poly);
+        let parts = x.polytope;
+        for (let q of this.objective.allStates) {
+            // Only refine undecided, state that aren't dead-ends
+            const qNext = this.qNext(x, q);
+            if (this.isDecided(x, q) || qNext == null) {
+                continue;
             }
+            let newParts = this.getEmpty();
+            for (let part of parts.polytopes) {
+                // Geometric condition
+                const act = lss.act(part, this._no[qNext]);
+                // If part is unsafe, apply positive refinement wrt safe region
+                if (act.isSameAs(lss.uu)) {
+                    const [safe, other] = refineAttrR(lss, part, this._ok[qNext]);
+                    newParts = newParts.union(safe).union(other);
+                } else {
+                    newParts = newParts.union(part);
+                }
+            }
+            parts = newParts;
         }
-        return Union.from(done);
+        return parts;
     }
 
 }

@@ -153,6 +153,13 @@
 \define[2]\BigRobustAction{\ActR\Big({#1},\, {#2}\Big)}
 \define[2]\BigConcreteAction{\ActC\Big({#1},\, {#2}\Big)}
 
+% Refinement
+% Decomposition into convex polytopes
+\definemathcommand[Convexify][nolop]{\mfunction{Convexify}}
+% Generic positive refinement kernel
+\definemathcommand[RefinePos][nolop]{\mfunction{Refine_+}}
+\define[2]\RefinePositive{\RefinePos({#1},\, {#2})}
+
 
 
 % Logic and Automata
@@ -195,9 +202,11 @@
 
 \definemathcommand[Succ][nolop]{\mfunction{Succ}}
 \define[2]\Successor{\Succ({#1},\,{#2})}
+\define[2]\QNext{\Transition_\Automaton(#2, \PredicatesOf{\State{#1}})}
 
 \define\DeadEnd{{\mathrm END}}
 \define\SatEnd{{\mathrm SAT}}
+
 
 % Physics
 % -------

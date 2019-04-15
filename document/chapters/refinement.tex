@@ -1,7 +1,20 @@
-The game-based abstraction requires a partitioning of the state space.
-The chosen initial partition based on the linear predicates of the objective will generally be too coarse and requires refinement.
-Heuristic procedures presented too, yielding a fully automatic algorithm.
+The game-based abstraction requires a state space partition from which to derive player 1 states.
+As set up in section \in[sec:abstraction-graph-playerone], the initial partition is governed by the set of linear predicates.
+This partition makes sense because it allows a unique association of states to sets of (satisfied) linear predicates, but in general the partition will be too coarse to answer a given analysis question, leaving most states in the set $\MaybeStates{}$.
 
-Introduce next q operator. % TODO
-Overload yes, maybe, no sets: polytopic region in geometric context but also set of states in game context.
+In this chapter, procedures are presented that refine the partition with the goal of enlarging $\YesStates{}$ and/or $\NoStates{}$.
+Used in the abstraction-analysis-refinement cycle depicted in Figure \in[fig:problem-approach-flowchart], a procedure emerges that can solve analysis problems iteratively and autonomously.
+These procedures are heuristics based on insights from results of the analysis of $\ProductGame$ and the dynamics of the system.
+They fit into the framework of counterexample-based abstraction refinement (CEGAR) \cite[authoryears][TODO].
+
+Analogous to the notation of player 1 states, the sets $\YesStates{q}$, $\NoStates{q}$ and $\MaybeStates{q}$ are overloaded for all $q \in Q$ so they refer to the region covered by the polytopes of the member player 1 states if used in a geometric context.
+The function
+
+\startformula
+    \Function{\Convexify}{R}{2^C}
+\stopformula
+
+is introduced, where $R$ is the set of polytopic regions in $\reals^n$ and $C$ the set of convex polytopes in $\reals^n$.
+$\Convexify$ partitions any polytopic region into a set of (disjunct) convex polytopes.
+Per definition, $\Convexify(\emptyset) = \emptyset$.
 

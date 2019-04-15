@@ -6,7 +6,7 @@ They start by introducing a non-deterministic transition system (NTS) first and 
 Here, the game is constructed directly.
 
 
-\startsubsection[title={Player 1}]
+\startsubsection[title={Player 1},reference=sec:abstraction-graph-playerone]
 
     To discretize the state space, state space vectors have to be grouped into a finite set of disjunct regions.
     A convex partitioning of the extended state space $\ExtendedStateSpace$ is chosen.
@@ -84,10 +84,11 @@ Here, the game is constructed directly.
     \stopformula
 
     Therefore, we obtain 3 player 1 actions for this state: $\PlayerOneAction{4}{\Set{1, 4}}$, $\PlayerOneAction{4}{\Set{1, 3, 4}}$ and $\PlayerOneAction{4}{\Set{3, 4}}$.
+
 \stopsubsection
 
 
-\startsubsection[title={Player 2}]
+\startsubsection[title={Player 2},reference=sec:abstraction-graph-playertwo]
 
     In the original LSS, after a control input has been selected, the next state is determined stochastically according the the evolution equation and the probability distribution over $\RandomSpace$.
     In the abstraction, a probability distribution that works for all $\VecState \in \State{i}$ does not exist generally, so the exact probabilities of reaching another target state are unknown until the trace is exactly localized.
@@ -241,7 +242,7 @@ Here, the game is constructed directly.
     arrow.rt(.6, btex $1$ etex) (a[3][8],a[5][7]) a[3][8].c..a[5][7].c;
 \stopreusableMPgraphic
 
-\startsubsection[title={Synopsis}]
+\startsubsection[title={Synopsis},reference=sec:abstraction-graph-synopsis]
 
     The constructed 2½-player game graph is then
 

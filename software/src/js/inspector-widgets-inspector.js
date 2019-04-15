@@ -10,8 +10,7 @@ import type { StateData, StatesData, ActionsData, SupportData, TraceData,
               SnapshotData, SystemSummaryData, RefineNegativeRequest } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
 import type { Proposition, AutomatonStateID, AutomatonShapeCollection } from "./logic.js";
-import type { StateRefinerySettings, StateRefineryApproximation, LayerRefinerySettings,
-              LayerRefineryGenerator, NegativeAttrRefinerySettings } from "./refinement.js";
+import type { LayerRefinerySettings, LayerRefineryGenerator, NegativeAttrRefinerySettings } from "./refinement.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input, OptionsInput } from "./widgets-input.js";
@@ -200,7 +199,6 @@ export class SystemInspector {
         const automatonViewCtrl = new AutomatonViewCtrl(model, systemViewCtrl, keys);
         // State tab
         const stateViewOpCtrl = new StateViewOpCtrl(model, systemViewCtrl, keys);
-        const stateReachRefinementCtrl = new StateReachRefinementCtrl(model);
         const actionViewCtrl = new ActionViewCtrl(model);
         // System tab
         const analysisViewCtrl = new AnalysisViewCtrl(model, keys);
@@ -217,7 +215,6 @@ export class SystemInspector {
         const tabs = new TabbedView();
         const stateTab = tabs.newTab("State", [
             stateViewOpCtrl,
-            stateReachRefinementCtrl,
             actionViewCtrl
         ]);
         const systemTab = tabs.newTab("System", [
@@ -516,16 +513,6 @@ class SystemModel extends ObservableMixin<ModelChange> {
         return this._comm.request("reset-analysis", null).then(() => {
             this.log.write(["Analysis"], "Analysis results have been reset.");
             return this.updateStates();
-        }).catch((e) => {
-            this.log.writeError(e);
-            throw e;
-        });
-    }
-
-    refineState(state: StateID, method: string, settings: StateRefinerySettings): Promise<null> {
-        return this._comm.request("refine-state", [state, method, settings]).then((data: RefineData) => {
-            this.log.writeRefinement([method + " of " + state], data);
-            return data.removed.length > 0 ? this.updateStates() : null;
         }).catch((e) => {
             this.log.writeError(e);
             throw e;
@@ -1319,61 +1306,6 @@ class StateViewOpCtrl extends WidgetPlus {
         } else {
             for (let line of this._lines) dom.replaceChildren(line, ["-"]);
         }
-    }
-
-}
-
-
-class StateReachRefinementCtrl extends WidgetPlus {
-
-    +_model: SystemModel;
-    +_negAttr: HTMLButtonElement;
-    +_posAttrR: HTMLButtonElement;
-    +_approximation: Input<StateRefineryApproximation>;
-
-    constructor(model: SystemModel): void {
-        super("Reachability Refinement", "info-state-reach-refinement");
-        this._model = model;
-        this._model.attach((mc) => this.handleModelChange(mc));
-        this._negAttr = dom.createButton({}, ["Attr-"], () => this.refine("Attr-"));
-        this._posAttrR = dom.createButton({}, ["AttrR+"], () => this.refine("AttrR+"));
-        this._approximation = new DropdownInput({
-            "no approximation": "none",
-            "hull approximation": "hull"
-        }, "no approximation");
-        this.node = dom.DIV({}, [
-            dom.P({}, [this._negAttr, " ", this._posAttrR, " with ", this._approximation.node])
-        ]);
-    }
-
-    // Refinement is only enabled for states if they have analysis information
-    // available and have not beed decided yet
-    get canRefine(): boolean {
-        const [x, q] = this._model.state;
-        return x != null && x.analysis != null && x.analysis.maybe.has(q);
-    }
-
-    handleModelChange(mc: ?ModelChange): void {
-        if (mc !== "state") return;
-        const canRefine = this.canRefine;
-        this._negAttr.disabled = !canRefine;
-        this._posAttrR.disabled = !canRefine;
-    }
-
-    refine(method: string): void {
-        if (this.isLoading || !this.canRefine) return;
-        const [x, q] = this._model.state;
-        if (x == null) throw new Error("canRefine is true but x is null");
-        const settings = {
-            q: q,
-            approximation: this._approximation.value
-        };
-        this.pushLoad();
-        this._model.refineState(x.label, method, settings).catch(() => {
-            // Error logging is done in SystemModel
-        }).finally(() => {
-            this.popLoad();
-        });
     }
 
 }

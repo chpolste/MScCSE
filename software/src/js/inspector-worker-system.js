@@ -5,7 +5,7 @@ import type { JSONTrace } from "./controller.js";
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
 import type { JSONObjective, AutomatonStateID } from "./logic.js";
-import type { Refinery, StateRefinerySettings, LayerRefinerySettings, NegativeAttrRefinerySettings,
+import type { Refinery, LayerRefinerySettings, NegativeAttrRefinerySettings,
               SafetyRefinerySettings, SelfLoopRefinerySettings } from "./refinement.js";
 import type { Snapshot } from "./snapshot.js";
 import type { StateID, ActionID, SupportID, PredicateID, LSS, State, RefinementMap,
@@ -15,7 +15,7 @@ import { Controller, Trace } from "./controller.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Polytope, Union } from "./geometry.js";
 import { Objective } from "./logic.js";
-import { StateRefinery, LayerRefinery, NegativeAttrRefinery, SafetyRefinery, SelfLoopRefinery } from "./refinement.js";
+import { LayerRefinery, NegativeAttrRefinery, SafetyRefinery, SelfLoopRefinery } from "./refinement.js";
 import { SnapshotTree } from "./snapshot.js";
 import { AbstractedLSS } from "./system.js";
 import { just, iter, sets, obj } from "./tools.js";
@@ -137,18 +137,6 @@ class SystemManager {
 
     resetAnalysis(): void {
         this._analysis = null;
-    }
-
-    refineState(x: State, method: string, settings: StateRefinerySettings): RefinementMap {
-        const analysis = just(this.analysis, "Refinement requires an analysed system");
-        // Initialize refinement method
-        const Cls = just(StateRefinery.builtIns()[method]); // TODO: error message
-        const refinery = new Cls(this.system, this.objective, analysis, settings);
-        // Apply partitioning to system (in-place)
-        const refinementMap = x.refine(refinery.partition(x));
-        // Update analysis results
-        analysis.remap(refinementMap);
-        return refinementMap;
     }
 
     refine(refinery: Refinery): RefinementMap {
@@ -361,17 +349,6 @@ function refineData(elapsed, refinementMap): RefineData {
         created: created
     };
 }
-// State-based
-export type RefineStateRequest = [StateID, string, StateRefinerySettings];
-inspector.onRequest("refine-state", function (data: RefineStateRequest): RefineData {
-    const [label, method, settings] = data;
-    const x = $.system.getState(label);
-    const t0 = performance.now();
-    const refinementMap = $.refineState(x, method, settings);
-    const t1 = performance.now();
-    // Statistics for the refinement report
-    return refineData((t1 - t0), refinementMap);
-});
 // Layer-based
 export type RefineLayerRequest = LayerRefinerySettings;
 inspector.onRequest("refine-layer", function (settings: RefineLayerRequest): RefineData {

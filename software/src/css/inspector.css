@@ -421,7 +421,7 @@ span.unreachable {
 }
 
 #action-view {
-    max-height: 400px;
+    max-height: 550px;
     overflow-y: auto;
 }
 #action-view > div {

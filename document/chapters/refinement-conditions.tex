@@ -1,0 +1,5 @@
+Game-based vs. geometric condition: game-based requires player 1 actions to be available (if all contain at least one no state in target set, condition is met).
+While this is always the case after an analysis, for which the game is constructed, the condition can be expensive to evaluate if multiple refinement steps are taken between analysis.
+Action construction is of exponential complexity in number of reachable states.
+Alternative: geometric condition, use dynamics to detect situation that requires refinement without requiring the game graph.
+

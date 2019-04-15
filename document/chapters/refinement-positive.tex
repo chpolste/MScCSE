@@ -2,6 +2,20 @@ Instead of only avoiding bad things, actively enable good things.
 Remember, ensuring good things is non-trivial, because any bad event with non-zero probability breaks everything.
 
 
+\startsubsection[title={Reachability Decomposition}]
+
+    Refinement necessary component due to introduction of abstraction.
+    Combines analysis results and knowledge of dynamics into useful heuristics.
+    Presented here are a few heuristics.
+
+    Why reachability is the only problem that needs to be solved: in product automaton, for each copy of the LSS abstraction states a reachability problem can be solved with the target of reaching a region that enables an automaton transition.
+    By targeting individual transitions, the refinement decomposes into a series of reachability problems.
+    Therefore, presentation of refinement here for reachability only.
+    Problem of selection of transitions for refinement is complex, automaton is hard, pops up again in controller synthesis.
+
+\stopsubsection
+
+
 \startsubsection[title={Positive Robust Attractor}]
 
     AttrR+, by \cite[Svorenova2017]
@@ -67,6 +81,21 @@ Remember, ensuring good things is non-trivial, because any bad event with non-ze
     Hybrid approach between multi-step and single-step: general idea of moving from layer to layer is multi-step, but transitions inside layers are single step.
     Non-optimality of layers in terms of numbers of states generated (PreR is deterministic transition).
     Problem again: PreR does not exists if X - W = 0, extension by minkowski sum with origin-centered W and additional extension when target at the edge of the control space.
+
+\stopsubsection
+
+
+\startsubsection[title={Reduction Approaches}]
+
+    Game-graph construction expensive, independent of objective.
+    Deterministic vs probabilistic refinement, missed potential but cost of deeper analysis required in probabilistic approaches.
+    Single-step vs. multi-step refinement and hybrid approaches.
+    Static control reduces system by removing player 1 and therefore enabling more efficient analysis of system at the cost of introduction of a piecewise dynamics.
+    Discuss theoretical successes and practical problems of static control.
+
+    Discuss purely deterministic refinement and refinement that takes probabilistic aspect into account.
+    "Jagged" progress due to piecewise dynamics lead no much non-convexness which is computationally demanding.
+    More sophisticated action selection could resolve this, but fixed dynamics without recomputation after some steps will always have its limits.
 
 \stopsubsection
 

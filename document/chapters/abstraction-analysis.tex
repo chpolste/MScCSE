@@ -1,55 +1,56 @@
-Winning condition is parity 3.
-Equivalent to one-pair Streett and can be easily translated.
- and therefore assign parity 0 to ..., parity 1 to ..., parity 2 to ....
+To decide desired properties, game needs to be analysed twice:
+once with adversarial player 2 (to yield winning states where even in the "worst case", game can be won by player 1) and once with cooperative player 2 (to yield states where winning is possible, but not guaranteed).
+From membership in these 2 solution sets, it can be decided if states are satisfying, non-satisfying or if the abstraction is too coarse to decide and further refinement is necessary.
 
 
 \startbuffer[buf:abstraction-analysis-solution-algorithm]
+    \startalgorithmic[numbering=no,margin=0em]
+        \INPUT{$\Pre^{\mathrm set}_1$, $\Pre^{\mathrm set}_2$, $\Pre^{\mathrm set}_3$ of game $\ProductGame = ( P_1, P_2, Act, \Transition, \Tuple{E}{F} )$}
+        \OUTPUT{$\AlmostSure^{\mathrm set}(\ProductGame)$} % TODO coop or adv
+    \stopalgorithmic
     \startalgorithmic
-        \FUNCTION{SolveParity3}{$\ProductGame = (TODO)$: Game}
-            \STATE{ $X, {\bar X}, Y, {\bar Y}, Z, {\bar Z}$: Set}
-            \STATE{ ${\bar X} \leftarrow S$ }
-            \STATE{ ${\bar Y} \leftarrow S$ }
-            \STATE{ ${\bar Z} \leftarrow \emptyset$ }
+        \STATE{ $P \leftarrow P_1 \cup P_2$ }
+        \STATE{ $D \leftarrow P \setminus (E \cup F)$ }
+        \STATE{ $X, {\bar X}, Y, {\bar Y}, Z, {\bar Z}$: Set}
+        \STATE{ ${\bar X} \leftarrow P$ }
+        \STATE{ ${\bar Y} \leftarrow P$ }
+        \STATE{ ${\bar Z} \leftarrow \emptyset$ }
+        \DO
+            \STATE{ $X \leftarrow {\bar X}$ }
             \DO
-                \STATE{ $X \leftarrow {\bar X}$ }
+                \STATE{ $Y \leftarrow {\bar Y}$ }
                 \DO
-                    \STATE{ $Y \leftarrow {\bar Y}$ }
-                    \DO
-                        \STATE{ $Z \leftarrow {\bar Z}$ }
-                        \STATE{ ${\bar Z} \leftarrow (F \cap \Pre_1(X)) \cup (E \cap \Pre_2(X, Y)) \cup (D \cap \Pre_3(X, Y, Z))$ }
-                    \ENDDOWHILE{ $Z \ne {\bar Z}$ }
-                    \STATE{ ${\bar Y} \leftarrow Z$ }
-                    \STATE{ ${\bar Z} \leftarrow S$ }
-                \ENDDOWHILE{ $Y \ne {\bar Y}$ }
-                \STATE{ ${\bar X} \leftarrow Y$ }
-                \STATE{ $Y \leftarrow \emptyset$ }
-            \ENDDOWHILE{ $X \ne {\bar X}$ }
-            \RETURN{ $X$ }
-        \ENDFUNCTION
+                    \STATE{ $Z \leftarrow {\bar Z}$ }
+                    \STATE{ ${\bar Z} \leftarrow (F \cap \Pre_1(X)) \cup (E \cap \Pre_2(X, Y)) \cup (D \cap \Pre_3(X, Y, Z))$ }
+                \ENDDOWHILE{ $Z \ne {\bar Z}$ }
+                \STATE{ ${\bar Y} \leftarrow Z$ }
+                \STATE{ ${\bar Z} \leftarrow P$ }
+            \ENDDOWHILE{ $Y \ne {\bar Y}$ }
+            \STATE{ ${\bar X} \leftarrow Y$ }
+            \STATE{ $Y \leftarrow \emptyset$ }
+        \ENDDOWHILE{ $X \ne {\bar X}$ }
+        \RETURN{$X$}
     \stopalgorithmic
 \stopbuffer
 
 \startsubsection[title={Product Game Solution}]
 
-    To decide desired properties, game needs to be analysed twice:
-    once with adversarial player 2 (to yield winning states where even in the "worst case", game can be won by player 1) and once with cooperative player 2 (to yield states where winning is possible, but not guaranteed).
-    From membership in these 2 solution sets, it can be decided if states are satisfying, non-satisfying or if the abstraction is too coarse to decide and further refinement is necessary.
+    Analysis in both adversarial and cooperative settings achievable with same algorithm.
+    One-pair Streett acceptance can be transformed into parity-3, for a quadratic-complexity algorithm exists, but a cubic, fixed-point algorithm is much easier to implement and therefore used here.
+    The correctness of the algorithm follows from \cite[TODO].
 
-    Quadratic-complexity algorithm exists, but cubic, fixed-point algorithm much easier to implement.
-    TODO Reference.
-
-    Define successor operator for game
+    Based on the successor operator
 
     \startformula
-        \Successor{s}{a} = \Support{\Transition(s, a)}
+        \Successor{s}{a} = \Support{\Transition(s, a)} \EndComma
     \stopformula
 
-    Define conditions for state-action pairs
+    two conditions
 
     \startformula
         \startalign[n=2,align={right,left}]
             \NC C_1(X) =
-            \NC \Set{ (s, a) \mid \Successor{s}{a} \subseteq X }
+            \NC \Set{ (s, a) \mid \Successor{s}{a} \subseteq X } \EndAnd
             \NR
             \NC C_2(X, Y) =
             \NC \Set{ (s, a) \mid \Successor{s}{a} \subseteq X \MidAnd \Successor{s}{a} \cap Y \ne \emptyset }
@@ -57,49 +58,53 @@ Equivalent to one-pair Streett and can be easily translated.
         \stopalign
     \stopformula
 
-    Predecessor game operators for adversarial analysis
+    for state-action pairs of the product game graph are defined.  
+    Using these conditions, two sets of predecessor operators are defined, one for the adversarial setting
 
     \startformula
         \startalign[n=2,align={right,left}]
             \NC \Pre_1^{\Adversarial}(X) =
-            \NC \Set{ s \in S_1 \mid \exists a \in Act : (s, a) \in C_1(X) }
+            \NC \Set{ s \in P_1 \mid \exists a \in Act : (s, a) \in C_1(X) }
             \NR
             \NC \empty
-            \NC \quad \cup \Set{ s \in S_2 \mid \forall a \in \Act : (s, a) \in C_1(X) }
+            \NC \quad \cup \Set{ s \in P_2 \mid \forall a \in \Act : (s, a) \in C_1(X) } \EndComma
             \NR
             \NC \Pre_2^{\Adversarial}(X, Y) =
-            \NC \Set{ s \in S_1 \mid \exists a \in Act : (s, a) \in C_2(X, Y) }
+            \NC \Set{ s \in P_1 \mid \exists a \in Act : (s, a) \in C_2(X, Y) }
             \NR
             \NC \empty
-            \NC \quad \cup \Set{ s \in S_2 \mid \forall a \in \Act : (s, a) \in C_2(X, Y) }
+            \NC \quad \cup \Set{ s \in P_2 \mid \forall a \in \Act : (s, a) \in C_2(X, Y) } \EndComma
             \NR
             \NC \Pre_3^{\Adversarial}(X, Y, Z) =
-            \NC \Set{ s \in S_1 \mid \exists a \in Act : (s, a) \in C_2(X, Y) \cup C_1(Z) }
+            \NC \Set{ s \in P_1 \mid \exists a \in Act : (s, a) \in C_2(X, Y) \cup C_1(Z) }
             \NR
             \NC \empty
-            \NC \quad \cup \Set{ s \in S_2 \mid \forall a \in Act : (s, a) \in C_2(X, Y) \cup C_1(Z) }
+            \NC \quad \cup \Set{ s \in P_2 \mid \forall a \in Act : (s, a) \in C_2(X, Y) \cup C_1(Z) }
             \NR
         \stopalign
     \stopformula
 
-    and for cooperative analysis
+    and for the cooperative setting
 
     \startformula
         \startalign[n=2,align={right,left}]
             \NC \Pre_1^{\Cooperative}(X) =
-            \NC \Set{ s \in S_1 \cup S_2 \mid \exists a \in Act : (s, a) \in C_1(X) }
+            \NC \Set{ s \in P_1 \cup P_2 \mid \exists a \in Act : (s, a) \in C_1(X) } \EndComma
             \NR
             \NC \Pre_2^{\Cooperative}(X, Y) =
-            \NC \Set{ s \in S_1 \cup S_2 \mid \exists a \in Act : (s, a) \in C_2(X, Y) }
+            \NC \Set{ s \in P_1 \cup P_2 \mid \exists a \in Act : (s, a) \in C_2(X, Y) } \EndComma
             \NR
             \NC \Pre_3^{\Cooperative}(X, Y, Z) =
-            \NC \Set{ s \in S_1 \cup S_2 \mid \exists a \in Act : (s, a) \in C_2(X, Y) \cup C_1(Z) }
+            \NC \Set{ s \in P_1 \cup P_2 \mid \exists a \in Act : (s, a) \in C_2(X, Y) \cup C_1(Z) } \EndPeriod
             \NR
         \stopalign
     \stopformula
 
-    \placealgorithm[top][fig:abstraction-analysis-solve]{
-        Solver for parity-3 games using fixed-point iteration \cite[authoryears][Svorenova2017]. Cubic complexity.
+    Substituting either set of these operators into Algorithm \in[alg:abstraction-analysis-solver] for $\Pre_1$, $\Pre_2$ and $\Pre_3$ results in a procedure that ... % TODO
+
+    \placealgorithm[top][alg:abstraction-analysis-solver]{
+        Solver for parity-3 games using fixed-point iteration \cite[authoryears][Svorenova2017].
+        Adversarial player 2 for ${\mathrm set} = \Adversarial$ or cooperative player 2 for ${\mathrm set} = \Cooperative$.
     }{
         % https://mailman.ntg.nl/pipermail/ntg-context/2016/087390.html
         \startframedtext[width=\textwidth,frame=off]
@@ -107,18 +112,30 @@ Equivalent to one-pair Streett and can be easily translated.
         \stopframedtext
     }
 
+\stopsubsection
+
+
+\startsubsection[title={Solution Properties}]
+
+    Partial solution in every iteration, Soundness, Convergence (progress guarantee), Complexity.
+    Only reference \cite[Svorenova2017] or repeat?
 
 \stopsubsection
 
 
 \startsubsection[title={Product Game Simplification}]
 
-    Only construct reachable states.
-
     Reminder of how to include co-safe switch into game creation.
 
     Now: If partial results are already available stop construction once decided state is reached.
+    Possible because of guarantee that any state that can be decided by the analysis is correctly analysed (partial solution) and will never change, even if other parts of the state space partition are refined.
+    Because game construction and analysis is expensive, use of partial solutions to simplify the game can reduce run time of the procedure substantially.
+
     Discuss problems with product game simplification and the available compromise.
+    Because already decided states are immediately redirected into the $\SatEnd$ loop, some of their successors are constructed in the product game.
+    While results from decided states can be transfered to such states from the previous analysis, for previously undecided states that are not constructed anymore it cannot generally be decided if they should remain undecided or are actually unreachable now.
+    A subset of the full product game is omitted when the simplification is applied, which does not affect the validity of the analysis especially because the initial states, which are of most interest, are always constructed.
+    However, as seen in the next section this might restrict the controller synthesis process, which relies on analysis results of all states, not just the initial ones.
 
 \stopsubsection
 

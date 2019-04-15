@@ -219,15 +219,16 @@
 
 \unprotect
 
-\starttexdefinition algorithmic_function #1#2
+\starttexdefinition algorithmic_input
   \par
-  \algorithmic_label{function} {\sc #1}({#2})
-  \algorithmic_begsub
+  \algorithmic_label{input}
+  \space
 \stoptexdefinition
 
-\starttexdefinition algorithmic_endfunction
-  \algorithmic_endsub
-  \algorithmic_label{endfunction}
+\starttexdefinition algorithmic_output
+  \par
+  \algorithmic_label{output}
+  \space
 \stoptexdefinition
 
 \starttexdefinition algorithmic_do
@@ -241,13 +242,13 @@
   \algorithmic_label{while} #1
 \stoptexdefinition
 
-\algorithmic_define[FUNCTION][\algorithmic_function]
-\algorithmic_define[ENDFUNCTION][\algorithmic_endfunction]
+\setupalgorithmictext[\s!en][input=Input:]
+\setupalgorithmictext[\s!en][output=Output:]
+
+\algorithmic_define[INPUT][\algorithmic_input]
+\algorithmic_define[OUTPUT][\algorithmic_output]
 \algorithmic_define[DO][\algorithmic_do]
 \algorithmic_define[ENDDOWHILE][\algorithmic_enddowhile]
-
-\setupalgorithmictext[\s!en][function=function]
-\setupalgorithmictext[\s!en][endfunction=end function]
 
 \protect
 

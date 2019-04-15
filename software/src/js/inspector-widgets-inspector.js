@@ -10,7 +10,7 @@ import type { StateData, StatesData, ActionsData, SupportData, TraceData,
               SnapshotData, SystemSummaryData, RefineNegativeRequest } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
 import type { Proposition, AutomatonStateID, AutomatonShapeCollection } from "./logic.js";
-import type { LayerRefinerySettings, LayerRefineryGenerator, NegativeAttrRefinerySettings } from "./refinement.js";
+import type { LayerRefinerySettings, LayerRefineryGenerator } from "./refinement.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input, OptionsInput } from "./widgets-input.js";
@@ -537,9 +537,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
     refineNegative(request: RefineNegativeRequest): Promise<null> {
         return this._comm.request("refine-negative", request).then((data: RefineData) => {
             this.log.writeRefinement([
-                "Negative (" + request.method + ")",
-                request.settings.origin,
-                pluralize(request.settings.iterations, "iteration")
+                "Negative (" + request.method + ")"
             ], data);
             return data.removed.length > 0 ? this.updateStates() : null;
         }).catch((e) => {
@@ -1553,8 +1551,6 @@ class NegativeRefinementCtrl extends WidgetPlus {
 
     +_model: SystemModel;
     +_origin: OptionsInput<AutomatonStateID>;
-    +_negAttrIterations: Input<number>;
-    +_negAttrSimplify: Input<boolean>;
     +_safetyIterations: Input<number>;
     +_loopsIterations: Input<number>;
 
@@ -1567,8 +1563,6 @@ class NegativeRefinementCtrl extends WidgetPlus {
         this._origin = new RadioInput(qAllObj, automaton.initialState.label, automatonLabel);
         // Negative Attractor
         const negAttrRefine = dom.createButton({}, ["refine"], () => this.refineNegAttr());
-        this._negAttrIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "10");
-        this._negAttrSimplify = new CheckboxInput(true, "simplify");
         // Safety
         const safetyRefine = dom.createButton({}, ["refine"], () => this.refineSafety());
         this._safetyIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "1");
@@ -1577,12 +1571,12 @@ class NegativeRefinementCtrl extends WidgetPlus {
         this._loopsIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "1");
         this.node = dom.DIV({ "class": "div-table" }, [
             dom.DIV({}, [
-                dom.DIV({}, ["Origin"]),
-                dom.DIV({}, [this._origin.node])
+                dom.DIV({}, ["Attractor"]),
+                dom.DIV({}, [negAttrRefine])
             ]),
             dom.DIV({}, [
-                dom.DIV({}, ["Attractor"]),
-                dom.DIV({}, [negAttrRefine, " with up to ", this._negAttrIterations.node, " iteration(s) and ", this._negAttrSimplify.node])
+                dom.DIV({}, ["Origin"]),
+                dom.DIV({}, [this._origin.node])
             ]),
             dom.DIV({}, [
                 dom.DIV({}, ["Safety"]),
@@ -1598,12 +1592,7 @@ class NegativeRefinementCtrl extends WidgetPlus {
     refineNegAttr(): void {
         this.pushLoad();
         this._model.refineNegative({
-            method: "Attractor",
-            settings: {
-                origin: this._origin.value,
-                iterations: this._negAttrIterations.value,
-                simplify: this._negAttrSimplify.value
-            }
+            method: "Attractor"
         }).catch(() => {
             // Error logging is done in SystemModel
         }).finally(() => {

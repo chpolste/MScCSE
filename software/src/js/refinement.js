@@ -9,7 +9,7 @@ import type { LSS, AbstractedLSS, State } from "./system.js";
 import { Polytope, Union } from "./geometry.js";
 import * as linalg from "./linalg.js";
 import { itemizedOperatorPartition } from "./system.js";
-import { just, iter, ValueError, NotImplementedError } from "./tools.js";
+import { just, obj, iter, ValueError, NotImplementedError } from "./tools.js";
 
 
 // Positive AttrR refinement kernel: return [AttrR, rest]
@@ -132,59 +132,41 @@ export class Refinery {
 
 /* Negative Attractor refinement */
 
-export type NegativeAttrRefinerySettings = {
-    origin: AutomatonStateID,
-    iterations: number,
-    simplify?: boolean
-};
-
 export class NegativeAttrRefinery extends Refinery {
 
-    +settings: NegativeAttrRefinerySettings;
-    +_attrs: Region[];
+    +_attr: { [AutomatonStateID]: Region };
 
-    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
-                settings: NegativeAttrRefinerySettings): void {
+    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults): void {
         super(system, objective, results);
-        const lss = system.lss;
-        // Settings required later for origin and simplify
-        this.settings = settings;
-        // Start with no-region of given origin as target
-        let no = this.getStateRegion("no", settings.origin);
-        // Cache attractors for given number of iterations
-        this._attrs = [];
-        for (let i = 0; i < settings.iterations; i++) {
-            // Attr of no-region in the state space
-            const attr = lss.attr(lss.xx, lss.uu, no).simplify();
-            this._attrs.push(attr);
-            // If Attr has converged, stop
-            const added = attr.remove(no);
-            if (added.isEmpty) break;
-            // Extend no-region with latest Attr
-            no = no.union(added);
-        }
+        const lss = this.system.lss;
+        // Cache attractors of no-regions for specified target qs
+        this._attr = obj.fromMap(q => {
+            const no = this.getStateRegion("no", q);
+            return lss.attr(lss.xx, lss.uu, no).simplify();
+        }, objective.allStates);
     }
 
     partition(x: State): Region {
-        // Only refine maybe states
-        if (this.isDecided(x, this.settings.origin)) {
-            return x.polytope;
-        }
-        // Remove Attr layers
-        let done = this.getEmpty();
-        let rest = x.polytope;
-        for (let attr of this._attrs) {
-            const cut = rest.intersect(attr).simplify();
-            if (!cut.isEmpty) {
-                done = done.union(cut);
-                if (this.settings.simplify === true) {
-                    // TODO
-                    done = done.simplify();
-                }
-                rest = rest.remove(cut).simplify();
+        let parts = x.polytope;
+        for (let q of this.objective.allStates) {
+            // Only refine undecided, state that aren't dead-ends
+            const qNext = this.qNext(x, q);
+            if (this.isDecided(x, q) || qNext == null) {
+                continue;
             }
+            // Partition with Attractor of target q no-region
+            let newParts = this.getEmpty();
+            for (let part of parts.polytopes) {
+                const attr = part.intersect(this._attr[qNext]).simplify();
+                if (attr.isEmpty) {
+                    newParts = newParts.union(part);
+                } else {
+                    newParts = newParts.union(attr).union(part.remove(attr).simplify());
+                }
+            }
+            parts = newParts;
         }
-        return rest.union(done);
+        return parts;
     }
 
 }

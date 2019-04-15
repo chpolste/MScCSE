@@ -5,8 +5,7 @@ import type { JSONTrace } from "./controller.js";
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
 import type { JSONObjective, AutomatonStateID } from "./logic.js";
-import type { Refinery, LayerRefinerySettings, NegativeAttrRefinerySettings,
-              SafetyRefinerySettings, SelfLoopRefinerySettings } from "./refinement.js";
+import type { Refinery, LayerRefinerySettings, SafetyRefinerySettings, SelfLoopRefinerySettings } from "./refinement.js";
 import type { Snapshot } from "./snapshot.js";
 import type { StateID, ActionID, SupportID, PredicateID, LSS, State, RefinementMap,
               JSONAbstractedLSS } from "./system.js";
@@ -361,7 +360,7 @@ inspector.onRequest("refine-layer", function (settings: RefineLayerRequest): Ref
     return refineData((t1 - t0), refinementMap);
 });
 // Negative Refinement
-export type RefineNegativeRequest = { method: "Attractor", settings: NegativeAttrRefinerySettings }
+export type RefineNegativeRequest = { method: "Attractor" }
                                   | { method: "Safety", settings: SafetyRefinerySettings }
                                   | { method: "SelfLoop", settings: SelfLoopRefinerySettings };
 inspector.onRequest("refine-negative", function (data: RefineNegativeRequest): RefineData {
@@ -369,7 +368,7 @@ inspector.onRequest("refine-negative", function (data: RefineNegativeRequest): R
     const t0 = performance.now();
     let refinery;
     if (data.method === "Attractor") {
-        refinery = new NegativeAttrRefinery($.system, $.objective, analysis, data.settings)
+        refinery = new NegativeAttrRefinery($.system, $.objective, analysis)
     } else if (data.method === "Safety") {
         refinery = new SafetyRefinery($.system, $.objective, analysis, data.settings)
     } else if (data.method === "SelfLoop") {

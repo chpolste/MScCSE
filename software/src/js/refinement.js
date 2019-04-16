@@ -52,7 +52,7 @@ function sampleControl(lss: LSS, origin: Polytope, target: Region): ?Region {
         _ => _.items.length,
         itemizedOperatorPartition(xs, actR).filter(_ => !_.region.isEmpty)
     );
-    return (u == null) ? null : u.region;
+    return (u == null) ? null : u.region.polytopes[0];
 }
 
 
@@ -219,35 +219,29 @@ export class SafetyRefinery extends Refinery {
 
 /* Self-Loop removal refinement */
 
-export type SelfLoopRefinerySettings = {
-    origin: AutomatonStateID,
-    iterations: number
-}
-
 export class SelfLoopRefinery extends Refinery {
 
-    +settings: SelfLoopRefinerySettings;
+    +optimistic: boolean;
+    +onlySafe: boolean;
 
     constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
-                settings: SelfLoopRefinerySettings): void {
+                optimistic: boolean, onlySafe: boolean): void {
         super(system, objective, results);
-        // Settings required later for origin and simplify
-        this.settings = settings;
+        this.optimistic = optimistic;
+        this.onlySafe = onlySafe;
     }
 
     partition(x: State): Region {
-        // Only refine maybe states
-        if (this.isDecided(x, this.settings.origin)) {
-            return x.polytope;
+        for (let q of this.objective.allStates) {
+            // Only refine undecided, state that aren't dead-ends
+            const qNext = this.qNext(x, q);
+            if (this.isDecided(x, q) || qNext == null) {
+                continue;
+            }
+            // TODO: look at actions, find problematic (safe, with self loop), ...
         }
-        const lss = this.system.lss;
-        const post = x.post(lss.uu).intersect(x.polytope);
-        if (!post.pontryagin(lss.ww).isEmpty) {
-            // TODO smarter refinement than shatter
-            return x.polytope.shatter();
-        } else {
-            return x.polytope;
-        }
+        // TODO
+        return x.polytope;
     }
 
 }

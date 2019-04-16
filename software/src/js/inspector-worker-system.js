@@ -5,7 +5,7 @@ import type { JSONTrace } from "./controller.js";
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
 import type { JSONObjective, AutomatonStateID } from "./logic.js";
-import type { Refinery, LayerRefinerySettings, SelfLoopRefinerySettings } from "./refinement.js";
+import type { Refinery, LayerRefinerySettings } from "./refinement.js";
 import type { Snapshot } from "./snapshot.js";
 import type { StateID, ActionID, SupportID, PredicateID, LSS, State, RefinementMap,
               JSONAbstractedLSS } from "./system.js";
@@ -359,22 +359,22 @@ inspector.onRequest("refine-layer", function (settings: RefineLayerRequest): Ref
     const t1 = performance.now();
     return refineData((t1 - t0), refinementMap);
 });
-// Negative Refinement
-export type RefineNegativeRequest = { method: "Attractor" }
-                                  | { method: "Safety" }
-                                  | { method: "SelfLoop", settings: SelfLoopRefinerySettings };
-inspector.onRequest("refine-negative", function (data: RefineNegativeRequest): RefineData {
+// Product Refinement
+export type RefineProductRequest = { method: "negative-attractor" }
+                                | { method: "safety" }
+                                | { method: "self-loop", optimistic: boolean, onlySafe: boolean };
+inspector.onRequest("refine-product", function (data: RefineProductRequest): RefineData {
     const analysis = just($.analysis, "Refinement requires an analysed system");
     const t0 = performance.now();
     let refinery;
-    if (data.method === "Attractor") {
+    if (data.method === "negative-attractor") {
         refinery = new NegativeAttrRefinery($.system, $.objective, analysis)
-    } else if (data.method === "Safety") {
+    } else if (data.method === "safety") {
         refinery = new SafetyRefinery($.system, $.objective, analysis)
-    } else if (data.method === "SelfLoop") {
-        refinery = new SelfLoopRefinery($.system, $.objective, analysis, data.settings)
+    } else if (data.method === "self-loop") {
+        refinery = new SelfLoopRefinery($.system, $.objective, analysis, data.optimistic, data.onlySafe)
     } else throw new Error(
-        "Unknown negative refinement method '" + data.method + "'"
+        "Unknown product refinement method '" + data.method + "'"
     );
     const refinementMap = $.refine(refinery);
     const t1 = performance.now();

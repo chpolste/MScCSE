@@ -7,7 +7,7 @@ import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
 import type { StateData, StatesData, ActionsData, SupportData, TraceData,
               AnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
-              SnapshotData, SystemSummaryData, RefineNegativeRequest } from "./inspector-worker-system.js";
+              SnapshotData, SystemSummaryData, RefineProductRequest } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
 import type { Proposition, AutomatonStateID, AutomatonShapeCollection } from "./logic.js";
 import type { LayerRefinerySettings, LayerRefineryGenerator } from "./refinement.js";
@@ -202,7 +202,7 @@ export class SystemInspector {
         const actionViewCtrl = new ActionViewCtrl(model);
         // System tab
         const analysisViewCtrl = new AnalysisViewCtrl(model, keys);
-        const negativeRefinementCtrl = new NegativeRefinementCtrl(model);
+        const productRefinementCtrl = new ProductRefinementCtrl(model);
         const layerRefinementCtrl = new LayerRefinementCtrl(model, keys);
         const snapshotViewCtrl = new SnapshotViewCtrl(model);
         // Control tab
@@ -219,7 +219,7 @@ export class SystemInspector {
         ]);
         const systemTab = tabs.newTab("System", [
             analysisViewCtrl,
-            negativeRefinementCtrl,
+            productRefinementCtrl,
             layerRefinementCtrl,
             snapshotViewCtrl
         ]);
@@ -534,10 +534,10 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
-    refineNegative(request: RefineNegativeRequest): Promise<null> {
-        return this._comm.request("refine-negative", request).then((data: RefineData) => {
+    refineProduct(request: RefineProductRequest): Promise<null> {
+        return this._comm.request("refine-product", request).then((data: RefineData) => {
             this.log.writeRefinement([
-                "Negative (" + request.method + ")"
+                "Product (" + request.method + ")"
             ], data);
             return data.removed.length > 0 ? this.updateStates() : null;
         }).catch((e) => {
@@ -1547,51 +1547,46 @@ class AnalysisViewCtrl extends WidgetPlus{
 }
 
 
-class NegativeRefinementCtrl extends WidgetPlus {
+class ProductRefinementCtrl extends WidgetPlus {
 
     +_model: SystemModel;
-    +_origin: OptionsInput<AutomatonStateID>;
-    +_safetyIterations: Input<number>;
-    +_loopsIterations: Input<number>;
+    +_loopsOptimistic: Input<boolean>;
+    +_loopsOnlySafe: Input<boolean>;
 
     constructor(model: SystemModel): void {
-        super("Negative Refinement", "info-negative-refinement");
+        super("Product Refinement", "info-product-refinement");
         this._model = model;
-        // Origin automaton state selection
-        const automaton = model.objective.automaton;
-        const qAllObj = obj.fromMap(_ => _, model.qAll)
-        this._origin = new RadioInput(qAllObj, automaton.initialState.label, automatonLabel);
         // Negative Attractor
         const negAttrRefine = dom.createButton({}, ["refine"], () => this.refineNegAttr());
         // Safety
         const safetyRefine = dom.createButton({}, ["refine"], () => this.refineSafety());
         // Self-loop removal
         const loopsRefine = dom.createButton({}, ["refine"], () => this.refineLoops());
-        this._loopsIterations = new DropdownInput(DropdownInput.rangeOptions(1, 11, 1), "1");
+        this._loopsOptimistic = new DropdownInput({
+            "optimistic": true,
+            "pessimistic": false
+        }, "optimistic");
+        this._loopsOnlySafe = new CheckboxInput(true, "only safe actions");
         this.node = dom.DIV({ "class": "div-table" }, [
             dom.DIV({}, [
-                dom.DIV({}, ["Attractor"]),
-                dom.DIV({}, [negAttrRefine])
+                dom.DIV({}, [negAttrRefine]),
+                dom.DIV({}, ["Negative Attractor"])
             ]),
             dom.DIV({}, [
-                dom.DIV({}, ["Safety"]),
-                dom.DIV({}, [safetyRefine])
+                dom.DIV({}, [safetyRefine]),
+                dom.DIV({}, ["Safety"])
             ]),
             dom.DIV({}, [
-                dom.DIV({}, ["Origin"]),
-                dom.DIV({}, [this._origin.node])
-            ]),
-            dom.DIV({}, [
-                dom.DIV({}, ["Self-loops"]),
-                dom.DIV({}, [loopsRefine, " with up to ", this._loopsIterations.node, " iteration(s)"])
+                dom.DIV({}, [loopsRefine]),
+                dom.DIV({}, [this._loopsOptimistic.node, " self-loop removal, ", this._loopsOnlySafe.node])
             ])
         ]);
     }
 
     refineNegAttr(): void {
         this.pushLoad();
-        this._model.refineNegative({
-            method: "Attractor"
+        this._model.refineProduct({
+            method: "negative-attractor"
         }).catch(() => {
             // Error logging is done in SystemModel
         }).finally(() => {
@@ -1601,8 +1596,8 @@ class NegativeRefinementCtrl extends WidgetPlus {
 
     refineSafety(): void {
         this.pushLoad();
-        this._model.refineNegative({
-            method: "Safety"
+        this._model.refineProduct({
+            method: "safety"
         }).catch(() => {
             // Error logging is done in SystemModel
         }).finally(() => {
@@ -1612,9 +1607,10 @@ class NegativeRefinementCtrl extends WidgetPlus {
 
     refineLoops(): void {
         this.pushLoad();
-        this._model.refineNegative({
-            method: "SelfLoop",
-            settings: { origin: this._origin.value, iterations: this._loopsIterations.value }
+        this._model.refineProduct({
+            method: "self-loop",
+            optimistic: this._loopsOptimistic.value,
+            onlySafe: this._loopsOnlySafe.value
         }).catch(() => {
             // Error logging is done in SystemModel
         }).finally(() => {

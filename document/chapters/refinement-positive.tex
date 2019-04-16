@@ -1,8 +1,22 @@
-Instead of only avoiding bad things, actively enable good things.
+Actively enable good things, reaching of target.
 Remember, ensuring good things is non-trivial, because any bad event with non-zero probability breaks everything.
 
+Approach here: based on refinement decomposition.
+Definition a positive refinement kernel
 
-\startsubsection[title={Positive Robust Attractor Kernel}]
+\startformula
+    \Function{\RefinePos}{C_n \times R_n}{2^{C_n}}
+\stopformula
+
+which partitions a polytope $X$ into convex polytopes such that afterwards $Y$ can be reached for some parts of the partition or ideally every part ($R_n$ and $C_n$ are defined as in the chapter introduction).
+Kernel only looks at single step of a trace, i.e.\ a player 1 turn followed by a player 2 turn in the game.
+Using the kernel, complex methods that make use of larger patterns in the game can be constructed.
+
+Much attention is given to the robust predecessor of target region as it returns region where deterministic transitions are possible for which guarantees are easy to obtain.
+Ignoring the probabilistic dynamics will mean that not all problems can be solved in a straightforward manner using only deterministic approaches and it is likely that refinement with the goal of creating deterministic transitions leads to partitions that are more complex than they need to be.
+
+
+\startsubsection[title={Positive Robust Attractor}]
 
     AttrR+, by \cite[Svorenova2017]
     Single-step lookahead.
@@ -12,20 +26,33 @@ Remember, ensuring good things is non-trivial, because any bad event with non-ze
     Non-convex target regions can lead to explosion of complexity.
     No progress possible if deterministic transition cannot be found, approximations do not deliver same guarantees.
 
+    Coordinated application:
+    Refine every state in PreR of target region using AttrR+ refinement.
+    Use progress guarantee to immediately extend region of yes-states.
+    Iterate.
+    Multiple iterations possible without need to analyse full system (expensive!), but probabilistic behaviour ignored.
+    Essentially the procedure that \cite[Svorenova2017] used in their case study.
+
 \stopsubsection
 
 
 \startsubsection[title={Control Input Selection}]
 
     AttrR+ requires control input to refine wrt.
+
     \cite[Svorenova2017] selected this by taking a random action, paritioning it arbitrarily and using the parts.
     From experience: this produces small states, progress is slower than it should be.
-
     Improvement: rate action by how much its posterior intersects target/no-region/etc, then pick "best" one.
     Do the same with parts.
     However, this still leaves room for improvement.
 
-    Alternative: Monte Carlo-based approach
+    Game-based vs. geometric condition: game-based requires player 1 actions to be available (if all contain at least one no state in target set, condition is met).
+    While this is always the case after an analysis, for which the game is constructed, the condition can be expensive to evaluate if multiple refinement steps are taken between analysis because refinement invalidates the previous game graph at least partially.
+    Action construction for both players is of exponential complexity in number of reachable states and involves many geometric operations.
+    Alternative: purely geometric condition, use dynamics to detect situation that requires refinement without requiring the game graph.
+    Insight is somewhat restricted but condition might be much cheaper to evaluate with only a few geometric operations and polynomial complexity in the number of reachable states.
+
+    Alternative: Monte Carlo-based (geometric) approach
     Sample a few points from within the polytope.
     Use $ActR$ to find control inputs for those points that exclusively lead to target (if there are none, try another sample point).
     Then cluster these control inputs and select one that most points "agree" with.

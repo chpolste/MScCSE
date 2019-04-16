@@ -1,0 +1,27 @@
+When given a partition of the state space, that is too coarse and therefore does not permit a membership decision with respect to $\InitialStates$ for every state, how can one determine which parts to refine and how should that refinement look like?
+Because the analysis is guaranteed to return a partial result (soundness), the states that require refinement can be limited to the set $\Set{ \State{i} \mid \exists q \in Q : \State{i} \in \MaybeStates{q} }$.
+However, the analysis procedure does not return specific counterexamples of plays where player 2 wins with non-zero probability but sets $P_{\Yes}$, $P_{\No}$ and $P_{\Maybe}$.
+In order to refine undecided states, knowledge of the game graph and the LSS dynamics have to be used in addition to the analysis results.
+
+Ideally, refinement procedures come with a progress guarantee, i.e.\ a non-empty set of parts of the new partition will belong to $\YesStates{q}$ or $\NoStates{q}$ for some $q$ when it did not before the refinement.
+However, it is not reasonable to expect that construction of such methods is easy in general or possible at all.
+For simple objectives such as reachability analysis feedback to refinement will be more immediate than for complex objectives, which likely require multiple refinement steps until the first states of $\ProductGame$ can be decided by the analysis.
+Refinement should therefore not exclusively rely on the sets $P_{\Yes}$, $P_{\No}$ and $P_{\Maybe}$ or else the abstraction-analysis-refinement procedure could get stuck if progress halts at any point in time.
+
+\cite[Svorenova2017] separated their refinement procedures into two categories named positive and negative.
+Positive refinement has the goal of enlarging the total volume of polytopes in $P_\Yes$ while negative refinement aims to enlarge the volume of polytopes in $P_\No$.
+Here, the additional class of neutral refinement is introduced, motivated by the following observations:
+A single \quotation{bad} transition that cannot be avoided with probability 1 enables player 2 to win the game.
+At the same time, \quotation{good} transitions need only occur with non-zero probability in a \quotation{neutral} environment and player 1 can still almost-surely satisfy an objective because LTL only determines the order of events and not the temporal distance between them (with the exception of $\Next$).
+In almost-sure analysis with LTL objectives, there is no need to satisfy the objectives in an efficient manner.
+Player 1 can take any finite amount of time to arrive at a good transition as long the environment is neutral, i.e.\ as long as states in which player 2 can force a bad transition can be avoided almost-surely.
+Hence, avoiding bad transitions is arguably just as important as enabling good transitions.
+Procedures in the category of neutral refinement have the goal of avoiding such bad transitions and creating a neutral environment by breaking patterns in the game graph that allow player 2 to win.
+Player 1 may not immediately have an almost-sure winning strategy after a neutral refinement step but finding one through positive refinement should have become easier.
+
+With multiple refinement procedures at one's disposal, questions arise about the order in which the procedures should be applied, how often they should be applied and how often the system should be analysed between refinement steps.
+General answers to these questions are hard to find, as the best strategy for refinement coordination will depend on the objective, the system dynamics and even on the meaning of \quotation{best}.
+One can optimize for the shortest time until a certain percentage of the state space is decided in the analysis, the smallest number of states generated in the partition, the suitability of the generated game graph for controller synthesis purposes and many other metrics.
+Automating refinement is therefore a non-trivial problem and requires additional heuristics.
+One approach is to decompose the objective into a series of sub-problems which are easier to solve and then combine the individual solutions.
+

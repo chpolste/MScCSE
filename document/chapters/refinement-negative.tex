@@ -1,9 +1,3 @@
-Asymmetry in almost-sure analysis of LTL:
-As long as anything bad can happen, objective cannot be fulfilled.
-But good things only require a non-zero probability and enough tries and they will eventually happen.
-LTL only cares about ordering, except for $\Next$, no operator has a time limit on how long things may take.
-One can reasonably conclude that avoiding bad stuff is more important than ensuring good stuff.
-
 \cite[Svorenova2017] used the notion of negative refinement, looking at player 1 states where player two can ensure to win the game with non-zero proability.
 They refine a state $\Tuple{\State{i}}{q}$ if
 
@@ -17,22 +11,18 @@ Repeat $\Attr$-based refinement and extend it with a second procedure that cover
 
 \startbuffer[buf:refinement-negative-attractor-algorithm]
     \startalgorithmic[numbering=no,margin=0em]
-        \INPUT{$\State{i}$}
-        \OUTPUT{Partition of $\State{i}$}
+        \INPUT{Player 1 state $\Tuple{\State{i}}{q}$}
+        \OUTPUT{Partition $Y = \IndexedSet{Y_n}{n \in N}$: $\displaystyle \bigcup_{n \in N} Y_n = \State{i}$}
     \stopalgorithmic
     \startalgorithmic
         \STATE{$Y \leftarrow \Set{\State{i}}$}
-        \FORALL{$q$ of automaton} % TODO
+        \FORALL{$q \in Q$}
             \IF{$\State{i} \in \MaybeStates{q}$}
-                \STATE{$q' \leftarrow $ successor automaton state} % TODO
+                \STATE{$q' \leftarrow \QNext{i}{q}$}
                 \STATE{$Y' \leftarrow \emptyset$}
-                \FORALL{$Y_k \in Y$}
-                    \STATE{$A \leftarrow \Attractor{Y_k}{\ControlSpace}{\NoStates{q'}}$}
-                    \IF{$A \ne \emptyset$} % TODO
-                        \STATE{$Y' \leftarrow Y' \cup A \cup (Y_k \setminus A)$} % TODO assume convex decomposition overloading
-                    \ELSE
-                        \STATE{$Y' \leftarrow Y' \cup \Set{Y_k}$}
-                    \ENDIF
+                \FORALL{$Y_n \in Y$}
+                    \STATE{$A \leftarrow \Attractor{Y_n}{\ControlSpace}{\NoStates{q'}}$}
+                    \STATE{$Y' \leftarrow Y' \cup \Convexify(A) \cup \Convexify(Y_n \setminus A)$}
                 \ENDFOR
                 \STATE{$Y \leftarrow Y'$}
             \ENDIF
@@ -41,132 +31,22 @@ Repeat $\Attr$-based refinement and extend it with a second procedure that cover
     \stopalgorithmic
 \stopbuffer
 
-\startsubsection[title={Negative Attractor}]
+\placealgorithm[top][alg:refinement-negative-attractor]{
+    Negative Attractor refinement of a player 1 state $\Tuple{\State{i}}{q}$.
+}{
+    \startframedtext[width=\textwidth,frame=off]
+        \getbuffer[buf:refinement-negative-attractor-algorithm]
+    \stopframedtext
+}
 
-    \placealgorithm[top][alg:refinement-negative-attractor]{
-        TODO
-    }{
-        \startframedtext[width=\textwidth,frame=off]
-            \getbuffer[buf:refinement-negative-attractor-algorithm]
-        \stopframedtext
-    }
+Refining with $\Attractor{\State{i}}{\ControlSpace}{\NoStates{q'}}$ yields region of guaranteed bad-states.
+No-stuff is inevitable, every control input has non-zero probability of leading to bad state for every state in polytope.
 
-    Refining with $\Attractor{\State{i}}{\ControlSpace}{\NoStates{q'}}$ yields region of guaranteed bad-states.
-    No-stuff is inevitable, every control input has non-zero probability of leading to bad state for every state in polytope.
+TODO algorithm
 
-    TODO algorithm
+Impossible to do better and still have a guarantee for reachability problem.
+Good idea to always do this first as it has a guarantee.
 
-    Impossible to do better and still have a guarantee for reachability problem.
-    Good idea to always do this first as it has a guarantee.
-
-    This is much stricter than condition (\in[fml:refinement-negative-unsafecondition]), where bad stuff can be avoided if player 2 plays cooperatively.
-    For the Attractor states removed here, game cannot be won even if player 2 plays cooperatively.
-
-\stopsubsection
-
-
-\startbuffer[buf:refinement-negative-safety-algorithm]
-    \startalgorithmic[numbering=no,margin=0em]
-        \INPUT{$\State{i}$}
-        \OUTPUT{Partition of $\State{i}$}
-    \stopalgorithmic
-    \startalgorithmic
-        \STATE{$Y \leftarrow \Set{\State{i}}$}
-        \FORALL{$q$ of automaton} % TODO
-            \IF{$\State{i} \in \MaybeStates{q}$}
-                \STATE{$q' \leftarrow $ successor automaton state} % TODO
-                \STATE{$Y' \leftarrow \emptyset$}
-                \FORALL{$Y_k \in Y$}
-                    \IF{CONDITION} % TODO
-                        \STATE{$Y' \leftarrow $ positive refinement of $Y_k$ wrt ???} % TODO
-                    \ELSE
-                        \STATE{$Y' \leftarrow Y' \cup \Set{Y_k}$}
-                    \ENDIF
-                \ENDFOR
-                \STATE{$Y \leftarrow Y'$}
-            \ENDIF
-        \ENDFOR
-        \RETURN{$Y$}
-    \stopalgorithmic
-\stopbuffer
-
-\startsubsection[title={Safety}]
-
-    \placealgorithm[top][alg:refinement-negative-safety]{
-        TODO
-    }{
-        \startframedtext[width=\textwidth,frame=off]
-            \getbuffer[buf:refinement-negative-safety-algorithm]
-        \stopframedtext
-    }
-
-    Negative attractor concerned with absolute unavoidability of bad things.
-    State might be such that in the current system state bad things cannot be avoided, but after refinement the state can be made safe.
-    Occurs when states are very big and require non-overlapping actions in different regions to stay safe.
-
-    Called safe due to relation to safety property in state space (avoid the outer/no region).
-
-    Generally the right procedure to use if condition (\in[fml:refinement-negative-unsafecondition]) is met.
-    Refinement is not obvious as in Negative Attractor as actions need to be considered.
-    Positive refinement wrt undecided/yes states sufficient to ensure safety.
-    Idea is to split into regions where required actions to stay safe are similar.
-
-    TODO Algorithm
-
-    Here, safety refinementcan easily be detected using $Act$ or $ActR$.
-    $\Action{\State{i}}{\NoStates{q'}} = \ControlSpace$ or $\RobustAction{\State{i}}{\StateSpace \setminus \NoStates{q'}} = \emptyset$.
-
-\stopsubsection
-
-
-\startbuffer[buf:refinement-negative-loops-algorithm]
-    \startalgorithmic[numbering=no,margin=0em]
-        \INPUT{$\State{i}$}
-        \OUTPUT{Partition of $\State{i}$}
-    \stopalgorithmic
-    \startalgorithmic
-        \IF{$\exists q \in $ automaton states $: \State{i} \in \MaybeStates{q} \wedge $ CONDITION} % TODO
-            \RETURN{positive refinement of $\State{i}$ wrt ???} % TODO
-        \ELSE
-            \RETURN{$\Set{\State{i}}$}
-        \ENDIF
-    \stopalgorithmic
-\stopbuffer
-
-\startsubsection[title={Loops},reference={sec:refinement-negative-loops}]
-
-    \placealgorithm[top][alg:refinement-negative-loops]{
-        TODO
-    }{
-        \startframedtext[width=\textwidth,frame=off]
-            \getbuffer[buf:refinement-negative-loops-algorithm]
-        \stopframedtext
-    }
-
-    Remember that Player 2 selects where inside a state one starts, after Player 1 has selected control input.
-    In reachability progress needs to be made towards the target.
-    In big states, it might not be able to leave, adversarial player 2 can make a trace be stuck indefinitely for the purposes of the analysis.
-    Example: go left works after a few steps, but abstraction does not allow precise position inside state, so Player 2 can reset trace again and again (in the abstracted world).
-    Such self loops must be avoided.
-    Additionally loops involving multiple states, avoiding the target, must be removed.
-
-    Loop analysis is tricky, because it depends on the game.
-    While this information is available directly after analysis, actions and supports need to be recomputed after any change which can be expensive.
-    Furthermore, not all loops are problematic, since Player 1 might be able to avoid a loop by selecting an action that breaks the loop.
-    Therefore game graph analysis is necessary to fully figure out loop situation.
-
-    Instead: optimistic and pessimistic analysis.
-    Optimistic: refine only if self loop exists for all safe actions
-    Pessimistic: refine if self loop exists for any safe action
-    In some situations, this might be enough to remove all problematic loops, in others it leads to much unnecessary paritioning.
-
-    Cheap, geometric approximation of pessimistic refinement:
-    See if $\Post$ intersects self and is not empty after Pontryagin difference with random space polytope.
-    Then robust predecessor exists in self, and self-loop can potentially exist.
-    No statement possible if loop is actually problematic as specific actions are not considered.
-
-    With positive refinement, states can be partitioned to remove such loops if desired.
-    Refinement wrt to what? % TODO
-
-\stopsubsection
+This is much stricter than condition (\in[fml:refinement-negative-unsafecondition]), where bad stuff can be avoided if player 2 plays cooperatively.
+For the Attractor states removed here, game cannot be won even if player 2 plays cooperatively.
 

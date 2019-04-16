@@ -2,19 +2,8 @@ The game-based abstraction requires a state space partition from which to derive
 As set up in section \in[sec:abstraction-graph-playerone], the initial partition is governed by the set of linear predicates.
 This partition makes sense because it allows a unique association of states to sets of (satisfied) linear predicates, but in general the partition will be too coarse to answer a given analysis question, leaving most states in the set $\MaybeStates{}$.
 
-In this chapter, procedures are presented that refine the partition with the goal of enlarging $\YesStates{}$ and/or $\NoStates{}$.
-Used in the abstraction-analysis-refinement cycle depicted in Figure \in[fig:problem-approach-flowchart], a procedure emerges that can solve analysis problems iteratively and autonomously.
+In this chapter, procedures are presented that refine the partition with the goal of enlarging $\YesStates{}$ and/or $\NoStates{}$. % TODO
+Used in the abstraction-analysis-refinement cycle depicted in Figure \in[fig:problem-approach-flowchart], a procedure emerges that can solve analysis problems iteratively and autonomously. % TODO
 These procedures are heuristics based on insights from results of the analysis of $\ProductGame$ and the dynamics of the system.
 They fit into the framework of counterexample-based abstraction refinement (CEGAR) \cite[authoryears][TODO].
-
-Analogous to the notation of player 1 states, the sets $\YesStates{q}$, $\NoStates{q}$ and $\MaybeStates{q}$ are overloaded for all $q \in Q$ so they refer to the region covered by the polytopes of the member player 1 states if used in a geometric context.
-The function
-
-\startformula
-    \Function{\Convexify}{R_n}{2^{C_n}}
-\stopformula
-
-is introduced, where $R_n$ is the set of (full-dimensional) polytopic regions in $\reals^n$ and $C_n$ the set of convex polytopes in $\reals^n$.
-$\Convexify$ partitions any polytopic region into a set of (disjunct) convex polytopes.
-Per definition, $\Convexify(\emptyset) = \emptyset$.
 

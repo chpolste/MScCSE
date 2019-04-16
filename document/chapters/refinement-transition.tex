@@ -1,0 +1,94 @@
+...
+
+\startsubsection[title={Decomposition}]
+
+    Decompose product game into a series of co-safe reachability problems that, when solved, can be combined into a solution for the product game.
+    $\ProductGame$ has copy of the LSS game graph for every automaton state.
+    A trace through the system must reach regions associated with automaton transitions in an order that satisfies the specification.
+    Therefore, each transition individually has a corresponding co-safe reachability problem in the LSS.
+    If the satisfying regions of every one of these almost-sure reachability problems can be determined, a solution for the original problem emerges by piecing together satisfying strategies from the reachability problems, if they exist.
+    Because the reachability problems are co-safe, winning strategies will satisfy lead to the required automaton transitions in finite time and the composite strategy cannot get stuck in any of the individual reachability tasks.
+    % TODO formalize the strategy stitch-up, handle next, which requires one-step reachability but is not included in GR(1) anyhow
+
+    To construct a reachability system for a transition from $q$ to $q'$ in the automaton:
+    Same LSS $\LSS$, start with the same partition as current state-space abstraction but only a simple co-safe reachability/avoidance winning condition.
+    Elements of the current state space partition are therefore separated into 3 sets:
+    First,
+
+    \startformula
+        \ReachStates{q}{q'} = \Set{ \State{i} \mid \Tuple{\State{i}}{q} \in P_1 \MidAnd \State{i} \notin \NoStates{q} \MidAnd ( \QNext{i}{q} = q' \MidOr \YesStates{q} ) } \EndComma
+    \stopformula
+
+    the elements whose union has to be reached.
+    These are parts where a transition to the transition target automaton state happens with any of the next player 1 actions in the product game.
+    It also includes all parts that have already been recognized as satisfying for the origin $q$ by a previous analysis.
+    Second,
+
+    \startformula
+        \RefineStates{q}{q'} = \Set{ \State{i} \mid \Tuple{\State{i}}{q} \in P_1 \MidAnd \State{i} \notin \NoStates{q} \MidAnd \QNext{i}{q} = q } \EndComma
+    \stopformula
+
+    the elements which do not trigger an automaton transition with their player 1 actions.
+    These elements will be refined.
+    And finally,
+
+    \startformula
+        \AvoidStates{q}{q'} = \IndexedStates{i}{I} \setminus \left( \ReachStates{q}{q'} \cup \RefineStates{q}{q'} \right) \EndComma
+    \stopformula
+
+    the elements where a transition to any other automaton state happens with the next player 1 action, as well as all elements from the no-set of the previous analysis.
+    These sets are disjunct except for the special case $q = q'$, where $\ReachStates{q}{q'} \cap \RefineStates{q}{q'} \ne \emptyset$.
+
+\stopsubsection
+
+
+\startsubsection[title={Transition Selection}]
+
+    The state space partition of the product system is shared between all copies for the automaton states.
+    The individual reachability problems for each transition are therefore weakly linked, i.e.\ they can all be solved independently in parallel and then combined into one partition or they can be solved sequentially such that the partitions from earlier refinements potentially provide partial solutions to later reachability problems.
+    Finding a \quotation{best} order of these refinements is again a non-trivial task.
+    For co-safe objectives, one should work backwards from the final states, which are guaranteed to be satisfying.
+    For infinite objectives a best path through the automaton is not obvious and multiple paths may even be required to find all satisfying initial states.
+
+\stopsubsection
+
+
+\startsubsection[title={Reachability Refinement}]
+
+    Actively enable good things, reaching of target.
+    Remember, ensuring good things is non-trivial, because any bad event with non-zero probability breaks everything.
+
+    Linear dynamics means that convex targets usually have convex reachability solutions (due to $\Pre$ being convex if state, action and random space are convex).
+    Non-convex targets often introduce more non-convexity which leads to state explosion.
+    Target approximation can work by hoping for probabilisitic "magic" but hard to predict when this works and when it doesn't.
+    Smoothing of target region, up to taking convex hull.
+
+    Coordinated application:
+    Refine every state in PreR of target region using AttrR+ refinement.
+    Use progress guarantee to immediately extend region of yes-states.
+    Iterate.
+    Multiple iterations possible without need to analyse full system (expensive!), but probabilistic behaviour ignored.
+    Essentially the procedure that \cite[Svorenova2017] used in their case study.
+
+\stopsubsection
+
+
+\startsubsection[title={Layered Reachability Refinement}]
+
+    Problem with pure AttrR+ refinement is that progress guarantee only works for AttrR-generated states.
+    For some, reachability can be decided with ActR but purely deterministic view means over-refinement or conservative analysis, slowing progress.
+    Analysing system fully from time to time required, but relatively expensive due to need for action computation.
+
+    Layer idea outlined by \cite[Svorenova2017].
+    Refinement decouples into separate subproblems.
+    Problem of \cite[Svorenova2017]: Pre is not the ideal operator for procedure.
+
+    Innovation: PreR, shrinking of layer-generating control space (show graphic/example that illustrates "convergence" behaviour at edges).
+    Outline algorithm (layer generation, removal of known no-states, control selection and AttrR in inner iterations, small-state supression because states smaller W will always transition away, loops impossible), discuss tuning parameters.
+    Discuss probabilistic aspect of approach (steps are deterministic, but no overall guarantee since solution for outer layers depends on solution of inner layers) but mention that at core it is deterministic.
+    Hybrid approach between multi-step and single-step: general idea of moving from layer to layer is multi-step, but transitions inside layers are single step.
+    Non-optimality of layers in terms of numbers of states generated (PreR is deterministic transition).
+    Problem again: PreR does not exists if X - W = 0, extension by minkowski sum with origin-centered W and additional extension when target at the edge of the control space.
+
+\stopsubsection
+

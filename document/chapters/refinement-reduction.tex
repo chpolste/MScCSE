@@ -1,0 +1,53 @@
+Game-graph construction expensive, independent of objective.
+Deterministic vs probabilistic refinement, missed potential but cost of deeper analysis required in probabilistic approaches.
+
+
+\startsubsection[title={Restricting Actions}]
+
+    Static control reduces system by removing player 1 and therefore enabling more efficient analysis of system at the cost of introduction of a piecewise dynamics.
+    Discuss theoretical successes and practical problems of static control.
+    Discuss purely deterministic refinement and refinement that takes probabilistic aspect into account.
+    "Jagged" progress due to piecewise dynamics lead no much non-convexness which is computationally demanding.
+    More sophisticated action selection could resolve this, but fixed dynamics without recomputation after some steps will always have its limits.
+
+\stopsubsection
+
+
+\startsubsection[title={Refinement with Robust Operators}]
+
+    Much attention is given to the robust predecessor of target region as it returns region where deterministic transitions are possible for which guarantees are easy to obtain.
+    Ignoring the probabilistic dynamics will mean that not all problems can be solved in a straightforward manner using only deterministic approaches and it is likely that refinement with the goal of creating deterministic transitions leads to partitions that are more complex than they need to be.
+
+    AttrR+, by \cite[Svorenova2017]
+    Single-step lookahead.
+    Progress guarantees, allows cheap analysis for reachability problems.
+    AttrR+ treats system like it is deterministic.
+    Waste of probabilistic properties.
+    Non-convex target regions can lead to explosion of complexity.
+    No progress possible if deterministic transition cannot be found, approximations do not deliver same guarantees.
+    Generally, an existing yes region is not available.
+
+    AttrR+ requires control input to refine wrt.
+
+    \cite[Svorenova2017] selected this by taking a random action, paritioning it arbitrarily and using the parts.
+    From experience: this produces small states, progress is slower than it should be.
+    Improvement: rate action by how much its posterior intersects target/no-region/etc, then pick "best" one.
+    Do the same with parts.
+    However, this still leaves room for improvement.
+
+    Alternative: Monte Carlo-based (geometric) approach
+    Sample a few points from within the polytope.
+    Use $ActR$ to find control inputs for those points that exclusively lead to target (if there are none, try another sample point).
+    Then cluster these control inputs and select one that most points "agree" with.
+    Expensive but exhaustive: compute all overlaps, similar to action computation and pick one with most contributung points.
+    In practice, adding vertices to sample point pool improved performance, as these points are often associated with most "extreme" action requirements.
+
+    Small targets that cannot be transitioned to exclusively are a problem for deterministic refinement methods such as AttrR+.
+    Even regions that can be targeted individually but that are very small are a problem, as a sufficiently big target area has to be built up first, before well-performing refinement is possible.
+    Due to probabilistic nature this is not always optimal.
+    Target may be enlarged in these cases, carefully, so that probability of going to "real" target is non-zero everywhere in extended region and extended region cannot be targeted individually either.
+    Extended region may require refinement itself, e.g. saftey refinement wrt entire extended region.
+
+
+\stopsubsection
+

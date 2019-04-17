@@ -386,20 +386,20 @@ export class AbstractedLSS implements GameGraph {
         return this.lss.post(x.polytope, us);
     }
 
-    pre(x: State, us: Region, ys: State[]): Region {
-        return this.lss.pre(x.polytope, us, Union.from(ys.map(y => y.polytope), this.lss.dim));
+    pre(x: State, us: Region, ys: Iterable<State>): Region {
+        return this.lss.pre(x.polytope, us, Union.from(Array.from(ys, y => y.polytope), this.lss.dim));
     }
 
-    preR(x: State, us: Region, ys: State[]): Region {
-        return this.lss.preR(x.polytope, us, Union.from(ys.map(y => y.polytope), this.lss.dim));
+    preR(x: State, us: Region, ys: Iterable<State>): Region {
+        return this.lss.preR(x.polytope, us, Union.from(Array.from(ys, y => y.polytope), this.lss.dim));
     }
 
-    attr(x: State, us: Region, ys: State[]): Region {
-        return this.lss.attr(x.polytope, us, Union.from(ys.map(y => y.polytope), this.lss.dim));
+    attr(x: State, us: Region, ys: Iterable<State>): Region {
+        return this.lss.attr(x.polytope, us, Union.from(Array.from(ys, y => y.polytope), this.lss.dim));
     }
 
-    attrR(x: State, us: Region, ys: State[]): Region {
-        return this.lss.attrR(x.polytope, us, Union.from(ys.map(y => y.polytope), this.lss.dim));
+    attrR(x: State, us: Region, ys: Iterable<State>): Region {
+        return this.lss.attrR(x.polytope, us, Union.from(Array.from(ys, y => y.polytope), this.lss.dim));
     }
 
     act(x: State, y: State): Region {
@@ -410,12 +410,12 @@ export class AbstractedLSS implements GameGraph {
         return this.lss.actR(x.polytope, y.polytope);
     }
 
-    zNonZero(xs: State[]): Region {
-        return this.lss.zNonZero(Union.from(xs.map(x => x.polytope), this.lss.dim));
+    zNonZero(xs: Iterable<State>): Region {
+        return this.lss.zNonZero(Union.from(Array.from(xs, x => x.polytope), this.lss.dim));
     }
 
-    zOne(xs: State[]): Region {
-        return this.lss.zOne(Union.from(xs.map(x => x.polytope), this.lss.dim));
+    zOne(xs: Iterable<State>): Region {
+        return this.lss.zOne(Union.from(Array.from(xs, x => x.polytope), this.lss.dim));
     }
 
     /* GameGraph Interface */
@@ -470,9 +470,7 @@ export class AbstractedLSS implements GameGraph {
             if (result == null || result.maybe.size !== 0) {
                 actions = state.actions.map(
                     action => action.supports.map(
-                        support => support.targets.map(
-                            target => target.label
-                        )
+                        support => Array.from(support.targets, target => target.label)
                     )
                 );
             }
@@ -580,19 +578,19 @@ export class State {
         return this.system.post(this, us);
     }
 
-    pre(us: Region, ys: State[]): Region {
+    pre(us: Region, ys: Iterable<State>): Region {
         return this.system.pre(this, us, ys);
     }
     
-    preR(us: Region, ys: State[]): Region {
+    preR(us: Region, ys: Iterable<State>): Region {
         return this.system.preR(this, us, ys);
     } 
     
-    attr(us: Region, ys: State[]): Region {
+    attr(us: Region, ys: Iterable<State>): Region {
         return this.system.attr(this, us, ys);
     }
     
-    attrR(us: Region, ys: State[]): Region {
+    attrR(us: Region, ys: Iterable<State>): Region {
         return this.system.attrR(this, us, ys);
     }
 
@@ -673,14 +671,14 @@ type JSONAction = {
 export class Action {
 
     +origin: State;
-    +targets: State[]; // use Set<State> instead?
+    +targets: Set<State>;
     +controls: Region;
     +supports: ActionSupport[];
     _supports: ?ActionSupport[];
 
-    constructor(origin: State, targets: State[], controls: Region): void {
+    constructor(origin: State, targets: Iterable<State>, controls: Region): void {
         this.origin = origin;
-        this.targets = targets;
+        this.targets = new Set(targets);
         this.controls = controls;
         this._supports = null;
     }
@@ -701,7 +699,7 @@ export class Action {
         } else {
             const lss = this.origin.system.lss;
             const zNonZeros = itemizedOperatorPartition(this.targets, _ => _.zNonZero());
-            const zOnes = lss.zOne(Union.from(this.targets.map(_ => _.polytope)));
+            const zOnes = lss.zOne(Union.from(Array.from(this.targets, _ => _.polytope)));
             this._supports = zNonZeros.map(part => {
                 // Remove outer zNonZeros
                 const zs = part.region.intersect(zOnes).polytopes;
@@ -732,7 +730,7 @@ export class Action {
             supports = this._supports.map(_ => _.serialize());
         }
         return {
-            targets: this.targets.map(_ => _.label),
+            targets: Array.from(this.targets, _ => _.label),
             controls: this.controls.toUnion().serialize(),
             supports: supports
         };
@@ -752,12 +750,12 @@ type JSONActionSupport = {
 export class ActionSupport {
 
     +action: Action;
-    +targets: State[]; // use Set<State> instead?
+    +targets: Set<State>;
     +origins: Region;
 
-    constructor(action: Action, targets: State[], origins: Region): void {
+    constructor(action: Action, targets: Iterable<State>, origins: Region): void {
         this.action = action;
-        this.targets = targets;
+        this.targets = new Set(targets);
         this.origins = origins;
     }
 
@@ -769,7 +767,7 @@ export class ActionSupport {
     // JSON-compatible serialization
     serialize(): JSONActionSupport {
         return {
-            targets: this.targets.map(x => x.label),
+            targets: Array.from(this.targets, x => x.label),
             origins: this.origins.toUnion().serialize()
         };
     }

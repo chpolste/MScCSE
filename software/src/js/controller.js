@@ -7,7 +7,7 @@ import type { Vector } from "./linalg.js";
 import type { Objective, AutomatonState, AutomatonStateID } from "./logic.js";
 import type { State, StateID, Action, ActionID, AbstractedLSS } from "./system.js";
 
-import { just, NotImplementedError } from "./tools.js";
+import { just, iter, NotImplementedError } from "./tools.js";
 
 
 
@@ -200,7 +200,10 @@ export class RoundRobinController extends Controller {
             const action = actions[next];
             // If all targets of the action are yes-states, return a control
             // vector from this action
-            if (action.targets.every((target) => this._isYes(target, qNext))) {
+            const allYes = iter.every(
+                iter.map((target) => this._isYes(target, qNext), action.targets)
+            );
+            if (allYes) {
                 this._setActionID(x, q, next);
                 return action.controls.sample();
             }

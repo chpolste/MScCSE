@@ -259,7 +259,7 @@ inspector.onRequest("get-actions", function (data: ActionsRequest): ActionsData 
         origin: action.origin.label,
         id: id,
         controls: action.controls.toUnion().serialize(),
-        targets: action.targets.map(_ => _.label)
+        targets: Array.from(action.targets, _ => _.label)
     }));
 });
 
@@ -279,7 +279,7 @@ inspector.onRequest("get-supports", function (data: SupportRequest): SupportData
         origin: stateDataOf(state),
         id: id,
         origins: support.origins.toUnion().serialize(),
-        targets: support.targets.map(stateDataOf)
+        targets: Array.from(support.targets, stateDataOf)
     }));
 });
 

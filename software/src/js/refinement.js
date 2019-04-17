@@ -9,7 +9,7 @@ import type { LSS, AbstractedLSS, State } from "./system.js";
 import { Polytope, Union } from "./geometry.js";
 import * as linalg from "./linalg.js";
 import { itemizedOperatorPartition } from "./system.js";
-import { just, obj, iter, ValueError, NotImplementedError } from "./tools.js";
+import { just, obj, sets, iter, ValueError, NotImplementedError } from "./tools.js";
 
 
 // Positive AttrR refinement kernel: return [AttrR (good), rest (unknown)]
@@ -220,27 +220,81 @@ export class SafetyRefinery extends Refinery {
 
 export class SelfLoopRefinery extends Refinery {
 
+    // Settings
     +optimistic: boolean;
     +onlySafe: boolean;
+    // Caches
+    +_noStates: { [AutomatonStateID]: Set<State> };
 
     constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
                 optimistic: boolean, onlySafe: boolean): void {
         super(system, objective, results);
         this.optimistic = optimistic;
         this.onlySafe = onlySafe;
+        // Cache ... TODO
+        this._noStates = obj.fromMap(q => new Set(this.getStates("no", q)), objective.allStates);
     }
 
     partition(x: State): Region {
+        // Quick geometric test if self-loop is possible
+        if (x.post(this.system.lss.uu).intersect(x.polytope).isEmpty) {
+            return x.polytope;
+        }
         for (let q of this.objective.allStates) {
             // Only refine undecided, state that aren't dead-ends
             const qNext = this.qNext(x, q);
             if (this.isDecided(x, q) || qNext == null) {
                 continue;
             }
-            // TODO: look at actions, find problematic (safe, with self loop), ...
+            // Examine actions: try to find an action that has no self-loop and
+            // and an action that has a self-loop
+            let goodAction = null;
+            let support = null;
+            for (let action of x.actions) {
+                const targetsSelf = action.targets.has(x);
+                // If only safe actions should be considered, ignore the action
+                // if it is not
+                if (!this.onlySafe || this._isSafe(action.targets, qNext)) {
+                    // If the action does not self-target, it cannot have
+                    // a self-loop
+                    if (!targetsSelf) {
+                        goodAction = action;
+                    } else {
+                        // Find a self-loop in the player 2 actions
+                        let selfLoopSupport = null;
+                        for (let support of action.supports) {
+                            if (support.targets.size === 1 && support.targets.has(x)) {
+                                selfLoopSupport = support;
+                                break; // exit loop over supports
+                            }
+                        }
+                        // No self-loop found
+                        if (selfLoopSupport == null) {
+                            goodAction = action;
+                        // Self-loop found, this action/support combination is
+                        // suitable for refinement
+                        } else {
+                            support = selfLoopSupport;
+                            break; // exit loop over actions
+                        }
+                    }
+                }
+            }
+            // If refinement is optimistic and a non-self-looping action was
+            // found, continue. Otherwise partition the state if an
+            // action/support combination for refinement was found.
+            if (!(this.optimistic && goodAction != null) && support != null) {
+                // Split with PreP associated with the action support
+                const preP = support.origins.simplify();
+                return preP.union(x.polytope.remove(preP).simplify());
+            }
         }
-        // TODO
+        // No suitable action/support combination was found for refinement
         return x.polytope;
+    }
+
+    _isSafe(targets: Set<State>, q: AutomatonStateID): boolean {
+        return !sets.doIntersect(targets, this._noStates[q]);
     }
 
 }

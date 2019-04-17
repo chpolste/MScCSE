@@ -12,8 +12,13 @@ import { itemizedOperatorPartition } from "./system.js";
 import { just, obj, iter, ValueError, NotImplementedError } from "./tools.js";
 
 
-// Positive AttrR refinement kernel: return [AttrR, rest]
+// Positive AttrR refinement kernel: return [AttrR (good), rest (unknown)]
 function refineAttrR(lss: LSS, origin: Polytope, target: Region): [Region, Region] {
+    // If a control space region ensuring an exclusive transition to target
+    // already exists, return origin unchanged in good part
+    if (!lss.actR(origin, target).isEmpty) {
+        return [origin, Polytope.ofDim(lss.dim).empty()];
+    }
     // Select a control input to refine with
     const u = sampleControl(lss, origin, target);
     // Compute the Robust Attractor in origin wrt to the target region and
@@ -22,9 +27,10 @@ function refineAttrR(lss: LSS, origin: Polytope, target: Region): [Region, Regio
     // A usable Robust Attractor is available
     if (attrR != null && !attrR.isEmpty) {
         return [attrR, origin.remove(attrR)];
-    // Refinement step could not be executed, fallback: shatter the origin
+    // Refinement step could not be executed, return without change in unknown
+    // region (caller must decide what to do then)
     } else {
-        return [Polytope.ofDim(lss.dim).empty(), origin.shatter()];
+        return [Polytope.ofDim(lss.dim).empty(), origin];
     }
 }
 
@@ -199,15 +205,8 @@ export class SafetyRefinery extends Refinery {
             }
             let newParts = this.getEmpty();
             for (let part of parts.polytopes) {
-                // Geometric condition
-                const act = lss.act(part, this._no[qNext]);
-                // If part is unsafe, apply positive refinement wrt safe region
-                if (act.isSameAs(lss.uu)) {
-                    const [safe, other] = refineAttrR(lss, part, this._ok[qNext]);
-                    newParts = newParts.union(safe).union(other);
-                } else {
-                    newParts = newParts.union(part);
-                }
+                const [safe, other] = refineAttrR(lss, part, this._ok[qNext]);
+                newParts = newParts.union(safe).union(other);
             }
             parts = newParts;
         }
@@ -375,8 +374,13 @@ export class LayerRefinery extends Refinery {
                 }
                 // AttrR refinement step
                 const [good, other] = refineAttrR(lss, part, target);
-                done = done.union(good);
-                remaining.push(...other.polytopes.map(_ => [_, it + 1]));
+                // Fallback if refinement failed: shatter polytope
+                if (good.isEmpty) {
+                    remaining.push(...other.shatter().polytopes.map(_ => [_, it + 1]));
+                } else {
+                    done = done.union(good);
+                    remaining.push(...other.polytopes.map(_ => [_, it + 1]));
+                }
             }
             // Entire layer is considered as done
             rest = rest.remove(intersection).simplify();

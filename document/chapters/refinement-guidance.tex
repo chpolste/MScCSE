@@ -21,8 +21,11 @@ Hence, avoiding bad transitions is arguably just as important as enabling good t
 Procedures in the category of neutral refinement make it possible to avoid bad transitions for longer by breaking patterns in the game graph that allow player 2 to win, therefore creating a neutral environment for player 1.
 An almost-sure winning player 1 strategy for the objective may not immediately exist after a neutral refinement step but finding one through positive refinement should have become easier.
 
+The design of fully automated refinement is highly non-trivial.
 With multiple refinement procedures at one's disposal, questions arise about the order in which procedures should be applied, how often they should be applied and how often the system should be analysed between refinement steps.
-General answers to these questions are hard to find, as the best strategy for refinement coordination will depend on the objective, the LSS and even on the meaning of \quotation{best}.
+General answers to these questions are hard to find, as the best strategy for refinement coordination will depend on the objective, the properties of the LSS and even on the meaning of \quotation{best}.
 One can optimize for the shortest time until a certain percentage of the state space is decided in the analysis, the smallest number of states generated in the partition, the suitability of the generated game graph for controller synthesis purposes and many other metrics.
-Automating refinement is therefore a non-trivial problem and requires additional heuristics.
+If optimizing for performance, note has to be taken that application of a refinement procedure invalidates (parts of) the game graph.
+When chaining refinement procedures without an intermediate analysis, procedures relying on insights from the game graph incur significant additional computational cost as the game's actions have to be recomputed, which involves operations of exponential complexity in the number of states.
+Procedures based only on the system dynamics have the advantage of being chainable without extra computational cost.
 

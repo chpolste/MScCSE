@@ -1,20 +1,9 @@
-Refinement based on the entire product game.
-Seek problematic patterns in game graph and aim to break them up.
-
-\cite[Svorenova2017] used the notion of negative refinement, looking at player 1 states where player two can ensure to win the game with non-zero proability.
-They refine a state $\Tuple{\State{i}}{q}$ if
-
-\placeformula[fml:refinement-negative-unsafecondition]
-\startformula
-    \forall (\PlayerOneAction{i}{J}) \in Act \quad \exists (\PlayerTwoAction{i}{J}{K}) \in Act \quad \exists k \in K : \State{k} \in \NoStates{q'} \EndPeriod
-\stopformula
-
-Repeat $\Attr$-based refinement and extend it with a second procedure that covers additional cases detected by this condition.
+The first refinement procedures introduced seek problematic patterns in entire product game graph and aim to break them up.
 
 
-\startbuffer[buf:refinement-product-attractor-algorithm]
+\startbuffer[buf:refinement-product-negattr-algorithm]
     \startalgorithmic[numbering=no,margin=0em]
-        \INPUT{Player 1 state $\Tuple{\State{i}}{q}$}
+        \INPUT{Element of state space partition $\State{i}$ }
         \OUTPUT{Partition $Y = \IndexedSet{Y_n}{n \in N}$: $\displaystyle \bigcup_{n \in N} Y_n = \State{i}$}
     \stopalgorithmic
     \startalgorithmic
@@ -34,41 +23,52 @@ Repeat $\Attr$-based refinement and extend it with a second procedure that cover
     \stopalgorithmic
 \stopbuffer
 
-\startsubsection[title={Negative Attractor}]
+\startsubsection[title={Negative Attractor},reference=sec:refinement-product-negattr]
 
-    \placealgorithm[top][alg:refinement-product-attractor]{
-        Negative Attractor refinement of a player 1 state $\Tuple{\State{i}}{q}$.
+    \placealgorithm[top][alg:refinement-product-negattr]{
+        Negative Attractor refinement for an element $\State{i}$ of the state space partition.
     }{
         \startframedtext[width=\textwidth,frame=off]
-            \getbuffer[buf:refinement-product-attractor-algorithm]
+            \getbuffer[buf:refinement-product-negattr-algorithm]
         \stopframedtext
     }
 
-    Refining with $\Attractor{\State{i}}{\ControlSpace}{\NoStates{q'}}$ yields region of guaranteed bad-states.
-    No-stuff is inevitable, every control input has non-zero probability of leading to bad state for every state in polytope.
+    \cite[Svorenova2017] identify the pattern
 
-    TODO algorithm, where the function
-
+    \placeformula[fml:refinement-product-negattr-condition]
     \startformula
-        \Function{\Convexify}{R_n}{2^{C_n}}
+        \startalign[n=2,align={right,left}]
+            \NC \empty
+            \NC \forall (\PlayerOneAction{i}{J}) \in Act \;\, \exists (\PlayerTwoAction{i}{J}{K}) \in Act \;\, \exists k \in K : \State{k} \in \NoStates{q'}
+            \NR
+            \NC \Leftrightarrow \quad
+            \NC \forall (\PlayerOneAction{i}{J}) \in Act \;\, \exists j \in J : \State{j} \in \NoStates{q'} \EndComma
+            \NR
+        \stopalign
     \stopformula
 
-    is introduced, 
-    $\Convexify$ partitions any polytopic region into a set of (disjunct) convex polytopes.
+    where $q' = \QNext{i}{q}$, associated with a player 1 state $\Tuple{\State{i}}{q}$ and propose a negative refinement procedure to break it up.
+    The condition matches player 1 states in which player 2 can win the game with non-zero probability independent of the action that player 1 chooses.
+    Their refinement procedure partitions the associated polytopes of such states based on the set $\Attractor{\State{i}}{\ControlSpace}{\NoStates{q'}}$.
+    Plays originating in this attractor region lead to player 2 winning with non-zero probability even if player 2 plays the game cooperatively.
+    The removed attractor region is therefore be guaranteed to be recognized as non-satisfying in the next analysis.
+
+    A procedure based on the negative refinement of \cite[Svorenova2017] that refines an element of the state space partition with respect to the attractor region, taking into account every associated product state is given by Algorithm \in[alg:refinement-product-attractor].
+    It uses the function
+
+    \startformula
+        \Function{\Convexify}{R_n}{2^{C_n}} \EndComma
+    \stopformula
+
+    where $R_n$ is the set of all (full-dimensional) polytopic regions in $\reals^n$ and $C_n$ is the set of all convex polytopes in $\reals^n$, which partitions any polytopic region into a set of (disjunct) convex polytopes.
     Per definition, $\Convexify(\emptyset) = \emptyset$.
-
-    Impossible to do better and still have a guarantee for reachability problem.
-    Good idea to always do this first as it has a guarantee.
-
-    This is much stricter than condition (\in[fml:refinement-negative-unsafecondition]), where bad stuff can be avoided if player 2 plays cooperatively.
-    For the Attractor states removed here, game cannot be won even if player 2 plays cooperatively.
 
 \stopsubsection
 
 
 \startbuffer[buf:refinement-product-safety-algorithm]
     \startalgorithmic[numbering=no,margin=0em]
-        \INPUT{Player 1 state $\Tuple{\State{i}}{q}$}
+        \INPUT{Element of state space partition $\State{i}$}
         \OUTPUT{Partition $Y = \IndexedSet{Y_n}{n \in N}$: $\displaystyle \bigcup_{n \in N} Y_n = \State{i}$}
     \stopalgorithmic
     \startalgorithmic
@@ -78,11 +78,7 @@ Repeat $\Attr$-based refinement and extend it with a second procedure that cover
                 \STATE{$q' \leftarrow \QNext{i}{q}$}
                 \STATE{$Y' \leftarrow \emptyset$}
                 \FORALL{$Y_n \in Y$}
-                    \IF{$\Action{\State{i}}{\NoStates{q'}} = \ControlSpace$}
-                        \STATE{$Y' \leftarrow Y' \cup \RefinePositive{Y_n}{\StateSpace \setminus \NoStates{q'}}$}
-                    \ELSE
-                        \STATE{$Y' \leftarrow Y' \cup \Set{Y_n}$}
-                    \ENDIF
+                    \STATE{$Y' \leftarrow Y' \cup \RefinePositive{Y_n}{\StateSpace \setminus \NoStates{q'}}$}
                 \ENDFOR
                 \STATE{$Y \leftarrow Y'$}
             \ENDIF
@@ -94,93 +90,91 @@ Repeat $\Attr$-based refinement and extend it with a second procedure that cover
 \startsubsection[title={Safety}]
 
     \placealgorithm[top][alg:refinement-product-safety]{
-        Safety refinement of a player 1 state $\Tuple{\State{i}}{q}$.
+        Safety refinement for an element $\State{i}$ of the state space partition.
     }{
         \startframedtext[width=\textwidth,frame=off]
             \getbuffer[buf:refinement-product-safety-algorithm]
         \stopframedtext
     }
 
-    Negative attractor concerned with absolute unavoidability of bad things.
-    State might be such that in the current system state bad things cannot be avoided, but after refinement the state can be made safe.
-    Occurs when states are very big and require non-overlapping actions in different regions to stay safe.
+    The negative attractor refinement from the previous section generally does not resolve all occurences of the problematic pattern (\in[fml:refinement-product-negattr-condition]).
+    It only identifies and refines regions where player 2 wins inevitably with non-zero probability.
+    However, a state $\Tuple{\State{i}}{q}$ of the product game might satisfy the condition (\in[fml:refinement-product-negattr-condition]) and have a player 1 action after whose selection states from $\NoStates{q'}$ with $q' = \QNext{i}{q}$ can be avoided almost-surely if player 2 cooperates with player 1, resulting in a safe transition from the perspective of player 1.
+    In such cases, refinement should be applied that allows player 1 to enforce this safe transition even if player 2 plays as an adversary.
+    A procedure of this kind belongs in the category of neutral refinement.
+    It neither aims to enlarge the set of yes-states nor the set of no-states, but it does remove opportunities for player 2 to win with non-zero probability from the game graph by transfering additional control over the game to player 1.
 
-    Called safe due to relation to safety property in state space (avoid the outer/no region).
-
-    Generally the right procedure to use if condition (\in[fml:refinement-product-unsafecondition]) is met.
-    Refinement is not obvious as in Negative Attractor as actions need to be considered.
-    Positive refinement wrt undecided/yes states sufficient to ensure safety.
-    Idea is to split into regions where required actions to stay safe are similar.
-
-    TODO Algorithm, where
+    Algorithm (\in[alg:refinement-product-safety]) describes a procedure with the goal of making a state safe in the above sense by splitting the associated polytope of a player 1 state matching the pattern (\in[fml:refinement-product-negattr-condition]) into parts where player 1 actions exist that guarantee a safe evolution of the LSS.
+    It relies on a one-step positive refinement procedure
 
     \startformula
         \Function{\RefinePos}{C_n \times R_n}{2^{C_n}} \EndComma
     \stopformula
 
-    where $R_n$ is the set of all (full-dimensional) polytopic regions in $\reals^n$ and $C_n$ is the set of all convex polytopes in $\reals^n$.
-    $\RefinePositive{X}{Y}$ returns a convex partition of the origin polytope $X$ such that $Y$ can be reached exclusively and almost-surely after one step of the LSS dynamics from some element of the partition for some non-empty control input region if possible.
-
-    Game-based vs. geometric condition: game-based requires player 1 actions to be available (if all contain at least one no state in target set, condition is met).
-    While this is always the case after an analysis, for which the game is constructed, the condition can be expensive to evaluate if multiple refinement steps are taken between analysis because refinement invalidates the previous game graph at least partially.
-    Action construction for both players is of exponential complexity in number of reachable states and involves many geometric operations.
-    Alternative: purely geometric condition, use dynamics to detect situation that requires refinement without requiring the game graph.
-    Insight is somewhat restricted but condition might be much cheaper to evaluate with only a few geometric operations and polynomial complexity in the number of reachable states.
-
-    Here, safety refinement can easily be detected using $Act$ or $ActR$.
-    $\Action{\State{i}}{\NoStates{q'}} = \ControlSpace$ or $\RobustAction{\State{i}}{\StateSpace \setminus \NoStates{q'}} = \emptyset$.
+    where $C_n$ and $R_n$ are defined as in section \in[sec:refinement-product-negattr].
+    $\RefinePositive{X}{Y}$ returns a convex partition of the origin polytope $X$ such that $Y$ can be reached exclusively and almost-surely after one step of the LSS dynamics from some element of the partition for some non-empty control input region.
+    The procedure can only guarantee a safe player 1 action for some parts of the generated partition.
+    If no safe subregion of $X$ can be determined, $\RefinePos$ may either partition $X$ arbitrarily or not at all.
+    If $Y$ can already be reached in the above manner from every state in $X$, $X$ is returned unchanged.
+    The robust attractor kernel introduced in section \in[sec:refinement-reduction-robustoperators] a procedure matching these criteria.
 
 \stopsubsection
 
 
 \startbuffer[buf:refinement-product-loops-algorithm]
     \startalgorithmic[numbering=no,margin=0em]
-        \INPUT{Player 1 state $\Tuple{\State{i}}{q}$}
-        \OUTPUT{Partition $Y = \IndexedSet{Y_n}{n \in N}$: $\displaystyle \bigcup_{n \in N} Y_n = \State{i}$}
+        \INPUT{Element of state space partition $\State{i}$}
+        \OUTPUT{Partition of $\State{i}$}
     \stopalgorithmic
     \startalgorithmic
-        \IF{$\exists q \in $ automaton states $: \State{i} \in \MaybeStates{q} \wedge $ CONDITION} % TODO
-            \RETURN{positive refinement of $\State{i}$ wrt ???} % TODO
-        \ELSE
-            \RETURN{$\Set{\State{i}}$}
-        \ENDIF
+        \FORALL{$q \in Q$}
+            \IF{$\State{i} \in \MaybeStates{q} \MidAnd \QNext{i}{q} = q$}
+                \IF{$\exists J \ne \Set{i} : ( \PlayerTwoAction{i}{J}{\Set{i}} \in Act \MidAnd \IndexedStates{j}{J} \cap \NoStates{q} = \emptyset )$}
+                    \STATE{$J$: witness from previous condition}
+                    \STATE{$A \leftarrow \ConcreteAction{\State{i}}{\IndexedStates{j}{J}}$}
+                    \STATE{$P \leftarrow \PrecisePredecessor{\State{i}}{\ControlSpace_i^J}{\State{i}}$}
+                    \RETURN{$\Convexify(P) \cup \Convexify(\State{i} \setminus P)$}
+                \ENDIF
+            \ENDIF
+        \ENDFOR
+        \RETURN{$\Set{\State{i}}$}
     \stopalgorithmic
 \stopbuffer
 
 \startsubsection[title={Loop Removal},reference={sec:refinement-product-loops}]
 
     \placealgorithm[top][alg:refinement-product-loops]{
-        TODO
+        Self-loop removal refinement for an element $\State{i}$ of the state space partition.
     }{
         \startframedtext[width=\textwidth,frame=off]
             \getbuffer[buf:refinement-product-loops-algorithm]
         \stopframedtext
     }
 
-    Remember that Player 2 selects where inside a state one starts, after Player 1 has selected control input.
-    In reachability progress needs to be made towards the target.
-    In big states, it might not be able to leave, adversarial player 2 can make a trace be stuck indefinitely for the purposes of the analysis.
-    Example: go left works after a few steps, but abstraction does not allow precise position inside state, so Player 2 can reset trace again and again (in the abstracted world).
-    Such self loops must be avoided.
-    Additionally loops involving multiple states, avoiding the target, must be removed.
+    The observation behind neutral refinement is that for $\Next$-free LTL objectives, player 1 can take any finite amount of time to arrive at a good transition as long the environment is neutral.
+    But if an adversarial player 2 can force a play into an infinite loop containing only neutral states, player 1 cannot win almost-surely.
+    Such loops may involve multiple elements of the state space partition, requiring deep analysis of the game graph to be identified.
+    Easier to identify are problematic self-loops, i.e.\ individual states of the game graph in which player 2 can trap a trace indefinitely.
 
-    Loop analysis is tricky, because it depends on the game.
-    While this information is available directly after analysis, actions and supports need to be recomputed after any change which can be expensive.
-    Furthermore, not all loops are problematic, since Player 1 might be able to avoid a loop by selecting an action that breaks the loop.
-    Therefore game graph analysis is necessary to fully figure out loop situation.
+    The refinement procedure in Algorithm \in[alg:refinement-product-loops] is proposed to remove potentially problematic self-loops in the game graph.
+    Given an element $\State{i}$ of the state space partition, it searches for a player 1 state $\Tuple{\State{i}}{q} \in \MaybeStates{q}$ which has a safe player 1 action $\PlayerOneAction{i}{J}$ that leads to a player 2 state $\Triple{\State{i}}{\PlayerOneAction{i}{J}}{q}$ in which a player 2 action $\PlayerTwoAction{i}{J}{\Set{i}}$ exists whose only target is the origin player 1 state $\Tuple{\State{i}}{q}$ again.
+    The procedure only looks at player 1 states whose outgoing actions don't change the automaton state in order to only remove self-loops in the graph of the product $\ProductGame$ and not generally self-loops from $\GameGraph$.
+    Unsafe actions that lead to any state in the no-set with non-zero probability are ignored as they are not considered to be neutral.
+    Self-loops initiated deterministically by player 1 with an action $\PlayerOneAction{i}{\Set{i}}$ can also be ignored since player 1 already has full control over the looping behaviour for these actions.
 
-    Instead: optimistic and pessimistic analysis.
-    Optimistic: refine only if self loop exists for all safe actions
-    Pessimistic: refine if self loop exists for any safe action
-    In some situations, this might be enough to remove all problematic loops, in others it leads to much unnecessary paritioning.
+    If a player 2 action passes the proposed tests, the state space polytope $\State{i}$ is partitioned with the precise predecessor associated with the player 2 action.
+    The precise predecessor set contains all states in $\State{i}$ from which a trace may enter the self-loop under the selected control input region, so after extracting these states the trace localization ability of player 2 is weakened and player 1 should have more control over the looping behaviour.
+    The refinement does not guarantee that the resulting states have no new self-loops.
+    Multiple applications of the procedure may be required to ensure this.
 
-    Cheap, geometric approximation of pessimistic refinement:
-    See if $\Post$ intersects self and is not empty after Pontryagin difference with random space polytope.
-    Then robust predecessor exists in self, and self-loop can potentially exist.
-    No statement possible if loop is actually problematic as specific actions are not considered.
+    Note that if a state space part $\State{i}$ fulfills
 
-    With positive refinement, states can be partitioned to remove such loops if desired.
-    Refinement wrt to what? % TODO
+    \startformula
+        (\Posterior{\State{i}}{\ControlSpace} \cap \State{i}) \ominus \RandomSpace = \emptyset \EndComma
+    \stopformula
+
+    no self-loop can exist since any precise predecessor of $\Posterior{\State{i}}{\ControlSpace} \cap \State{i}$ will be empty (see computation (\in[TODO])).
+    This property can be used to filter candidate states for the procedure relatively cheaply when the game graph has not been computed yet, e.g.\ directly after some other refinement step.
 
 \stopsubsection
 

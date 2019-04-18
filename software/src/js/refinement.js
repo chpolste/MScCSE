@@ -35,7 +35,7 @@ function refineAttrR(lss: LSS, origin: Polytope, target: Region): [Region, Regio
 }
 
 // Monte-Carlo sampling of control inputs for positive refinement
-function sampleControl(lss: LSS, origin: Polytope, target: Region): ?Region {
+function sampleControl(lss: LSS, origin: Polytope, target: Region): ?Polytope {
     // Sample points from the part for the refinement control input
     // selection: start with vertices of part, and add a few random points
     // from within the polytope
@@ -58,6 +58,8 @@ function sampleControl(lss: LSS, origin: Polytope, target: Region): ?Region {
         _ => _.items.length,
         itemizedOperatorPartition(xs, actR).filter(_ => !_.region.isEmpty)
     );
+    // Return only a single polytope from the control region. This simplifies
+    // the following geometric operations and has the same guarantees.
     return (u == null) ? null : u.region.polytopes[0];
 }
 
@@ -287,6 +289,166 @@ export class SelfLoopRefinery extends Refinery {
 
     _isSafe(targets: Set<State>, q: AutomatonStateID): boolean {
         return !sets.doIntersect(targets, this._noStates[q]);
+    }
+
+}
+
+
+
+/* Transition refinement */
+
+type RRPart = { polytope: Polytope, state: State, done: boolean };
+
+class RobustReachabilityProblem {
+
+    // ...
+    +lss: LSS;
+    +avoid: Region;
+    +reach: Region;
+    // ...
+    _parts: RRPart[];
+    _target: Region;
+
+    constructor(lss: LSS, parts: Map<State, Region>, reach: Region, avoid: Region): void {
+        this.lss = lss;
+        this.avoid = avoid;
+        this.reach = reach;
+        // ...
+        this._parts = [];
+        for (let [state, region] of parts) {
+            for (let poly of region.polytopes) {
+                this._parts.push({ polytope: poly, state: state, done: false });
+            }
+        }
+        this._target = reach.simplify();
+        this._update();
+    }
+
+    get partitions(): Map<State, Region> {
+        const partitions = new Map();
+        for (let part of this._parts) {
+            const region = partitions.get(part.state);
+            partitions.set(part.state, (region == null ? part.polytope : region.union(part.polytope)));
+        }
+        return partitions;
+    }
+
+    get allDone(): boolean {
+        return this._parts.every(_ => _.done);
+    }
+
+    iterate(n?: number): void {
+        // Iterate once by default
+        for (let i = 0; i < (n == null ? 1 : n); i++) {
+            // ...
+            if (this.allDone) break;
+            // Refine states wrt current target
+            this._refine();
+            // Update target region until convergence
+            this._update();
+        }
+    }
+
+    _refine(): void {
+        const parts = [];
+        for (let part of this._parts) {
+            if (part.done) {
+                parts.push(part);
+            } else {
+                const [good, other] = refineAttrR(this.lss, part.polytope, this._target);
+                for (let poly of good.polytopes) {
+                    parts.push({ polytope: poly, state: part.state, done: true });
+                }
+                for (let poly of other.polytopes) {
+                    parts.push({ polytope: poly, state: part.state, done: false });
+                }
+            }
+        }
+        this._parts = parts;
+    }
+
+    _update(): void {
+        // ...
+        while (true) {
+            const hasChanged = this._updateStep();
+            if (!hasChanged) break;
+        }
+    }
+
+    _updateStep(): boolean {
+        const newTarget = Array.from(this.reach.polytopes);
+        // ...
+        let hasChanged = false;
+        for (let part of this._parts) {
+            // ...
+            if (part.done) {
+                newTarget.push(part.polytope);
+                continue;
+            }
+            // ...
+            const actR = this.lss.actR(part.polytope, this._target);
+            if (actR.isEmpty) continue;
+            // TODO: small state suppression if safe, etc.
+            if (false) continue;
+            // ...
+            part.done = true;
+            newTarget.push(part.polytope);
+            hasChanged = true;
+        }
+        if (hasChanged) {
+            this._target = Union.from(newTarget, this.lss.dim).simplify();
+        }
+        return hasChanged;
+    }
+
+}
+
+
+export class TransitionRefinery extends Refinery {
+
+    +_partitions: Map<State, Region>;
+
+    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
+                origin: AutomatonStateID, target: AutomatonStateID): void {
+        super(system, objective, results);
+        const bad = [];
+        const good = [];
+        const todo = new Map();
+        for (let x of system.states.values()) {
+            const qNext = this._qNext(x, origin);
+            const result = this._getResult(x);
+            // A no-state must be avoided
+            if (result.no.has(origin)) {
+                bad.push(x.polytope);
+            // Reaching a yes-state is acceptable
+            } else if (result.yes.has(origin)) {
+                good.push(x.polytope);
+            // "Neutral" states
+            } else if (qNext === origin) {
+                todo.set(x, x.polytope);
+                // Special case for self-loop in the automaton
+                if (origin === target) good.push(x.polytope);
+            // Transition states should be reached
+            } else if (qNext === target) {
+                good.push(x.polytope);
+            // All other states are to be avoided
+            } else {
+                bad.push(x.polytope);
+            }
+        }
+        // ...
+        const avoid = Union.from(bad, system.lss.dim).simplify();
+        const reach = Union.from(good, system.lss.dim).simplify();
+        const problem = new RobustReachabilityProblem(system.lss, todo, reach, avoid);
+        // ...
+        problem.iterate();
+        // ...
+        this._partitions = problem.partitions
+    }
+
+    partition(x: State): Region {
+        const partition = this._partitions.get(x);
+        return (partition == null) ? x.polytope : partition;
     }
 
 }

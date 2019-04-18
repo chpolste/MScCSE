@@ -74,6 +74,8 @@ export class Refinery {
         this.results = results;
     }
 
+    /* Interface */
+
     // Partition the system states using the given refinement steps. Modifies
     // the given system partition in-place.
     partitionAll(states: Iterable<State>): Map<State, Region> {
@@ -85,51 +87,44 @@ export class Refinery {
         throw new NotImplementedError("Refinery must override method 'partition'");
     }
 
+    /* Common convenience accessors for subclasses */
+
     // States that have are already decided should not be refined further
-    isDecided(x: State, q: AutomatonStateID): boolean {
-        return !this.getResult(x).maybe.has(q);
+    _isDecided(x: State, q: AutomatonStateID): boolean {
+        return !this._getResult(x).maybe.has(q);
     }
 
-    // Convenience accessors
-
-    getStates(which: "yes"|"no"|"maybe", q: AutomatonStateID): Iterable<State> {
-        return iter.filter((state) => this.getResult(state)[which].has(q), this.system.states.values());
+    // System states analysed as yes/no/maybe in automaton state q
+    _getStates(which: "yes"|"no"|"maybe", q: AutomatonStateID): Iterable<State> {
+        return iter.filter((state) => this._getResult(state)[which].has(q), this.system.states.values());
     }
 
-    getStateRegion(which: "yes"|"no"|"maybe", q: AutomatonStateID): Region {
-        return this.asRegion(this.getStates(which, q));
+    // getStates but returns the polytopic region
+    _getStateRegion(which: "yes"|"no"|"maybe", q: AutomatonStateID): Region {
+        return this._asRegion(this._getStates(which, q));
     }
 
-    // States that have a transition from q to qTarget (only inner states)
-    getTransitionStates(qTarget: AutomatonStateID, q: AutomatonStateID): Iterable<State> {
-        const origin = this.objective.getState(q);
-        return iter.filter(
-            (state) => (!state.isOuter && this.qNext(state, q) === qTarget),
-            this.system.states.values()
-        );
-    }
-
-    getTransitionRegion(qTarget: AutomatonStateID, q: AutomatonStateID): Region {
-        return this.asRegion(this.getTransitionStates(qTarget, q));
-    }
-
-    getResult(x: State): AnalysisResult {
+    // Easy AnalysisResult accessor
+    _getResult(x: State): AnalysisResult {
         return just(this.results.get(x.label));
     }
 
-    getEmpty(): Region {
+    // Empty Region of state space dimension
+    _getEmpty(): Region {
         return Polytope.ofDim(this.system.lss.dim).empty();
     }
 
-    asRegion(xs: Iterable<State>): Region {
+    // Region covered by the system states
+    _asRegion(xs: Iterable<State>): Region {
         const polys = [];
         for (let x of xs) {
             polys.push(x.polytope);
         }
-        return polys.length === 0 ? this.getEmpty() : Union.from(polys).simplify();
+        return polys.length === 0 ? this._getEmpty() : Union.from(polys).simplify();
     }
-    
-    qNext(x: State, q: AutomatonStateID): ?AutomatonStateID {
+
+    // Automaton transition target from product state (x, q)
+    _qNext(x: State, q: AutomatonStateID): ?AutomatonStateID {
         return this.objective.nextState(x.predicates, q);
     }
 
@@ -147,7 +142,7 @@ export class NegativeAttrRefinery extends Refinery {
         const lss = this.system.lss;
         // Cache attractors of no-regions for target qs
         this._attr = obj.fromMap(q => {
-            const no = this.getStateRegion("no", q);
+            const no = this._getStateRegion("no", q);
             return lss.attr(lss.xx, lss.uu, no).simplify();
         }, objective.allStates);
     }
@@ -156,12 +151,12 @@ export class NegativeAttrRefinery extends Refinery {
         let parts = x.polytope;
         for (let q of this.objective.allStates) {
             // Only refine undecided, state that aren't dead-ends
-            const qNext = this.qNext(x, q);
-            if (this.isDecided(x, q) || qNext == null) {
+            const qNext = this._qNext(x, q);
+            if (this._isDecided(x, q) || qNext == null) {
                 continue;
             }
             // Partition with Attractor of target q no-region
-            let newParts = this.getEmpty();
+            let newParts = this._getEmpty();
             for (let part of parts.polytopes) {
                 const attr = part.intersect(this._attr[qNext]).simplify();
                 if (attr.isEmpty) {
@@ -182,16 +177,14 @@ export class NegativeAttrRefinery extends Refinery {
 
 export class SafetyRefinery extends Refinery {
 
-    +_no: { [AutomatonStateID]: Region };
     +_ok: { [AutomatonStateID]: Region };
 
     constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults): void {
         super(system, objective, results);
-        const lss = this.system.lss;
-        // Cache unsafe regions for target qs
-        this._no = obj.fromMap(q => this.getStateRegion("no", q).simplify(), objective.allStates);
         // Cache safe regions for target qs
-        this._ok = obj.map((q, no) => system.lss.xx.remove(no).simplify(), this._no);
+        this._ok = obj.fromMap((q) => {
+            return system.lss.xx.remove(this._getStateRegion("no", q)).simplify();
+        }, this.objective.allStates);
     }
 
     partition(x: State): Region {
@@ -199,11 +192,11 @@ export class SafetyRefinery extends Refinery {
         let parts = x.polytope;
         for (let q of this.objective.allStates) {
             // Only refine undecided, state that aren't dead-ends
-            const qNext = this.qNext(x, q);
-            if (this.isDecided(x, q) || qNext == null) {
+            const qNext = this._qNext(x, q);
+            if (this._isDecided(x, q) || qNext == null) {
                 continue;
             }
-            let newParts = this.getEmpty();
+            let newParts = this._getEmpty();
             for (let part of parts.polytopes) {
                 const [safe, other] = refineAttrR(lss, part, this._ok[qNext]);
                 newParts = newParts.union(safe).union(other);
@@ -231,8 +224,8 @@ export class SelfLoopRefinery extends Refinery {
         super(system, objective, results);
         this.optimistic = optimistic;
         this.onlySafe = onlySafe;
-        // Cache ... TODO
-        this._noStates = obj.fromMap(q => new Set(this.getStates("no", q)), objective.allStates);
+        // Cache no-states of system for every automaton state for safety check
+        this._noStates = obj.fromMap(q => new Set(this._getStates("no", q)), objective.allStates);
     }
 
     partition(x: State): Region {
@@ -241,9 +234,8 @@ export class SelfLoopRefinery extends Refinery {
             return x.polytope;
         }
         for (let q of this.objective.allStates) {
-            // Only refine undecided, state that aren't dead-ends
-            const qNext = this.qNext(x, q);
-            if (this.isDecided(x, q) || qNext == null) {
+            // Only refine undecided, state that lead to same automaton state
+            if (this._isDecided(x, q) || this._qNext(x, q) !== q) {
                 continue;
             }
             // Examine actions: try to find an action that has no self-loop and
@@ -254,7 +246,7 @@ export class SelfLoopRefinery extends Refinery {
                 const targetsSelf = action.targets.has(x);
                 // If only safe actions should be considered, ignore the action
                 // if it is not
-                if (!this.onlySafe || this._isSafe(action.targets, qNext)) {
+                if (!this.onlySafe || this._isSafe(action.targets, q)) {
                     // If the action does not self-target, it cannot have
                     // a self-loop
                     if (!targetsSelf) {
@@ -337,9 +329,9 @@ export class LayerRefinery extends Refinery {
         // States already known to be non-satisfying (e.g. due to a safety
         // objective) are removed from the layers as they should not be
         // targeted
-        const noRegion = this.getStateRegion("no", settings.origin).simplify();
+        const noRegion = this._getStateRegion("no", settings.origin).simplify();
         // Target region
-        let target = this.getTransitionRegion(settings.target, settings.origin);
+        let target = this._getTransitionRegion(settings.target, settings.origin);
         // Invert target region if desired
         if (this.settings.invertTarget === true) {
             target = system.lss.xx.remove(target);
@@ -365,6 +357,19 @@ export class LayerRefinery extends Refinery {
         return this.settings.dontRefineSmall === true;
     }
 
+    // States that have a transition from q to qTarget (only inner states)
+    _getTransitionStates(qTarget: AutomatonStateID, q: AutomatonStateID): Iterable<State> {
+        const origin = this.objective.getState(q);
+        return iter.filter(
+            (state) => (!state.isOuter && this._qNext(state, q) === qTarget),
+            this.system.states.values()
+        );
+    }
+
+    _getTransitionRegion(qTarget: AutomatonStateID, q: AutomatonStateID): Region {
+        return this._asRegion(this._getTransitionStates(qTarget, q));
+    }
+
     _generateLayer(target: Region): Region {
         const lss = this.system.lss;
         const uu = lss.uu.scale(this.settings.scaling);
@@ -383,7 +388,7 @@ export class LayerRefinery extends Refinery {
     partition(x: State): Region {
         // Only refine maybe states
         const q = this.settings.origin;
-        if (this.isDecided(x, q) || this.qNext(x, q) == null) {
+        if (this._isDecided(x, q) || this._qNext(x, q) == null) {
             return x.polytope;
         }
         const lss = this.system.lss;
@@ -391,7 +396,7 @@ export class LayerRefinery extends Refinery {
         // Remove inner target for all layers > 0.  Layer 0 is special to
         // enable self-targeting for safety objectives and expanded targets.
         let done = start === 0
-                 ? this.getEmpty()
+                 ? this._getEmpty()
                  : x.polytope.intersect(this.layers[start - 1]).simplify();
         // Refine rest
         let rest = x.polytope.remove(done).simplify();

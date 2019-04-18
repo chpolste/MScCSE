@@ -1,0 +1,80 @@
+In order to construct refinement methods that provide progress guarantees.
+One-step lookahead refinement is easy, how to determine for which states progress can be guaranteed at all when considering a single of the dynamics.
+If it is possible but not doable in the current abstraction, how to partition to make it possible?
+The solution lies in the robust operators introduced in section \in[abstraction-operators].
+
+Common problem occuring in a refinement procedure:
+Positive refinement such that some target region is exclusively reachable in one step.
+This occurs e.g.\ for safety objectives where some region of the state space must be avoided almost-surely in every step.
+Robust predecessor answers question of where is it possible at all.
+If it is possible, the state space has to partitioned such that player 1 has an action that only targets the safe region.
+Introduce a positive refinement kernel
+
+\startformula
+    \Function{\RefinePos}{C_n \times R_n}{2^{C_n}} \EndComma
+\stopformula
+
+where $R_n$ is the set of all (full-dimensional) polytopic regions in $\reals^n$ and $C_n$ is the set of all convex polytopes in $\reals^n$.
+$\RefinePositive{X}{Y}$ returns a convex partition of the origin polytope $X$ such that $Y$ can be reached exclusively and almost-surely after one step of the LSS dynamics from some element of the partition for some non-empty control input region.
+This guarantees that after the refinement player 1 has an action for that element that almost-surely and exclusively leads to $Y$.
+If no safe subregion of $X$ can be determined or $Y$ can already be reached in the above manner from every state in $X$, $X$ is returned unchanged.
+Such a procedure can be constructed with the robust attractor.
+
+
+\startsubsection[title={Positive Robust Attractor Kernel}]
+
+    \cite[Svorenova2017] found that AttrR gives guarantee for reaching target in one step.
+    Reuse the idea as a building block in more complex refinement procedures that require one-step lookahead positive refinement.
+
+    TODO algorithm, uses the function
+
+    \startformula
+        \Function{\Convexify}{R_n}{2^{C_n}} \EndComma
+    \stopformula
+
+    which partitions any polytopic region into a set of (disjunct) convex polytopes.
+    Per definition, $\Convexify(\emptyset) = \emptyset$.
+
+    The part that corresponds to the Attr+, if one can be found, has a guaranteed transition to the target region.
+    Procedure is therefore an implementation of $\RefinePos$.
+    Line TODO requires determination of a region of the control space that makes transition possible.
+    How to do that is topic of the next section.
+
+\stopsubsection
+
+
+\startsubsection[title={Control Region Selection}]
+
+    AttrR+ requires control input to refine wrt.
+
+    \cite[Svorenova2017] selected this by taking a random action, paritioning it arbitrarily and using the parts.
+    Improvement: rate action by how much its posterior intersects target then pick "best" one (largest overlap).
+    Also from experience: if used, it produces smaller states than necessary leading to progress slower than it should be.
+    But undesirable because: $\RefinePos$ should work independently of a specific game graph, actions are not generally available and may be expensive to compute.
+
+    Alternative: Monte Carlo-based (purely geometric/dynamic) approach
+    Sample a few points from within the polytope.
+    Use $\ActR$ to find control inputs for those points that exclusively lead to target.
+    If no non-empty $\ActR$ can be found after some number of samples, give up.
+    Then cluster the control regions somehow and select one that most points "agree" with.
+    Expensive but exhaustive: compute all overlaps, similar to action computation and pick one with most contributung points.
+    In practice, adding vertices of origin to sample point pool improves performance, as these points are often associated with most "extreme" action requirements.
+
+\stopsubsection
+
+
+\startsubsection[title={Limitations}]
+
+    Deterministic vs probabilistic refinement, missed potential but cost of deeper analysis required in probabilistic approaches.
+    Ignoring the probabilistic dynamics will mean that not all problems can be solved in a straightforward manner using only deterministic approaches.
+    While exclusivity is imperative for properties such as safety, in positive refinement the goal of creating deterministic transitions leads to partitions that are more complex than they need to be.
+    Compromise: cheap refinement with easy implementation at the cost of more expensive analysis due to additional number of states.
+
+    Small targets that cannot be transitioned to exclusively are a problem for methods using robust operators.
+    Conretely, any region $R$ for which $R \ominus W = \emptyset$ cannot be targeted individually due to the stochastic dynamics (see computation of operators).
+    Even regions that can be targeted individually but that are very small are a problem, as control has to be very precise and a sufficiently big target area has to be built up first, before well-performing refinement is possible.
+    Target may be enlarged in these cases, carefully, so that probability of going to "real" target is non-zero everywhere in extended region and extended region cannot be targeted individually either.
+    Extended region may require refinement itself, e.g. saftey refinement wrt entire extended region.
+
+\stopsubsection
+

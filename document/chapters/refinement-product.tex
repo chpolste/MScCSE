@@ -54,14 +54,6 @@ The first refinement procedures introduced seek problematic patterns in entire p
     The removed attractor region is therefore be guaranteed to be recognized as non-satisfying in the next analysis.
 
     A procedure based on the negative refinement of \cite[Svorenova2017] that refines an element of the state space partition with respect to the attractor region, taking into account every associated product state is given by Algorithm \in[alg:refinement-product-attractor].
-    It uses the function
-
-    \startformula
-        \Function{\Convexify}{R_n}{2^{C_n}} \EndComma
-    \stopformula
-
-    where $R_n$ is the set of all (full-dimensional) polytopic regions in $\reals^n$ and $C_n$ is the set of all convex polytopes in $\reals^n$, which partitions any polytopic region into a set of (disjunct) convex polytopes.
-    Per definition, $\Convexify(\emptyset) = \emptyset$.
 
 \stopsubsection
 
@@ -105,18 +97,7 @@ The first refinement procedures introduced seek problematic patterns in entire p
     It neither aims to enlarge the set of yes-states nor the set of no-states, but it does remove opportunities for player 2 to win with non-zero probability from the game graph by transfering additional control over the game to player 1.
 
     Algorithm (\in[alg:refinement-product-safety]) describes a procedure with the goal of making a state safe in the above sense by splitting the associated polytope of a player 1 state matching the pattern (\in[fml:refinement-product-negattr-condition]) into parts where player 1 actions exist that guarantee a safe evolution of the LSS.
-    It relies on a one-step positive refinement procedure
-
-    \startformula
-        \Function{\RefinePos}{C_n \times R_n}{2^{C_n}} \EndComma
-    \stopformula
-
-    where $C_n$ and $R_n$ are defined as in section \in[sec:refinement-product-negattr].
-    $\RefinePositive{X}{Y}$ returns a convex partition of the origin polytope $X$ such that $Y$ can be reached exclusively and almost-surely after one step of the LSS dynamics from some element of the partition for some non-empty control input region.
-    The procedure can only guarantee a safe player 1 action for some parts of the generated partition.
-    If no safe subregion of $X$ can be determined, $\RefinePos$ may either partition $X$ arbitrarily or not at all.
-    If $Y$ can already be reached in the above manner from every state in $X$, $X$ is returned unchanged.
-    The robust attractor kernel introduced in section \in[sec:refinement-reduction-robustoperators] a procedure matching these criteria.
+    The procedure can only guarantee a safe player 1 action for some parts of the generated partition. % TODO
 
 \stopsubsection
 
@@ -131,7 +112,7 @@ The first refinement procedures introduced seek problematic patterns in entire p
             \IF{$\State{i} \in \MaybeStates{q} \MidAnd \QNext{i}{q} = q$}
                 \IF{$\exists J \ne \Set{i} : ( \PlayerTwoAction{i}{J}{\Set{i}} \in Act \MidAnd \IndexedStates{j}{J} \cap \NoStates{q} = \emptyset )$}
                     \STATE{$J$: witness from previous condition}
-                    \STATE{$A \leftarrow \ConcreteAction{\State{i}}{\IndexedStates{j}{J}}$}
+                    \STATE{$\ControlSpace_i^J \leftarrow \ConcreteAction{\State{i}}{\IndexedStates{j}{J}}$}
                     \STATE{$P \leftarrow \PrecisePredecessor{\State{i}}{\ControlSpace_i^J}{\State{i}}$}
                     \RETURN{$\Convexify(P) \cup \Convexify(\State{i} \setminus P)$}
                 \ENDIF

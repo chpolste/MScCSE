@@ -1,14 +1,9 @@
-...
+As seen in previous section, there is a systematic way to decompose the game graph into a series of co-safe reachability problems based on the transitions of the automaton.
+Combine with refinement based on robust operators from section \in[sec:refinement-robust] for which progress can be determined without the need for an expensive full analysis.
+Result is a positive refinement procedure which can iterate quickly and relatively cheaply.
+
 
 \startsubsection[title={Decomposition}]
-
-    Decompose product game into a series of co-safe reachability problems that, when solved, can be combined into a solution for the product game.
-    $\ProductGame$ has copy of the LSS game graph for every automaton state.
-    A trace through the system must reach regions associated with automaton transitions in an order that satisfies the specification.
-    Therefore, each transition individually has a corresponding co-safe reachability problem in the LSS.
-    If the satisfying regions of every one of these almost-sure reachability problems can be determined, a solution for the original problem emerges by piecing together satisfying strategies from the reachability problems, if they exist.
-    Because the reachability problems are co-safe, winning strategies will satisfy lead to the required automaton transitions in finite time and the composite strategy cannot get stuck in any of the individual reachability tasks.
-    % TODO formalize the strategy stitch-up, handle next, which requires one-step reachability but is not included in GR(1) anyhow
 
     To construct a reachability system for a transition from $q$ to $q'$ in the automaton:
     Same LSS $\LSS$, start with the same partition as current state-space abstraction but only a simple co-safe reachability/avoidance winning condition.
@@ -42,18 +37,7 @@
 \stopsubsection
 
 
-\startsubsection[title={Transition Selection}]
-
-    The state space partition of the product system is shared between all copies for the automaton states.
-    The individual reachability problems for each transition are therefore weakly linked, i.e.\ they can all be solved independently in parallel and then combined into one partition or they can be solved sequentially such that the partitions from earlier refinements potentially provide partial solutions to later reachability problems.
-    Finding a \quotation{best} order of these refinements is again a non-trivial task.
-    For co-safe objectives, one should work backwards from the final states, which are guaranteed to be satisfying.
-    For infinite objectives a best path through the automaton is not obvious and multiple paths may even be required to find all satisfying initial states.
-
-\stopsubsection
-
-
-\startsubsection[title={Reachability Refinement}]
+\startsubsection[title={Robust Reachability Refinement}]
 
     Actively enable good things, reaching of target.
     Remember, ensuring good things is non-trivial, because any bad event with non-zero probability breaks everything.
@@ -73,7 +57,7 @@
 \stopsubsection
 
 
-\startsubsection[title={Layered Reachability Refinement}]
+\startsubsection[title={Layered Robust Reachability Refinement}]
 
     Problem with pure AttrR+ refinement is that progress guarantee only works for AttrR-generated states.
     For some, reachability can be decided with ActR but purely deterministic view means over-refinement or conservative analysis, slowing progress.
@@ -89,6 +73,18 @@
     Hybrid approach between multi-step and single-step: general idea of moving from layer to layer is multi-step, but transitions inside layers are single step.
     Non-optimality of layers in terms of numbers of states generated (PreR is deterministic transition).
     Problem again: PreR does not exists if X - W = 0, extension by minkowski sum with origin-centered W and additional extension when target at the edge of the control space.
+
+\stopsubsection
+
+
+\startsubsection[title={Transition Selection}]
+
+    If refinement wrt every transition has taken place, full problem should be decidable.
+    The state space partition of the product system is shared between all copies for the automaton states.
+    The individual reachability problems for each transition are therefore weakly linked, i.e.\ they can all be solved independently in parallel and then combined into one partition or they can be solved sequentially such that the partitions from earlier refinements potentially provide partial solutions to later reachability problems.
+    Finding a \quotation{best} order of these refinements is again a non-trivial task.
+    For co-safe objectives, it makes sense to work backwards from the final states, which are guaranteed to be satisfying.
+    For infinite objectives a best path through the automaton is not obvious and multiple paths may even be required to find all satisfying initial states.
 
 \stopsubsection
 

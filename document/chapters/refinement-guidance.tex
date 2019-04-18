@@ -3,14 +3,12 @@ Because the analysis is guaranteed to return a partial result (soundness), the s
 However, the analysis procedure does not return specific counterexamples of plays where player 2 wins with non-zero probability but sets $P_{\Yes}$, $P_{\No}$ and $P_{\Maybe}$.
 In order to refine undecided states, knowledge of the game graph and the LSS dynamics have to be used in addition to the analysis results.
 
-Ideally, refinement procedures have a progress guarantee, i.e.\ parts of the refined partition will belong to $\YesStates{q}$ or $\NoStates{q}$ for some $q$ after application when they did not before.
-However, it is not reasonable to expect that construction of such methods is easy in general or possible at all.
-For simple objectives such as reachability, the analysis will provide feedback to a refinement more immediately than for complex objectives, where multiple refinement steps might have to be taken until the first states of $\ProductGame$ can be decided by the analysis.
-Refinement should therefore not exclusively rely on the sets $P_{\Yes}$, $P_{\No}$ and $P_{\Maybe}$ or else the abstraction-analysis-refinement procedure could get stuck if progress halts at any point in time.
-For non-co-safe objectives, it is also not guaranteed that $P_{\Yes}$ contains any state at all.
-
 \cite[Svorenova2017] separated their refinement procedures into two categories named positive and negative.
 Positive refinement has the goal of enlarging the total volume of polytopes in $P_\Yes$ while negative refinement aims to enlarge the volume of polytopes in $P_\No$.
+For simple objectives such as reachability, the analysis will provide feedback to a refinement more immediately than for complex objectives, where multiple refinement steps might have to be taken until the first states of $\ProductGame$ can be decided by the analysis.
+Refinement should therefore not exclusively rely on the sets $P_{\Yes}$, $P_{\No}$ and $P_{\Maybe}$ or else the abstraction-analysis-refinement procedure could get stuck if progress halts at any point in time.
+For non-co-safe objectives, it is also not guaranteed that $P_{\Yes}$ contains any state at all. % TODO
+
 Here, an additional class called neutral refinement is introduced, motivated by the following observations:
 A single \quotation{bad} transition that cannot be avoided with probability 1 enables player 2 to win the game.
 At the same time, a \quotation{good} transition need only occur somewhere with non-zero probability in a \quotation{neutral} environment and player 1 can still almost-surely satisfy an objective. 

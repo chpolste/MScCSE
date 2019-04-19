@@ -19,8 +19,10 @@ function refineAttrR(lss: LSS, origin: Polytope, target: Region): [Region, Regio
     if (!lss.actR(origin, target).isEmpty) {
         return [origin, Polytope.ofDim(lss.dim).empty()];
     }
-    // Select a control input to refine with
-    const u = sampleControl(lss, origin, target);
+    // Select a control input to refine with. Sample from within the robust
+    // predecessor, so sample points have a non-empty ActR.
+    const preR = lss.preR(origin, lss.uu, target);
+    const u = sampleControl(lss, preR, target);
     // Compute the Robust Attractor in origin wrt to the target region and
     // selected control input
     const attrR = (u == null) ? null : lss.attrR(origin, u, target).simplify();
@@ -35,13 +37,15 @@ function refineAttrR(lss: LSS, origin: Polytope, target: Region): [Region, Regio
 }
 
 // Monte-Carlo sampling of control inputs for positive refinement
-function sampleControl(lss: LSS, origin: Polytope, target: Region): ?Polytope {
-    // Sample points from the part for the refinement control input
-    // selection: start with vertices of part, and add a few random points
-    // from within the polytope
-    const xs = Array.from(origin.vertices);
+function sampleControl(lss: LSS, origin: Region, target: Region): ?Polytope {
+    // Sample points from the origin for the refinement control input
+    // selection: start with vertices of the origin, and add a few random
+    // points from within the polytope. Because origin is a Region, use hull to
+    // obtain a simpler Polytope first.
+    const hull = origin.hull();
+    const xs = Array.from(hull.vertices);
     for (let i = 0; i < (3 * lss.dim); i++) {
-        xs.push(origin.sample());
+        xs.push(hull.sample());
     }
     // Use ActRs of sample points wrt to target region to determine
     // a control input to refine with

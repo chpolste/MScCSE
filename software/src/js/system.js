@@ -91,7 +91,7 @@ export class LSS {
         this.uu = controlSpace;
         this.dim = stateSpace.dim;
         this.oneStepReachable = this.post(stateSpace, controlSpace);
-        this.xxExt = stateSpace.union(this.oneStepReachable).disjunctify();
+        this.xxExt = stateSpace.union(this.oneStepReachable).simplify();
     }
 
     static deserialize(json: JSONLSS): LSS {
@@ -121,7 +121,7 @@ export class LSS {
             const Bupws = linalg.minkowski.axpy(this.B, u.vertices, wvs);
             posts.push(Polytope.ofDim(this.dim).hull(linalg.minkowski.axpy(this.A, xvs, Bupws)));
         }
-        return Union.from(posts, this.dim).disjunctify();
+        return Union.from(posts, this.dim).simplify();
     }
 
     // Predecessor: Pre(x, {u0, ...}, {y0, ...})
@@ -134,7 +134,7 @@ export class LSS {
                 pres.push(x.intersect(pre.applyRight(this.A)));
             }
         }
-        return Union.from(pres, this.dim).disjunctify();
+        return Union.from(pres, this.dim).simplify();
     }
 
     // Robust Predecessor: PreR(x, {u0, ...}, {y0, ...})
@@ -151,7 +151,7 @@ export class LSS {
                 prers.push(x.intersect(poly.applyRight(this.A)));
             }
         }
-        return Union.from(prers, this.dim).disjunctify();
+        return Union.from(prers, this.dim).simplify();
     }
 
     // Attractor: Attr(x, {u0, ...}, {y0, ...})
@@ -181,7 +181,7 @@ export class LSS {
     }
 
     zNonZero(xs: Region): Region {
-        return xs.minkowski(this.ww.invert()).disjunctify();
+        return xs.minkowski(this.ww.invert()).simplify();
     }
 
     zOne(xs: Region): Region {

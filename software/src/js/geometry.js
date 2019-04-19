@@ -1041,7 +1041,7 @@ export class Union {
     }
 
     get volume(): number {
-        const polytopes = this.isDisjunct ? this.polytopes : this.disjunctify().polytopes;
+        const polytopes = this.isDisjunct ? this.polytopes : this.simplify().polytopes;
         return iter.sum(polytopes.map(_ => _.volume));
     }
 

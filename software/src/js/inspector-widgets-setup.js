@@ -419,6 +419,10 @@ class PolytopeInput extends ObservableMixin<null> implements Input<Polytope> {
         this.predicates.text = text;
     }
 
+    set disabled(tf: boolean): void {
+        // TODO
+    }
+
     get isValid(): boolean {
         return this.predicates.isValid && this.variables.length === this.dim.value && (this.allowEmpty || !this.value.isEmpty);
     }
@@ -485,6 +489,10 @@ class PredicatesInput extends ObservableMixin<null> implements Input<[Halfspace[
 
     set text(text: string): void {
         this.predicates.text = text;
+    }
+
+    set disabled(tf: boolean): void {
+        // TODO
     }
 
     get isValid(): boolean {
@@ -555,6 +563,10 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
         this.coSafe.text = lines[lines.length - 1];
     }
 
+    set disabled(tf: boolean): void {
+        // TODO
+    }
+
     get isValid(): boolean {
         return this.terms.isValid;
     }
@@ -613,6 +625,10 @@ class ObjectiveTermsInput extends ObservableMixin<null> implements Input<Proposi
         for (let i = 0; i < this.inputs.length; i++) {
             this.inputs[i].text = (i < lines.length) ? lines[i] : "";
         }
+    }
+
+    set disabled(tf: boolean): void {
+        // TODO
     }
 
     get isValid(): boolean {

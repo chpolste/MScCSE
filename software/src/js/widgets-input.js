@@ -23,6 +23,8 @@ export interface Input<T> extends Observable<null> {
     // Text value of the field (before type conversion, value as serialized
     // string corresponding to how the user inputs it)
     text: string;
+    // En-/disable
+    -disabled: boolean;
 }
 
 type Options<T> = { [string]: T };
@@ -73,6 +75,10 @@ export class LineInput<T> extends ObservableMixin<null> implements Input<T> {
     set text(text: string): void {
         this.node.value = text;
         this.handleChange();
+    }
+
+    set disabled(tf: boolean): void {
+        this.node.disabled = tf;
     }
 
     get isValid(): boolean {
@@ -136,6 +142,10 @@ export class MultiLineInput<T> extends ObservableMixin<null> implements Input<T[
         this.handleChange();
     }
 
+    set disabled(tf: boolean): void {
+        this.node.disabled = tf;
+    }
+
     get isValid(): boolean {
         return this.node.checkValidity();
     }
@@ -189,6 +199,10 @@ export class DropdownInput<T> extends ObservableMixin<null> implements OptionsIn
         this.handleChange();
     }
 
+    set disabled(tf: boolean): void {
+        this.node.disabled = tf;
+    }
+
     setOptions(options: Options<T>, initialText?: string): void {
         this._options = options;
         dom.replaceChildren(this.node, obj.map2Array((k, v) => dom.OPTION({}, [k]), options));
@@ -225,11 +239,13 @@ export class RadioInput<T> extends ObservableMixin<null> implements OptionsInput
     +nodeify: null | _Nodeifier;
     _options: Options<T>;
     _radios: HTMLInputElement[];
+    _disabled: boolean;
 
     constructor(options: Options<T>, initialText?: string, nodeify?: _Nodeifier): void {
         super();
         this.nodeify = (nodeify == null) ? null : nodeify;
         this.isValid = true;
+        this._disabled = false;
         this.name = "radio_id_" + (ID_GEN++);
         this.node = dom.DIV();
         this.setOptions(options, initialText);
@@ -256,12 +272,20 @@ export class RadioInput<T> extends ObservableMixin<null> implements OptionsInput
         this.notify();
     }
 
+    set disabled(tf: boolean): void {
+        this._disabled = tf;
+        for (let radio of this._radios) {
+            radio.disabled = tf;
+        }
+    }
+
     setOptions(options: Options<T>, initialText?: string): void {
         this._radios = [];
         this._options = options;
         dom.replaceChildren(this.node, obj.map2Array((text, _) => {
             const radio = dom.INPUT({ "type": "radio", "name": this.name, "value": text });
             radio.addEventListener("change", () => this.handleChange());
+            radio.disabled = this._disabled;
             this._radios.push(radio); //!\ side-effect
             return dom.LABEL({}, [radio, (this.nodeify == null) ? text : this.nodeify(text)]);
         }, options));
@@ -304,6 +328,10 @@ export class CheckboxInput extends ObservableMixin<null> implements Input<boolea
         this.handleChange();
     }
 
+    set disabled(tf: boolean): void {
+        this._box.disabled = tf;
+    }
+
     handleChange(): void {
         this.notify();
     }
@@ -317,6 +345,7 @@ export class MatrixInput<T> extends ObservableMixin<null> implements Input<T[][]
     +node: HTMLTableElement;
     +parse: (string) => T;
     lineInputs: LineInput<T>[];
+    _disabled: boolean;
     _shape: [number, number];
     shape: [number, number];
     _size: number;
@@ -327,6 +356,7 @@ export class MatrixInput<T> extends ObservableMixin<null> implements Input<T[][]
         this.parse = parse;
         this._shape = shape;
         this._size = size;
+        this._disabled = false;
         this.node = dom.TABLE({ "class": "matrix" });
         this._createLineInputs();
         if (initialText != null) {
@@ -356,6 +386,13 @@ export class MatrixInput<T> extends ObservableMixin<null> implements Input<T[][]
         arr.zip2map((lineInput, text) => { lineInput.text = text; }, this.lineInputs, text.split("\n"));
         this.isSendingNotifications = true;
         this.handleChange();
+    }
+
+    set disabled(tf: boolean): void {
+        this._disabled = tf;
+        for (let lineInput of this.lineInputs) {
+            lineInput.disabled = tf;
+        }
     }
 
     get isValid(): boolean {
@@ -400,10 +437,11 @@ export class MatrixInput<T> extends ObservableMixin<null> implements Input<T[][]
         const callback = () => this.handleChange();
         const trs = [];
         for (let i = 0; i < nrows; i++) {
-            let tds = [];
+            const tds = [];
             for (let j = 0; j < ncols; j++) {
-                let input: LineInput<T> = new LineInput(this.parse, this._size, "");
+                const input: LineInput<T> = new LineInput(this.parse, this._size, "");
                 input.attach(callback);
+                input.disabled = this._disabled;
                 tds.push(dom.create("td", {}, [input.node]));
                 this.lineInputs.push(input);
             }

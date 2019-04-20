@@ -1,4 +1,28 @@
 Interactive web application for system exploration, educational use, quick problem setup in 1D and 2D.
 Describe features, show 2-3 screenshots.
+
 Usefulness for development of new refinement procedures.
+Make use of human ability to recognize patterns for refinement.
+Product game graph too complicated to be looked at and understood due to high complexity, hundreds of states and actions even for simple systems.
+Furthermore, connection to dynamics vanishes once game graph has been created and changes to the graph for some refinement are hard to estimate.
+Since the LSS and player 1 states have an obvious geometric interpretation they can meaningfully be displayed for low dimensions (1D, 2D and somewhat also 3D).
+This creates a direct connection between the geometry, dynamics and game which helps in understanding patterns.
+Because refinement relies on a combination of these components, one can reasonably expect that the visualization will assist in the design of refinement procedures.
+Even for refinement procedures based on theoretical principles, an easily accessible and interactive implementation will help in testing new procedures and ironing out practical problems.
+
+The restriction to low dimensionality is not seen as a problem.
+Linear dynamics offers few possible surprises, so dynamical results should be transferrable to higher dimensions.
+When looking at the game graph, geometric dimensionality is non-existent, patterns seen in 1D and 2D will therefore not be different than those emerging in higher dimensions.
+
+Finally, besides the applications in research it is also useful as a standalone educational tool.
+Easy-to-access implementation, direct visual feedback, interactivity, inclusion of inline help support people new to the field as was the case for the author of this thesis.
+Builds intuition.
+
+Why JavaScript?
+Biggest argument is availability and simplicity.
+Browsers are available for virtually every platform that has a screen from desktop and laptop computers, to tablets, mobile phones and even televisions.
+Node.js allows use on the command-line natively.
+Easy to use language with an interpreter, which allows for quick and interactive development.
+Modern javascript interpreters have sophisticated just-in-time compilers, which are able to produce highly optimized machine code without the need for C-extensions as is the case e.g. for python.
+Browsers have sophisticated built-in graphical capabilities that natively tie into the language.
 

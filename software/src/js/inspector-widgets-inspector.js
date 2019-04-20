@@ -7,10 +7,10 @@ import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
 import type { StateData, StatesData, ActionsData, SupportData, TraceData,
               AnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
-              SnapshotData, SystemSummaryData, RefineProductRequest } from "./inspector-worker-system.js";
+              SnapshotData, SystemSummaryData, RefineProductRequest, RefineTransitionRequest
+            } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
 import type { Proposition, AutomatonStateID, AutomatonShapeCollection } from "./logic.js";
-import type { LayerRefinerySettings, LayerRefineryGenerator } from "./refinement.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input, OptionsInput } from "./widgets-input.js";
@@ -203,7 +203,7 @@ export class SystemInspector {
         // System tab
         const analysisViewCtrl = new AnalysisViewCtrl(model, keys);
         const productRefinementCtrl = new ProductRefinementCtrl(model);
-        const layerRefinementCtrl = new LayerRefinementCtrl(model, keys);
+        const transitionRefinementCtrl = new TransitionRefinementCtrl(model);
         const snapshotViewCtrl = new SnapshotViewCtrl(model);
         // Control tab
         const traceCtrl = new TraceCtrl(model);
@@ -220,7 +220,7 @@ export class SystemInspector {
         const systemTab = tabs.newTab("System", [
             analysisViewCtrl,
             productRefinementCtrl,
-            layerRefinementCtrl,
+            transitionRefinementCtrl,
             snapshotViewCtrl
         ]);
         const controlTab = tabs.newTab("Control", [
@@ -519,13 +519,13 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
-    refineLayer(settings: LayerRefinerySettings): Promise<null> {
-        return this._comm.request("refine-layer", settings).then((data: RefineData) => {
+    refineTransition(settings: RefineTransitionRequest): Promise<null> {
+        return this._comm.request("refine-transition", settings).then((data: RefineData) => {
             this.log.writeRefinement([
-                "Layers " + settings.range[0] +  "-" + settings.range[1] + " of "
-                          + n2s(settings.scaling * 100, 0) + "% " + settings.generator,
-                settings.origin + " → " + settings.target,
-                pluralize(settings.iterations, "iteration")
+                "Transition " + settings.origin + " → " + settings.target // TODO,
+                //"Layers " + settings.range[0] +  "-" + settings.range[1] + " of "
+                //          + n2s(settings.scaling * 100, 0) + "% " + settings.generator,
+                //pluralize(settings.iterations, "iteration")
             ], data);
             return data.removed.length > 0 ? this.updateStates() : null;
         }).catch((e) => {
@@ -1622,24 +1622,26 @@ class ProductRefinementCtrl extends WidgetPlus {
 
 
 const MAX_LAYER_RANGE_END = 20;
-class LayerRefinementCtrl extends WidgetPlus {
+class TransitionRefinementCtrl extends WidgetPlus {
 
     +_model: SystemModel;
     // Form elements
     +_origin: OptionsInput<AutomatonStateID>;
     +_target: OptionsInput<AutomatonStateID>;
-    +_expandSmallTarget: Input<boolean>;
-    +_invertTarget: Input<boolean>;
-    +_generator: OptionsInput<LayerRefineryGenerator>;
-    +_scale: OptionsInput<number>;
-    +_rangeStart: OptionsInput<number>;
-    +_rangeEnd: OptionsInput<number>;
+    +_enlargeSmallTarget: Input<boolean>;
+    +_expandTarget: Input<boolean>;
+    +_useLayers: Input<boolean>;
+    +_layerGenerator: OptionsInput<"PreR" | "Pre">;
+    +_layerUScale: OptionsInput<number>;
+    +_layerStart: OptionsInput<number>;
+    +_layerEnd: OptionsInput<number>;
     +_iterations: OptionsInput<number>;
     +_dontRefineSmall: Input<boolean>;
+    +_postProcessing: Input<"none" | "hull" | "largest" | "suppress">;
     +_button: HTMLButtonElement;
 
-    constructor(model: SystemModel, keys: dom.Keybindings): void {
-        super("Layer Refinement", "info-layer-refinement");
+    constructor(model: SystemModel): void {
+        super("Transition Refinement", "info-transition-refinement");
         this._model = model;
         // Origin and target automaton state selection
         const automaton = model.objective.automaton;
@@ -1648,18 +1650,26 @@ class LayerRefinementCtrl extends WidgetPlus {
         this._origin = new RadioInput(qAllObj, automaton.initialState.label, automatonLabel);
         // Target automaton state with transition region modifiers
         this._target = new RadioInput(qAllObj, automaton.initialState.label, automatonLabel);
-        this._expandSmallTarget = new CheckboxInput(false, "expand if small");
-        this._invertTarget = new CheckboxInput(false, "invert");
+        this._enlargeSmallTarget = new CheckboxInput(true, "enlarge if small");
+        this._expandTarget = new CheckboxInput(true, "expand after iteration");
         // Layer generating function
-        this._generator = new DropdownInput({
+        this._useLayers = new CheckboxInput(false, "layer decomposition");
+        this._layerGenerator = new DropdownInput({
             "Predecessor": "Pre",
             "Robust Predecessor": "PreR",
         }, "Robust Predecessor");
-        this._scale = new DropdownInput(DropdownInput.rangeOptions(80, 125, 5), "95");
-        this._rangeStart = new DropdownInput(DropdownInput.rangeOptions(0, 20, 1), "1");
-        this._rangeEnd = new DropdownInput({ "10": 10 }, "10");
+        this._layerUScale = new DropdownInput(DropdownInput.rangeOptions(80, 125, 5), "95");
+        this._layerStart = new DropdownInput(DropdownInput.rangeOptions(0, 20, 1), "1");
+        this._layerEnd = new DropdownInput({ "10": 10 }, "10");
+        // Attr+ refinement
         this._iterations = new DropdownInput(DropdownInput.rangeOptions(0, 20, 1), "2");
-        this._dontRefineSmall = new CheckboxInput(true, "don't refine small polytopes");
+        this._dontRefineSmall = new CheckboxInput(true, "don't refine small polytopes if safe");
+        this._postProcessing = new DropdownInput({
+            "none": "none",
+            "convex hull": "hull",
+            "largest polytope only": "largest",
+            "suppress small polytopes": "suppress"
+        }, "none");
         // Assemble
         this._button = dom.createButton({}, ["refine"], () => this.refine())
         this.node = dom.DIV({"id": "layer-refinement-ctrl" }, [
@@ -1674,45 +1684,63 @@ class LayerRefinementCtrl extends WidgetPlus {
                 ]),
                 dom.DIV({}, [
                     dom.DIV(),
-                    dom.DIV({}, [this._invertTarget.node, this._expandSmallTarget.node])
+                    dom.DIV({}, [this._enlargeSmallTarget.node])
+                ]),
+                dom.DIV({}, [
+                    dom.DIV(),
+                    dom.DIV({}, [this._expandTarget.node])
                 ]),
                 dom.DIV({}, [
                     dom.DIV({}, ["Layers:"]),
-                    dom.DIV({}, [this._rangeStart.node, " to ", this._rangeEnd.node, " of ", this._generator.node])
+                    dom.DIV({}, [this._useLayers.node])
                 ]),
                 dom.DIV({}, [
                     dom.DIV(),
-                    dom.DIV({}, ["scale generating ", dom.renderTeX("U", dom.SPAN()), " to ", this._scale.node, "%"])
-                ]),
-                dom.DIV({}, [
-                    dom.DIV({}, ["Inner:"]),
-                    dom.DIV({}, [this._iterations.node, " iteration(s) of AttrR+ refinement"]),
+                    dom.DIV({}, [this._layerStart.node, " to ", this._layerEnd.node, " of ", this._layerGenerator.node])
                 ]),
                 dom.DIV({}, [
                     dom.DIV(),
+                    dom.DIV({}, ["scale generating ", dom.renderTeX("U", dom.SPAN()), " to ", this._layerUScale.node, "%"])
+                ]),
+                dom.DIV({}, [
+                    dom.DIV({}, ["AttrR:"]),
                     dom.DIV({}, [this._dontRefineSmall.node])
+                ]),
+                dom.DIV({}, [
+                    dom.DIV(),
+                    dom.DIV({}, ["post-processing: ", this._postProcessing.node])
+                ]),
+                dom.DIV({}, [
+                    dom.DIV({}, [this._button]),
+                    dom.DIV({}, [this._iterations.node, " iteration(s) of robust refinement"])
                 ])
             ]),
-            dom.P({}, [this._button])
+            //dom.P({}, [this._button])
         ]);
         // Adapt upper end of layer range to lower end
-        this._rangeStart.attach(() => this.handleRangeChange(), true);
+        this._layerStart.attach(() => this.handleRangeChange(), true);
+        // ...
+        this._useLayers.attach(() => this.handleLayersChange(), true);
     }
 
     refine(): void {
         if (this.isLoading) return;
         this.pushLoad();
-        this._model.refineLayer({
+        this._model.refineTransition({
             origin: this._origin.value,
             target: this._target.value,
-            generator: this._generator.value,
-            scaling: (this._scale.value / 100),
-            range: [this._rangeStart.value, this._rangeEnd.value],
             iterations: this._iterations.value,
-            // Modifiers
-            expandSmallTarget: this._expandSmallTarget.value,
-            invertTarget: this._invertTarget.value,
-            dontRefineSmall: this._dontRefineSmall.value
+            enlargeSmallTarget: this._enlargeSmallTarget.value,
+            layers: (!this._useLayers) ? null : {
+                generator: this._layerGenerator.value,
+                scaling: (this._layerUScale.value / 100),
+                range: [this._layerStart.value, this._layerEnd.value]
+            },
+            settings: {
+                expandTarget: this._expandTarget.value,
+                dontRefineSmall: this._dontRefineSmall.value,
+                postProcessing: this._postProcessing.value
+            }
         }).catch(() => {
             // Error logging is done in SystemModel
         }).finally(() => {
@@ -1726,10 +1754,18 @@ class LayerRefinementCtrl extends WidgetPlus {
     }
 
     handleRangeChange(): void {
-        const lower = this._rangeStart.value;
-        const upper = this._rangeEnd.value;
+        const lower = this._layerStart.value;
+        const upper = this._layerEnd.value;
         const init = String(Math.max(lower, upper));
-        this._rangeEnd.setOptions(DropdownInput.rangeOptions(lower, MAX_LAYER_RANGE_END, 1), init);
+        this._layerEnd.setOptions(DropdownInput.rangeOptions(lower, MAX_LAYER_RANGE_END, 1), init);
+    }
+
+    handleLayersChange(): void {
+        const disabled = !this._useLayers.value;
+        this._layerStart.disabled = disabled;
+        this._layerEnd.disabled = disabled;
+        this._layerGenerator.disabled = disabled;
+        this._layerUScale.disabled = disabled;
     }
 
 }

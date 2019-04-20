@@ -5,7 +5,7 @@ import type { JSONTrace } from "./controller.js";
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
 import type { JSONObjective, AutomatonStateID } from "./logic.js";
-import type { Refinery, LayerRefinerySettings } from "./refinement.js";
+import type { Refinery, RobustReachabilitySettings, TransitionRefineryLayers } from "./refinement.js";
 import type { Snapshot } from "./snapshot.js";
 import type { StateID, ActionID, SupportID, PredicateID, LSS, State, RefinementMap,
               JSONAbstractedLSS } from "./system.js";
@@ -14,7 +14,7 @@ import { Controller, Trace } from "./controller.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Polytope, Union } from "./geometry.js";
 import { Objective } from "./logic.js";
-import { LayerRefinery, NegativeAttrRefinery, SafetyRefinery, SelfLoopRefinery } from "./refinement.js";
+import { TransitionRefinery, NegativeAttrRefinery, SafetyRefinery, SelfLoopRefinery } from "./refinement.js";
 import { SnapshotTree } from "./snapshot.js";
 import { AbstractedLSS } from "./system.js";
 import { just, iter, sets, obj } from "./tools.js";
@@ -349,13 +349,24 @@ function refineData(elapsed, refinementMap): RefineData {
     };
 }
 // Layer-based
-export type RefineLayerRequest = LayerRefinerySettings;
-inspector.onRequest("refine-layer", function (settings: RefineLayerRequest): RefineData {
+export type RefineTransitionRequest = {
+    origin: AutomatonStateID,
+    target: AutomatonStateID,
+    iterations: number,
+    enlargeSmallTarget: boolean,
+    layers: ?TransitionRefineryLayers,
+    settings: RobustReachabilitySettings
+
+};
+inspector.onRequest("refine-transition", function (data: RefineTransitionRequest): RefineData {
     const analysis = just($.analysis, "Refinement requires an analysed system");
     const t0 = performance.now();
-    const refinementMap = $.refine(
-        new LayerRefinery($.system, $.objective, analysis, settings)
-    );
+    // ...
+    const refinery = new TransitionRefinery($.system, $.objective, analysis, data.origin, data.target,
+                                            data.enlargeSmallTarget, data.layers, data.settings);
+    refinery.iterate(data.iterations);
+    // ...
+    const refinementMap = $.refine(refinery);
     const t1 = performance.now();
     return refineData((t1 - t0), refinementMap);
 });

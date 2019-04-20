@@ -301,7 +301,11 @@ export class SelfLoopRefinery extends Refinery {
 
 /* Transition refinement */
 
-type RRPart = { polytope: Polytope, state: State, done: boolean };
+export type RobustReachabilitySettings = {
+    expandTarget: boolean,
+    dontRefineSmall: boolean,
+    postProcessing: "none" | "hull" | "largest" | "suppress"
+};
 
 class RobustReachabilityProblem {
 
@@ -310,13 +314,22 @@ class RobustReachabilityProblem {
     +avoid: Region;
     +reach: Region;
     // ...
-    _parts: RRPart[];
+    expandTarget: boolean;
+    dontRefineSmall: boolean;
+    postProcessing: ?((Region) => Region);
+    // ...
+    _parts: { polytope: Polytope, state: State, done: boolean }[];
     _target: Region;
 
-    constructor(lss: LSS, parts: Map<State, Region>, reach: Region, avoid: Region): void {
+    constructor(lss: LSS, parts: Map<State, Region>, reach: Region, avoid: Region,
+                settings: RobustReachabilitySettings): void {
         this.lss = lss;
         this.avoid = avoid;
         this.reach = reach;
+        // ...
+        this.expandTarget = settings.expandTarget;
+        this.dontRefineSmall = settings.dontRefineSmall;
+        this.postProcessing = null; // TODO settings.postProcessing;
         // ...
         this._parts = [];
         for (let [state, region] of parts) {
@@ -325,7 +338,6 @@ class RobustReachabilityProblem {
             }
         }
         this._target = reach.simplify();
-        this._update();
     }
 
     get partitions(): Map<State, Region> {
@@ -341,25 +353,34 @@ class RobustReachabilityProblem {
         return this._parts.every(_ => _.done);
     }
 
-    iterate(n?: number): void {
-        // Iterate once by default
-        for (let i = 0; i < (n == null ? 1 : n); i++) {
+    iterate(n: number): void {
+        for (let i = 0; i < n; i++) {
+            // Update target region until convergence
+            this._update();
             // ...
             if (this.allDone) break;
             // Refine states wrt current target
             this._refine();
-            // Update target region until convergence
-            this._update();
         }
     }
 
     _refine(): void {
         const parts = [];
         for (let part of this._parts) {
+            // ...
             if (part.done) {
                 parts.push(part);
+                continue;
+            // ...
+            } else if (this.dontRefineSmall && part.polytope.pontryagin(this.lss.ww).isEmpty
+                       && !this.lss.act(part.polytope, this.avoid).isSameAs(this.lss.uu)) {
+                part.done = true;
+                parts.push(part);
+                continue;
+            // ...
             } else {
                 const [good, other] = refineAttrR(this.lss, part.polytope, this._target);
+                // TODO: small state suppression
                 for (let poly of good.polytopes) {
                     parts.push({ polytope: poly, state: part.state, done: true });
                 }
@@ -392,14 +413,12 @@ class RobustReachabilityProblem {
             // ...
             const actR = this.lss.actR(part.polytope, this._target);
             if (actR.isEmpty) continue;
-            // TODO: small state suppression if safe, etc.
-            if (false) continue;
             // ...
             part.done = true;
             newTarget.push(part.polytope);
             hasChanged = true;
         }
-        if (hasChanged) {
+        if (this.expandTarget) {
             this._target = Union.from(newTarget, this.lss.dim).simplify();
         }
         return hasChanged;
@@ -408,12 +427,20 @@ class RobustReachabilityProblem {
 }
 
 
+export type TransitionRefineryLayers = {
+    generator: "PreR" | "Pre",
+    scaling: number,
+    range: [number, number]
+};
+
 export class TransitionRefinery extends Refinery {
 
-    +_partitions: Map<State, Region>;
+    +_problems: RobustReachabilityProblem[];
+    _partitions: Map<State, Region>;
 
     constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
-                origin: AutomatonStateID, target: AutomatonStateID): void {
+                origin: AutomatonStateID, target: AutomatonStateID, enlargeSmallTarget: boolean,
+                layers: ?TransitionRefineryLayers, settings: RobustReachabilitySettings): void {
         super(system, objective, results);
         const bad = [];
         const good = [];
@@ -443,174 +470,22 @@ export class TransitionRefinery extends Refinery {
         // ...
         const avoid = Union.from(bad, system.lss.dim).simplify();
         const reach = Union.from(good, system.lss.dim).simplify();
-        const problem = new RobustReachabilityProblem(system.lss, todo, reach, avoid);
+        // TODO: layers, enlarge small target
+        this._problems = [new RobustReachabilityProblem(system.lss, todo, reach, avoid, settings)];
         // ...
-        problem.iterate();
-        // ...
-        this._partitions = problem.partitions
+        this._partitions = new Map();
+    }
+
+    iterate(n?: number): void {
+        for (let problem of this._problems) {
+            problem.iterate(n == null ? 1 : n);
+        }
+        this._partitions = this._problems[0].partitions; // TODO
     }
 
     partition(x: State): Region {
         const partition = this._partitions.get(x);
         return (partition == null) ? x.polytope : partition;
-    }
-
-}
-
-
-
-/* Layer-based refinement procedures */
-
-// Polytopic operator from which the layers are iteratively generated
-export type LayerRefineryGenerator = "PreR" | "Pre";
-// Which layers participate in the refinement (inclusive range)
-export type LayerRefineryRange = [number, number];
-// Settings object
-export type LayerRefinerySettings = {
-    origin: AutomatonStateID,
-    target: AutomatonStateID,
-    generator: LayerRefineryGenerator,
-    scaling: number,
-    range: LayerRefineryRange,
-    iterations: number,
-    // Modifiers with default = false
-    expandSmallTarget?: boolean,
-    invertTarget?: boolean,
-    dontRefineSmall?: boolean
-};
-
-export class LayerRefinery extends Refinery {
-
-    +settings: LayerRefinerySettings;
-    +layers: Region[];
-
-    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
-                settings: LayerRefinerySettings): void {
-        super(system, objective, results);
-        this.settings = settings;
-        // Settings sanity checks
-        if (settings.range[0] < 0 || settings.range[1] < settings.range[0]) throw new ValueError(
-            "settings.range = [" + settings.range.join(", ") + "] is invalid"
-        );
-        // States already known to be non-satisfying (e.g. due to a safety
-        // objective) are removed from the layers as they should not be
-        // targeted
-        const noRegion = this._getStateRegion("no", settings.origin).simplify();
-        // Target region
-        let target = this._getTransitionRegion(settings.target, settings.origin);
-        // Invert target region if desired
-        if (this.settings.invertTarget === true) {
-            target = system.lss.xx.remove(target);
-        }
-        // If the target region is small, expand (if desired) such that
-        // pontragin with ww is guaranteed to exist (required for PreR)
-        if (this.settings.expandSmallTarget === true && target.pontryagin(system.lss.ww).isEmpty) {
-            const wwTrans = system.lss.ww.translate(system.lss.ww.centroid.map(_ => -_));
-            target = target.minkowski(wwTrans).intersect(system.lss.xx);
-        }
-        // Iteratively generate layers starting from target
-        const layer0 = target.remove(noRegion).simplify();
-        this.layers = [layer0];
-        for (let i = 1; i <= settings.range[1]; i++) {
-            // Target of next layer is previous layer
-            const previous = this.layers[this.layers.length - 1];
-            const layer = this._generateLayer(previous).remove(noRegion).simplify();
-            this.layers.push(layer);
-        }
-    }
-
-    get _dontRefineSmall(): boolean {
-        return this.settings.dontRefineSmall === true;
-    }
-
-    // States that have a transition from q to qTarget (only inner states)
-    _getTransitionStates(qTarget: AutomatonStateID, q: AutomatonStateID): Iterable<State> {
-        const origin = this.objective.getState(q);
-        return iter.filter(
-            (state) => (!state.isOuter && this._qNext(state, q) === qTarget),
-            this.system.states.values()
-        );
-    }
-
-    _getTransitionRegion(qTarget: AutomatonStateID, q: AutomatonStateID): Region {
-        return this._asRegion(this._getTransitionStates(qTarget, q));
-    }
-
-    _generateLayer(target: Region): Region {
-        const lss = this.system.lss;
-        const uu = lss.uu.scale(this.settings.scaling);
-        switch (this.settings.generator) {
-            case "PreR":
-                return lss.preR(lss.xx, uu, target);
-            case "Pre":
-                return lss.pre(lss.xx, uu, target);
-            default:
-                throw new NotImplementedError(
-                    "layer generator '" + this.settings.generator + "' does not exist"
-                );
-        }
-    }
-
-    partition(x: State): Region {
-        // Only refine maybe states
-        const q = this.settings.origin;
-        if (this._isDecided(x, q) || this._qNext(x, q) == null) {
-            return x.polytope;
-        }
-        const lss = this.system.lss;
-        const [start, end] = this.settings.range;
-        // Remove inner target for all layers > 0.  Layer 0 is special to
-        // enable self-targeting for safety objectives and expanded targets.
-        let done = start === 0
-                 ? this._getEmpty()
-                 : x.polytope.intersect(this.layers[start - 1]).simplify();
-        // Refine rest
-        let rest = x.polytope.remove(done).simplify();
-        // For every active layer:
-        for (let i = start; i <= end; i++) {
-            // Return if nothing remains to be refined
-            if (rest.isEmpty) return done;
-            // Target this (0th layer targets itself):
-            const target = this.layers[Math.max(0, i - 1)];
-            // Refine this:
-            const intersection = rest.intersect(this.layers[i]).simplify();
-            // Initialize queue of remaining polytopes with intersection
-            // polytopes (iteration 0)
-            const remaining = intersection.polytopes.map(_ => [_, 0]);
-            while (remaining.length > 0) {
-                const [part, it] = remaining.shift();
-                // If iteration count exceeds limit, don't refine the part
-                if (it >= this.settings.iterations) {
-                    done = done.union(part);
-                    continue;
-                }
-                // If there are control inputs that lead exclusively to the
-                // target, add to decided collection, continue
-                const uRobust = lss.actR(part, target);
-                if (!uRobust.isEmpty) {
-                    done = done.union(part);
-                    continue;
-                }
-                // If part cannot be targeted individually (and is therefore
-                // guaranteed to have no self-loop), add to decided parts
-                if (this._dontRefineSmall && part.pontryagin(lss.ww).isEmpty) {
-                    done = done.union(part);
-                    continue;
-                }
-                // AttrR refinement step
-                const [good, other] = refineAttrR(lss, part, target);
-                // Fallback if refinement failed: shatter polytope
-                if (good.isEmpty) {
-                    remaining.push(...other.shatter().polytopes.map(_ => [_, it + 1]));
-                } else {
-                    done = done.union(good);
-                    remaining.push(...other.polytopes.map(_ => [_, it + 1]));
-                }
-            }
-            // Entire layer is considered as done
-            rest = rest.remove(intersection).simplify();
-        }
-        return done.union(rest);
     }
 
 }

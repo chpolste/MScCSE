@@ -117,10 +117,87 @@ From membership in these 2 solution sets, it can be decided if states are satisf
 \stopsubsection
 
 
-\startsubsection[title={Solution Properties}]
+\startsubsection[title={Correctness and Termination}]
 
-    Partial solution in every iteration, Soundness, Convergence (progress guarantee), Complexity.
-    Only reference \cite[Svorenova2017] or repeat?
+    Results due to \cite[Svorenova2017].
+    Partial solution in every iteration: sequence of yes and no sets fulfils subset relation.
+    Soundness: $\YesStates{q_0}$ is always subset of $\InitialStates$ and $\NoStates{q_0}$ is always subset of $\StateSpace \setminus \InitialStates$.
+    Partial correctness: If the algorithm terminates (set of maybe-states is empty), then solution is found by last iteration.
+
+    Two examples for non-termination given.
+    First, consider LSS
+
+    \startformula
+        \VecState_{t+1} = \VecState_t + \VecControl_t + \VecRandom_t
+    \stopformula
+
+    where $\VecState_t \in \ClosedInterval{0}{3}$, $\VecControl_t \in \ClosedInterval{-1.5}{1.5}$ and $\VecRandom_t \in \ClosedInterval{-0.5}{0.5}$ for all times $t$.
+    A reachability objective with target region $\ClosedInterval{1}{2}$ can be fulfilled by every $\VecState \in \ClosedInterval{0}{3}$ with control input $\VecControl = 1.5 - \VecState$.
+    However, this control input is the only control input that leads to satisfaction almost-surely and it is different for every state of the state space.
+    Therefore, a solution cannot be found as a finite partition of the state space.
+
+    But even if finite state space partition does exist, the algorithm may still not terminate in practice.
+    To see this, consider the LSS
+
+    \startformula
+        \VecState_{t+1} = 1.5 \VecState_t + \VecControl_t + \VecRandom_t
+    \stopformula
+
+    where $\VecState_t \in \ClosedInterval{-2}{2}$, $\VecControl_t \in \ClosedInterval{-2}{2}$ and $\VecRandom_t \in \ClosedInterval{-1}{1}$ for all times $t$.
+    Objective: general safety, don't leave the state space at any time.
+    Propose a partitioning into polytopes $\State{1} = \ClosedInterval{-2}{-1}$, $\State{2} = \ClosedInterval{-1}{0}$, $\State{3} = \ClosedInterval{0}{1}$ and $\State{4} = \ClosedInterval{1}{2}$.
+    Interval arithmetic shows that choosing control inputs $2$ for $\State{1}$, $1$ for $\State{2}$, $-1$ for $\State{3}$ and $-2$ for $\State{4}$ keeps traces starting from any state in the state space safe:
+
+    \startformula
+        \startalign[n=4,align={right,right,left,left}]
+            \NC \State{1}:
+            \NC 1.5 \cdot \ClosedInterval{-2}{1} + 2 + \ClosedInterval{-1}{1}
+            \NC = \ClosedInterval{-2}{1.5}
+            \NC \subseteq \StateSpace
+            \NR
+            \NC \State{2}:
+            \NC 1.5 \cdot \ClosedInterval{-1}{0} + 1 + \ClosedInterval{-1}{1}
+            \NC = \ClosedInterval{-1.5}{2}
+            \NC \subseteq \StateSpace
+            \NR
+            \NC \State{3}:
+            \NC 1.5 \cdot \ClosedInterval{0}{1} - 1 + \ClosedInterval{-1}{1}
+            \NC = \ClosedInterval{-2}{1.5}
+            \NC \subseteq \StateSpace
+            \NR
+            \NC \State{4}:
+            \NC 1.5 \cdot \ClosedInterval{1}{2} - 2 + \ClosedInterval{-1}{1}
+            \NC = \ClosedInterval{-1.5}{2}
+            \NC \subseteq \StateSpace \EndPeriod
+            \NR
+        \stopalign
+    \stopformula
+
+    However, it was assumed in section \in[sec:TODO], that any non-empty polytope must be full-dimensional.
+    The concrete action operator from which the player 1 actions in the abstraction are derived returns a polytopic regions which means it cannot work with single-member sets.
+    For a small $\delta \ge 0$, consider a trace in state $\VecState_t = -2 + \frac{2}{3} \delta$.
+    Setting up the condition for safe continuation of the trace, one obtains
+
+    \startformula
+        \startalign[n=3,align={middle,right,left}]
+            \NC \empty
+            \NC 1.5 \Big({-2} + \frac{2}{3} \delta\Big) + \VecControl_t + \ClosedInterval{-1}{1}
+            \NC \subseteq \ClosedInterval{-2}{2}
+            \NR
+            \NC \Leftrightarrow \quad
+            \NC \ClosedInterval{-4 + \delta + \VecControl_t}{-2 + \delta + \VecControl_t}
+            \NC \subseteq \ClosedInterval{-2}{2}
+            \NR
+            \NC \Rightarrow \quad
+            \NC \VecControl_t
+            \NC \ge 2 - \delta
+            \NR
+        \stopalign
+    \stopformula
+
+    from the lower interval bound.
+    Because any control region selectable by player 1 in the abstraction must contain an interval of diameter $\epsilon > 0$ or else it is considered to be empty, the system can never be fully decided in the abstraction.
+    Any $\VecState = -2 + \frac{2}{3} \delta$ requires a control input region with a diameter of $\epsilon > \delta$, meaning all any state $\VecState \lt{} -2 + \frac{2}{3} \epsilon$ cannot be decided in the restrictions of the abstraction.
 
 \stopsubsection
 

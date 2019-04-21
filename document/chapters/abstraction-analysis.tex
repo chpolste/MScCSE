@@ -33,10 +33,10 @@ From membership in these 2 solution sets, it can be decided if states are satisf
     \stopalgorithmic
 \stopbuffer
 
-\startsubsection[title={Product Game Solution}]
+\startsubsection[title={Product Game Solution},reference=sec:abstraction-analysis-solution]
 
     Analysis in both adversarial and cooperative settings achievable with same algorithm.
-    One-pair Streett acceptance can be transformed into parity-3, for a quadratic-complexity algorithm exists, but a cubic, fixed-point algorithm is much easier to implement and therefore used here.
+    A quadratic-complexity algorithm exists, but a cubic, fixed-point algorithm is much easier to implement and therefore used here.
     The correctness of the algorithm follows from \cite[TODO].
 
     Based on the successor operator
@@ -100,11 +100,10 @@ From membership in these 2 solution sets, it can be decided if states are satisf
         \stopalign
     \stopformula
 
-    Substituting either set of these operators into Algorithm \in[alg:abstraction-analysis-solver] for $\Pre_1$, $\Pre_2$ and $\Pre_3$ results in a procedure that ... % TODO
-
     \placealgorithm[top][alg:abstraction-analysis-solver]{
-        Solver for parity-3 games using fixed-point iteration \cite[authoryears][Svorenova2017].
-        Adversarial player 2 for ${\mathrm set} = \Adversarial$ or cooperative player 2 for ${\mathrm set} = \Cooperative$.
+        Solver for the product game $\ProductGame$ with one-pair Streett acceptance condition $\Condition = \Tuple{E}{F}$ in either an adversarial (${\mathrm set} = \Adversarial$) or cooperative (${\mathrm set} = \Cooperative$) setting.
+        The required $\Pre$-operators are defined in section \in[sec:abstraction-analysis-solution].
+        The procedure is based on a fixed-point iteration solver for parity-3 games \cite[authoryears][Svorenova2017].
     }{
         % https://mailman.ntg.nl/pipermail/ntg-context/2016/087390.html
         \startframedtext[width=\textwidth,frame=off]
@@ -112,7 +111,46 @@ From membership in these 2 solution sets, it can be decided if states are satisf
         \stopframedtext
     }
 
-    Analogous to the notation of player 1 states, the sets $\YesStates{q}$, $\NoStates{q}$ and $\MaybeStates{q}$ are overloaded for all $q \in Q$ so they refer to the region covered by the polytopes of the member player 1 states if used in a geometric context.
+    Substituting either set of these operators into Algorithm \in[alg:abstraction-analysis-solver] for $\Pre_1$, $\Pre_2$ and $\Pre_3$ results in procedures to compute sets $\Almost{\ProductGame}$ and $\AlmostCoop{\ProductGame}$.
+    Based on these solutions to the game, the sets
+
+    \startformula
+        \startalign[n=2,align={right,left}]
+            \NC P_\Yes =
+            \NC P_1 \cap \Almost{\ProductGame} \EndComma
+            \NR
+            \NC P_\No =
+            \NC P_1 \setminus \AlmostCoop{\ProductGame} \EndAnd
+            \NR
+            \NC P_\Maybe =
+            \NC P_1 \setminus ( P_\Yes \cup P_\No )
+            \NR
+        \stopalign
+    \stopformula
+
+    are defined.
+    For any play starting in a state from $P_\Yes$ player 1 has an almost-sure winning, finite-memory strategy even if player 2 plays adversarily.
+    No such strategy exists when a play is initiated from a state in $P_\No$, even if player 2 plays cooperatively.
+    For states in $P_\Maybe$ one cannot determine if an almost-sure winning strategy exists due to the abstraction being too coarse.
+
+    Let
+
+    \startformula
+        \startalign[n=2,align={right,left}]
+            \NC \YesStates{q} =
+            \NC \Set{ \State{i} \mid \Tuple{\State{i}}{q} \in P_\Yes } \EndComma
+            \NR
+            \NC \NoStates{q} =
+            \NC \Set{ \State{i} \mid \Tuple{\State{i}}{q} \in P_\No } \EndAnd
+            \NR
+            \NC \MaybeStates{q} =
+            \NC \Set{ \State{i} \mid \Tuple{\State{i}}{q} \in P_\Maybe }
+            \NR
+        \stopalign
+    \stopformula
+
+    for all $q \in Q$.
+    Their notation is overloaded such that they denote the union of their member polytopes in geometric contexts, analogous to the use of sets of state space partition elements as arguments of the dynamics operators.
 
 \stopsubsection
 

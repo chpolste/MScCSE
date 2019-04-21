@@ -31,7 +31,7 @@ A few classes of these models are introduced in this section.
     A two-player probabilistic game, or 2½-player game, is a turn-based probabilistic game played on a game graph
 
     \startformula
-        \mathcal{G} = (G_1, G_2, Act, \delta) \EndComma
+        \GameGraph = (G_1, G_2, Act, \Transition) \EndComma
     \stopformula
 
     where $G_1$, $G_2$ are disjoint sets of player 1 and 2 states, respectively.
@@ -52,7 +52,7 @@ A few classes of these models are introduced in this section.
     A notion of winning is introduced by extending the game graph $\mathcal{G}$ with an acceptance condition $\mathcal{C}$ to form the game
 
     \startformula
-        \mathcal{G'} = (G_1, G_2, Act, \delta, \mathcal{C}) \EndPeriod
+        \GameGraph' = (G_1, G_2, Act, \Transition, \Condition) \EndPeriod
     \stopformula
 
     The acceptance condition separates the set of all possible plays into those which are won by player 1 and those plays are won by player 2.
@@ -64,7 +64,7 @@ A few classes of these models are introduced in this section.
     In almost-sure analysis, game states are sought for which a winning strategy exists for one player, ensuring a win with probability 1. % TODO phrasing
     Adversarial analysis means that the player strategy must lead to a win for every possible strategy of the opponent player, while in a cooperative setting a winning strategy only has to exist for some strategy of the other player, i.e. a win is possible but only ensurable if the opponent is \quotation{nice} and cooperates.
     In the cooperative interpretation, the 2 player probabilistic game can be reduced to a 1 player probabilistic game \cite[authoryears][Svorenova2017].
-    The set of initial states for which player 1 has a strategy to ensure winning almost surely are denoted in the adversarial setting by $\Almost{\GameGraph}(\mathcal{C})$ and in the cooperative setting as $\AlmostCoop{\GameGraph}(\mathcal{C})$.
+    The set of initial states for which player 1 has a strategy to ensure winning almost surely are denoted in the adversarial setting by $\Almost{\GameGraph'}$ and in the cooperative setting as $\AlmostCoop{\GameGraph'}$.
 
     % TODO transition, variety of ways to express condition analogously to automata
 

@@ -6,7 +6,7 @@ From membership in these 2 solution sets, it can be decided if states are satisf
 \startbuffer[buf:abstraction-analysis-solution-algorithm]
     \startalgorithmic[numbering=no,margin=0em]
         \INPUT{$\Pre^{\mathrm set}_1$, $\Pre^{\mathrm set}_2$, $\Pre^{\mathrm set}_3$ of game $\ProductGame = ( P_1, P_2, Act, \Transition, \Tuple{E}{F} )$}
-        \OUTPUT{$\AlmostSure^{\mathrm set}(\ProductGame)$} % TODO coop or adv
+        \OUTPUT{$\AlmostSure^{\mathrm set}(\ProductGame)$}
     \stopalgorithmic
     \startalgorithmic
         \STATE{ $P \leftarrow P_1 \cup P_2$ }
@@ -155,7 +155,7 @@ From membership in these 2 solution sets, it can be decided if states are satisf
 \stopsubsection
 
 
-\startsubsection[title={Correctness and Termination}]
+\startsubsection[title={Correctness and Termination},reference=sec:abstraction-analysis-correctness]
 
     Results due to \cite[Svorenova2017].
     Partial solution in every iteration: sequence of yes and no sets fulfils subset relation.
@@ -240,7 +240,7 @@ From membership in these 2 solution sets, it can be decided if states are satisf
 \stopsubsection
 
 
-\startsubsection[title={Product Game Simplification}]
+\startsubsection[title={Product Game Simplification},reference=sec:abstraction-analysis-simplification]
 
     Reminder of how to include co-safe switch into game creation.
 

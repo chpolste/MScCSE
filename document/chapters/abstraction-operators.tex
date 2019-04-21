@@ -78,7 +78,7 @@ The following sections introduce the operators together with bried descriptions 
             \NC \StateRegion \cap \Big( \StateTarget \oplus -(\MatB \ControlRegion \oplus \RandomSpace) \Big) \MatA \EndAnd
             \NR
             \NC \RobustPredecessor{\StateRegion}{\ControlSpace'}{\StateTarget} =
-            \NC \StateRegion \cap \Big( (\StateTarget \ominus \RandomSpace) \oplus -(\MatB \ControlRegion \oplus \RandomSpace) \Big) \MatA \EndPeriod
+            \NC \StateRegion \cap \Big( (\StateTarget \ominus \RandomSpace) \oplus -\MatB \ControlRegion \Big) \MatA \EndPeriod
             \NR
         \stopalign
     \stopformula
@@ -87,7 +87,7 @@ The following sections introduce the operators together with bried descriptions 
 
     \startformula
         \startalign[n=2,align={right,left}]
-            \NC \PrecisePredecessor{\StateSpace'}{\ControlSpace'}{\IndexedSet{\State{j}}{j \in J}} := \Big\{ \VecState \in \StateSpace' \Bigmid \exists \VecControl' \in \ControlSpace' :
+            \NC \PrecisePredecessor{\StateRegion}{\ControlSpace'}{\IndexedSet{\State{j}}{j \in J}} := \Big\{ \VecState \in \StateRegion \Bigmid \exists \VecControl' \in \ControlSpace' :
             \NC \Posterior{\VecState}{\VecControl'} \subseteq \bigcup_{j \in J} \State{j} \;\text{and}
             \NR
             \NC \empty
@@ -98,13 +98,12 @@ The following sections introduce the operators together with bried descriptions 
 
     Every state in the resulting origin set fulfills the robust predecessor property with respect to the entire target region $\bigcup_{j \in J} \State{j}$ for some $\VecControl' \in \ControlRegion$, while simultaneously fulfilling the predecessor property with respect to every individual part of the target region for the same $\VecControl'$.
     In other words, for any state in a $\PreP$ set a control input in $\ControlRegion$ exists such that a state in $\bigcup_{j \in J} \State{j}$ is reached almost surely after one step and the proability of ending up in any one of the target region parts $\IndexedStates{j}{J}$ is non-zero.
-    In general,
+    The precise predecessor can be computed as
 
     \startformula
-        \RobustPredecessor{\StateSpace'}{\ControlSpace'}{\IndexedSet{\State{j}}{j \in J}} = \bigcup_{\startsubstack \NC J' \subseteq J \NR \NC  J' \ne \emptyset \NR \stopsubstack} \PrecisePredecessor{\StateSpace'}{\ControlSpace'}{\IndexedSet{\State{j}}{j \in J'}} \EndPeriod
+        \RobustPredecessor{\StateRegion}{\ControlSpace'}{\IndexedSet{\State{j}}{j \in J}} =
+        \Big( \Big( \bigcap_{j \in J} (\State{j} \oplus - \RandomSpace) \setminus \bigcup_{j \in I \setminus J} ( \State{j} \oplus - \RandomSpace ) \Big) \oplus -\MatB \ControlSpace' \Big) \MatA \EndPeriod
     \stopformula
-
-    The computation of the precise predecessor ... % TODO
 
 \stopsection
 
@@ -190,8 +189,7 @@ The following sections introduce the operators together with bried descriptions 
 
     Due to implementation constraints, the results of the operators can only be non-empty full-dimensional polytopic regions.
     Lower-dimensional control space regions are therefore not computable by the action operators.
-    This means e.g.\ that it is possible that for some $\VecState \in \Predecessor{\StateRegion}{\ControlSpace}{\StateTarget}$ $\Action{\VecState}{\StateTarget} = \emptyset$, even though this should be true theoretically.
-    % TODO justify omission of lower-dimensional actions for practical purposes
+    This means e.g.\ that it is possible that for some $\VecState \in \Predecessor{\StateRegion}{\ControlSpace}{\StateTarget}$ $\Action{\VecState}{\StateTarget} = \emptyset$, even though this should be true theoretically (see section \in[sec:abstraction-analysis-correctness]).
 
     Finally, the concrete action ($\ActC$) is introduced.
     As for the precise predecessor, a state space partition is required for the operator to be meaningful:
@@ -208,7 +206,7 @@ The following sections introduce the operators together with bried descriptions 
     \stopformula
 
     Under the resulting control inputs, only $\StateTarget$ can be reached in one step from $\StateRegion$ (first condition) and for every part in the target region a state in $\StateRegion$ can be found so that the probability of reaching the part is non-zero.
-    It should be noted that the conditions of $\PreP$ and $\ActC$ work quite differently:
+    It should be noted that the conditions of $\PreP$ and $\ActC$ are quite different from one another:
     The precise predecessor requires some control input for every of its states for which both conditions (subset and part intersection) are fulfilled.
     The concrete action requires that for every of its control vectors the subset condition is fulfilled for every origin state while the part intersections can be fulfilled independently by different states in $\StateRegion$, as long as every part is reachable from some state.
     This implies that,
@@ -224,7 +222,7 @@ The following sections introduce the operators together with bried descriptions 
     \startformula
         \startalign[n=2,align={right,left}]
             \NC \ConcreteAction{\StateRegion}{\IndexedStates{j}{J}} =
-            \NC \bigcap_{j \in J} \Action{\StateRegion}{\State{j}} \setminus \bigcup_{i \in I \setminus J} \Action{\StateRegion}{\State{i}} \EndPeriod
+            \NC \bigcap_{j \in J} \Action{\StateRegion}{\State{j}} \setminus \bigcup_{j \in I \setminus J} \Action{\StateRegion}{\State{j}} \EndPeriod
             \NR
         \stopalign
     \stopformula

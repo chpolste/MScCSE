@@ -1,8 +1,9 @@
-Round-robin controller guarantees that objective will be satisfied.
+Controller designed by \cite[Svorenova2017]:
+Apply actions that make the play corresponding to the trace remain in $\Almost{\ProductGame}$.
+Satisfaction is guaranteed by selecting from the available actions in a round-robin fashion.
+This is a pure (no randomization) strategy using finite memory (the number of actions is finite).
 
-Reachability: use idea from layered refinement to "sort" actions before applying round-robin controller and give controller a sense of "direction".
-TODO: layered refinement has not been introduced yet, sort sections differently.
-
-Discuss problem of "optimal" controllers and the complications involved.
-Leave as open problem.
+In general, memoryless strategies exist for all one-pair Streett objectives, because they can be converted into parity-3 objectives for which such strategies are known to exist \cite[authoryears][Chatterjee2012].
+They can be derived from deeper analysis of the game.
+% TODO: figure out how all the Streett/Rabin/Parity stuff fits together. Does existence of memoryless strategies (which definitely exists for reachability) can be tied into reachability decomposition presented later?
 

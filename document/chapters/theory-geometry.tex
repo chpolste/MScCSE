@@ -1,6 +1,6 @@
 In order to describe events in and generate finite abstractions of a continuous space, a discrete representation of that space is necessary.
 Descriptions in the framework of convex polytopic geometry are popular for such discretizations as they have many advantageous properties.
-Convex geometry can be applied to problems of any dimension, has well understood computational properties due to its roots in linear optimization and mature libraries such as MPT \cite[authoryears][Herceg2013] are freely available. % TODO add CGAL, CDD, Qhull, ... references
+Convex geometry can be applied to problems of any dimension, has well understood computational properties due to its roots in linear optimization and mature libraries such as MPT \cite[authoryears][Herceg2013], TuLiP \cite[authoryears][TODO], CDD \cite[authoryears][TODO] or QHull \cite[authoryears][TODO] are freely available.
 Particularly for control problems involving (piecewise) linear dynamics, convex geometry is established as a commonly used tool \cite[authoryears][Baotic2009].
 It has been used e.g. by \cite[TODO], \cite[TODO], \cite[TODO] and \cite[TODO] and is likewise the foundation on which this work is build.
 The word \quotation{polytope} will always refer to a convex polytope here and all polytopes mentioned are assumed to be convex.
@@ -117,7 +117,7 @@ All lower-dimensional polytopes (e.g. a line in $\reals^2$) are treated as empty
     Intersection can be distributed to the individual convex polytopes by taking the intersection of every polytope of one region with every polytope of the other region and keeping the non-empty intersections as the resulting union.
     The linear operations introduced above can be applied polytope-wise.
     The Minkowski sum can be distributed to the polytopes, but the result will generally not be a disjunct set of convex polytopes and may require postprocessing if this is not acceptable.
-    The Pontryagin difference cannot be distributed to the convex polytopes but it is possible to express it using the Minkowski sum and set difference operations in the following way: % TODO reference?
+    The Pontryagin difference cannot be distributed to the convex polytopes but it is possible to express it using the Minkowski sum and set difference operations in the following way \cite[authoryears][TODO]:
 
     \startformula
         \startalign[n=2,align={right,left}]

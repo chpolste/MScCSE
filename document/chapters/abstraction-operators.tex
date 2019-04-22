@@ -1,22 +1,26 @@
-In order to define states and actions for the game abstraction of the LSS, meaningful operators on the state- and control space have to be introduced that reflect different aspects of the system dynamics.
-The now operators require knowledge of the parameters of the LSS, i.e.\ $\MatA$, $\MatB$, $\StateSpace$, $\RandomSpace$, $\ControlSpace$.
-The association of operator and LSS is not written out explicitly.
-It will always be clear from context which system an operator belongs to.
+A meaningful game-based abstraction of an LSS must reflect its dynamics.
+Here, operators on the state- and control space are introduced, each associated with a certain aspect of the system dynamics.
+They will be used in the following section to construct states and actions of a game graph.
+The operator introductions are complemented by descriptions of their computation using only polytopic operations from section \in[sec:theory-geometry].
 
-The following sections introduce the operators together with bried descriptions of how to compute them in the polytopic setting assumed here.
+Because all operators are based on the dynamical properties of the LSS, they require knowledge of the LSS parameters, i.e.\ $\MatA$, $\MatB$, $\StateSpace$, $\RandomSpace$, $\ControlSpace$.
+The association between an operator and its LSS is not written out explicitly in the notation, but should always be clear from context.
 
 
 \startsubsection[title={Posterior}]
 
-    The posterior ($\Post$) is a forward looking operator, yielding the set of states that can be reached from an origin region $\StateRegion \subseteq \StateSpace$ under control inputs $\ControlSpace' \subseteq \ControlSpace$ with non-zero probability, i.e.\ the one-step reachable set:
+    The posterior ($\Post$) is a forward looking operator.
+    Given an origin region $\StateRegion \subseteq \StateSpace$ and control input region $\ControlSpace' \subseteq \ControlSpace$, it computes the set of states which can be reached from the origin region under the control inputs with non-zero probability.
+    The returned region is therefore the one-step reachable set
 
     \startformula
         \Posterior{\StateRegion}{\ControlRegion} := \Set{ \VecState \in \reals^n \mid \exists \VecState' \in \StateRegion\MidComma \exists \VecControl' \in \ControlRegion\MidComma \exists \VecRandom \in \RandomSpace : \VecState = \MatA \VecState' + \MatB \VecControl' + \VecRandom } \EndPeriod
     \stopformula
 
-    The posterior allows the computation of the extended state space $\ExtendedStateSpace = \StateSpace \,\cup\, \Posterior{\StateSpace}{\ControlSpace}$.
+    The posterior allows the computation of an extended state space $\ExtendedStateSpace = \StateSpace \,\cup\, \Posterior{\StateSpace}{\ControlSpace}$ which is the union of the original state space and its one-step reachable set.
 
-    While the above definition takes sets as arguments, the notation of the posterior and, where sensible, all following operators is overloaded for vector-valued state- and control space arguments as well as sets of elements of a state space decomposition.
+    As defined above, $\Post$ takes set-valued arguments.
+    However, the notation of this operator as well as all following operators is overloaded for vector-valued state- and control space arguments as well as sets of elements of a state space decomposition in the following way:
     Let $\VecState' \in \StateSpace$ and $\State{j} \in \StateSpace$ for all $j \in J$, then
 
     \startformula
@@ -44,7 +48,7 @@ The following sections introduce the operators together with bried descriptions 
 
 \startsubsection[title={Predecessors}]
 
-    As the name suggests, the predecessor operators are backward looking, yielding different kinds of origin regions for a given target and control input.
+    As the name suggests, the predecessors are backwards-looking operators, computing different kinds of origin regions for a given target and control input.
     First, the predecessor ($\Pre$) and robust predecessor ($\PreR$) are defined as
 
     \startformula
@@ -58,11 +62,12 @@ The following sections introduce the operators together with bried descriptions 
         \stopalign
     \stopformula
 
-    where the second argument $\ControlRegion \subseteq \ControlSpace$ is the considered control space region, the third parameter $\StateRegion \subseteq \StateSpace$ is a target region in the extended state space and the first argument $\StateTarget \subseteq \ExtendedStateSpace$ is a region of the state space to which the returned predecessor is restricted and exists mainly for convenience.
-    From any state in the computed origin region of $\Pre$, the target region can be reached with non-zero probability in the next step for some control input in the given set.
-    It should be noted that the control input that enables the transition can (and likely will) be different for every state in the predecessor.
+    where the second argument $\ControlRegion \subseteq \ControlSpace$ is the considered control space region, the third argument $\StateRegion \subseteq \StateSpace$ is a target region in the extended state space and the first parameter $\StateTarget \subseteq \ExtendedStateSpace$ is a region of the state space to which the returned predecessor is restricted and exists mainly for convenience.
 
-    The probability of reaching the target region in case of $\PreR$ is 1, meaning that the robust predecessor is \quotation{robust} in the sense that irrespective of the stochastic dynamics, the target can be reached from the computed origin region.
+    From any state in the resulting $\Pre$-region, the specified target region can be reached with non-zero probability in the next step for some control input in the given set.
+    It should be noted that the control inputs that enable these transitions can (and likely will) be different for every state in the predecessor origin region.
+    The probability of reaching the target region in case of $\PreR$ is 1.
+    The robust predecessor is therefore robust in the sense that the target will be reached from the computed origin region under the given control inputs, irrespective of the stochastic dynamics.
     Trivially, it holds that
 
     \startformula
@@ -70,7 +75,7 @@ The following sections introduce the operators together with bried descriptions 
     \stopformula
 
     For target regions where $\StateTarget \ominus \RandomSpace = \emptyset$, the $\PreR$ is always empty.
-    This can easily be seen from the computations for polytopic regions
+    This can easily be seen from the operator's computations based on polytopic operators
 
     \startformula
         \startalign[n=2,align={right,left}]
@@ -83,7 +88,8 @@ The following sections introduce the operators together with bried descriptions 
         \stopalign
     \stopformula
 
-    Finally, the precise predecessor is defined, an operator that only makes sense with a state space partition:
+    Finally, the precise predecessor is defined.
+    It is an operator that only makes sense when used with elements of a state space partition:
 
     \startformula
         \startalign[n=2,align={right,left}]
@@ -97,8 +103,8 @@ The following sections introduce the operators together with bried descriptions 
     \stopformula
 
     Every state in the resulting origin set fulfills the robust predecessor property with respect to the entire target region $\bigcup_{j \in J} \State{j}$ for some $\VecControl' \in \ControlRegion$, while simultaneously fulfilling the predecessor property with respect to every individual part of the target region for the same $\VecControl'$.
-    In other words, for any state in a $\PreP$ set a control input in $\ControlRegion$ exists such that a state in $\bigcup_{j \in J} \State{j}$ is reached almost surely after one step and the proability of ending up in any one of the target region parts $\IndexedStates{j}{J}$ is non-zero.
-    The precise predecessor can be computed as
+    In other words, for any state in a $\PreP$ set, a control input in $\ControlRegion$ exists such that both a state in $\bigcup_{j \in J} \State{j}$ is reached almost surely after one step and the proability of ending up in any one of the target region parts $\IndexedStates{j}{J}$ is non-zero.
+    The precise predecessor can be computed with
 
     \startformula
         \RobustPredecessor{\StateRegion}{\ControlSpace'}{\IndexedSet{\State{j}}{j \in J}} =
@@ -123,8 +129,8 @@ The following sections introduce the operators together with bried descriptions 
         \stopalign
     \stopformula
 
-    i.e. the predecessor properties hold for all control inputs in $\ControlRegion$ for the attractors, not just some.
-    Therefore, it holds that
+    i.e. for the attractors the predecessor properties hold for all control inputs in $\ControlRegion$, not just some.
+    Therefore,
 
     \startformula
         \startalign[n=2,align={right,left}]
@@ -153,12 +159,14 @@ The following sections introduce the operators together with bried descriptions 
         \stopalign
     \stopformula
 
+    Although these operators are not used in the subsequent construction of the game graph, they play an important role in the refinement procedures presented later.
+
 \stopsection
 
 
 \startsubsection[title={Actions}]
 
-    The last operators defined are control space operators, i.e.\ the resulting sets are subsets of $\ControlSpace$.
+    The last operators defined here are control space operators, i.e.\ the resulting sets are subsets of $\ControlSpace$, not $\StateSpace$.
     The action ($\Act$) and robust action ($\ActR$), given by
 
     \startformula
@@ -173,8 +181,9 @@ The following sections introduce the operators together with bried descriptions 
     \stopformula
 
     return the sets of control inputs with which the probability of transitioning to the target region $\StateTarget$ from origin region $\StateRegion$ in one step is non-zero and 1, respectively.
-    They are adapted from the non-probabilistic setting of \cite[Yordanov2009], who defined the operators $U^{X \rightarrow Y}$ corresponding to $\Action{X}{Y}$ and $U^{X \Rightarrow Y}$ corresponding to $\RobustAction{X}{Y}$.
-    Both operators can be computed using Minkowski sum and Pontryagin difference as
+    In the non-probabilistic setting of \cite[Yordanov2009], $U^{X \rightarrow Y}$ corresponds to $\Action{X}{Y}$ and $U^{X \Rightarrow Y}$ corresponds to $\RobustAction{X}{Y}$.
+
+    Both operators can be computed using the Minkowski sum and Pontryagin difference as
 
     \startformula
         \startalign[n=2,align={right,left}]
@@ -187,12 +196,11 @@ The following sections introduce the operators together with bried descriptions 
         \stopalign
     \stopformula
 
-    Due to implementation constraints, the results of the operators can only be non-empty full-dimensional polytopic regions.
-    Lower-dimensional control space regions are therefore not computable by the action operators.
-    This means e.g.\ that it is possible that for some $\VecState \in \Predecessor{\StateRegion}{\ControlSpace}{\StateTarget}$ $\Action{\VecState}{\StateTarget} = \emptyset$, even though this should be true theoretically (see section \in[sec:abstraction-analysis-correctness]).
+    Because only full-dimensional polytopes are considered here (see section \in[sec:theory-geometry]), lower-dimensional control space regions are not computable by the action operators.
+    This means e.g.\ that, under this constraint, it is possible that for some $\VecState \in \Predecessor{\StateRegion}{\ControlSpace}{\StateTarget}$ $\Action{\VecState}{\StateTarget} = \emptyset$, even though this would be true when lower-dimensional regions were allowed (see also section \in[sec:abstraction-analysis-correctness]).
 
     Finally, the concrete action ($\ActC$) is introduced.
-    As for the precise predecessor, a state space partition is required for the operator to be meaningful:
+    As for the precise predecessor, a state space partition is required for this operator to be meaningful:
 
     \startformula
         \startalign[n=2,align={right,left}]
@@ -205,11 +213,11 @@ The following sections introduce the operators together with bried descriptions 
         \stopalign
     \stopformula
 
-    Under the resulting control inputs, only $\StateTarget$ can be reached in one step from $\StateRegion$ (first condition) and for every part in the target region a state in $\StateRegion$ can be found so that the probability of reaching the part is non-zero.
+    Under the returned control inputs, only $\StateTarget$ can be reached in one step from $\StateRegion$ (first condition) and for every element of the partitioned target region a state in $\StateRegion$ exists such that the probability of reaching the element is non-zero.
     It should be noted that the conditions of $\PreP$ and $\ActC$ are quite different from one another:
     The precise predecessor requires some control input for every of its states for which both conditions (subset and part intersection) are fulfilled.
     The concrete action requires that for every of its control vectors the subset condition is fulfilled for every origin state while the part intersections can be fulfilled independently by different states in $\StateRegion$, as long as every part is reachable from some state.
-    This implies that,
+    Hence,
 
     \startformula
         \ConcreteAction{\StateRegion}{\IndexedStates{j}{J}} \,\cap\, \ConcreteAction{\StateRegion}{\IndexedStates{j}{J'}} = \emptyset
@@ -217,7 +225,7 @@ The following sections introduce the operators together with bried descriptions 
 
     for all $J \neq J'$.
     The same does not hold for precise predecessors, which can overlap for different target sets.
-    Concrete actions can therefore be computed directly from actions with
+    Concrete actions are computable directly from $\Act$ with
 
     \startformula
         \startalign[n=2,align={right,left}]
@@ -227,7 +235,7 @@ The following sections introduce the operators together with bried descriptions 
         \stopalign
     \stopformula
 
-    Note that \cite[Svorenova2017] use the notation $U_i^J$ for the set $\ConcreteAction{\State{i}}{\IndexedStates{j}{J}}$.
+    Note that \cite[Svorenova2017] use $U_i^J$ to denote the set $\ConcreteAction{\State{i}}{\IndexedStates{j}{J}}$, an abbreviation that is adopted here as well when space constraints demand it.
 
 \stopsection
 

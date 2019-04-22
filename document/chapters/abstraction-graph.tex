@@ -1,34 +1,42 @@
-To review, the goal of the sytem abstraction is to replace the continuous state- and control space by discrete, finite counterparts such that the infinite-state, infinite-action MDP of the LSS can be analysed.
-Every trace realizable in the LSS must also be realizable in the abstraction, although the abstraction may allow additional behaviour as well.
-The abstraction model chosen is a game graph $\GameGraph$, based on the state space decomposition from \in[sec:abstraction-decomposition] and dynamics operators from \in[sec:abstraction-operators].
-The construction is due to \cite[Svorenova2017], who attribute the approach to \cite[Yordanov2012].
-They start by introducing a non-deterministic transition system (NTS) first and then extend the NTS to a 2½-player game, reintroducing the stochasticity of the LSS.
-Here, the game is constructed directly.
+To analyse the continuous-state, continuous-action LSS, it must be discretized by replacing the infinite-member state and control spaces with finite counterparts.
+In the discrete abstraction, every trace realizable in the LSS must also be realizable.
+But additionally, the abstraction may allow additional behaviour.
+If the temporal logic specification is satisfied by the abstraction, it will also be satisfied by the original system whose behaviour is a subset of that of the abstraction.
+
+The abstraction model chosen by \cite[Svorenova2017] is a probabilistic game graph $\GameGraph$ with 2-players, governed by the dynamics operators from \in[sec:abstraction-operators].
+Its construction is described in the following text.
+In contrast to \cite[Svorenova2017], the game is build directly here, without introducing a non-deterministic transition system first and then extending to a 2½-player game, thereby reintroducing the stochasticity of the LSS.
 
 
 \startsubsection[title={Player 1},reference=sec:abstraction-graph-playerone]
 
-    To discretize the state space, state space vectors have to be grouped into a finite set of disjunct regions.
-    A convex partitioning of the extended state space $\ExtendedStateSpace$ is chosen.
-    Convex geometry has many advantageous computational properties as described in section \in[sec:theory-geometry-properties] and the inclusion of $\ExtendedStateSpace \setminus \StateSpace$ in addition to the state space simplifies the handling of transition out of the state space.
-    While looking for an abstraction that is sufficiently fine to provide the solution to a given problem, the partition will be subject to change by refinement procedures.
-    Initially, it makes sense to use the equivalence relation
+    The state space discretization requires a grouping of all state space vectors into a finite set of disjunct regions.
+    As seen in section \in[sec:theory-geometry-properties], convex geometry has many advantageous computational properties, therefore a convex, polytopic partition of the extended state space $\ExtendedStateSpace$ is chosen.
+    The inclusion of $\ExtendedStateSpace \setminus \StateSpace$ in addition to the state space will simplify the handling of transition out of the state space during construction.
+    While iterating the abstraction-analysis-refinement cycle from Figure \in[fig:problem-approach-flowchart], this partition is subject to change.
+    A sensible partition of $\StateSpace$ to initiate the procedure is based on the equivalence relation
 
     \placeformula[fml:abstraction-graph-decomposition]
     \startformula
         \VecState \sim_{\Predicates} \VecState' \;\Longleftrightarrow\; \PredicatesOf{\VecState} = \PredicatesOf{\VecState'} \EndComma
     \stopformula
 
-    induced by the linear predicates $\Predicates$, to partition $\StateSpace$.
-    The region $\ExtendedStateSpace \setminus \StateSpace$ can be partitioned arbitrarily.
-    Player 1 states of the game abstraction are based on this decomposition of $\ExtendedStateSpace$
+    induced by the linear predicates $\Predicates$.
+    It is polytopic, convex and allows a straightforward connection to the temporal logic specification later (see \in[sec:abstraction-product]).
+    The region $\ExtendedStateSpace \setminus \StateSpace$ can be partitioned arbitrarily into convex polytopes.
+    It only exists as a convenient transition target and does not require refinement in any subsequent iteration.
+
+    The player 1 states
 
     \startformula
         G_1 = \IndexedStates{i}{I}
     \stopformula
 
-    and directly identified by their corresponding polytopes, which are enumerated with the index set $I$.
-    It should be clear from context if a $\State{i}$ refers to the polytope or the associated game state.
+    of the game abstraction $\GameGraph$ are based on this decomposition of $\ExtendedStateSpace$.
+    The states are directly identified with the corresponding polytopes from the partition, which are enumerated with the index set $I$.
+    In a geometric context $\State{i}$ will refer to the polytope, while in a game-theoretic context, $\State{i}$ will refer to the associated player 1 state.
+
+    % TODO: example, introduce linear predicate and decomposition, show figure with extended state space and partition
 
     For any given state vector $\VecState$ of the state space, the partition induces an equivalence relation $\sim_\VecState$ over the control space
 
@@ -40,7 +48,7 @@ Here, the game is constructed directly.
         \Big) \EndComma
     \stopformula
 
-    i.e.\ two control vectors are equivalent if and only if the same set of state space parts is reachable after one step of system evolution.
+    i.e.\ two control vectors are equivalent if and only if the same set of state space partition elements is reachable after one step of system evolution when starting in $\VecState$.
     In order to obtain actions for a state $\State{i}$ based on this relation it must be extended to the entire polytope.
     However, not all states in $\State{i}$ necessarily produce the same relation, so a common $\sim_{\State{i}}$ does not generally exist.
     Instead, it is defined as
@@ -53,17 +61,23 @@ Here, the game is constructed directly.
         \Big)
     \stopformula
 
-    and used to define the player one actions
+    and used to generate the player 1 actions
 
     \startformula
         Act_1 = \BigSet{ \PlayerOneAction{i}{J} \Bigmid i \in I \MidComma J \subseteq I } \EndComma
     \stopformula
 
-    named after the indices of the origin state $\State{i}$ and the reachable target states $\IndexedStates{j}{J}$, governed by $\sim_{\State{i}}$.
-    No actions are defined for the outer states $\Set{ \State{i} \mid i \in I \MidComma \State{i} \subseteq \ExtendedStateSpace \setminus \StateSpace }$, which are only used as transition targets.
-    Note that every set of reachable target states has a unique associated action.
+    named after the index of the origin state $\State{i}$ and the indices of reachable target states $\IndexedStates{j}{J}$, governed by $\sim_{\State{i}}$.
+    No actions are defined for the outer states 
 
-    Example: % TODO
+    \startformula
+        \Set{ \State{i} \mid i \in I \MidComma \State{i} \subseteq \ExtendedStateSpace \setminus \StateSpace } \EndPeriod
+    \stopformula
+
+    Note that every set of reachable target states has a unique associated game action and control space region.
+    The region is given by the concrete action dynamics operator $\ActC$ which exactly reflects the action-generating relation $\sim_{\State {i}}$.
+
+    % TODO: example: calculate actions for a state
     Non-empty concrete actions for $\State{4} = \ClosedInterval{0}{2}$:
 
     \startformula
@@ -83,7 +97,7 @@ Here, the game is constructed directly.
         \stopalign
     \stopformula
 
-    Therefore, we obtain 3 player 1 actions for this state: $\PlayerOneAction{4}{\Set{1, 4}}$, $\PlayerOneAction{4}{\Set{1, 3, 4}}$ and $\PlayerOneAction{4}{\Set{3, 4}}$.
+    Therefore, 3 player 1 actions are obtained for this state: $\PlayerOneAction{4}{\Set{1, 4}}$, $\PlayerOneAction{4}{\Set{1, 3, 4}}$ and $\PlayerOneAction{4}{\Set{3, 4}}$.
 
 \stopsubsection
 
@@ -91,19 +105,20 @@ Here, the game is constructed directly.
 \startsubsection[title={Player 2},reference=sec:abstraction-graph-playertwo]
 
     In the original LSS, after a control input has been selected, the next state is determined stochastically according the the evolution equation and the probability distribution over $\RandomSpace$.
-    In the abstraction, a probability distribution that works for all $\VecState \in \State{i}$ does not exist generally, so the exact probabilities of reaching another target state are unknown until the trace is exactly localized.
-    Importantly, because of a possible mismatch between $\sim_\VecState$ and $\sim_{\State{i}}$, not every state in the action's target set may be reachable for every $\VecState \in \State{i}$, so for some target states the transition probability can be zero.
-    A simple probabilistic transition after the control input selection to the next system state is therefore only possible once the trace has been localized in $\State{i}$ and hence a second player is required in the abstraction.
-    Player 2 has the power to determine the corresponding probability distribution by localizing the trace in the associated polytope of the player 1 state.
-    The game then transitions to any of the reachable states by sampling the chosen probability distribution.
+    In the abstraction, a probability distribution that works for all $\VecState \in \State{i}$ does not exist generally, so the exact probabilities of reaching another target state when player 1 has selected an action are unknown until the trace and control input are exactly localized.
+    In particular, because of a possible mismatch between $\sim_\VecState$ and $\sim_{\State{i}}$, not every state in the action's target set may be reachable once a trace has been localized in a state $\VecState \in \State{i}$.
+    A simple probabilistic transition after a player 1 action to the next player 1 state is therefore not possible.
+    The trace has to be localized in $\State{i}$ first and the exact control input selected so that the transition probability distribution over the set of target states can be determined.
+    Hence, a second player with the power to localize the trace and select a specific control vector from the region associated with the player 1 action is required in the abstraction.
+    The game can then transition to any of the reachable states by sampling the resulting probability distribution.
 
-    Therefore, player 2 states
+    Since every target set of state space partition elements has exactly one associated action, player 2 states
 
     \startformula
         G_2 = \BigSet{\Tuple{\State{i}}{J} \Bigmid i \in I \MidAnd J \subseteq I} \EndComma
     \stopformula
 
-    denoted by a tuple of a player 1 state and chosen action, are defined.
+    are simply tuples of player 1 states and actions.
     The transition relation
 
     \startformula
@@ -125,20 +140,21 @@ Here, the game is constructed directly.
         \stopmathcases
     \stopformula
 
-    matches player 1 states and actions with the corresponding player 2 state deterministically:
-    The dynamics operator used is the concrete action which exactly reflects the action-generating relation $\sim_{\State {i}}$.
+    matches a player 1 state and action with the corresponding player 2 state deterministically.
+    As noted before, the appropriate dynamics operator to express the relation $\sim_{\State {i}}$, which generates the player 1 actions, is $\ActC$.
 
-    Player 2 actions choose the probability distribution used for the actual system transition.
-    A finite set of actions is desired but there are potentially infinitely many, because the probability distributions will be different for every $\VecState \in \State{i}$ that player 2 may localize.
-    However, for the purposes of almost-sure analysis, all non-zero probabilities can be seen as equivalent, reducing the choice of the probability distributions to a choice of the support of the probability distribution. % TODO reference
-    Therefore (finitely many) player 2 actions can be defined as
+    Player 2's actions are supposed to determine the probability distribution used for the actual system transition.
+    A finite set of actions is desired but there are potentially infinitely many because the probability distributions will be different for every $\VecState \in \State{i}$ and $\VecControl \in \ConcreteAction{\State{i}}{\IndexedStates{j}{J}}$ that player 2 can choose from.
+    Fortunately, in the context of almost-sure analysis, all non-zero probabilities are equivalent. % TODO add a reference and intuitive explanation
+    This reduces the choice of the probability distribution to a choice of the support set of the probability distribution.
+    So, (finitely many) player 2 actions
 
     \startformula
         Act_2 = \BigSet{ \PlayerTwoAction{i}{J}{K} \Bigmid i \in I \MidComma K \subseteq J \subseteq I } \EndComma
     \stopformula
 
-    where $K$ is the set of target state indices from the support of the probability distribution, without losing relevant behaviour of the system in the framework of almost-sure analysis.
-    For the player 2 transition relation uniform distribution with the appropriate support sets can be assumed, as all distributions with the same support are equivalent:
+    where $K$ is the set of target state indices from the support of the probability distribution, can be defined without losing relevant behaviour of the system for the purposes of almost-sure analysis.
+    The equivalency of all probability distributions with the same support sets also means that uniform distributions can be conveniently chosen everywhere for the player 2 transition relation
 
     \startformula
         \Transition_\GameGraph
@@ -160,9 +176,9 @@ Here, the game is constructed directly.
     \stopformula
 
     where $U_i^J = \ConcreteAction{\State{i}}{\IndexedStates{j}{J}}$ is the control input associated with the player 1 action $\PlayerOneAction{i}{J}$ that lead to the player 2 state from player 1 state $\State{i}$.
-    The dynamics operator used is the precise predecessor, which provides the required origin subsets of $\State{i}$ where the probability distribution support sets $\IndexedStates{k}{K}$ are identical for some $\VecControl \in U_i^J$.
+    The dynamics operator used is the precise predecessor, which corresponds to the origin regions in $\State{i}$ for which probability distribution support sets $\IndexedStates{k}{K}$ are identical for some $\VecControl \in U_i^J$.
 
-    Example: % TODO
+    % TODO example
     So e.g. action $\PlayerOneAction{4}{\Set{1, 3, 4}}$ leads (determinisitically) to state $\Tuple{\State{4}}{\Set{1, 3, 4}}$, where one finds these non-empty precise predecessors:
 
     \startformula
@@ -179,7 +195,7 @@ Here, the game is constructed directly.
         \stopalign
     \stopformula
 
-    From that one finds that player 2 has actions $\PlayerTwoAction{4}{\Set{1, 3, 4}}{\Set{1, 4}}$, $\PlayerTwoAction{4}{\Set{1, 3, 4}}{\Set{3, 4}}$ and $\PlayerTwoAction{4}{\Set{1, 3, 4}}{\Set{4}}$ available.
+    Therefore, player 2 has actions $\PlayerTwoAction{4}{\Set{1, 3, 4}}{\Set{1, 4}}$, $\PlayerTwoAction{4}{\Set{1, 3, 4}}{\Set{3, 4}}$ and $\PlayerTwoAction{4}{\Set{1, 3, 4}}{\Set{4}}$ available.
 
 \stopsubsection
 
@@ -244,7 +260,7 @@ Here, the game is constructed directly.
 
 \startsubsection[title={Synopsis},reference=sec:abstraction-graph-synopsis]
 
-    The constructed 2½-player game graph is then
+    In total, the constructed 2½-player game graph is
 
     \startformula
         \GameGraph = (G_1, G_2, Act, \Transition_\GameGraph) \EndComma
@@ -252,12 +268,16 @@ Here, the game is constructed directly.
 
     where $Act = Act_1 \cup Act_2$.
 
-    To summarize:
-    By choosing a region of the control space, player 1 selects a set of (reachable) states, one of which will be randomly selected as the successor state.
-    But because the real state of a trace is unknown due to the state space discretization, the distribution from which the successor is sampled is not unique and must be chosen by player 2.
-    Because for almost-sure analysis only the supports of the probability distributions matter, player 2 can choose from a (finite) set of uniform distributions with supports from the power set of the reachable states selected by player 1.
+    To summarize the process of a play starting in a player 1 state:
+    First, player 1 selects a set of elements of the state space partition reachable from the current state.
+    One of these elements should be randomly selected as a successor but because the real state of the trace that the play corresponds to is unknown in the discretized state space, the distribution from which the successor is sampled is not unique and must be chosen by player 2.
+    Conveniently, only the supports of the probability distributions matter for almost-sure analysis, so player 2 can choose from a (finite) set of uniform distributions with supports from the power set of the reachable states selected by player 1.
 
-    Example: % TODO
+    Translated to the corresponding trace in the LSS, this means player 1 chooses a region of the control space given by one of the non-empty concrete actions of the state space partition element the trace is currently located in.
+    Player 2 then chooses a control vector from this region and reveals the exact location of the trace in the state space.
+    The trace steps forward in time according to the evolution equation and it is player 1's turn again.
+
+    % TODO: example game graph construction
     Complete graph of actions and states for $\State{4}$.
 
     \placefigure[top][fig:abstraction-graph-xfour]{

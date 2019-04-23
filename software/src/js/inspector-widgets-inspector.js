@@ -1659,10 +1659,10 @@ class TransitionRefinementCtrl extends WidgetPlus {
             "Robust Predecessor": "PreR",
         }, "Robust Predecessor");
         this._layerUScale = new DropdownInput(DropdownInput.rangeOptions(80, 125, 5), "95");
-        this._layerStart = new DropdownInput(DropdownInput.rangeOptions(0, 20, 1), "1");
+        this._layerStart = new DropdownInput(DropdownInput.rangeOptions(1, 20, 1), "1");
         this._layerEnd = new DropdownInput({ "10": 10 }, "10");
         // Attr+ refinement
-        this._iterations = new DropdownInput(DropdownInput.rangeOptions(0, 20, 1), "2");
+        this._iterations = new DropdownInput(DropdownInput.rangeOptions(0, 10, 1), "2");
         this._dontRefineSmall = new CheckboxInput(true, "don't refine small polytopes if safe");
         this._postProcessing = new DropdownInput({
             "none": "none",
@@ -1731,7 +1731,7 @@ class TransitionRefinementCtrl extends WidgetPlus {
             target: this._target.value,
             iterations: this._iterations.value,
             enlargeSmallTarget: this._enlargeSmallTarget.value,
-            layers: (!this._useLayers) ? null : {
+            layers: (!this._useLayers.value) ? null : {
                 generator: this._layerGenerator.value,
                 scaling: (this._layerUScale.value / 100),
                 range: [this._layerStart.value, this._layerEnd.value]

@@ -442,6 +442,8 @@ export class TransitionRefinery extends Refinery {
                 origin: AutomatonStateID, target: AutomatonStateID, enlargeSmallTarget: boolean,
                 layers: ?TransitionRefineryLayers, settings: RobustReachabilitySettings): void {
         super(system, objective, results);
+        const lss = system.lss;
+        // Sort system states into good, bad, todo categories
         const bad = [];
         const good = [];
         const todo = new Map();
@@ -467,20 +469,98 @@ export class TransitionRefinery extends Refinery {
                 bad.push(x.polytope);
             }
         }
-        // ...
-        const avoid = Union.from(bad, system.lss.dim).simplify();
-        const reach = Union.from(good, system.lss.dim).simplify();
-        // TODO: layers, enlarge small target
-        this._problems = [new RobustReachabilityProblem(system.lss, todo, reach, avoid, settings)];
-        // ...
+        // List of robust reachability subproblems
+        this._problems = [];
+        // Union of bad states is to be avoided
+        const avoid = Union.from(bad, lss.dim).simplify();
+        // Union of good states is the target
+        let reach = Union.from(good, lss.dim).simplify();
+        // Expand target if it is small and expansion is desired
+        while (enlargeSmallTarget && reach.pontryagin(lss.ww).isEmpty) {
+            // TODO expand reach, intersect with state space, remove avoid and check again
+            break; // TODO
+        }
+        // TODO if reach was modified, add a safety property as additional problem
+        if (false) {
+            // TODO
+        }
+        // Case 1: refinement without layer decomposition
+        if (layers == null) {
+            this._problems.push(new RobustReachabilityProblem(lss, todo, reach, avoid, settings));
+        // Case 2: further decomposition into layers
+        } else {
+            // Apply scaling to layer generating control input
+            const uu = lss.uu.scale(layers.scaling);
+            // Build subproblems based on layers
+            for (let i = 1; i <= layers.range[1]; i++) {
+                // Obtain layer for chosen generator
+                const layer = this._generateLayer(reach, uu, layers.generator);
+                // Only apply refinement to layers in given range
+                if (layers.range[0] <= i) {
+                    // Collect todo-states of the current layer
+                    const layerTodo = new Map();
+                    for (let [state, region] of todo) {
+                        const intersection = region.intersect(layer).simplify();
+                        if (!intersection.isEmpty) {
+                            // Add intersection of state region and layer to
+                            // the layer's todo-states
+                            layerTodo.set(state, intersection);
+                            // Remove the intersection from the global
+                            // todo-state so that it is not refined in another
+                            // sub-problem
+                            todo.set(state, region.remove(intersection).simplify());
+                        }
+                    }
+                    // If no new todo-states appear, layer generator has
+                    // converged and generation can be stopped
+                    if (layerTodo.size === 0) break;
+                    // Add the layer-subproblem to the list
+                    this._problems.push(new RobustReachabilityProblem(lss, layerTodo, reach, avoid, settings));
+                }
+                // Update reach to the layer for the next subproblem
+                reach = layer.remove(avoid).simplify();
+            }
+        }
+        // Initialize the partition cache
+        this._updatePartitionCache();
+    }
+
+    _generateLayer(target: Region, control: Polytope, generator: string): Region {
+        const lss = this.system.lss;
+        let layer;
+        if (generator === "PreR")  {
+            layer = lss.preR(lss.xx, control, target);
+        } else if (generator === "Pre") {
+            layer = lss.pre(lss.xx, control, target);
+        } else throw new NotImplementedError(
+            "layer generator '" + generator + "' does not exist"
+        );
+        // Keep target in layer polytope, it is no problem if a trace jumps
+        // more than one layer inward
+        return layer.union(target).simplify();
+    }
+
+    // Collect and merge the partitions from all subproblems
+    _updatePartitionCache(): void {
+        const partitions = new Map();
+        for (let problem of this._problems) {
+            for (let [state, region] of problem.partitions) {
+                const existing = partitions.get(state);
+                partitions.set(state, (existing == null ? region : existing.union(region)));
+            }
+        }
         this._partitions = new Map();
+        for (let [state, region] of partitions) {
+            const rest = state.polytope.remove(region).simplify();
+            this._partitions.set(state, region.union(rest));
+        }
     }
 
     iterate(n?: number): void {
         for (let problem of this._problems) {
             problem.iterate(n == null ? 1 : n);
         }
-        this._partitions = this._problems[0].partitions; // TODO
+        this._updatePartitionCache();
     }
 
     partition(x: State): Region {

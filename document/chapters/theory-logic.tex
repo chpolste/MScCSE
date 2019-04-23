@@ -5,7 +5,7 @@ A comprehensive and rigorous introduction to temporal logics is given e.g. by \c
 Here, a summarized look at the basics of linear time logic is presented and supplemented by brief survey of related temporal logics.
 
 
-\startsubsection[title={Linear Temporal Logic}]
+\startsubsection[title={Linear Temporal Logic},reference=sec:theory-logic-ltl]
 
     Linear temporal logic (LTL) is an extension of propositional logic applied to discrete-time infinite sequences of valuations of propositional atoms.
     LTL formulae are able to express the temporal order of events occurring in such a sequence.
@@ -60,7 +60,7 @@ Here, a summarized look at the basics of linear time logic is presented and supp
 \stopsubsection
 
 
-\startsubsection[title={Other Temporal Logics}]
+\startsubsection[title={Other Temporal Logics},reference=sec:theory-logic-other]
 
     The path based, linear time semantics of LTL was extended to states by looking at all possible paths starting from a common initial state.
     In a branching time framework, the future is not a collection of paths starting in the present but a tree of possible futures, branching further outward whenever there are multiple successors of a moment (i.e. state) in time.
@@ -130,7 +130,7 @@ Here, a summarized look at the basics of linear time logic is presented and supp
     arrow.bot(.5, btex \small ${\theta}$ etex) (a[1][4],a[1][1]) a[1][4].c..a[2][3].c..a[2][2].c..a[1][1].c;
 \stopreusableMPgraphic
 
-\startsubsection[title={Automata for LTL Objectives}]
+\startsubsection[title={Automata for LTL Objectives},reference=sec:theory-logic-automata]
 
     Every LTL formula can be represented by an \omega-automaton constructed such that the formula and automaton accept the same language of words over the alphabet $2^{AP}$.
     Tools for the automatic translation of temporal logic formulae to various types of \omega-automata have beed developed, e.g. by \cite[Kretinsky2018], \cite[Duret2016] and \cite[Gastin2001].
@@ -175,7 +175,7 @@ Here, a summarized look at the basics of linear time logic is presented and supp
 \stopsubsection
 
 
-\startsubsection[title={Fragments of LTL}]
+\startsubsection[title={Fragments of LTL},reference=sec:theory-logic-fragments]
 
     Model checking with general LTL specifications is computationally demanding and in fact PSPACE-hard \cite[authoryears][Baier2008].
     Fragments of LTL exist that offer more favorable computational complexity and simple automaton constructions at the cost of restrictions in expressivity.

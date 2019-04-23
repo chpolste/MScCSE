@@ -23,7 +23,7 @@ All lower-dimensional polytopes (e.g. a line in $\reals^2$) are treated as empty
     A bounded intersection of halfspaces $\IndexedSet{H_j}{j \in J}$ is a convex polytope $P$ and can be written as
 
     \startformula
-        P = \bigcup_{j \in J} H_j = \Set{\VecX \in \reals^n \mid \MatU \VecX \leq \VecC } \EndComma
+        P = \bigcup_{j \in J} H_j = \Set{\VecX \in \reals^n \mid \MatU \VecX \leq \VecC } \EndComma % TODO find different letter than U for halfspaces everywhere (conflict with control space)
     \stopformula
 
     where $\Mat{U}$ is the stack of transposed normal vectors $\VecU_j$ of the halfspaces, $\Mat{C}$ the corresponding stack of offset values $c_j$ and the inequation holds component-wise.

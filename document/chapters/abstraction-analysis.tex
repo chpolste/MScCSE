@@ -1,6 +1,12 @@
-To decide desired properties, game needs to be analysed twice:
-once with adversarial player 2 (to yield winning states where even in the "worst case", game can be won by player 1) and once with cooperative player 2 (to yield states where winning is possible, but not guaranteed).
-From membership in these 2 solution sets, it can be decided if states are satisfying, non-satisfying or if the abstraction is too coarse to decide and further refinement is necessary.
+The product game has to be analysed twice in order to decide, which elements of the state space partition are subsets of $\InitialStates$ and which are subsets of $\StateSpace \setminus \InitialStates$.
+First, the game is solved under the assumption that player 2 is an adversary.
+From this analysis it is possible to identify game states in which player 1 can win almost-surely no matter with which strategy player 2 plays (\quotation{yes-states}).
+Second, the game is solved under the assumption that player 2 cooperates with player 1.
+From this analysis it is possible to identify game states in which player 1 cannot win almost-surely independent of the player 2 strategy (\quotation{no-states}).
+
+These game results are projected back onto the state space partition, through the association of state space partition elements with player 1 game states in the initial state $q_0$ of the automaton.
+In general, not all states are identified as yes- or no-states by the analysis.
+If the abstraction is too coarse a set of \quotation{maybe-states} remain, whose corresponding state space partition elements require additional refinement until they can be categorized.
 
 
 \startbuffer[buf:abstraction-analysis-solution-algorithm]
@@ -21,7 +27,7 @@ From membership in these 2 solution sets, it can be decided if states are satisf
                 \STATE{ $Y \leftarrow {\bar Y}$ }
                 \DO
                     \STATE{ $Z \leftarrow {\bar Z}$ }
-                    \STATE{ ${\bar Z} \leftarrow (F \cap \Pre_1(X)) \cup (E \cap \Pre_2(X, Y)) \cup (D \cap \Pre_3(X, Y, Z))$ }
+                    \STATE{ ${\bar Z} \leftarrow (F \cap \Pre_1(X)) \cup (E \cap \Pre_2(X,\, Y)) \cup (D \cap \Pre_3(X,\, Y,\, Z))$ }
                 \ENDDOWHILE{ $Z \ne {\bar Z}$ }
                 \STATE{ ${\bar Y} \leftarrow Z$ }
                 \STATE{ ${\bar Z} \leftarrow P$ }
@@ -35,67 +41,70 @@ From membership in these 2 solution sets, it can be decided if states are satisf
 
 \startsubsection[title={Product Game Solution},reference=sec:abstraction-analysis-solution]
 
-    Analysis in both adversarial and cooperative settings achievable with same algorithm.
-    A quadratic-complexity algorithm exists, but a cubic, fixed-point algorithm is much easier to implement and therefore used here.
-    The correctness of the algorithm follows from \cite[TODO].
+    A solution to the game for both the adversarial and cooperative setting can be found with the same basic algorithm.
+    It is based on a fixed-point iteration solver for parity-3 games \cite[authoryears][TODO].
+    A quadratic-complexity algorithm exists, but its implementation is much more involved \cite[authoryears][TODO].
 
     Based on the successor operator
 
     \startformula
-        \Successor{s}{a} = \Support{\Transition(s, a)} \EndComma
+        \Successor{s}{a} = \Support{\Transition(s,\, a)} \EndComma
     \stopformula
 
-    two conditions
+    for game $\ProductGame$, two conditions
 
     \startformula
         \startalign[n=2,align={right,left}]
             \NC C_1(X) =
-            \NC \Set{ (s, a) \mid \Successor{s}{a} \subseteq X } \EndAnd
+            \NC \Set{ \Tuple{s}{a} \in P \times Act \mid \Successor{s}{a} \subseteq X } \EndAnd
             \NR
-            \NC C_2(X, Y) =
-            \NC \Set{ (s, a) \mid \Successor{s}{a} \subseteq X \MidAnd \Successor{s}{a} \cap Y \ne \emptyset }
+            \NC C_2(X,\, Y) =
+            \NC \Set{ \Tuple{s}{a} \in P \times Act \mid \Successor{s}{a} \subseteq X \MidAnd \Successor{s}{a} \cap Y \ne \emptyset }
             \NR
         \stopalign
     \stopformula
 
-    for state-action pairs of the product game graph are defined.  
-    Using these conditions, two sets of predecessor operators are defined, one for the adversarial setting
+    for state-action pairs of the product game graph are defined, where $P = P_1 \cup P_2$.
+    $C_1(X)$ contains state-action pairs of the product game whose successor states are all contained in $X$.
+    $C_2(X,\, Y)$ contains state-action pairs whose successor states are all contained in $X$ while at least one successor state is contained in $Y$.
+    Using these conditions, two sets of predecessor operators are defined.
+    One for the adversarial setting
 
     \startformula
         \startalign[n=2,align={right,left}]
             \NC \Pre_1^{\Adversarial}(X) =
-            \NC \Set{ s \in P_1 \mid \exists a \in Act : (s, a) \in C_1(X) }
+            \NC \Set{ s \in P_1 \mid \exists a \in Act : \Tuple{s}{a} \in C_1(X) }
             \NR
             \NC \empty
-            \NC \quad \cup \Set{ s \in P_2 \mid \forall a \in \Act : (s, a) \in C_1(X) } \EndComma
+            \NC \quad \cup \Set{ s \in P_2 \mid \forall a \in \Act : \Tuple{s}{a} \in C_1(X) } \EndComma
             \NR
-            \NC \Pre_2^{\Adversarial}(X, Y) =
-            \NC \Set{ s \in P_1 \mid \exists a \in Act : (s, a) \in C_2(X, Y) }
-            \NR
-            \NC \empty
-            \NC \quad \cup \Set{ s \in P_2 \mid \forall a \in \Act : (s, a) \in C_2(X, Y) } \EndComma
-            \NR
-            \NC \Pre_3^{\Adversarial}(X, Y, Z) =
-            \NC \Set{ s \in P_1 \mid \exists a \in Act : (s, a) \in C_2(X, Y) \cup C_1(Z) }
+            \NC \Pre_2^{\Adversarial}(X,\, Y) =
+            \NC \Set{ s \in P_1 \mid \exists a \in Act : \Tuple{s}{a} \in C_2(X,\, Y) }
             \NR
             \NC \empty
-            \NC \quad \cup \Set{ s \in P_2 \mid \forall a \in Act : (s, a) \in C_2(X, Y) \cup C_1(Z) }
+            \NC \quad \cup \Set{ s \in P_2 \mid \forall a \in \Act : \Tuple{s}{a} \in C_2(X,\, Y) } \EndComma
+            \NR
+            \NC \Pre_3^{\Adversarial}(X,\, Y,\, Z) =
+            \NC \Set{ s \in P_1 \mid \exists a \in Act : \Tuple{s}{a} \in C_2(X,\, Y) \cup C_1(Z) }
+            \NR
+            \NC \empty
+            \NC \quad \cup \Set{ s \in P_2 \mid \forall a \in Act : \Tuple{s}{a} \in C_2(X,\, Y) \cup C_1(Z) }
             \NR
         \stopalign
     \stopformula
 
-    and for the cooperative setting
+    and one for the cooperative setting
 
     \startformula
         \startalign[n=2,align={right,left}]
             \NC \Pre_1^{\Cooperative}(X) =
-            \NC \Set{ s \in P_1 \cup P_2 \mid \exists a \in Act : (s, a) \in C_1(X) } \EndComma
+            \NC \Set{ s \in P_1 \cup P_2 \mid \exists a \in Act : \Tuple{s}{a} \in C_1(X) } \EndComma
             \NR
-            \NC \Pre_2^{\Cooperative}(X, Y) =
-            \NC \Set{ s \in P_1 \cup P_2 \mid \exists a \in Act : (s, a) \in C_2(X, Y) } \EndComma
+            \NC \Pre_2^{\Cooperative}(X,\, Y) =
+            \NC \Set{ s \in P_1 \cup P_2 \mid \exists a \in Act : \Tuple{s}{a} \in C_2(X,\, Y) } \EndComma
             \NR
-            \NC \Pre_3^{\Cooperative}(X, Y, Z) =
-            \NC \Set{ s \in P_1 \cup P_2 \mid \exists a \in Act : (s, a) \in C_2(X, Y) \cup C_1(Z) } \EndPeriod
+            \NC \Pre_3^{\Cooperative}(X,\, Y, Z) =
+            \NC \Set{ s \in P_1 \cup P_2 \mid \exists a \in Act : \Tuple{s}{a} \in C_2(X,\, Y) \cup C_1(Z) } \EndPeriod
             \NR
         \stopalign
     \stopformula
@@ -103,7 +112,7 @@ From membership in these 2 solution sets, it can be decided if states are satisf
     \placealgorithm[top][alg:abstraction-analysis-solver]{
         Solver for the product game $\ProductGame$ with one-pair Streett acceptance condition $\Condition = \Tuple{E}{F}$ in either an adversarial (${\mathrm set} = \Adversarial$) or cooperative (${\mathrm set} = \Cooperative$) setting.
         The required $\Pre$-operators are defined in section \in[sec:abstraction-analysis-solution].
-        The procedure is based on a fixed-point iteration solver for parity-3 games \cite[authoryears][Svorenova2017].
+        The procedure is based on a fixed-point iteration solver for parity-3 games \cite[authoryears][Svorenova2017]. % TODO is this the right reference
     }{
         % https://mailman.ntg.nl/pipermail/ntg-context/2016/087390.html
         \startframedtext[width=\textwidth,frame=off]
@@ -111,13 +120,13 @@ From membership in these 2 solution sets, it can be decided if states are satisf
         \stopframedtext
     }
 
-    Substituting either set of these operators into Algorithm \in[alg:abstraction-analysis-solver] for $\Pre_1$, $\Pre_2$ and $\Pre_3$ results in procedures to compute sets $\Almost{\ProductGame}$ and $\AlmostCoop{\ProductGame}$.
-    Based on these solutions to the game, the sets
+    Substituting either set of these operators into Algorithm \in[alg:abstraction-analysis-solver] for $\Pre_1$, $\Pre_2$ and $\Pre_3$ results in procedures to compute sets $\AlmostAdv{\ProductGame}$ and $\AlmostCoop{\ProductGame}$.
+    Based on these solution sets,
 
     \startformula
         \startalign[n=2,align={right,left}]
             \NC P_\Yes =
-            \NC P_1 \cap \Almost{\ProductGame} \EndComma
+            \NC P_1 \cap \AlmostAdv{\ProductGame} \EndComma
             \NR
             \NC P_\No =
             \NC P_1 \setminus \AlmostCoop{\ProductGame} \EndAnd
@@ -128,9 +137,9 @@ From membership in these 2 solution sets, it can be decided if states are satisf
         \stopalign
     \stopformula
 
-    are defined.
-    For any play starting in a state from $P_\Yes$ player 1 has an almost-sure winning, finite-memory strategy even if player 2 plays adversarily.
-    No such strategy exists when a play is initiated from a state in $P_\No$, even if player 2 plays cooperatively.
+    are identified.
+    For any play starting in a state from $P_\Yes$ player 1 has an almost-sure winning strategy even if player 2 plays as an adversary.
+    No such strategy exists when a play is initiated from a state in $P_\No$, even if player 2 is cooperative.
     For states in $P_\Maybe$ one cannot determine if an almost-sure winning strategy exists due to the abstraction being too coarse.
 
     Let
@@ -151,59 +160,65 @@ From membership in these 2 solution sets, it can be decided if states are satisf
 
     for all $q \in Q$.
     Their notation is overloaded such that they denote the union of their member polytopes in geometric contexts, analogous to the use of sets of state space partition elements as arguments of the dynamics operators.
+    The regions $\YesStates{q_0}$ and $\NoStates{q_0}$ are then subsets of $\InitialStates$ and $\StateSpace \setminus \InitialStates$ and a partial solution to the analysis problem posed in \in[sec:problem-statement-analysis].
 
 \stopsubsection
 
 
 \startsubsection[title={Correctness and Termination},reference=sec:abstraction-analysis-correctness]
 
-    Results due to \cite[Svorenova2017].
-    Partial solution in every iteration: sequence of yes and no sets fulfils subset relation.
-    Soundness: $\YesStates{q_0}$ is always subset of $\InitialStates$ and $\NoStates{q_0}$ is always subset of $\StateSpace \setminus \InitialStates$.
-    Partial correctness: If the algorithm terminates (set of maybe-states is empty), then solution is found by last iteration.
+    The proof of (partial) correctness for the procedure presented in this chapter was given by \cite[Svorenova2017].
+    Given an LSS and a sequence of state space partitions, ordered such that each partition of the sequence is a sub-partition of the previous, the volumes of the solution sets $\YesStates{q_0} \subseteq \InitialStates$ and $\NoStates{q_0} \subseteq \StateSpace \setminus \InitialStates$ are increasing monotonically.
+    If at some point $\YesStates{q_0} \cup \NoStates{q_0} = \StateSpace$, the procedure terminates and a solution to the analysis problem is found.
+    However, even if good refinement procedures are available, it is not guaranteed that the algorithm terminates for an LSS, as the following examples show.
 
-    Two examples for non-termination given.
-    First, consider LSS
+    Consider the 1-dimensional LSS
 
     \startformula
-        \VecState_{t+1} = \VecState_t + \VecControl_t + \VecRandom_t
+        \VecState_{t+1} = \VecState_t + \VecControl_t + \VecRandom_t \EndComma
     \stopformula
 
     where $\VecState_t \in \ClosedInterval{0}{3}$, $\VecControl_t \in \ClosedInterval{-1.5}{1.5}$ and $\VecRandom_t \in \ClosedInterval{-0.5}{0.5}$ for all times $t$.
     A reachability objective with target region $\ClosedInterval{1}{2}$ can be fulfilled by every $\VecState \in \ClosedInterval{0}{3}$ with control input $\VecControl = 1.5 - \VecState$.
-    However, this control input is the only control input that leads to satisfaction almost-surely and it is different for every state of the state space.
-    Therefore, a solution cannot be found as a finite partition of the state space.
+    However, this control input is the only control input that leads to almost-sure satisfaction and it is different for every state of the state space.
+    Therefore, a solution in form of a finite partition of the state space cannot exist.
 
-    But even if finite state space partition does exist, the algorithm may still not terminate in practice.
-    To see this, consider the LSS
+    But even if a finite state space partition does exist, the algorithm may still not terminate in practice.
+    Consider the 1-dimensional LSS
 
     \startformula
-        \VecState_{t+1} = 1.5 \VecState_t + \VecControl_t + \VecRandom_t
+        \VecState_{t+1} = 1.5 \VecState_t + \VecControl_t + \VecRandom_t \EndComma
     \stopformula
 
     where $\VecState_t \in \ClosedInterval{-2}{2}$, $\VecControl_t \in \ClosedInterval{-2}{2}$ and $\VecRandom_t \in \ClosedInterval{-1}{1}$ for all times $t$.
-    Objective: general safety, don't leave the state space at any time.
-    Propose a partitioning into polytopes $\State{1} = \ClosedInterval{-2}{-1}$, $\State{2} = \ClosedInterval{-1}{0}$, $\State{3} = \ClosedInterval{0}{1}$ and $\State{4} = \ClosedInterval{1}{2}$.
-    Interval arithmetic shows that choosing control inputs $2$ for $\State{1}$, $1$ for $\State{2}$, $-1$ for $\State{3}$ and $-2$ for $\State{4}$ keeps traces starting from any state in the state space safe:
+    As an objective only a basic safety property is specified, i.e.\ traces are not allowed to leave the state space at any time.
+    The partition
 
     \startformula
-        \startalign[n=4,align={right,right,left,left}]
-            \NC \State{1}:
+        \State{1} = \ClosedInterval{-2}{-1} \MidComma \State{2} = \ClosedInterval{-1}{0} \MidComma \State{3} = \ClosedInterval{0}{1} \MidComma \State{4} = \ClosedInterval{1}{2}
+    \stopformula
+
+    is proposed for the state space.
+    With interval arithmetic one can easily show that the application of control inputs $2$ in $\State{1}$, $1$ in $\State{2}$, $-1$ in $\State{3}$ and $-2$ in $\State{4}$ keeps traces starting from anywhere in the state space safe:
+
+    \startformula
+        \startalign[n=4,align={right,middle,left,left}]
+            \NC \Posterior{\State{1}}{2} =
             \NC 1.5 \cdot \ClosedInterval{-2}{1} + 2 + \ClosedInterval{-1}{1}
             \NC = \ClosedInterval{-2}{1.5}
-            \NC \subseteq \StateSpace
+            \NC \subseteq \StateSpace \EndComma
             \NR
-            \NC \State{2}:
+            \NC \Posterior{\State{2}}{1} =
             \NC 1.5 \cdot \ClosedInterval{-1}{0} + 1 + \ClosedInterval{-1}{1}
             \NC = \ClosedInterval{-1.5}{2}
-            \NC \subseteq \StateSpace
+            \NC \subseteq \StateSpace \EndComma
             \NR
-            \NC \State{3}:
+            \NC \Posterior{\State{3}}{-1} =
             \NC 1.5 \cdot \ClosedInterval{0}{1} - 1 + \ClosedInterval{-1}{1}
             \NC = \ClosedInterval{-2}{1.5}
-            \NC \subseteq \StateSpace
+            \NC \subseteq \StateSpace \EndComma
             \NR
-            \NC \State{4}:
+            \NC \Posterior{\State{4}}{-2} =
             \NC 1.5 \cdot \ClosedInterval{1}{2} - 2 + \ClosedInterval{-1}{1}
             \NC = \ClosedInterval{-1.5}{2}
             \NC \subseteq \StateSpace \EndPeriod
@@ -211,10 +226,11 @@ From membership in these 2 solution sets, it can be decided if states are satisf
         \stopalign
     \stopformula
 
-    However, it was assumed in section \in[sec:TODO], that any non-empty polytope must be full-dimensional.
-    The concrete action operator from which the player 1 actions in the abstraction are derived returns a polytopic regions which means it cannot work with single-member sets.
-    For a small $\delta \ge 0$, consider a trace in state $\VecState_t = -2 + \frac{2}{3} \delta$.
-    Setting up the condition for safe continuation of the trace, one obtains
+    In section \in[sec:abstraction-operators-actions] it was noted that the action operators are unable to reproduce all possible behaviour of the dynamics because any polytope used in the abstraction has to be full-dimensional.
+    It is therefore not possible to associate player 1 actions with single control vectors as proposed above.
+    In practice, any control region must be able to contain a ball of some diameter $\epsilon > 0$ in order to be seen as non-empty.
+    Consider a trace in state $\VecState_t = -2 + \frac{2}{3} \delta$, for a small $\delta \ge 0$.
+    From the condition for safe continuation of this trace, one obtains
 
     \startformula
         \startalign[n=3,align={middle,right,left}]
@@ -233,26 +249,27 @@ From membership in these 2 solution sets, it can be decided if states are satisf
         \stopalign
     \stopformula
 
-    from the lower interval bound.
-    Because any control region selectable by player 1 in the abstraction must contain an interval of diameter $\epsilon > 0$ or else it is considered to be empty, the system can never be fully decided in the abstraction.
-    Any $\VecState = -2 + \frac{2}{3} \delta$ requires a control input region with a diameter of $\epsilon > \delta$, meaning all any state $\VecState \lt{} -2 + \frac{2}{3} \epsilon$ cannot be decided in the restrictions of the abstraction.
+    due to the lower interval bound.
+    For states $\VecState = -2 + \frac{2}{3} \delta$ with $\delta < \epsilon$, the remaining control region satisfying this condition is not able contain an $\epsilon$-ball.
+    It is therefore not possible to recognize these states as members of $\InitialStates$ or $\StateSpace \setminus \InitialStates$ due to the restrictions of the abstraction.
 
 \stopsubsection
 
 
 \startsubsection[title={Product Game Simplification},reference=sec:abstraction-analysis-simplification]
 
-    Reminder of how to include co-safe switch into game creation.
+    In section \in[sec:abstraction-product-cosafe], the co-safe interpretation of objectives is achieved by redirecting final states from the product game into a special loop, which guarantees a player 1 win for any play that enters it.
+    If partial results from a previous analysis already exist, the same procedure can be applied to any states for which it is already known that player 1 has an almost-sure winning strategy.
+    This can lead to substantial parts of the game states to become non-reachable.
+    The product game can then be simplified by removing these states.
+    Because it is guaranteed that any set of states previously decided to be part of $\InitialStates$ has been analysed correctly, this simplification does not affect the correctness of analysis results obtained from the simplified game, even it the state space partition was refined in the meantime.
+    The same is possible with states space regions recognized as part of $\StateSpace \setminus \InitialStates$ and redirection into the loop designed for dead-end states in section \in[sec:abstraction-product-deadends].
 
-    Now: If partial results are already available stop construction once decided state is reached.
-    Possible because of guarantee that any state that can be decided by the analysis is correctly analysed (partial solution) and will never change, even if other parts of the state space partition are refined.
-    Because game construction and analysis is expensive, use of partial solutions to simplify the game can reduce run time of the procedure substantially.
-
-    Discuss problems with product game simplification and the available compromise.
-    Because already decided states are immediately redirected into the $\SatEnd$ loop, some of their successors are constructed in the product game.
-    While results from decided states can be transfered to such states from the previous analysis, for previously undecided states that are not constructed anymore it cannot generally be decided if they should remain undecided or are actually unreachable now.
-    A subset of the full product game is omitted when the simplification is applied, which does not affect the validity of the analysis especially because the initial states, which are of most interest, are always constructed.
-    However, as seen in the next section this might restrict the controller synthesis process, which relies on analysis results of all states, not just the initial ones.
+    While this simplification can reduce the computational demands of product game construction and analysis significantly and does not affect the correctness of solutions obtained from the modified game, it has an unfortunate side-effect.
+    If a subset of the product game is not constructed due to the introduced redirection, no analysis results will subsequently be available for states in this subset.
+    The results from decided states can be transferred to such states from the previous analysis, but maybe-states from the removed subset will remain in an undecided state.
+    The amount of information available to refinement methods or controller synthesis procedures is therefore reduced which may affect the quality of their results.
+    Should the full information be required, the product game has to be constructed without any simplification and then analysed.
 
 \stopsubsection
 

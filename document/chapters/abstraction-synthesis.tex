@@ -1,9 +1,11 @@
-Controller designed by \cite[Svorenova2017]:
-Apply actions that make the play corresponding to the trace remain in $\Almost{\ProductGame}$.
-Satisfaction is guaranteed by selecting from the available actions in a round-robin fashion.
-This is a pure (no randomization) strategy using finite memory (the number of actions is finite).
+For every trace starting in a state recognized as a member of $\InitialStates$, a strategy exists that leads to player 1 winning almost-surely.
+A witness strategy can be constructed based on the result from the analysis of the product game in the following way \cite[authoryears][Svorenova2017]:
+At every step of the trace in the LSS, a control input is chosen such that the corresponding play in the product game only visits states from the set $\AlmostAdv{\ProductGame}$.
+The control inputs are chosen in a round-robin fashion from the $\ActC$-regions associated with player 1 actions.
+This is a pure strategy requiring a finite memory to keep track of the round-robin selection of actions.
 
 In general, memoryless strategies exist for all one-pair Streett objectives, because they can be converted into parity-3 objectives for which such strategies are known to exist \cite[authoryears][Chatterjee2012].
-They can be derived from deeper analysis of the game.
+Deeper analysis of the game is required to derive these strategies.
+This analysis is not a focus of this work.
 % TODO: figure out how all the Streett/Rabin/Parity stuff fits together. Does existence of memoryless strategies (which definitely exists for reachability) can be tied into reachability decomposition presented later?
 

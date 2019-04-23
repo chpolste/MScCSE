@@ -21,7 +21,7 @@ In contrast to \cite[Svorenova2017], the game is build directly here, without in
         \VecState \sim_{\Predicates} \VecState' \;\Longleftrightarrow\; \PredicatesOf{\VecState} = \PredicatesOf{\VecState'} \EndComma
     \stopformula
 
-    induced by the linear predicates $\Predicates$.
+    induced by the linear predicates $\Predicates$, where $\Function{\FulfilledPredicates}{\StateSpace}{2^\Predicates}$ associates a state vector with the predicates it fulfills.
     It is polytopic, convex and allows a straightforward connection to the temporal logic specification later (see \in[sec:abstraction-product]).
     The region $\ExtendedStateSpace \setminus \StateSpace$ can be partitioned arbitrarily into convex polytopes.
     It only exists as a convenient transition target and does not require refinement in any subsequent iteration.
@@ -36,9 +36,19 @@ In contrast to \cite[Svorenova2017], the game is build directly here, without in
     The states are directly identified with the corresponding polytopes from the partition, which are enumerated with the index set $I$.
     In a geometric context $\State{i}$ will refer to the polytope, while in a game-theoretic context, $\State{i}$ will refer to the associated player 1 state.
 
-    % TODO: example, introduce linear predicate and decomposition, show figure with extended state space and partition
+    \placefigure[top][fig:abstraction-graph-partition]{
+        Initial state space partition for the example system (\in[fml:abstraction-example]) induced by the equivalend relation $\sim_{\Set{\Predicate_0}}$ where $\Predicate_0$ is a linear predicate associated with halfspace $\Set{ \Vec{x} \in \reals^n \mid -\VecX \leq 2 }$.
+        $\State{1}$ and $\State{2}$ are outer parts from the decomposition of $\ExtendedStateSpace \setminus \StateSpace$.
+    }{
+        % Put in wide box so that figure caption has full width
+        \framed[width=\textwidth,frame=off]{\externalfigure[abstraction-graph-partition][width=0.8\textwidth]}
+    }
 
-    For any given state vector $\VecState$ of the state space, the partition induces an equivalence relation $\sim_\VecState$ over the control space
+    Figure \in[fig:abstraction-graph-partition] shows the initial state space partition for the example system (\in[fml:abstraction-example]) when equipped with a linear predicate $\Predicate_0$ associated with the halfspace $ \Set{ \Vec{x} \in \reals^n \mid -\VecX \leq 2 } $.
+    The equivalence relation $\sim_{\Set{\Predicate_0}}$ partitions the state space into two parts $\State{3} = \ClosedInterval{2}{4}$ such that $\PredicatesOf{\VecState} = \Set{\Predicate_0}$ for all $\VecState \in \State{3}$ and $\State{4} = \ClosedInterval{0}{2}$ such that $\PredicatesOf{\VecState} = \emptyset$ for all $\VecState \in \State{4}$.
+    Two additional polytopes $\State{1} = \ClosedInterval{-1.1}{0}$ and $\State{2} = \ClosedInterval{4}{5.1}$ arise from the convex decomposition of $\ExtendedStateSpace \setminus \StateSpace$.
+
+    The state space partition induces an equivalence relation $\sim_\VecState$ over the control space for any given state vector $\VecState$ with
 
     \startformula
         \VecControl \sim_\VecState \VecControl' \;\Longleftrightarrow\;
@@ -77,8 +87,7 @@ In contrast to \cite[Svorenova2017], the game is build directly here, without in
     Note that every set of reachable target states has a unique associated game action and control space region.
     The region is given by the concrete action dynamics operator $\ActC$ which exactly reflects the action-generating relation $\sim_{\State {i}}$.
 
-    % TODO: example: calculate actions for a state
-    Non-empty concrete actions for $\State{4} = \ClosedInterval{0}{2}$:
+    For $\State{4}$ of the example LSS (\in[fml:abstraction-example]) with the decomposition from Figure \in[fig:abstraction-graph-partition], the following non-empty concrete actions are found:
 
     \startformula
         \startalign[n=3,align={left,left,left}]
@@ -88,7 +97,7 @@ In contrast to \cite[Svorenova2017], the game is build directly here, without in
             \NR
             \NC \ConcreteAction{\State{4}}{\Set{\State{1},\State{3},\State{4}}}
             \NC = \ClosedInterval{-0.1}{0.1}
-            \NC = U_4^{\Set{1, 3, 4}} \EndComma
+            \NC = U_4^{\Set{1, 3, 4}} \EndAnd
             \NR
             \NC \ConcreteAction{\State{4}}{\Set{\State{1},\State{4}}}
             \NC = \ClosedInterval{-1}{-0.1}
@@ -97,7 +106,7 @@ In contrast to \cite[Svorenova2017], the game is build directly here, without in
         \stopalign
     \stopformula
 
-    Therefore, 3 player 1 actions are obtained for this state: $\PlayerOneAction{4}{\Set{1, 4}}$, $\PlayerOneAction{4}{\Set{1, 3, 4}}$ and $\PlayerOneAction{4}{\Set{3, 4}}$.
+    Therefore, 3 player 1 actions are derived for the associated state in the game graph: $\PlayerOneAction{4}{\Set{1, 4}}$, $\PlayerOneAction{4}{\Set{1, 3, 4}}$ and $\PlayerOneAction{4}{\Set{3, 4}}$.
 
 \stopsubsection
 
@@ -145,8 +154,11 @@ In contrast to \cite[Svorenova2017], the game is build directly here, without in
 
     Player 2's actions are supposed to determine the probability distribution used for the actual system transition.
     A finite set of actions is desired but there are potentially infinitely many because the probability distributions will be different for every $\VecState \in \State{i}$ and $\VecControl \in \ConcreteAction{\State{i}}{\IndexedStates{j}{J}}$ that player 2 can choose from.
-    Fortunately, in the context of almost-sure analysis, all non-zero probabilities are equivalent. % TODO add a reference and intuitive explanation
-    This reduces the choice of the probability distribution to a choice of the support set of the probability distribution.
+    Fortunately, in the context of almost-sure analysis, all non-zero probabilities are equivalent \cite[authoryears][TODO].
+    Intuitively this can be understood by considering repeated attempts to make some event happen.
+    As long the probability of the event happening is non-zero in every attempt, it will happen eventually with probability 1, i.e.\ almost-surely.
+    The exact probability is irrelevant as long as it does not drop to 0.
+    This property of almost-sure analysis reduces the choice of the probability distribution to a choice of the support set of the probability distribution.
     So, (finitely many) player 2 actions
 
     \startformula
@@ -178,24 +190,24 @@ In contrast to \cite[Svorenova2017], the game is build directly here, without in
     where $U_i^J = \ConcreteAction{\State{i}}{\IndexedStates{j}{J}}$ is the control input associated with the player 1 action $\PlayerOneAction{i}{J}$ that lead to the player 2 state from player 1 state $\State{i}$.
     The dynamics operator used is the precise predecessor, which corresponds to the origin regions in $\State{i}$ for which probability distribution support sets $\IndexedStates{k}{K}$ are identical for some $\VecControl \in U_i^J$.
 
-    % TODO example
-    So e.g. action $\PlayerOneAction{4}{\Set{1, 3, 4}}$ leads (determinisitically) to state $\Tuple{\State{4}}{\Set{1, 3, 4}}$, where one finds these non-empty precise predecessors:
+    In the example system (\in[fml:abstraction-example]), consider state $\State{4}$ and its action $\PlayerOneAction{4}{\Set{1, 3, 4}}$ computed in \in[sec:abstraction-graph-playerone].
+    This action leads (determinisitically) to the player 2 state $\Tuple{\State{4}}{\Set{1, 3, 4}}$, which is associated with the non-empty precise predecessors
 
     \startformula
         \startalign[n=2,align={left,left}]
             \NC \PrecisePredecessor{\State{4}}{U_4^{\Set{1, 3, 4}}}{\Set{\State{1},\State{4}}}
-            \NC = \ClosedInterval{0}{0.2}
+            \NC = \ClosedInterval{0}{0.2} \EndComma
             \NR
             \NC \PrecisePredecessor{\State{4}}{U_4^{\Set{1, 3, 4}}}{\Set{\State{3},\State{4}}}
-            \NC = \ClosedInterval{1.8}{2}
+            \NC = \ClosedInterval{1.8}{2} \EndAnd
             \NR
             \NC \PrecisePredecessor{\State{4}}{U_4^{\Set{1, 3, 4}}}{\Set{\State{4}}}
-            \NC = \ClosedInterval{0}{2}
+            \NC = \ClosedInterval{0}{2} \EndPeriod
             \NR
         \stopalign
     \stopformula
 
-    Therefore, player 2 has actions $\PlayerTwoAction{4}{\Set{1, 3, 4}}{\Set{1, 4}}$, $\PlayerTwoAction{4}{\Set{1, 3, 4}}{\Set{3, 4}}$ and $\PlayerTwoAction{4}{\Set{1, 3, 4}}{\Set{4}}$ available.
+    Therefore, in this player 2 state, the actions $\PlayerTwoAction{4}{\Set{1, 3, 4}}{\Set{1, 4}}$, $\PlayerTwoAction{4}{\Set{1, 3, 4}}{\Set{3, 4}}$ and $\PlayerTwoAction{4}{\Set{1, 3, 4}}{\Set{4}}$ are available.
 
 \stopsubsection
 
@@ -277,20 +289,18 @@ In contrast to \cite[Svorenova2017], the game is build directly here, without in
     Player 2 then chooses a control vector from this region and reveals the exact location of the trace in the state space.
     The trace steps forward in time according to the evolution equation and it is player 1's turn again.
 
-    % TODO: example game graph construction
-    Complete graph of actions and states for $\State{4}$.
-
     \placefigure[top][fig:abstraction-graph-xfour]{
-        Possible paths of a trace through game graph abstraction of the example system (\in[fml:abstraction-example]) from initial state $\State{4}$.
-        Rectangles: states.
-        Circles: actions.
-        White: player 1.
-        Grey: player 2.
-        Transition probabilities labeled.
-        The two depicted states $\State{4}$ are the same, shown separately for improved readability.
+        Subset of the game graph abstraction for the example system (\in[fml:abstraction-example]) with the partition from Figure \in[fig:abstraction-graph-partition].
+        Rectangles denote states and circles denote actions.
+        Player 1's states and actions are coloured white, player 2's grey.
+        The probabilistic transitions after actions are labeled with their respective probabilities.
+        The two depicted states $\State{4}$ are the same and only shown separately to improve readability.
     }{
         \framed[width=\textwidth,frame=off]{\reuseMPgraphic{example-play-paths}}
     }
+
+    An excerpt from the game graph constructed for the example system (\in[fml:abstraction-example]) is shown in Figure \in[fig:abstraction-graph-xfour].
+    It shows all actions for the player 1 state $\State{4}$ (computed in \in[sec:abstraction-graph-playerone]) as well as all player 2 successor states and their actions (partially computed in \in[sec:abstraction-graph-playertwo]).
 
 \stopsubsection
 

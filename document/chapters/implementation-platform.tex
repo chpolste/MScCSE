@@ -1,0 +1,21 @@
+Platform chosen for the implementation was the browser.
+This choice came with both advantages and challenges.
+
+The biggest argument for the browser is its availability and graphical capabilities.
+Browsers have been ported to virtually all platforms that have a screen, from desktop and laptop computers to tablets, mobile phones and even televisions.
+Modern browsers (Firefox, Chromium and its derivatives) hav good support for both pixel-based and vector graphics.
+SVG is natively implemented and can be accessed with the same tools as any other elements.
+
+The language of the browser is JavaScript a simple, but flexible language that has come a long way from its beginnings due to the massive investments in web technologies that rely on it.
+It allows interactive development, is interpreted and excellent debugging tools are available out-of-the-box in current browsers.
+Modern javascript interpreters are supported by sophisticated just-in-time compilers, which are able to produce highly optimized machine code without the need for interfaces to C-extensions.
+Using WebWorkers, even parallel processing is possible with some restrictions.
+However, the inability to connect to other languages is also a problem.
+Interfacing with existing non-JS code is only possible by translating that code into JavaScript as nothing else runs in the browser.
+Even with automated tools such as emscripten, this is not trivial.
+For this work, an entire convex geometry library had to be implemented because no mature library could be found.
+This took substantial resources even though the library was restricted to 1- and 2-dimensional problems.
+
+The interfacing problem of the browser can be overcome through the use of node.js, a javascript runtime based on chromium which allows execution of code outside of the browser.
+API for extensions and possibility of interfacing via the shell exist.
+

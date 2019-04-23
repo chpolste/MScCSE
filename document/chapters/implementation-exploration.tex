@@ -1,0 +1,30 @@
+LSS is a geometric problem, with a straightforward visual interpretation at least for low dimensions.
+The product game abstraction, while easily representable by its game graph, can contain hundreds and thousands of states and actions even for relatively simple, low dimensional problems.
+Depicting both the LSS and the product game together with the connection between the two is challenging and impossible to do all at once for all but the most simple problems.
+This dilemma can be resolved by interactive visualizations.
+Instead of showing all information at once, provide a coarse overview and allow the user to selectively add and remove information from the visualization.
+All information is accessible but there is no overload.
+Interactivity is mainly for convenience and accessibility, alternative is usually generating a series of static images, which can be tedious even in an interpreted language.
+
+Interactive exploration is important for educational purposes, particularly for newcomers to a field.
+Easy-to-access implementation lowers the barrier of entry.
+User is able to answer questions and deepen understanding autonomously as they obtain immediate visual feedback to their input.
+Ability to quickly set up and explore custom problems supports this feedback loop additionally.
+It encourages experimentation which helps to build valuable intuition.
+
+But the usefulness of an easy-to-access implementation extends to research as well.
+Basis of experiments, for which it is again important to have direct (visual) feedback.
+For the given problem the development of new refinement procedures based on insights from the interactive LSS and game exploration was a major focus.
+Human ability to recognize patterns is valuable when desiging heuristic approaches to refinement.
+Interactive visualization provides a unique perspective on the product game, combining dynamics and the game graph and allowing the user to make quick connections between the two.
+This is particularly useful for refinement where changes to the game graph are desired, but the effect of refinement on the graph is non-obvious as it depends heavily on the dynamics.
+Even for refinement procedures based on theoretical principles, an easily accessible and interactive implementation will help in testing new procedures and ironing out practical problems.
+
+Of course, visualizations on 2-dimensional screens limit the range of problems that can reasonably be considered.
+Furthermore, interactivity only makes sense if loading times are not too long so complexity of problems must not exceed some reasonable threshhold.
+However, the restriction to low dimensionality and simple objectives is not seen as a big problem.
+The linear dynamics offers few possible surprises in higher dimensions, so dynamical results should be transferrable and any important behaviour should already be found in low dimensions.
+After the abstraction, geometric dimensionality is non-existent in the game graph, so patterns found in 1- and 2-dimensional systems are unlikely to be fundamentally different than those emerging in higher dimensions.
+Many objectives in practice are variations and combinations of a set of standard objectives such as reachability, safety or recurrence.
+It is reasonable to expect that any refinement procedure that works for these simpler problems can also be used for refinement in more complex methods which exibit the same patterns.
+

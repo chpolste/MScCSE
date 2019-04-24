@@ -1,0 +1,26 @@
+Restriction of this work: consideration of only low-dimensional problems with simple specifications.
+While it was argued in section \in[sec:TODO], that this should not restrict the applicability of results to higher dimensions and more complex objectives, it would still be interesting to see the procedure applied to more involved problems.
+In particular, performance for high-dimensional state spaces and investigation into decomposition approaches for complex automata are of interest.
+Problems in robotics where the state space is a physical phase space as in the pendulum case study easily have 6 dimensions (3 location, 3 velocity) or more.
+Expectation is that higher dimensions quickly eat up improvements in refinement efficiency (see corridor vs double integrator game size with only one dimension difference in control space).
+
+Limitation of full dimensional polytopes is one source of non-termination.
+It would be interesting to see if it is possible to identify such behaviour analytically.
+It could be possible to design rounding approaches to resolve the issue.
+The problem is only an artefact of implementation/desire to have robust (non-empty) control inputs, solution can be computed with arbitrary precision by reducing size of $\epsilon$-ball.
+One could just decide if the limit-region should be satisfying or not and round to force termination of the procedure overall and accelerate refinement, where the issue occurs as well.
+
+GR(1) restriction here was mainly for convenience of solving game.
+Nothing stands in the way of full LTL if a sufficiently potent game sover is introduced, as noted already by \cite[Svorenova].
+Care has be be taken when applying transition refinement to objectives that contain the next operator but everything else is transferable in a straightforward manner.
+
+Refinement that takes probabilistic aspects of system fully into account.
+Optimization of refinement for different partition qualities (least states, fastest time to solution etc.).
+United view of refinement for purposes of analysis and controller synthesis.
+Latter was barely touched on here and shows similar problems.
+Key could be transition-based decomposition an chaining of finite strategies.
+Further investigation in the context of stutter-equivalent traces.
+Self-loop removal showed potential as a refinement technique, but approach of \cite[TODO] is more sophisticated, does not require introduction of additional states and its addition to the procedure could be a valuable asset for reduction of computational complexity.
+
+%TODO: Is approach compatible with quantitative analysis a la BMDPs? Too ambitious?
+

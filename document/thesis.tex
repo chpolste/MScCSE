@@ -40,7 +40,6 @@
 \definefontfamily[titlefont][sans][dejavusans]
 \definefont[CoverTitleFont][dejavusansbold at 19pt]
 \definefont[CoverSubtitleFont][dejavusansbold at 15pt]
-\definefont[AbstractHeadingFont][dejavusans at 11pt]
 \definefont[ChapterFont][dejavusans at 19pt]
 \definefont[SectionFont][dejavusans at 13pt]
 \definefont[SubsectionFont][dejavusans at 12pt]
@@ -59,7 +58,8 @@
 \definealternativestyle[SubsectionStyle][\SubsectionFont]
 
 % No chapter numbering, apply heading styles
-\setuphead[chapter][number=no,style=ChapterStyle,page=yes]
+\definepagebreak[oddemptyfill][yes,footer,header,right] % https://wiki.contextgarden.net/Titles#Truly_empty_pagebreak_before_chapters
+\setuphead[chapter][number=no,style=ChapterStyle,page=oddemptyfill]
 \setuphead[section][style=SectionStyle,sectionsegments=section]
 \setuphead[subsection][style=SubsectionStyle,sectionsegments=section:subsection]
 
@@ -75,20 +75,6 @@
 
 % Which captions to include in the table of contents?
 \placebookmarks[chapter,section,subsection]
-
-% Footnotes
-\define[1]\footnotebrack{\narrownobreakspace\high{[#1]}}
-\setupnotation[footnote][alternative=text]
-\setupfootnotes[
-    way=bytext,
-    frameoffset=0mm,
-    topframe=on,
-    rule=off,
-    toffset=1mm,
-    roffset=-14cm,
-    before={\blank[7mm]},
-    %textcommand=\footnotebrack
-    ] % fixes weird spacing when only one line of footnote
 
 % Float captions
 \setupcaptions[
@@ -171,35 +157,32 @@
 
 
 % Cover
-\definesectionblock[cover][,]
-\setupsectionblock[cover][page=right]
+\definesectionblock[cover]
+\setupsectionblock[cover][page=odd]
 \startsectionblockenvironment[cover]
     \switchtobodyfont[titlefont,10pt]
     \setupinterlinespace[line=14pt]
     \setupwhitespace[medium]
 \stopsectionblockenvironment
 
-% Abstract
-\definesectionblock[abstract][,]
-\setupsectionblock[abstract][page=right]
-\startsectionblockenvironment[abstract]
-    \setuppagenumbering[state=stop,alternative=doublesided]
+% Declaration
+\definesectionblock[declaration]
+\setupsectionblock[declaration][page=odd]
+\startsectionblockenvironment[declaration]
     \setupinterlinespace[line=1.5em]
     \setupwhitespace[medium]
-    \setupnarrower[middle=10mm]
-    \page[right]
 \stopsectionblockenvironment
 
 % Table of contents
-\definesectionblock[tableofcontents][,]
-\setupsectionblock[tableofcontents][page=right]
+\definesectionblock[tableofcontents]
+\setupsectionblock[tableofcontents][page=odd]
 \startsectionblockenvironment[tableofcontents]
     \setupwhitespace[0.5em]
     \setuppagenumbering[state=stop,alternative=doublesided]
 \stopsectionblockenvironment
 
 % Frontmatter: acknowledgements, preface
-\setupsectionblock[frontpart][page=right]
+\setupsectionblock[frontpart][page=odd]
 \startsectionblockenvironment[frontpart]
     \setuplayout[footerdistance=8mm,footer=6mm]
     \setcounter[userpage][1] % Reset page counter
@@ -217,7 +200,7 @@
 \stopsectionblockenvironment
 
 % Bodymatter: text
-\setupsectionblock[bodypart][page=right]
+\setupsectionblock[bodypart][page=odd]
 \startsectionblockenvironment[bodypart]
     \setuplayout[footerdistance=8mm,footer=6mm]
     \setcounter[userpage][1] % Reset page counter
@@ -229,36 +212,33 @@
             alternative=doublesided,
             style=\PageNumberFont
             ]
+    \setupfooter[text][
+            before={\startframed[frame=off,topframe=on,offset=0mm,rulethickness=0.2mm]},
+            after={\stopframed},
+            ]
     \setupfootertexts[{\FooterFont {\DocTitleFooter}}]
                      [pagenumber]
                      [pagenumber]
                      [{\FooterFont Master's Thesis of {\Author} (\YearOfCompletion)}]
-    \setupbackgrounds[footer][text][topframe=on]
     \setupwhitespace[medium]
     \setupinterlinespace[line=1.5em]
 \stopsectionblockenvironment
 
 % Backmatter: bibliography
-\setupsectionblock[backpart][page=right]
+\setupsectionblock[backpart][page=odd]
 \startsectionblockenvironment[backpart]
     \setuppagenumbering[alternative=doublesided,style=\PageNumberFont]
     \setuplayout[footerdistance=8mm,footer=6mm]
+    \setupfooter[text][
+            before={\startframed[frame=off,topframe=on,offset=0mm,rulethickness=0.2mm]},
+            after={\stopframed},
+            ]
     \setupfootertexts[{\FooterFont {\DocTitleFooter}}]
                      [pagenumber]
                      [pagenumber]
                      [{\FooterFont Master's Thesis of {\Author} (\YearOfCompletion)}]
-    \setupbackgrounds[footer][text][topframe=on]
     \setupwhitespace[medium]
     \setupinterlinespace[line=1.5em]
-\stopsectionblockenvironment
-
-% Declaration
-\definesectionblock[declaration][,]
-\setupsectionblock[declaration][page=right]
-\startsectionblockenvironment[declaration]
-    \setuppagenumbering[state=stop,alternative=doublesided]
-    \setupinterlinespace[line=1.5em]
-    \setupwhitespace[medium]
 \stopsectionblockenvironment
 
 
@@ -269,8 +249,8 @@
         \input{inputs/cover}
     \stopsectionblock
 
-    \startsectionblock[abstract]
-        \input{inputs/abstract}
+    \startsectionblock[declaration]
+        \input{inputs/declaration}
     \stopsectionblock
 
     \startsectionblock[tableofcontents]
@@ -279,13 +259,13 @@
 
     \startfrontmatter
 
-        \startchapter[title=Acknowledgements]
-            ...
+        \startchapter[title={Abstract}]
+            \input{inputs/abstract}
         \stopchapter
 
         \page[even,empty]
 
-        \startchapter[title=Notation]
+        \startchapter[title=Acknowledgements]
             ...
         \stopchapter
 
@@ -461,12 +441,12 @@
 
             \input{chapters/discussion}
 
-            \startsection[title={Summary of Contributions},reference=sec:discussion-contributions]
-                \input{chapters/discussion-contributions}
-            \stopsection
-
             \startsection[title={Conclusions},reference=sec:discussion-conclusions]
                 \input{chapters/discussion-conclusions}
+            \stopsection
+
+            \startsection[title={Summary of Contributions},reference=sec:discussion-contributions]
+                \input{chapters/discussion-contributions}
             \stopsection
 
             \startsection[title={Outlook},reference=sec:discussion-outlook]
@@ -478,15 +458,16 @@
     \stopbodymatter
 
     \startbackmatter
+
+        \startchapter[title=Appendix]
+            \input{chapters/appendix}
+        \stopchapter
+
         \startchapter[title=References]
             \placepublications
-            \break % makes footer work properly
         \stopchapter
-    \stopbackmatter
 
-    \startsectionblock[declaration]
-        \input{inputs/declaration}
-    \stopsectionblock
+    \stopbackmatter
 
 \stoptext
 

@@ -1,80 +1,138 @@
-In order to construct refinement methods that provide progress guarantees.
-One-step lookahead refinement is easy, how to determine for which states progress can be guaranteed at all when considering a single of the dynamics.
-If it is possible but not doable in the current abstraction, how to partition to make it possible?
-The solution lies in the robust operators introduced in section \in[abstraction-operators].
+Section \in[abstraction-operator] introduced 3 robust operators: $\PreR$, $\AttrR$ and $\ActR$.
+The operators express aspects of the dynamics that are independent of the LSS's stochasticity and enforce transitions exclusively to the specified operator targets.
+Robust operators are thus able provide guarantees in the context of refinement, enabling the design of procedures that ensure certain properties after their application.
+This is important e.g.\ for safety objectives where the probability of visiting \quotation{bad} regions in a trace has to be 0 in order for the trace to be declared safe.
 
-Common problem occuring in a refinement procedure:
-Positive refinement such that some target region is exclusively reachable in one step.
-This occurs e.g.\ for safety objectives where some region of the state space must be avoided almost-surely in every step.
-Robust predecessor answers question of where is it possible at all.
-If it is possible, the state space has to partitioned such that player 1 has an action that only targets the safe region.
-Introduce a positive refinement kernel
+In positive refinement, robust dynamics can even deliver progress guarantees.
+This was recognized by \cite[Svorenova2017] who designed a positive refinement procedure that uses the robust attractor and identifies regions from which a set of target states can be reached in a single step of the dynamics almost-surely.
+If the target set is made up exclusively of states from $P_\Yes$, it is possible to satisfy the objective almost-surely from the $\AttrR$ regions.
+Refinement with respect to these regions therefore guarantees that the state space volume associated with $P_\Yes$ is enlarged.
+This idea of positive refinement with robustness guarantee for a single step of the dynamics is encapsulated here in a positive robust refinement kernel
 
 \startformula
     \Function{\RefinePos}{C_n \times R_n}{2^{C_n}} \EndComma
 \stopformula
 
 where $R_n$ is the set of all (full-dimensional) polytopic regions in $\reals^n$ and $C_n$ is the set of all convex polytopes in $\reals^n$.
-$\RefinePositive{X}{Y}$ returns a convex partition of the origin polytope $X$ such that $Y$ can be reached exclusively and almost-surely after one step of the LSS dynamics from some element of the partition for some non-empty control input region.
-This guarantees that after the refinement player 1 has an action for that element that almost-surely and exclusively leads to $Y$.
-If no safe subregion of $X$ can be determined or $Y$ can already be reached in the above manner from every state in $X$, $X$ is returned unchanged.
-Such a procedure can be constructed with the robust attractor.
+$\RefinePositive{Y}{Z}$ returns a convex partition of the origin polytope $Y$ such that $Z$ can be reached exclusively and almost-surely after one step of the LSS dynamics from some non-empty set of elements of the partition of $Y$ for some non-empty control input region.
+This guarantees that after the refinement, player 1 has an action for this particular subset of $Y$ leading almost-surely and exclusively to $Z$ after just one turn of the game.
+If no subset of $Y$ fulfilling these properties can be determined or $Z$ can already be reached robustly from every state in $Y$, $Y$ is returned unchanged.
+
+This one-step positive refinement kernel is used as a building block for other, more complex refinement methods throughout this chapter.
+It finds application in the holistic positive refinement in section \in[sec:refinement-holistic-positive], the safety refinement of section \in[sec:refinement-holistic-safety] and the reachability procedures in section \in[sec:refinement-transition].
 
 
-\startsubsection[title={Positive Robust Attractor Kernel}]
+\startbuffer[buf:refinement-robust-kernel-algorithm]
+    \startalgorithmic[numbering=no,margin=0em]
+        \INPUT{Origin polytope $Y \subseteq \StateSpace$, target region $Z \subseteq \StateSpace$ }
+        \OUTPUT{Partition of $Y$}
+    \stopalgorithmic
+    \startalgorithmic
+        \IF{$\RobustAction{Y}{Z} \neq \emptyset$}
+            \RETURN{$Y$}
+        \ENDIF
+        \STATE{$\ControlRegion = TODO(Y, Z)$}
+        \IF{$\ControlRegion = \emptyset$}
+            \RETURN{$Y$}
+        \ENDIF
+        \STATE{$A = \RobustAttractor{Y}{\ControlRegion}{Z}$}
+        \RETURN{$\Convexify(A) \cup \Convexify(Y \setminus A)$}
+    \stopalgorithmic
+\stopbuffer
 
-    \cite[Svorenova2017] found that AttrR gives guarantee for reaching target in one step.
-    Reuse the idea as a building block in more complex refinement procedures that require one-step lookahead positive refinement.
+\startsubsection[title={Positive Robust Attractor Kernel},sec:refinement-robust-kernel]
 
-    TODO algorithm, uses the function
+    \placealgorithm[top][alg:refinement-robust-kernel]{
+        An implementation of $\RefinePos$ based on the robust attractor.
+    }{
+        \startframedtext[width=\textwidth,frame=off]
+            \getbuffer[buf:refinement-robust-kernel-algorithm]
+        \stopframedtext
+    }
+
+    $\RefinePos$ is implemented based on the robust attractor refinement of \cite[Svorenova2017] in Algorithm \in[alg:refinement-robust-kernel].
+    Lines 1-3 test if a robust transition is already possible.
+    A control region is dermined in line 4 for which a robust transition to the target is possible for some states in $Y$.
+    The implementation of function
 
     \startformula
-        \Function{\Convexify}{R_n}{2^{C_n}} \EndComma
+        \Function{TODO}{R_n \times R_n}{R_m} \EndComma
     \stopformula
 
-    which partitions any polytopic region into a set of (disjunct) convex polytopes.
+    where $m$ is the dimension of the control space, is discussed in the next section.
+    If no such control region is found the origin polytope is returned unchanged (lines 5-7).
+    Otherwise, the robust attractor with respect to the target region under control inputs from $\ControlRegion$ is computed and the origin partitoned accordingly.
+    The function
+
+    \startformula
+        \Function{\Convexify}{R_n}{2^{C_n}}
+    \stopformula
+
+    partitions any polytopic region into a set of (disjunct) convex polytopes.
     Per definition, $\Convexify(\emptyset) = \emptyset$.
 
-    The part that corresponds to the Attr+, if one can be found, has a guaranteed transition to the target region.
-    Procedure is therefore an implementation of $\RefinePos$.
-    Line TODO requires determination of a region of the control space that makes transition possible.
-    How to do that is topic of the next section.
+\stopsubsection
+
+
+\startbuffer[buf:refinement-robust-control-algorithm]
+    \startalgorithmic[numbering=no,margin=0em]
+        \INPUT{Origin polytope $Y \subseteq \StateSpace$, target region $Z \subseteq \StateSpace$ }
+        \OUTPUT{TODO}
+    \stopalgorithmic
+    \startalgorithmic
+        \STATE{compute PreR} % TODO
+        \IF{PreR is empty}
+            \RETURN{$\emptyset$}
+        \ENDIF
+        \STATE{take vertices of PreR hull}
+        \STATE{add random points from within PreR}
+        \STATE{compute ActRs for every sample point}
+        \STATE{cluster sample points}
+        \RETURN{cluster that most points \quotation{agree} with}
+    \stopalgorithmic
+\stopbuffer
+
+\startsubsection[title={Control Region Selection},reference=sec:refinement-robust-control]
+
+    \placealgorithm[top][alg:refinement-robust-control]{
+        TODO procedure to find control region for positive robust refinement
+    }{
+        \startframedtext[width=\textwidth,frame=off]
+            \getbuffer[buf:refinement-robust-control-algorithm]
+        \stopframedtext
+    }
+
+    The proposed implementation of $\RefinePos$ based on the $\AttrR$-operator requires the computation of a control region with respect to which the operator is calculated takes place (encapsulated in function $TODO$).
+    In their positive refinement scheme, \cite[Svorenova2017] applied the robust attractor refinement to state space partition elements as the origin and target regions.
+    Based on the player 1 actions of the corresponding origin game state, they selected a control region based on the $\ActC$-region of an action that exclusively leads to states in the target region.
+    In order to obtain a non-empty $\AttrR$, they partitioned the $\ActC$-region arbitrarily and then refined with respect to one of the parts.
+    However, for use in the $\RefinePos$ scheme this procedure is not ideal as the origin and target regions accepted as input can be arbitrary polytopic regions of the state space and are not bound to the current state space partition and game graph.
+
+    An alternative approach, independent of the game abstraction, is presented in Algorithm \in[alg:refinement-robust-control].
+    First sample points from within the target's $\PreR$ in the origin region, computed with respect to the entire control space.
+    If a robust transition to the target region is possible, its origin must be contained inside the $\PreR$.
+    Based on practical experience, adding the vertices of the hull of the $\PreR$-region to the sample pool improves refinement performance, as these points are often associated with \quotation{extreme} control input requirements.
+    Using the $\ActR$-operator applied to these sample points, control regions are found that lead exclusively to the target.
+    The control regions are then clustered in some way (TODO) and the region that most state space sample vectors agree with is selected.
+    The idea is that the sample points are spread relatively uniformly over the polytope and the more points can utitlize the same control region to make a robust transition, the larger the $\AttrR$-region will be, accelerating refinement.
+    A rather expensive but exhaustive clustering method is to compute all overlaps of the individual control regions, similar to concrete action computation, and pick the one with the most contributung points.
+    The number of sample points should grow with the dimensionality of the state space.
 
 \stopsubsection
 
 
-\startsubsection[title={Control Region Selection}]
+\startsubsection[title={Limitations of Robust Refinement},reference=sec:refinement-robust-limitations]
 
-    AttrR+ requires control input to refine wrt.
-
-    \cite[Svorenova2017] selected this by taking a random action, paritioning it arbitrarily and using the parts.
-    Improvement: rate action by how much its posterior intersects target then pick "best" one (largest overlap).
-    Also from experience: if used, it produces smaller states than necessary leading to progress slower than it should be.
-    But undesirable because: $\RefinePos$ should work independently of a specific game graph, actions are not generally available and may be expensive to compute.
-
-    Alternative: Monte Carlo-based (purely geometric/dynamic) approach
-    Sample a few points from within the polytope.
-    Use $\ActR$ to find control inputs for those points that exclusively lead to target.
-    If no non-empty $\ActR$ can be found after some number of samples, give up.
-    Then cluster the control regions somehow and select one that most points "agree" with.
-    Expensive but exhaustive: compute all overlaps, similar to action computation and pick one with most contributung points.
-    In practice, adding vertices of origin to sample point pool improves performance, as these points are often associated with most "extreme" action requirements.
-
-\stopsubsection
-
-
-\startsubsection[title={Limitations}]
-
-    Deterministic vs probabilistic refinement, missed potential but cost of deeper analysis required in probabilistic approaches.
-    Ignoring the probabilistic dynamics will mean that not all problems can be solved in a straightforward manner using only deterministic approaches.
-    While exclusivity is imperative for properties such as safety, in positive refinement the goal of creating deterministic transitions leads to partitions that are more complex than they need to be.
-    Compromise: cheap refinement with easy implementation at the cost of more expensive analysis due to additional number of states.
-
-    Small targets that cannot be transitioned to exclusively are a problem for methods using robust operators.
-    Conretely, any region $R$ for which $R \ominus W = \emptyset$ cannot be targeted individually due to the stochastic dynamics (see computation of operators).
-    Even regions that can be targeted individually but that are very small are a problem, as control has to be very precise and a sufficiently big target area has to be built up first, before well-performing refinement is possible.
-    Target may be enlarged in these cases, carefully, so that probability of going to "real" target is non-zero everywhere in extended region and extended region cannot be targeted individually either.
-    Extended region may require refinement itself, e.g. saftey refinement wrt entire extended region.
+    While the guarantees that robust refinement provides are advantageous, there are limitations to its usefulness.
+    Robust refinement essentially treats the system as deterministic, looking only at transitions that are possible irrespective of the stochastic component.
+    It is therefore a very conservative view of the system, and neglects the positive potential of the probabilistic dynamics.
+    Generally, this means that robust procedures tend to \quotation{over-refine} the state space, due to the strict requirements of robust dynamics.
+    It also poses a limit to which problems can be treated, as the solution to some problems may unavoidably depend on the probabilistic dynamics.
+    A robust transition is only possible if the target region has a non-empty robust predecessor, but this is not the case for targets $Z$ where $R \ominus W = \emptyset$ (section \in[sec:abstraction-operators-predecessor]).
+    Even regions that can be targeted robustly but that are very small are a problem, as control has to be very precise and a sufficiently big target area has to be built up first, before well-performing refinement is possible.
+    Target may be enlarged in these cases.
+    This could be done by finding a superset $Z'$ around the target region $Z$ such that, so that the probability of going to $Z$ is non-zero for every trace that is steered into $Z'$, i.e.\ $(Z' \setminus Z) \ominus W = \emptyset$.
+    The extended region $Z' \setminus Z$ may then require additional refinement, e.g.\ such that it fulfills a safety property with respect to $Z'$.
 
 \stopsubsection
 

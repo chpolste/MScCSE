@@ -1,9 +1,44 @@
-As seen in previous section, there is a systematic way to decompose the game graph into a series of co-safe reachability problems based on the transitions of the automaton.
-Combine with refinement based on robust operators from section \in[sec:refinement-robust] for which progress can be determined without the need for an expensive full analysis.
-Result is a positive refinement procedure which can iterate quickly and relatively cheaply.
+Holistic refinement considers full game graph.
+Pattern matching in whole game graph can be expensive and even if purely geometric conditions are used, analysis reqired regularly or deeper-analysis multi-step methods which none of the ones from the previous section are.
+Here, propose a technique that extracts simpler subproblems from the product game in the hope that solutions to some subset of the product game will lead to progress on the global scale.
+First, the general idea of subset approaches is discussed, then a transition-based decomposition is combined with robust refinement to yield a cheap but powerful positive refinement procedure.
 
 
-\startsubsection[title={Decomposition}]
+\startsubsection[title={Subset Approaches}]
+
+    Game-graph construction expensive, independent of objective.
+    Action computations are exponential in number of states for both players.
+    Observation: if a satisfying strategy can be found on just a subset of the complete product game graph, this strategy is also realizable in the full game graph.
+    Positive refinement based on only a subset of the game graph therefore has the potential to enable winning strategies for player 1 and comes at potentially much lower cost due to the reduced number of states and/or actions that have to be considered.
+    Transferability of negative refinement generally not possible as full game can do more than any of its subsets.
+
+    One way of selecting a subset of the game is by choosing a fixed control input region for every state such that player 1 has only a single action in any state.
+    The dynamics of the system is then piecewise and player 1 can be removed, which reduces the game to a 1½-player game, i.e.\ an MDP.
+    This makes construction and analysis less complex and allows deeper insight into the remaining graph at relatively low computational cost.
+    However, applying positive refinement in a piecewise dynamics is likely to lead to jaggedness and much non-convexness which is again computationally demanding, possibly offsetting gains due the reduction.
+    Fixed dynamics without adjustments will always have its limits after some steps.
+    Additionally, choosing the control regions during the reduction is non-trivial task.
+
+    Instead of reducing the number of actions one can also reduce the number of states by selecting some associated subset of game states.
+    This is particularly interesting when the chosen subset of the game graph reduces the complexity of the objective.
+    It is not uncommon that an objective is made up of separable sub-objectives, e.g. a safety property in conjunction with something else or a recurrence which is an infinite series of reachability problems.
+    The idea is that solving each of the sub-objectives individually will lead to a solution for the composite objective.
+    Advantages: sub-objectives are often simpler (e.g.\ reachability, safety), feedback between refinement and analysis is quicker and problems can potentially be solved in parallel (with the restriction that the state space partition is shared throughout the game abstraction).
+
+\stopsubsection
+
+
+\startsubsection[title={Transition-based Reachability Decomposition},reference=sec:refinement-transition-decomposition]
+
+    Systematic way to decompose any objective into a series of co-safe reachability problems based on transitions.
+    When all are solved, can be combined into a solution for the product game.
+    % TODO formalize the strategy stitch-up
+    $\ProductGame$ has copy of the LSS game graph for every automaton state.
+    A trace through the system must reach regions associated with automaton transitions in an order that satisfies the specification.
+    Stuttering equivalence of traces in next-free LTL allows to take as much time as needed as long as it is finite.
+    Therefore, each transition individually has a corresponding co-safe reachability problem in the LSS.
+    If the satisfying regions of every one of these almost-sure reachability problems can be determined, a solution for the original problem emerges by piecing together satisfying strategies from the reachability problems, if they exist.
+    Because the reachability problems are co-safe, winning strategies will satisfy lead to the required automaton transitions in finite time and the composite strategy cannot get stuck in any of the individual reachability tasks.
 
     To construct a reachability system for a transition from $q$ to $q'$ in the automaton:
     Same LSS $\LSS$, start with the same partition as current state-space abstraction but only a simple co-safe reachability/avoidance winning condition.
@@ -37,47 +72,63 @@ Result is a positive refinement procedure which can iterate quickly and relative
 \stopsubsection
 
 
-\startsubsection[title={Robust Reachability Refinement}]
+\startsubsection[title={Robust Reachability Refinement},reference=sec:refinement-transition-reachability]
 
-    Actively enable good things, reaching of target.
-    Remember, ensuring good things is non-trivial, because any bad event with non-zero probability breaks everything.
+    In section \in[sec:refinement-holistic-positive] a positive refinement procedure was presented based on the $\RefinePos$ kernel.
+    Limitation was that yes-states have to exists for method to be applicable.
+    While this is not generally a given, any co-safe objective has yes-states guaranteed.
+    In particular, this includes the avoid-reach systems from the transition decomposition given in the previous section.
+    Avoid-reach allows unique association of states as satisfying, unknown or non-satisfying.
 
-    Linear dynamics means that convex targets usually have convex reachability solutions (due to $\Pre$ being convex if state, action and random space are convex).
-    Non-convex targets often introduce more non-convexity which leads to state explosion.
-    Target approximation can work by hoping for probabilisitic "magic" but hard to predict when this works and when it doesn't.
-    Smoothing of target region, up to taking convex hull.
+    Positive robust refinement has progress guarantee and one-step robust reachability can be decided with the $\ActR$ operator without need for game construction (see section \in[sec:refinement-robust]).
+    Restriction to robust reachability allows skipping of expensive game construction for analysis.
+    While this means that the probabilistic dynamics is ignored completely, abstraction step is removed and entire procedure has polynomial complexity.
+    The idea is to perform multiple robust steps between analysis to obtain best of both worlds: multi-step refinement in the robust framework, but consideration of probabilistic dynamics by analysing every couple of refinements.
 
-    Coordinated application:
-    Refine every state in PreR of target region using AttrR+ refinement.
+    First pick a transition and extract reachability problem.
+    Refine every state wrt target region using AttrR+ refinement.
     Use progress guarantee to immediately extend region of yes-states.
-    Iterate.
-    Multiple iterations possible without need to analyse full system (expensive!), but probabilistic behaviour ignored.
-    Essentially the procedure that \cite[Svorenova2017] used in their case study.
+    Iterate a few times.
+    Transfer partition to full system and analyse.
+    Evolution of \cite[Svorenova2017] positive refinement to multi-step procedure.
+
+    Additional tweaks possible to improve method.
+    Known that small states cannot be targeted individually due to probabilistic dynamics have no self loops and are therefore unlikely to be a problem if surrounded by bigger states for which robust satisfaction can be established.
+    Expansion of target region can be accelerated by considering all small polytopes as satisfying (without proper probabilistic check).
+    This brings some of the probabilistic tolerance back into the robust dynamics at the cost of losing the progress guarantee for a few special cases (pratcise shows that ignoring small states is not an issue as long as they are safe).
+    Post-processing with additional loss of progress guarantees but possibility of generation of less states and reduced non-convexness.
 
 \stopsubsection
 
 
-\startsubsection[title={Layered Robust Reachability Refinement}]
+\startsubsection[title={Layered Robust Reachability Refinement},reference=sec:refinement-transition-layered]
 
     Problem with pure AttrR+ refinement is that progress guarantee only works for AttrR-generated states.
-    For some, reachability can be decided with ActR but purely deterministic view means over-refinement or conservative analysis, slowing progress.
+    For some, reachability can be decided with ActR and small states can be ignored but purely robust view means over-refinement and conservative analysis, slowing progress.
     Analysing system fully from time to time required, but relatively expensive due to need for action computation.
 
-    Layer idea outlined by \cite[Svorenova2017].
-    Refinement decouples into separate subproblems.
-    Problem of \cite[Svorenova2017]: Pre is not the ideal operator for procedure.
-
-    Innovation: PreR, shrinking of layer-generating control space (show graphic/example that illustrates "convergence" behaviour at edges).
-    Outline algorithm (layer generation, removal of known no-states, control selection and AttrR in inner iterations, small-state supression because states smaller W will always transition away, loops impossible), discuss tuning parameters.
-    Discuss probabilistic aspect of approach (steps are deterministic, but no overall guarantee since solution for outer layers depends on solution of inner layers) but mention that at core it is deterministic.
+    They also introduced the idea of a layer decomposition that works only for refinement but splits problem into multiple decoupled subproblems.
+    Problem of \cite[Svorenova2017]: they used Pre, which required much refinement until entire region is decided.
+    Even though parallelization, some subproblems were still very expensive.
+    For robust refinement, importance of the PreR also recognized by \cite[Svorenova2017].
+    Propsal: combine transition decomposition, layer decomposition and robust refinement.
+    Use PreR which is more aligned with robust refinement and provides guarantee that single-step robust solution can be found.
     Hybrid approach between multi-step and single-step: general idea of moving from layer to layer is multi-step, but transitions inside layers are single step.
-    Non-optimality of layers in terms of numbers of states generated (PreR is deterministic transition).
-    Problem again: PreR does not exists if X - W = 0, extension by minkowski sum with origin-centered W and additional extension when target at the edge of the control space.
+    Solution for outer layers depends on solution of inner layers.
+
+    First extract reachability problem for transition.
+    Then decompose reachability problems into PreR layers.
+    Solve single-step reachability problem for each layer.
+    Combine into solution for transition reachability problem.
+    Apply partition to product game.
+
+    To combat problem of \epsilon-limit behaviour, shrink layer-generating control space.
+    Other optimizations from robust refinement still apply (target expansion, ignoring of safe, small states, post-processing).
 
 \stopsubsection
 
 
-\startsubsection[title={Transition Selection}]
+\startsubsection[title={Transition Selection},reference=refinement-transition-selection]
 
     If refinement wrt every transition has taken place, full problem should be decidable.
     The state space partition of the product system is shared between all copies for the automaton states.
@@ -85,6 +136,7 @@ Result is a positive refinement procedure which can iterate quickly and relative
     Finding a \quotation{best} order of these refinements is again a non-trivial task.
     For co-safe objectives, it makes sense to work backwards from the final states, which are guaranteed to be satisfying.
     For infinite objectives a best path through the automaton is not obvious and multiple paths may even be required to find all satisfying initial states.
+    Related to controller synthesis problem.
 
 \stopsubsection
 

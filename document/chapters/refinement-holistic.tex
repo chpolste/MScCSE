@@ -1,10 +1,48 @@
-The first refinement procedures introduced seek problematic patterns in entire product game graph and aim to break them up.
+First set of refinement procedures are called holistic, as they consider the entire product game.
+General principle of operation: seek pattern based on dynamics and game graph and then break it up.
 
 
-\startsubsection[title={Positive Robust Refinement},reference=sec:refinement-holistic-positive]
+\startbuffer[buf:refinement-holistic-positive-algorithm]
+    \startalgorithmic[numbering=no,margin=0em]
+        \INPUT{Element of state space partition $\State{i}$ }
+        \OUTPUT{Partition of $\State{i}$}
+    \stopalgorithmic
+    \startalgorithmic
+        \STATE{$Y \leftarrow \Set{\State{i}}$}
+        \FORALL{$q \in Q$}
+            \IF{$\State{i} \in \MaybeStates{q}$}
+                \STATE{$q' \leftarrow \QNext{i}{q}$}
+                \STATE{$Y' \leftarrow \emptyset$}
+                \FORALL{$Y_n \in Y$}
+                    \STATE{$Y' \leftarrow Y' \cup \RefinePositive{Y_n}{\YesStates{q'}}$}
+                \ENDFOR
+                \STATE{$Y \leftarrow Y'$}
+            \ENDIF
+        \ENDFOR
+        \RETURN{Y}
+    \stopalgorithmic
+\stopbuffer
 
-    TODO: \cite[Svorenova2017] case 1 refinement.
-    Optional with PreR.
+\startsubsection[title={Robust Positive Refinement},reference=sec:refinement-holistic-positive]
+
+    \placealgorithm[top][alg:refinement-holistic-positive]{
+        Robust positive refinement for an element $\State{i}$ of the state space partition.
+    }{
+        \startframedtext[width=\textwidth,frame=off]
+            \getbuffer[buf:refinement-holistic-positive-algorithm]
+        \stopframedtext
+    }
+
+    Implementation of case 1 of the positive refinement by \cite[Svorenova2017], adapted to use $\RefinePos$.
+    Targets already recognized yes-states and refines robustly, therefore it has a progress guarantee.
+    Algorithm \in[alg:refinement-holistic-positive] is an implementation.
+    Note that the procedure does not require the availability of player actions, relying only on geometric operations and knowledge of the objective automaton and analysis results for the refinement.
+    It can therefore easily be chained with other methods without the need for a game graph recomputation.
+
+    Limitation: if yes-region is empty, no refinement can be made.
+    This is not a problem for co-safe specifications where the final states are always recognized as satisfying states in the first analysis.
+    For other objectives the initial partition will generally not yield any yes-states after the first analysis.
+    This issue will be addressed in section \in[sec:refinement-transition], where the robust positive refinement will appear again.
 
 \stopsubsection
 
@@ -12,7 +50,7 @@ The first refinement procedures introduced seek problematic patterns in entire p
 \startbuffer[buf:refinement-holistic-negattr-algorithm]
     \startalgorithmic[numbering=no,margin=0em]
         \INPUT{Element of state space partition $\State{i}$ }
-        \OUTPUT{Partition $Y = \IndexedSet{Y_n}{n \in N}$: $\displaystyle \bigcup_{n \in N} Y_n = \State{i}$}
+        \OUTPUT{Partition of $\State{i}$}
     \stopalgorithmic
     \startalgorithmic
         \STATE{$Y \leftarrow \Set{\State{i}}$}
@@ -41,7 +79,7 @@ The first refinement procedures introduced seek problematic patterns in entire p
         \stopframedtext
     }
 
-    \cite[Svorenova2017] identify the pattern
+    \cite[Svorenova2017] also identify the problematic pattern 
 
     \placeformula[fml:refinement-holistic-negattr-condition]
     \startformula
@@ -62,6 +100,7 @@ The first refinement procedures introduced seek problematic patterns in entire p
     The removed attractor region is therefore be guaranteed to be recognized as non-satisfying in the next analysis.
 
     A procedure based on the negative refinement of \cite[Svorenova2017] that refines an element of the state space partition with respect to the attractor region, taking into account every associated product state is given by Algorithm \in[alg:refinement-holistic-attractor].
+    Note that the basic structure of the procedure is the same as that of Algorithm \in[alg:refinement-holistic-positive] with only the inner partitioning exchanged.
 
 \stopsubsection
 
@@ -69,7 +108,7 @@ The first refinement procedures introduced seek problematic patterns in entire p
 \startbuffer[buf:refinement-holistic-safety-algorithm]
     \startalgorithmic[numbering=no,margin=0em]
         \INPUT{Element of state space partition $\State{i}$}
-        \OUTPUT{Partition $Y = \IndexedSet{Y_n}{n \in N}$: $\displaystyle \bigcup_{n \in N} Y_n = \State{i}$}
+        \OUTPUT{Partition of $\State{i}$}
     \stopalgorithmic
     \startalgorithmic
         \STATE{$Y \leftarrow \Set{\State{i}}$}
@@ -104,8 +143,11 @@ The first refinement procedures introduced seek problematic patterns in entire p
     A procedure of this kind belongs in the category of neutral refinement.
     It neither aims to enlarge the set of yes-states nor the set of no-states, but it does remove opportunities for player 2 to win with non-zero probability from the game graph by transfering additional control over the game to player 1.
 
-    Algorithm (\in[alg:refinement-holistic-safety]) describes a procedure with the goal of making a state safe in the above sense by splitting the associated polytope of a player 1 state matching the pattern (\in[fml:refinement-holistic-negattr-condition]) into parts where player 1 actions exist that guarantee a safe evolution of the LSS.
-    The procedure can only guarantee a safe player 1 action for some parts of the generated partition. % TODO
+    Algorithm \in[alg:refinement-holistic-safety] describes a procedure with the goal of making a state safe in the above sense by splitting the associated polytope of a player 1 state matching the pattern (\in[fml:refinement-holistic-negattr-condition]) into parts where player 1 actions exist that guarantee a safe evolution of the LSS.
+    The procedure can only guarantee a safe player 1 action for some parts of the generated partition so multiple iterations may be necessary.
+    It is also possible that the entire state cannot be made safe, e.g. due to the \epsilon-limit behaviour seen in section \in[sec:abstraction-analysis-correctness].
+    Again note that the structure of Algorithm \in[alg:refinement-holistic-safety] mirrors that of Algorithms \in[alg:refinement-holistic-positive] and \in[alg:refinement-holistic-negattr].
+    These methods all do not require the game graph to be available and are therefore trivially chainable.
 
 \stopsubsection
 
@@ -145,6 +187,12 @@ The first refinement procedures introduced seek problematic patterns in entire p
     Such loops may involve multiple elements of the state space partition, requiring deep analysis of the game graph to be identified.
     Easier to identify are problematic self-loops, i.e.\ individual states of the game graph in which player 2 can trap a trace indefinitely.
 
+    The same observation was made by \cite[Yordanov2012] in the context of non-probabilistic hybrid systems with piecewise linear dynamics and LTL objectives.
+    They categorize self-loops into transient and non-transient loops, where transient means that it is possible to escape from the loop in finite time by repeated application of the same control input in the non-abstracted system.
+    For non-transient loops they then introduce loop-breaking player 1 actions to the game abstraction to add representation of this behaviour.
+    While an approach based on modification of the game graph could be considered here too, the procedure of \cite[Yordanov2012] did not include iterative refinement of the state space partition which can also be used to address non-transient loop behaviour.
+    Instead of introducing special player 1 actions, non-transient loop states in the state space partition are refined such that player 1 has an action available after which player 2 is not able to enforce looping with probability 1.
+
     The refinement procedure in Algorithm \in[alg:refinement-holistic-loops] is proposed to remove potentially problematic self-loops in the game graph.
     Given an element $\State{i}$ of the state space partition, it searches for a player 1 state $\Tuple{\State{i}}{q} \in \MaybeStates{q}$ which has a safe player 1 action $\PlayerOneAction{i}{J}$ that leads to a player 2 state $\Triple{\State{i}}{\PlayerOneAction{i}{J}}{q}$ in which a player 2 action $\PlayerTwoAction{i}{J}{\Set{i}}$ exists whose only target is the origin player 1 state $\Tuple{\State{i}}{q}$ again.
     The procedure only looks at player 1 states whose outgoing actions don't change the automaton state in order to only remove self-loops in the graph of the product $\ProductGame$ and not generally self-loops from $\GameGraph$.
@@ -164,6 +212,7 @@ The first refinement procedures introduced seek problematic patterns in entire p
 
     no self-loop can exist since any precise predecessor of $\Posterior{\State{i}}{\ControlSpace} \cap \State{i}$ will be empty (see computation (\in[TODO])).
     This property can be used to filter candidate states for the procedure relatively cheaply when the game graph has not been computed yet, e.g.\ directly after some other refinement step.
+    It also ensures that all self-loop behaviour is eliminated eventually, once the condition is true for all states of the state space partition.
 
 \stopsubsection
 

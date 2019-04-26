@@ -1,9 +1,7 @@
 The game-based abstraction requires a state space partition from which to derive player 1 states.
 As set up in section \in[sec:abstraction-graph-playerone], the initial partition is governed by the set of linear predicates.
-This partition makes sense because it allows a unique association of states to sets of (satisfied) linear predicates, but in general the partition will be too coarse to answer a given analysis question, leaving most states in the set $\MaybeStates{}$.
+This partition makes sense because it allows a unique association of states to sets of (satisfied) linear predicates, but in general the partition will be too coarse to answer a given analysis question, leaving most states in the set $P_\Maybe$.
 
-In this chapter, procedures are presented that refine the partition with the goal of enlarging $\YesStates{}$ and/or $\NoStates{}$. % TODO
-Used in the abstraction-analysis-refinement cycle depicted in Figure \in[fig:problem-approach-flowchart], a procedure emerges that can solve analysis problems iteratively and autonomously. % TODO
-These procedures are heuristics based on insights from results of the analysis of $\ProductGame$ and the dynamics of the system.
-They fit into the framework of counterexample-based abstraction refinement (CEGAR) \cite[authoryears][TODO].
+In this chapter, procedures are presented that refine the partition so that a solution to the analysis problem can be found.
+Ideally, the procedures should work without manual intervection, so that the abstraction-analysis-refinement cycle from Figure \in[fig:problem-approach-flowchart] is able to solve a given analysis problem autonomously.
 

@@ -339,15 +339,14 @@ export type RobustReachabilitySettings = {
 
 class RobustReachabilityProblem {
 
-    // ...
     +lss: LSS;
     +avoid: Region;
     +reach: Region;
-    // ...
+    // Configuration
     expandTarget: boolean;
     dontRefineSmall: boolean;
     postProcessing: ?((Region) => Region);
-    // ...
+    // State
     _parts: { polytope: Polytope, state: State, done: boolean }[];
     _target: Region;
 
@@ -356,20 +355,36 @@ class RobustReachabilityProblem {
         this.lss = lss;
         this.avoid = avoid;
         this.reach = reach;
-        // ...
+        // Save configuration
         this.expandTarget = settings.expandTarget;
         this.dontRefineSmall = settings.dontRefineSmall;
-        this.postProcessing = null; // TODO settings.postProcessing;
-        // ...
+        this.postProcessing = {
+            "none": null,
+            // Take the convex hull of the region
+            "hull": _ => _.hull(),
+            // Take only the largest polytope of the region
+            "largest": _ => {
+                const largest = iter.argmax((poly) => poly.volume, _.polytopes);
+                return largest == null ? _ : largest;
+            },
+            // Remove all small states from the region
+            "suppress": _ => Union.from(_.polytopes.filter(
+                (poly) => !poly.pontryagin(lss.ww).isEmpty
+            ), _.dim)
+        }[settings.postProcessing];
+        // Initialize partition
         this._parts = [];
         for (let [state, region] of parts) {
             for (let poly of region.polytopes) {
                 this._parts.push({ polytope: poly, state: state, done: false });
             }
         }
+        // _target is an mutable version of reach (if expandTarget is set, it
+        // is expanded in _updateStep)
         this._target = reach.simplify();
     }
 
+    // Assemble partition for associated states of original system
     get partitions(): Map<State, Region> {
         const partitions = new Map();
         for (let part of this._parts) {
@@ -379,6 +394,7 @@ class RobustReachabilityProblem {
         return partitions;
     }
 
+    // Is the problems completely decided?
     get allDone(): boolean {
         return this._parts.every(_ => _.done);
     }
@@ -397,33 +413,44 @@ class RobustReachabilityProblem {
     _refine(): void {
         const parts = [];
         for (let part of this._parts) {
-            // ...
+            // Don't refine parts marked as done
             if (part.done) {
                 parts.push(part);
                 continue;
-            // ...
+            // A small polytope is only refined if dontRefineSmall is not set
+            // or it is not safe (transition to avoid-region is unavoidable
+            // with non-zero probability)
             } else if (this.dontRefineSmall && part.polytope.pontryagin(this.lss.ww).isEmpty
                        && !this.lss.act(part.polytope, this.avoid).isSameAs(this.lss.uu)) {
                 part.done = true;
                 parts.push(part);
                 continue;
-            // ...
+            // Refine the polytope
             } else {
-                const [good, other] = refineAttrR(this.lss, part.polytope, this._target);
-                // TODO: small state suppression
+                // Partition with robust attractor
+                let [good, other] = refineAttrR(this.lss, part.polytope, this._target);
+                // Apply post-processing if enabled
+                if (this.postProcessing != null) {
+                    good = this.postProcessing(good);
+                    other = part.polytope.remove(good);
+                }
+                // "Good" polytopes are considered as done and are not refined
+                // further in subsequent iterations
                 for (let poly of good.polytopes) {
                     parts.push({ polytope: poly, state: part.state, done: true });
                 }
+                // Remaining region might require further refinement
                 for (let poly of other.polytopes) {
                     parts.push({ polytope: poly, state: part.state, done: false });
                 }
             }
         }
+        // Replace partition
         this._parts = parts;
     }
 
     _update(): void {
-        // ...
+        // Iterate updateStep until convergence
         while (true) {
             const hasChanged = this._updateStep();
             if (!hasChanged) break;
@@ -432,25 +459,31 @@ class RobustReachabilityProblem {
 
     _updateStep(): boolean {
         const newTarget = Array.from(this.reach.polytopes);
-        // ...
         let hasChanged = false;
+        // Go through partition elements, find polytopes that have not been
+        // recognized as done yet and update them. Keep track of done-region
+        // for expansion of target region.
         for (let part of this._parts) {
-            // ...
             if (part.done) {
                 newTarget.push(part.polytope);
                 continue;
             }
-            // ...
+            // Non-empty robust action indicates that element has a robust
+            // transition to the target and is therefore done
             const actR = this.lss.actR(part.polytope, this._target);
-            if (actR.isEmpty) continue;
-            // ...
-            part.done = true;
-            newTarget.push(part.polytope);
-            hasChanged = true;
+            if (!actR.isEmpty) {
+                part.done = true;
+                newTarget.push(part.polytope);
+                hasChanged = true;
+            }
         }
+        // Update target region if expansion is enabled
         if (this.expandTarget) {
             this._target = Union.from(newTarget, this.lss.dim).simplify();
         }
+        // Return if any changes happened. Due to the expanding target region
+        // multiple passes might be necessary until every state is properly
+        // classified.
         return hasChanged;
     }
 

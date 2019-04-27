@@ -19,10 +19,8 @@ function refineAttrR(lss: LSS, origin: Polytope, target: Region): [Region, Regio
     if (!lss.actR(origin, target).isEmpty) {
         return [origin, Polytope.ofDim(lss.dim).empty()];
     }
-    // Select a control input to refine with. Sample from within the robust
-    // predecessor, so sample points have a non-empty ActR.
-    const preR = lss.preR(origin, lss.uu, target);
-    const u = sampleControl(lss, preR, target);
+    // Select a control input to refine with
+    const u = sampleControl(lss, origin, target);
     // Compute the Robust Attractor in origin wrt to the target region and
     // selected control input
     const attrR = (u == null) ? null : lss.attrR(origin, u, target).simplify();
@@ -37,15 +35,15 @@ function refineAttrR(lss: LSS, origin: Polytope, target: Region): [Region, Regio
 }
 
 // Monte-Carlo sampling of control inputs for positive refinement
-function sampleControl(lss: LSS, origin: Region, target: Region): ?Polytope {
-    // Sample points from the origin for the refinement control input
-    // selection: start with vertices of the origin, and add a few random
-    // points from within the polytope. Because origin is a Region, use hull to
-    // obtain a simpler Polytope first.
-    const hull = origin.hull();
-    const xs = Array.from(hull.vertices);
+function sampleControl(lss: LSS, origin: Polytope, target: Region): ?Polytope {
+    // Sample from within the robust predecessor, so sample points have
+    // a non-empty ActR. Start with vertices of the origin, and add a few
+    // random points from within the polytope. Because the preR is a Region in
+    // general, use hull to obtain a simpler Polytope first.
+    const preR = lss.preR(origin, lss.uu, target).hull();
+    const xs = Array.from(preR.vertices);
     for (let i = 0; i < (3 * lss.dim); i++) {
-        xs.push(hull.sample());
+        xs.push(preR.sample());
     }
     // Use ActRs of sample points wrt to target region to determine
     // a control input to refine with
@@ -137,21 +135,10 @@ export class Refinery {
 }
 
 
-/* Negative Attractor refinement */
+/* Holistic refinement with geometric condition */
 
-export class NegativeAttrRefinery extends Refinery {
-
-    +_attr: { [AutomatonStateID]: Region };
-
-    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults): void {
-        super(system, objective, results);
-        const lss = this.system.lss;
-        // Cache attractors of no-regions for target qs
-        this._attr = obj.fromMap(q => {
-            const no = this._getStateRegion("no", q);
-            return lss.attr(lss.xx, lss.uu, no).simplify();
-        }, objective.allStates);
-    }
+// Implementation of general partition pattern
+class _HolisticGeometricRefinery extends Refinery {
 
     partition(x: State): Region {
         let parts = x.polytope;
@@ -164,24 +151,82 @@ export class NegativeAttrRefinery extends Refinery {
             // Partition with Attractor of target q no-region
             let newParts = this._getEmpty();
             for (let part of parts.polytopes) {
-                const attr = part.intersect(this._attr[qNext]).simplify();
-                if (attr.isEmpty) {
-                    newParts = newParts.union(part);
-                } else {
-                    newParts = newParts.union(attr).union(part.remove(attr).simplify());
-                }
+                newParts = newParts.union(this._partition(part, qNext));
             }
             parts = newParts;
         }
         return parts;
     }
 
+    // Override in subclass
+    _partition(part: Polytope, qNext: AutomatonStateID): Region {
+        throw new Error("_HolisticGeometricRefinery subclass must implement method _partition");
+    }
+
 }
 
 
-/* Safety refinement */
+// Positive robust refinement
+export class PositiveRobustRefinery extends _HolisticGeometricRefinery {
 
-export class SafetyRefinery extends Refinery {
+    +_op: "PreR" | "AttrR";
+    +_yes: { [AutomatonStateID]: Region };
+
+    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
+                operator: "PreR" | "AttrR"): void {
+        super(system, objective, results);
+        this._op = operator;
+        // Cache yes regions for target qs
+        this._yes = obj.fromMap((q) => this._getStateRegion("yes", q), this.objective.allStates);
+    }
+
+
+    _partition(part: Polytope, qNext: AutomatonStateID): Region {
+        const lss = this.system.lss;
+        if (this._op === "PreR") {
+            const preR = lss.preR(part, lss.uu, this._yes[qNext]);
+            return preR.union(part.remove(preR).simplify());
+        } else if (this._op === "AttrR") {
+            const [attr, other] = refineAttrR(lss, part, this._yes[qNext]);
+            return attr.union(other);
+        } else throw new Error(
+            "Unknown operator '" + this._op + "' for positive robust refinement"
+        );
+    }
+
+}
+
+
+// Negative attractor refinement
+export class NegativeAttrRefinery extends _HolisticGeometricRefinery {
+
+    +_attr: { [AutomatonStateID]: Region };
+
+    constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults): void {
+        super(system, objective, results);
+        const lss = system.lss;
+        // Cache attractors of no-regions for target qs
+        this._attr = obj.fromMap(q => {
+            const no = this._getStateRegion("no", q);
+            return lss.attr(lss.xx, lss.uu, no).simplify();
+        }, objective.allStates);
+    }
+
+    _partition(part: Polytope, qNext: AutomatonStateID): Region {
+        const attr = part.intersect(this._attr[qNext]).simplify();
+        if (attr.isEmpty) {
+            return part;
+        } else {
+            return attr.union(part.remove(attr).simplify());
+        }
+
+    }
+
+}
+
+
+// Safety refinement
+export class SafetyRefinery extends _HolisticGeometricRefinery {
 
     +_ok: { [AutomatonStateID]: Region };
 
@@ -193,25 +238,10 @@ export class SafetyRefinery extends Refinery {
         }, this.objective.allStates);
     }
 
-    partition(x: State): Region {
-        const lss = this.system.lss;
-        let parts = x.polytope;
-        for (let q of this.objective.allStates) {
-            // Only refine undecided, state that aren't dead-ends
-            const qNext = this._qNext(x, q);
-            if (this._isDecided(x, q) || qNext == null) {
-                continue;
-            }
-            let newParts = this._getEmpty();
-            for (let part of parts.polytopes) {
-                const [safe, other] = refineAttrR(lss, part, this._ok[qNext]);
-                newParts = newParts.union(safe).union(other);
-            }
-            parts = newParts;
-        }
-        return parts;
+    _partition(part: Polytope, qNext: AutomatonStateID): Region {
+        const [safe, other] = refineAttrR(this.system.lss, part, this._ok[qNext]);
+        return safe.union(other);
     }
-
 }
 
 

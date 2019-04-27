@@ -14,7 +14,8 @@ import { Controller, Trace } from "./controller.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Polytope, Union } from "./geometry.js";
 import { Objective } from "./logic.js";
-import { TransitionRefinery, NegativeAttrRefinery, SafetyRefinery, SelfLoopRefinery } from "./refinement.js";
+import { TransitionRefinery, PositiveRobustRefinery, NegativeAttrRefinery, SafetyRefinery,
+         SelfLoopRefinery } from "./refinement.js";
 import { SnapshotTree } from "./snapshot.js";
 import { AbstractedLSS } from "./system.js";
 import { just, iter, sets, obj } from "./tools.js";
@@ -370,22 +371,25 @@ inspector.onRequest("refine-transition", function (data: RefineTransitionRequest
     const t1 = performance.now();
     return refineData((t1 - t0), refinementMap);
 });
-// Product Refinement
-export type RefineProductRequest = { method: "negative-attractor" }
-                                | { method: "safety" }
-                                | { method: "self-loop", optimistic: boolean, onlySafe: boolean };
-inspector.onRequest("refine-product", function (data: RefineProductRequest): RefineData {
+// Holistic Refinement
+export type RefineHolisticRequest = { method: "positive-robust", operator: "AttrR" | "PreR" }
+                                  | { method: "negative-attractor" }
+                                  | { method: "safety" }
+                                  | { method: "self-loop", optimistic: boolean, onlySafe: boolean };
+inspector.onRequest("refine-holistic", function (data: RefineHolisticRequest): RefineData {
     const analysis = just($.analysis, "Refinement requires an analysed system");
     const t0 = performance.now();
     let refinery;
-    if (data.method === "negative-attractor") {
+    if (data.method === "positive-robust") {
+        refinery = new PositiveRobustRefinery($.system, $.objective, analysis, data.operator)
+    } else if (data.method === "negative-attractor") {
         refinery = new NegativeAttrRefinery($.system, $.objective, analysis)
     } else if (data.method === "safety") {
         refinery = new SafetyRefinery($.system, $.objective, analysis)
     } else if (data.method === "self-loop") {
         refinery = new SelfLoopRefinery($.system, $.objective, analysis, data.optimistic, data.onlySafe)
     } else throw new Error(
-        "Unknown product refinement method '" + data.method + "'"
+        "Unknown holistic refinement method '" + data.method + "'"
     );
     const refinementMap = $.refine(refinery);
     const t1 = performance.now();

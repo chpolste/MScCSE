@@ -7,7 +7,7 @@ import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
 import type { StateData, StatesData, ActionsData, SupportData, TraceData,
               AnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
-              SnapshotData, SystemSummaryData, RefineProductRequest, RefineTransitionRequest
+              SnapshotData, SystemSummaryData, RefineHolisticRequest, RefineTransitionRequest
             } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
 import type { Proposition, AutomatonStateID, AutomatonShapeCollection } from "./logic.js";
@@ -202,7 +202,7 @@ export class SystemInspector {
         const actionViewCtrl = new ActionViewCtrl(model);
         // System tab
         const analysisViewCtrl = new AnalysisViewCtrl(model, keys);
-        const productRefinementCtrl = new ProductRefinementCtrl(model);
+        const holisticRefinementCtrl = new HolisticRefinementCtrl(model);
         const transitionRefinementCtrl = new TransitionRefinementCtrl(model);
         const snapshotViewCtrl = new SnapshotViewCtrl(model);
         // Control tab
@@ -219,7 +219,7 @@ export class SystemInspector {
         ]);
         const systemTab = tabs.newTab("System", [
             analysisViewCtrl,
-            productRefinementCtrl,
+            holisticRefinementCtrl,
             transitionRefinementCtrl,
             snapshotViewCtrl
         ]);
@@ -534,10 +534,10 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
-    refineProduct(request: RefineProductRequest): Promise<null> {
-        return this._comm.request("refine-product", request).then((data: RefineData) => {
+    refineHolistic(request: RefineHolisticRequest): Promise<null> {
+        return this._comm.request("refine-holistic", request).then((data: RefineData) => {
             this.log.writeRefinement([
-                "Product (" + request.method + ")"
+                "Holistic (" + request.method + ")"
             ], data);
             return data.removed.length > 0 ? this.updateStates() : null;
         }).catch((e) => {
@@ -1547,27 +1547,39 @@ class AnalysisViewCtrl extends WidgetPlus{
 }
 
 
-class ProductRefinementCtrl extends WidgetPlus {
+class HolisticRefinementCtrl extends WidgetPlus {
 
     +_model: SystemModel;
+    +_posOperator: Input<"PreR" | "AttrR">;
     +_loopsOptimistic: Input<boolean>;
     +_loopsOnlySafe: Input<boolean>;
 
     constructor(model: SystemModel): void {
-        super("Product Refinement", "info-product-refinement");
+        super("Holistic Refinement", "info-holistic-refinement");
         this._model = model;
-        // Negative Attractor
+        // Positive robust refinement
+        const posRobustRefine = dom.createButton({}, ["refine"], () => this.refinePosRobust());
+        this._posOperator = new DropdownInput({
+            "Robust Attractor": "AttrR",
+            "Robust Predecessor": "PreR"
+        }, "Robust Attractor");
+        // Negative attractor refinement
         const negAttrRefine = dom.createButton({}, ["refine"], () => this.refineNegAttr());
-        // Safety
+        // Safety refinement
         const safetyRefine = dom.createButton({}, ["refine"], () => this.refineSafety());
         // Self-loop removal
         const loopsRefine = dom.createButton({}, ["refine"], () => this.refineLoops());
         this._loopsOptimistic = new DropdownInput({
-            "optimistic": true,
-            "pessimistic": false
-        }, "optimistic");
+            "Optimistic": true,
+            "Pessimistic": false
+        }, "Optimistic");
         this._loopsOnlySafe = new CheckboxInput(true, "only safe actions");
+        // Assemble
         this.node = dom.DIV({ "class": "div-table" }, [
+            dom.DIV({}, [
+                dom.DIV({}, [posRobustRefine]),
+                dom.DIV({}, ["Positive single-step using ", this._posOperator.node])
+            ]),
             dom.DIV({}, [
                 dom.DIV({}, [negAttrRefine]),
                 dom.DIV({}, ["Negative Attractor"])
@@ -1583,9 +1595,21 @@ class ProductRefinementCtrl extends WidgetPlus {
         ]);
     }
 
+    refinePosRobust(): void {
+        this.pushLoad();
+        this._model.refineHolistic({
+            method: "positive-robust",
+            operator: this._posOperator.value
+        }).catch(() => {
+            // Error logging is done in SystemModel
+        }).finally(() => {
+            this.popLoad();
+        });
+    }
+
     refineNegAttr(): void {
         this.pushLoad();
-        this._model.refineProduct({
+        this._model.refineHolistic({
             method: "negative-attractor"
         }).catch(() => {
             // Error logging is done in SystemModel
@@ -1596,7 +1620,7 @@ class ProductRefinementCtrl extends WidgetPlus {
 
     refineSafety(): void {
         this.pushLoad();
-        this._model.refineProduct({
+        this._model.refineHolistic({
             method: "safety"
         }).catch(() => {
             // Error logging is done in SystemModel
@@ -1607,7 +1631,7 @@ class ProductRefinementCtrl extends WidgetPlus {
 
     refineLoops(): void {
         this.pushLoad();
-        this._model.refineProduct({
+        this._model.refineHolistic({
             method: "self-loop",
             optimistic: this._loopsOptimistic.value,
             onlySafe: this._loopsOnlySafe.value

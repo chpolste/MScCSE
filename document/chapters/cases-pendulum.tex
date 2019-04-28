@@ -1,6 +1,7 @@
 Non-co-safe objective: $\Globally \Finally \varphi$.
-
 Practical application (link yt-video?), with real world problems (e.g. time discretization, linearization, numerical errors).
+Demonstration of the synthesized controller in a real-time scenario.
+
 
 \startsubsection[title={Derivation}]
 
@@ -57,20 +58,20 @@ Practical application (link yt-video?), with real world problems (e.g. time disc
         \startalign[n=3,align={middle,right,left}]
             \NC 
             \NC \DDt \TwoByOne{\Angle(t)}{\dot\Angle(t)} = 
-            \NC \frac{\VecState_{t+1} - \VecState_{t}}{\Deltat} + O(...)
+            \NC \frac{\VecState_{t+1} - \VecState_{t}}{\Deltat} + \BigO(\Deltat)
             \NR
             \NC \Rightarrow \quad
             \NC \VecState_{t+1} =
             \NC \VecState_{t}
                 + \DDt \TwoByOne{\Angle(t)}{\dot\Angle(t)} \Deltat
-                + O(...)
+                + \BigO(\Deltat^2)
             \NR
             \NC \Rightarrow \quad
             \NC \VecState_{t+1} =
             \NC \VecState_{t}
                 + \Deltat \TwoByTwo{0}{1}{\frac{\Gravity}{\Length}}{\frac{\Friction}{\Mass}} \VecState_t
                 + \Deltat \TwoByOne{0}{\frac{\MaxForce}{\Length \Mass} } \VecControl_t
-                + O(...)
+                + \BigO(\Deltat^2)
             \NR
             \NC \Rightarrow \quad
             \NC \VecState_{t+1} =
@@ -81,17 +82,26 @@ Practical application (link yt-video?), with real world problems (e.g. time disc
         \stopalign
     \stopformula
 
-    Where the discretization error has been approximated by $\VecRandom_t \in \ClosedInterval{?}{?} \times \ClosedInterval{?}{?}$.
+    Where the discretization error term $\BigO(\Deltat^2)$ has been approximated by
+
+    \startformula
+        \VecRandom_t \in \ClosedInterval{?}{?} \times \ClosedInterval{?}{?}
+    \stopformula
+
+    based on the second order derivative ...
 
 \stopsubsection
 
 
 \startsubsection[title={Solution}]
 
-    Implementation in interactive application.
-    Symplectic integrator.
-    Demonstraction that approach works.
-    Controller synthesis and plots of a few angle/input vs. time graphs.
+    Implementation of interactive application.
+    1st-order symplectic integrator (good conservation of energy) of non-approximated pendulum equation.
+    Solution of analysis problem with layered positive refinement (?)
+    Controller synthesized and embedded into real-time simulation.
+
+    Show plots of a few angle/input vs. time graphs.
+    Bring controller to its limits when physics approximation breaks down or time step is chosen too big (invalidate probabilistic perturbation assumption).
 
 \stopsubsection
 

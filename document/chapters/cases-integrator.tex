@@ -1,17 +1,46 @@
-Double integrator, the example of \cite[Svorenova2017].
+Consider the double integrator dynamics
 
 \startformula
-    \VecX_{t+1} = ...
+    \VecX_{t+1} = \TwoByTwo{1}{1}{0}{1} \VecState_{t} + \TwoByOne{0.5}{1} \VecControl_{t} + \VecRandom_{t} \EndComma
 \stopformula
 
-Shown here again, to demonstrate improvements in the refinement.
-Challenge: limit-behaviour at edge.
-TODO: proof that at boundary of Outer Attr, only a single control input point is usable, therefore procedure can never terminate.
-Motivate shrinking of PreR again, which avoids this issue.
-Explain why boundary behaviour inside the polytope is not as problematic and how random sampling is used to solve this.
+where $\VecState_{t} \in \StateSpace = \ClosedInterval{-5}{5} \times \ClosedInterval{-3}{3}$, $\VecControl_{t} \in \ControlSpace = \ClosedInterval{-1}{1}$ and $\VecRandom_{t} \in \RandomSpace = \ClosedInterval{-0.1}{0.1}^2$.
+The objective is to reach $\ClosedInterval{-1}{1}^2$, therefore the linear predicates $\Predicate_{1}$, $\Predicate_{2}$, $\Predicate_{3}$ and $\Predicate_{4}$ are introduced, corresponding to halfspaces governed by the inequalities $x \leq 1$, $-x \leq 1$, $y \leq 1$ and $-y \leq 1$.
+The LTL formula expressing this reachability objective is then
 
-Performance comparison: single-step Attr-/AttrR+ vs multi-step Attr- and layered refinement (vs multi-step static control?).
-Layer-by-layer analysis with game simplification faster than one analysis for everything?
+\startformula
+    \Finally ( p_1 \wedge p_2 \wedge p_3 \wedge p_4 )
+\stopformula
 
-Also demonstrate with recurrence objective and how layered refinement overcomes the yes-states issues of AttrR+ refinement.
+with a co-safe interpretation.
+\cite[Svorenova2017] used this exact system for their case studies and it is used here again as a baseline for comparison.
+
+\placefigure[top][fig:cases-integrator-initial]{
+    The double integrator test system and its initial partition.
+    Polytopes $\State{1}$ to $\State{4}$ (grey) are outer states from the decomposition of $\ExtendedStateSpace \setminus \StateSpace$.
+    The reachability target is $\State{12}$ (green).
+}{
+    \externalfigure[cases-integrator-initial][width=\textwidth]
+}
+
+Positive robust refinement and PreR, 1 iteration between analysis.
+Illustrate limit behaviour at PreR edge.
+
+Positive robust refinement with target expansion, 9 iterations.
+Show super-small states.
+
+Positive robust refinement with target expansion and small-state suppression, 9 iterations.
+Show reduction of number of states.
+
+Positive robust refinement with layer decomposition, no target expansion, shrunk PreR, small-state suppression, 3 inner iterations.
+Motivate shrinking of PreR.
+Show layer decomposition.
+Faster refinement, few states, sub-minute analysis despite having to analyse the entire game.
+
+Limit-behaviour at boundary of Outer Attr, therefore procedure can never terminate.
+Proof?
+
+Conclusion:
+Layered refinement performs best, importance of small-state suppression (combats over-refinement) and problems with jaggedness (which just causes more jaggedness).
+Plot number of state space partition elements vs. game size, show how product game simplification saves time?
 

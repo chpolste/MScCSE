@@ -1,14 +1,26 @@
 Reachability/Avoidance through a corridor.
 
 \startformula
-    \VecX_{t+1} = ...
+    \VecX_{t+1} = \TwoByTwo{1}{0}{0}{1} \VecState_{t} + \TwoByTwo{1}{0}{0}{1} \VecControl_{t} + \VecRandom_{t} \EndComma
 \stopformula
 
+where $\VecState_{t} \in \StateSpace = \ClosedInterval{0}{4} \times \ClosedInterval{0}{3}$, $\VecControl_{t} \in \ControlSpace = \ClosedInterval{-0.5}{0.5}^2$ and $\VecRandom_{t} \in \RandomSpace = \ClosedInterval{-0.1}{0.1}^2$.
+Objective is avoidance and reachability
 
-2-dim control space.
-Compare game complexity to double integrator with 1D control space.
+\startformula
+    ( \neg \pi ) \Until \varphi
+\stopformula
+
+co-safe interpretation.
+Narrow passage between two rooms, challenge is the relatively precise control required to enter the corridor.
+
 Show how layered refinement adapts to corridor due to removal of known no-states.
+Compare with solution from pure robust refinement with target expansion and small state suppression.
+Demonstrate variability of solution due to randomized $\RefinePos$ and how layered refinement can contribute to stabilize the variability in the refinement.
 
-Problematic performance of round-robin controller.
-Show off layered-round robin reachability controller that does better job of guiding the trace through the corridor.
+2-dimensional control space.
+Compare game complexity to double integrator with 1D control space.
+
+Problematic performance of round-robin controller which does not violate avoidance objective but does not want to enter the corridor.
+Show off reordered round-robin controller for reachability that does better job of guiding the trace through the corridor.
 

@@ -502,7 +502,7 @@ export class TransitionRefinery extends Refinery {
     _partitions: Map<State, Region>;
 
     constructor(system: AbstractedLSS, objective: Objective, results: AnalysisResults,
-                origin: AutomatonStateID, target: AutomatonStateID, enlargeSmallTarget: boolean,
+                origin: AutomatonStateID, target: AutomatonStateID, 
                 layers: ?TransitionRefineryLayers, settings: RobustReachabilitySettings): void {
         super(system, objective, results);
         const lss = system.lss;
@@ -538,15 +538,6 @@ export class TransitionRefinery extends Refinery {
         const avoid = Union.from(bad, lss.dim).simplify();
         // Union of good states is the target
         let reach = Union.from(good, lss.dim).simplify();
-        // Expand target if it is small and expansion is desired
-        while (enlargeSmallTarget && reach.pontryagin(lss.ww).isEmpty) {
-            // TODO expand reach, intersect with state space, remove avoid and check again
-            break; // TODO
-        }
-        // TODO if reach was modified, add a safety property as additional problem
-        if (false) {
-            // TODO
-        }
         // Case 1: refinement without layer decomposition
         if (layers == null) {
             this._problems.push(new RobustReachabilityProblem(lss, todo, reach, avoid, settings));

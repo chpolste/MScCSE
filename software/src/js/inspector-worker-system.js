@@ -354,7 +354,6 @@ export type RefineTransitionRequest = {
     origin: AutomatonStateID,
     target: AutomatonStateID,
     iterations: number,
-    enlargeSmallTarget: boolean,
     layers: ?TransitionRefineryLayers,
     settings: RobustReachabilitySettings
 
@@ -363,8 +362,8 @@ inspector.onRequest("refine-transition", function (data: RefineTransitionRequest
     const analysis = just($.analysis, "Refinement requires an analysed system");
     const t0 = performance.now();
     // ...
-    const refinery = new TransitionRefinery($.system, $.objective, analysis, data.origin, data.target,
-                                            data.enlargeSmallTarget, data.layers, data.settings);
+    const refinery = new TransitionRefinery($.system, $.objective, analysis, data.origin,
+                                            data.target, data.layers, data.settings);
     refinery.iterate(data.iterations);
     // ...
     const refinementMap = $.refine(refinery);

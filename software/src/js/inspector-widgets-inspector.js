@@ -1555,7 +1555,7 @@ class HolisticRefinementCtrl extends WidgetPlus {
     +_loopsOnlySafe: Input<boolean>;
 
     constructor(model: SystemModel): void {
-        super("Holistic Refinement", "info-holistic-refinement");
+        super("Holistic Single-step Refinement", "info-holistic-refinement");
         this._model = model;
         // Positive robust refinement
         const posRobustRefine = dom.createButton({}, ["refine"], () => this.refinePosRobust());
@@ -1578,7 +1578,7 @@ class HolisticRefinementCtrl extends WidgetPlus {
         this.node = dom.DIV({ "class": "div-table" }, [
             dom.DIV({}, [
                 dom.DIV({}, [posRobustRefine]),
-                dom.DIV({}, ["Positive single-step using ", this._posOperator.node])
+                dom.DIV({}, ["Positive with ", this._posOperator.node])
             ]),
             dom.DIV({}, [
                 dom.DIV({}, [negAttrRefine]),
@@ -1652,7 +1652,6 @@ class TransitionRefinementCtrl extends WidgetPlus {
     // Form elements
     +_origin: OptionsInput<AutomatonStateID>;
     +_target: OptionsInput<AutomatonStateID>;
-    +_enlargeSmallTarget: Input<boolean>;
     +_expandTarget: Input<boolean>;
     +_useLayers: Input<boolean>;
     +_layerGenerator: OptionsInput<"PreR" | "Pre">;
@@ -1665,7 +1664,7 @@ class TransitionRefinementCtrl extends WidgetPlus {
     +_button: HTMLButtonElement;
 
     constructor(model: SystemModel): void {
-        super("Transition Refinement", "info-transition-refinement");
+        super("Robust Transition Refinement", "info-transition-refinement");
         this._model = model;
         // Origin and target automaton state selection
         const automaton = model.objective.automaton;
@@ -1674,7 +1673,6 @@ class TransitionRefinementCtrl extends WidgetPlus {
         this._origin = new RadioInput(qAllObj, automaton.initialState.label, automatonLabel);
         // Target automaton state with transition region modifiers
         this._target = new RadioInput(qAllObj, automaton.initialState.label, automatonLabel);
-        this._enlargeSmallTarget = new CheckboxInput(true, "enlarge if small");
         this._expandTarget = new CheckboxInput(true, "expand after iteration");
         // Layer generating function
         this._useLayers = new CheckboxInput(false, "layer decomposition");
@@ -1705,10 +1703,6 @@ class TransitionRefinementCtrl extends WidgetPlus {
                 dom.DIV({ }, [
                     dom.DIV({}, ["Target:"]),
                     dom.DIV({}, [this._target.node])
-                ]),
-                dom.DIV({}, [
-                    dom.DIV(),
-                    dom.DIV({}, [this._enlargeSmallTarget.node])
                 ]),
                 dom.DIV({}, [
                     dom.DIV(),
@@ -1754,7 +1748,6 @@ class TransitionRefinementCtrl extends WidgetPlus {
             origin: this._origin.value,
             target: this._target.value,
             iterations: this._iterations.value,
-            enlargeSmallTarget: this._enlargeSmallTarget.value,
             layers: (!this._useLayers.value) ? null : {
                 generator: this._layerGenerator.value,
                 scaling: (this._layerUScale.value / 100),

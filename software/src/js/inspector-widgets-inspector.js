@@ -483,10 +483,15 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
-    getTrace(controller: string): Promise<TraceData> {
+    getTrace(controller: string, steps: number): Promise<TraceData> {
         const [x, qLabel] = this.state;
         const xLabel = x == null ? null : x.label;
-        return this._comm.request("get-trace", [controller, xLabel, qLabel]).catch((e) => {
+        const request = {
+            controller: controller,
+            steps: steps,
+            origin: [xLabel, qLabel]
+        };
+        return this._comm.request("get-trace", request).catch((e) => {
             this.log.writeError(e);
             throw e;
         });
@@ -1963,13 +1968,14 @@ class TraceCtrl extends WidgetPlus {
         // Initial state display
         this._initial = dom.SPAN();
         // Control elements
+        const steps = new DropdownInput(DropdownInput.rangeOptions(15, 121, 15));
         const controller = new DropdownInput({
             "Round-robin Controller": "round-robin",
             "Random Controller": "random"
         }, "Round-robin Controller");
         const sampleButton = dom.createButton({}, ["sample"], () => {
             this.pushLoad();
-            this._model.getTrace(controller.value).then((data: TraceData) => {
+            this._model.getTrace(controller.value, steps.value).then((data: TraceData) => {
                 this._model.trace = data;
             }).catch((e) => {
                 // ...
@@ -1981,8 +1987,9 @@ class TraceCtrl extends WidgetPlus {
             this._model.trace = [];
         });
         this.node = dom.DIV({}, [
+            dom.P({}, [sampleButton, " ", clearButton]),
             dom.P({}, ["Starting from ", this._initial, ":"]),
-            dom.P({}, [controller.node, " ", sampleButton, " ", clearButton])
+            dom.P({}, ["up to ", steps.node, " steps with ", controller.node]),
         ]);
     }
 
@@ -2002,6 +2009,7 @@ class TraceViewStepCtrl extends WidgetPlus {
 
     +_model: SystemModel;
     +_layers: { [string]: FigureLayer };
+    +_terminateText: HTMLParagraphElement;
 
     constructor(model: SystemModel): void {
         super("Trace", "info-trace");
@@ -2014,10 +2022,11 @@ class TraceViewStepCtrl extends WidgetPlus {
             states: fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" }),
             hovers: fig.newLayer({ "stroke": "none", "fill": "#FFF", "fill-opacity": "0" })
         };
-        const proj = new Cartesian2D([-0.5, 15.5], [-4.7, 0.3]);
-        const plot = new ShapePlot([480, 250], fig, proj, false);
+        const proj = new Cartesian2D([-0.5, 15.5], [-7.7, 0.3]);
+        const plot = new ShapePlot([480, 400], fig, proj, false);
+        this._terminateText = dom.P();
         this.node = dom.DIV({}, [
-            plot.node
+            this._terminateText, plot.node
         ]);
     }
 
@@ -2027,10 +2036,25 @@ class TraceViewStepCtrl extends WidgetPlus {
         const arrows = [];
         const states = [];
         const hovers = [];
+        let terminateText = "";
         if (trace.length > 0) {
+            // Put a circle at the beginning of the trace depiction
             arrows.push({ kind: "arrow", origin: [0, 0], target: [0, 0] });
             states.push({ kind: "label", coords: [0, -0.35], text: trace[0].xOrigin[2] });
+            // Length information and reason why trace was terminated early (if so)
+            terminateText += pluralize(trace.length, "step");
+            const last = trace[trace.length - 1];
+            if (this._model.objective.isCoSafeFinal(last.xTarget[2])) {
+                terminateText += ", objective satisfied"
+            } else if (just(this._model.states.get(last.xTarget[1])).isOuter) {
+                terminateText += ", outer state reached"
+            }
+        } else {
+            terminateText += "none";
         }
+        dom.replaceChildren(this._terminateText, [terminateText]);
+        // Draw interactive arrows in lines of 15 and annotate with automaton
+        // state changes
         for (let i = 0; i < trace.length; i++) {
             const step = trace[i];
             const x = i % 15;

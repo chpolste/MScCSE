@@ -204,6 +204,9 @@ const $ = new SystemManager();
 // Communication with host (inspector application)
 const inspector = new Communicator("2W");
 
+
+/* Game-graph */
+
 // States of the system
 export type StateData = {
     label: StateID,
@@ -234,19 +237,7 @@ function stateDataOf(state: State): StateData {
     };
 }
 
-
-// System information summary
-export type SystemSummaryRequest = null;
-export type SystemSummaryData = Map<AutomatonStateID, { count: SystemStats, volume: SystemStats }>;
-inspector.onRequest("get-system-summary", function (data: SystemSummaryRequest): SystemSummaryData {
-    return new Map(iter.map(
-        q => [q, { count: $.getCountStats(q), volume: $.getVolumeStats(q) }],
-        $.objective.allStates
-    ));
-});
-
-
-// Actions of a state
+// Actions (player 1 actions)
 export type ActionsRequest = StateID;
 export type ActionData = {
     id: ActionID,
@@ -264,8 +255,7 @@ inspector.onRequest("get-actions", function (data: ActionsRequest): ActionsData 
     }));
 });
 
-
-// Supports of an action
+// Supports (player 2 actions)
 export type SupportRequest = [StateID, ActionID];
 export type SupportData = {
     origin: StateData,
@@ -285,28 +275,32 @@ inspector.onRequest("get-supports", function (data: SupportRequest): SupportData
 });
 
 
-// Trace Sampling
-export type TraceRequest = [string, ?StateID, AutomatonStateID];
+/* Trace Sampling */
+
+export type TraceRequest = {
+    controller: string,
+    origin: [?StateID, AutomatonStateID],
+    steps: number
+};
 export type TraceData = JSONTrace;
 inspector.onRequest("get-trace", function (data: TraceRequest): TraceData {
-    const [controllerName, xLabel, qLabel] = data;
-    // ...
     const Cls = just(
-        Controller.builtIns()[controllerName],
-        "Controller '" + controllerName + "' not found in built-in controllers"
+        Controller.builtIns()[data.controller],
+        "Controller '" + data.controller + "' not found in built-in controllers"
     );
     const controller = new Cls($.system, $.objective, $.analysis);
-    // ...
+    const [xLabel, qLabel] = data.origin;
     const qInit = $.objective.getState(qLabel);
     const xInit = xLabel == null
                 ? $.system.lss.xx.sample()
                 : $.system.getState(xLabel).polytope.sample();
-    // ...
     const trace = new Trace($.system, $.objective);
-    trace.stepFor(100, controller, xInit, null, qInit);
+    trace.stepFor(data.steps, controller, xInit, null, qInit);
     return trace.serialize();
 });
 
+
+/* System Analysis */
 
 // Analyse the system
 export type AnalysisRequest = null;
@@ -329,8 +323,19 @@ inspector.onRequest("reset-analysis", function (data: ResetAnalysisRequest): Res
     return null;
 });
 
+// System information summary
+export type SystemSummaryRequest = null;
+export type SystemSummaryData = Map<AutomatonStateID, { count: SystemStats, volume: SystemStats }>;
+inspector.onRequest("get-system-summary", function (data: SystemSummaryRequest): SystemSummaryData {
+    return new Map(iter.map(
+        q => [q, { count: $.getCountStats(q), volume: $.getVolumeStats(q) }],
+        $.objective.allStates
+    ));
+});
 
-// Refinement
+
+/* Refinement */
+
 export type RefineData = {
     elapsed: number,
     removed: StateID[],
@@ -349,7 +354,8 @@ function refineData(elapsed, refinementMap): RefineData {
         created: created
     };
 }
-// Layer-based
+
+// Transition-based refinement
 export type RefineTransitionRequest = {
     origin: AutomatonStateID,
     target: AutomatonStateID,
@@ -361,15 +367,14 @@ export type RefineTransitionRequest = {
 inspector.onRequest("refine-transition", function (data: RefineTransitionRequest): RefineData {
     const analysis = just($.analysis, "Refinement requires an analysed system");
     const t0 = performance.now();
-    // ...
     const refinery = new TransitionRefinery($.system, $.objective, analysis, data.origin,
                                             data.target, data.layers, data.settings);
     refinery.iterate(data.iterations);
-    // ...
     const refinementMap = $.refine(refinery);
     const t1 = performance.now();
     return refineData((t1 - t0), refinementMap);
 });
+
 // Holistic Refinement
 export type RefineHolisticRequest = { method: "positive-robust", operator: "AttrR" | "PreR" }
                                   | { method: "negative-attractor" }
@@ -394,6 +399,9 @@ inspector.onRequest("refine-holistic", function (data: RefineHolisticRequest): R
     const t1 = performance.now();
     return refineData((t1 - t0), refinementMap);
 });
+
+
+/* Snapshot management */
 
 export type SnapshotsRequest = null;
 export type SnapshotData = {

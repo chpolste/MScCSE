@@ -61,6 +61,8 @@ export class Trace {
         if (x.isOuter) return null;
         // If no automaton state is given, use the initial state
         if (q == null) q = this.objective.automaton.initialState;
+        // If co-safe final state is reached, terminate the trace
+        if (this.objective.isCoSafeFinal(q.label)) return null;
         // Determine automaton successor state based on origin predicates. If
         // no valid automaton transition exists, the trace has terminated
         const qNext = q.successor(this.objective.valuationFor(x.predicates));

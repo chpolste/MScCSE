@@ -2,6 +2,7 @@
 "use strict";
 
 import type { FigureLayer } from "./figure.js";
+import type { JSONSession } from "./inspector.js";
 import type { Proposition, ObjectiveKind } from "./logic.js";
 import type { Plot } from "./widgets-plot.js";
 import type { Input } from "./widgets-input.js";
@@ -43,6 +44,7 @@ type SystemSetup = {
     objective: string
 };
 
+type SessionCallback = (JSONSession) => void;
 
 export class SessionManager {
 
@@ -50,22 +52,42 @@ export class SessionManager {
     +problemSetup: ProblemSetup;
     +presetSelect: Input<*>;
 
-    constructor(problemSetup: ProblemSetup): void {
-        this.node = dom.DIV();
+    constructor(problemSetup: ProblemSetup, callback: SessionCallback): void {
         this.problemSetup = problemSetup;
+        // Session continuation
+        const sessionFile = dom.INPUT({ "type": "file" });
+        const sessionButton = dom.createButton({}, ["import"], () => {
+            // No file specified
+            if (sessionFile.value === "") return;
+            // Load file contents
+            const file = sessionFile.files[0];
+            if (file == null) throw new Error(
+                "No file specified"
+            );
+            const reader = new FileReader();
+            reader.onload = () => {
+                const result = reader.result;
+                if (result == null || typeof result !== "string") throw new Error(
+                    "File contents are not a string"
+                );
+                // Start inspector with session
+                callback(JSON.parse(result));
+            };
+            reader.readAsText(file);
+        });
+        // Preset fill-in
         this.presetSelect = new DropdownInput(presets.setups);
         const presetButton = dom.createButton({}, ["fill in"], () => this.loadPreset());
-        dom.appendChildren(this.node, [
-            /*
-            dom.H3({}, ["Load session from file"]),
-            dom.P({}, [dom.INPUT({"type": "file", "disabled": "true"})]),
-            dom.P({}, [
-                dom.INPUT({"type": "button", "value": "resume session", "disabled": "true"}), " ",
-                dom.INPUT({"type": "button", "value": "fill in setup only", "disabled": "true"}),
+        // Assemble
+        this.node = dom.DIV({ "class": "div-table" }, [
+            dom.DIV({}, [
+                dom.DIV({}, ["Continue a session:"]),
+                dom.DIV({}, [sessionFile, " ", sessionButton])
             ]),
-            */
-            dom.P({}, ["Start from a preset:"]),
-            dom.P({}, [this.presetSelect.node, " ", presetButton])
+            dom.DIV({}, [
+                dom.DIV({}, ["Start from a preset:"]),
+                dom.DIV({}, [this.presetSelect.node, " ", presetButton])
+            ])
         ]);
     }
 

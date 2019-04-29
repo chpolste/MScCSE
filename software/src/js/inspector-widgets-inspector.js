@@ -5,6 +5,7 @@ import type { JSONTraceStep } from "./controller.js";
 import type { FigureLayer, Shape } from "./figure.js";
 import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
+import type { JSONSession } from "./inspector.js";
 import type { StateData, StatesData, ActionsData, SupportData, TraceData,
               AnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
               SnapshotData, SystemSummaryData, RefineHolisticRequest, RefineTransitionRequest,
@@ -189,9 +190,10 @@ export class SystemInspector {
 
     +node: HTMLDivElement;
 
-    constructor(system: AbstractedLSS, objective: Objective, keys: dom.Keybindings, analyseOnStartup: boolean) {
+    constructor(system: AbstractedLSS, objective: Objective, keys: dom.Keybindings,
+                analyseOnStartup: boolean, session: ?JSONSession) {
         const log = new Logger();
-        const model = new SystemModel(system, objective, log, analyseOnStartup);
+        const model = new SystemModel(system, objective, log, analyseOnStartup, session);
         // Main views
         const systemViewCtrl = new SystemViewCtrl(model);
         const randomSpaceView = new RandomSpaceView(model);
@@ -307,7 +309,8 @@ class SystemModel extends ObservableMixin<ModelChange> {
     _trace: JSONTraceStep[];
     _traceStep: ?JSONTraceStep;
 
-    constructor(system: AbstractedLSS, objective: Objective, log: Logger, analyseAtStartup: boolean): void {
+    constructor(system: AbstractedLSS, objective: Objective, log: Logger,
+                analyseAtStartup: boolean, session: ?JSONSession): void {
         super();
         // System model handles all requests to the system worker and also
         // updates the log with analysis, refinement and error messages
@@ -321,7 +324,7 @@ class SystemModel extends ObservableMixin<ModelChange> {
             this._comm = new Communicator("ISYS");
             // Worker starts its own initialization process
             this._comm.onRequest("init", (data) => [
-                system.serialize(), objective.serialize(), analyseAtStartup
+                system.serialize(), objective.serialize(), analyseAtStartup, session
             ]);
             // The worker signals "ready" when everything is set up
             this._comm.onRequest("ready", (data: null) => {
@@ -330,8 +333,8 @@ class SystemModel extends ObservableMixin<ModelChange> {
                 this.notify("trace");
             });
             const worker = new Worker("./js/inspector-worker-system.js");
-            worker.onerror = () => {
-                this.log.write(["error"], "unable to start system worker");
+            worker.onerror = (evt) => {
+                this.log.write(["error"], "System worker error event (" + evt.type + ").");
             };
             this._comm.host = worker;
         } catch (e) {
@@ -1795,32 +1798,6 @@ class TransitionRefinementCtrl extends WidgetPlus {
         this._layerEnd.disabled = disabled;
         this._layerGenerator.disabled = disabled;
         this._layerUScale.disabled = disabled;
-    }
-
-}
-
-
-class SystemReachRefinementCtrl extends WidgetPlus {
-
-    +_model: SystemModel;
-    +_origin: Input<AutomatonStateID>;
-    +_outerAttr: HTMLButtonElement;
-    +_outerAttrIterations: OptionsInput<number>;
-
-    constructor(model: SystemModel): void {
-        super("Reachability Refinement", "info-system-reach-refinement");
-        this._model = model;
-        // Negative Attractor
-        this._outerAttr = dom.createButton({}, ["Outer Attr"], () => this.refineOuterAttr());
-        this._outerAttrIterations = new DropdownInput(DropdownInput.rangeOptions(1, 10, 1), "5");
-        // TODO: Positive Static Control
-        // Assemble
-        this.node = dom.DIV({}, [
-            dom.P({}, [this._outerAttr, " with ", this._outerAttrIterations.node, " iteration(s)"])
-        ]);
-    }
-
-    refineOuterAttr(): void {
     }
 
 }

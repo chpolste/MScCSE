@@ -196,11 +196,20 @@ class SystemManager {
 
     // ...
 
-    serialize(includeGraph?: boolean): JSONSession {
+    exportSession(includeGraph?: boolean): JSONSession {
         return {
             objective: this.objective.serialize(),
             snapshots: this._snapshots.serialize(includeGraph)
         };
+    }
+
+    importSession(session: JSONSession): void {
+        // Replace snapshot tree
+        this._snapshots = SnapshotTree.deserialize(session.snapshots);
+        // Update caches
+        this._objective = Objective.deserialize(session.objective);
+        this._system = this._snapshots.getSystem();
+        this._analysis = this._snapshots.getAnalysis();
     }
 
 }
@@ -456,7 +465,7 @@ export type ExportSessionRequest = null;
 export type ExportSessionData = JSONSession;
 inspector.onRequest("export-session", function (data: ExportSessionRequest): ExportSessionData {
     // Don't include game graph as it increases size of export substantially
-    return $.serialize(false);
+    return $.exportSession(false);
 });
 
 
@@ -466,10 +475,15 @@ inspector.onRequest("export-session", function (data: ExportSessionRequest): Exp
 inspector.host = self;
 
 // Initialize
-inspector.request("init", null).then(function (data: [JSONAbstractedLSS, JSONObjective, boolean]) {
-    const [system, objective, analyse] = data;
+export type InitializationData = [JSONAbstractedLSS, JSONObjective, boolean, ?JSONSession];
+inspector.request("init", null).then(function (data: InitializationData) {
+    const [system, objective, analyse, session] = data;
     // Initialize the global state manager
     $.initialize(AbstractedLSS.deserialize(system), Objective.deserialize(objective), analyse);
+    // Load session
+    if (session != null) {
+        $.importSession(session);
+    }
     // Send the ready signal to the host application
     inspector.request("ready", null);
 });

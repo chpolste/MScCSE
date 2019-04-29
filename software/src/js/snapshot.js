@@ -6,7 +6,7 @@ import type { JSONAbstractedLSS } from "./system.js";
 
 import { AnalysisResults } from "./game.js";
 import { AbstractedLSS } from "./system.js";
-import { just } from "./tools.js";
+import { just, obj } from "./tools.js";
 
 
 export type Snapshot = {
@@ -14,15 +14,28 @@ export type Snapshot = {
     system: JSONAbstractedLSS,
     analysis: ?JSONAnalysisResults
 }
+// Snapshot type is already JSON-serializable
+export type JSONSnapshot = Snapshot;
 
-export type JSONSnapshotTree = {}; // TODO
+// ...
+export type JSONSnapshotTree = {
+    // Which ids are associated with a snapshot
+    ids: number[],
+    // Snapshots and their children in the hierarchy
+    snapshots: [JSONSnapshot, number[]][],
+    // Root element of the tree
+    root: ?number,
+    // Active snapshot
+    current: ?number
+};
 
+// ...
 export class SnapshotTree {
 
-    +_id: number;
+    _id: number;
+    _current: ?number;
     +_snapshots: Map<number, Snapshot>;
     +_tree: Map<?number, number[]>;
-    _current: ?number;
 
     constructor(): void {
         this._id = 0;
@@ -33,7 +46,28 @@ export class SnapshotTree {
     }
 
     static deserialize(json: JSONSnapshotTree): SnapshotTree {
-        return new SnapshotTree(); // TODO
+        const tree = new SnapshotTree();
+        // Restore snapshot tree
+        for (let id of json.ids) {
+            const [snapshot, children] = json.snapshots[id];
+            // Assign shallow copies, so metadata manipulation of the
+            // deserialized tree does not affect the serialized data
+            tree._snapshots.set(id, obj.clone(snapshot));
+            tree._tree.set(id, Array.from(children));
+            // Update id generator status
+            if (tree._id <= id) {
+                tree._id = id + 1;
+            }
+        }
+        // Restore root node of tree
+        if (json.root != null) {
+            tree._tree.set(null, [json.root]);
+        }
+        // Restore selection
+        if (json.current != null) {
+            tree.select(json.current);
+        }
+        return tree;
     }
 
     get size(): number {
@@ -141,7 +175,20 @@ export class SnapshotTree {
     // Serialization
 
     serialize(): JSONSnapshotTree {
-        return {}; // TODO
+        const ids = Array.from(this._snapshots.keys());
+        const snapshots = [];
+        for (let id of ids) {
+            snapshots[id] = [
+                obj.clone(this.getSnapshot(id)),
+                Array.from(this.getChildren(id))
+            ];
+        }
+        return {
+            ids: ids,
+            snapshots: snapshots,
+            root: (ids.length === 0 ? null : this.root),
+            current: this._current
+        };
     }
 
 }

@@ -476,6 +476,8 @@ class SelectionView {
 }
 
 
+type ViewSettings = { size: ?Range };
+
 // Interactive, resizable plot of all polytopes in the list
 class PlotView extends ObservableMixin<null> {
 
@@ -540,6 +542,7 @@ class PlotView extends ObservableMixin<null> {
         this.plot.size = [x, y];
         this.plot.projection = autoProjection(x/y, ...extent);
         this.resetReferenceProjection();
+        this.notify();
     }
 
     resetReferenceProjection(): void {
@@ -547,14 +550,18 @@ class PlotView extends ObservableMixin<null> {
         this.plot.referenceProjection = autoProjection(x/y, ...extent);
     }
 
-    save(): any {
+    save(): ViewSettings {
         return {
-            // TODO
+            size: [this.plotSizeX.value, this.plotSizeY.value]
         };
     }
 
-    load(data: any): void {
-        // TODO
+    load(data: ViewSettings): void {
+        if (data.size != null) {
+            const [sizeX, sizeY] = data.size;
+            this.plotSizeX.text = sizeX.toString();
+            this.plotSizeY.text = sizeY.toString();
+        }
     }
 
 }

@@ -855,19 +855,33 @@ class SystemViewCtrl {
 
     toExportURL(): string {
         const data = {
-            view: {}, // TODO
+            view: { size: null },
             polytopes: []
         };
+        // Operator highlight
+        const opShapes = Array.from(this._layers.highlight1.shapes);
+        if (this._operator != null && opShapes.length > 0) {
+            for (let shape of opShapes) {
+                if (shape.kind !== "polytope") continue;
+                data.polytopes.push([
+                    { dim: this._model.lss.dim, vertices: shape.vertices },
+                    [false, this._operator],
+                    [true, COLORS.highlight],
+                    [false, COLORS.highlight]
+                ]);
+            }
+        }
+        // States with analysis colors and selection
+        const [x, q] = this._model.state;
         for (let [label, state] of this._model.states) {
             data.polytopes.push([
                 state.polytope,
                 [this._showLabels, label],
-                [false, "#FFFFFF"],
+                [true, (x === state ? COLORS.selection : stateColor(state, q))],
                 [true, "#000000"]
             ]);
         }
         return window.btoa(JSON.stringify(data));
-        // TODO: also export operator, selection, analysis colors, ...
     }
 
 }

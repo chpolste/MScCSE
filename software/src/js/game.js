@@ -118,7 +118,6 @@ export class AnalysisResults extends Map<StateID, AnalysisResult> {
         for (let label in json) {
             const result = json[label];
             results.set(label, {
-                init: result.init,
                 yes: new Set(result.yes),
                 no: new Set(result.no),
                 maybe: new Set(result.maybe)
@@ -131,7 +130,6 @@ export class AnalysisResults extends Map<StateID, AnalysisResult> {
         const json = {};
         for (let [label, result] of this) {
             json[label] = {
-                init: result.init,
                 yes: Array.from(result.yes),
                 no: Array.from(result.no),
                 maybe: Array.from(result.maybe)
@@ -217,8 +215,6 @@ export class AnalysisResults extends Map<StateID, AnalysisResult> {
 
 // Each state has an object with results attached
 export type AnalysisResult = {
-    // Initial automaton state
-    init: string,
     // For which automaton states can the game be won by player 1 alone?
     yes: Set<string>,
     // For which automaton states can the game be won by player 2 alone?
@@ -227,7 +223,6 @@ export type AnalysisResult = {
     maybe: Set<string>
 };
 export type JSONAnalysisResult = {
-    init: string,
     yes: string[],
     no: string[],
     maybe: string[]
@@ -382,7 +377,6 @@ export class TwoPlayerProbabilisticGame {
             // Initial result status: empty results except for co-safe
             // post-processing
             results.set(state.systemState, {
-                init: state.automatonState,
                 yes: new Set(qSat),
                 no: new Set(),
                 maybe: new Set()

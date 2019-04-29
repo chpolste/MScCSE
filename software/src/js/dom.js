@@ -154,6 +154,25 @@ export function setCursor(cursor: string): void {
 }
 
 
+/* Download popup generator */
+
+export function popupDownload(content: string, filename: string): void {
+    const body = document.body;
+    if (body != null) {
+        const a = document.createElement("a");
+        a.href = content;
+        a.setAttribute("download", filename);
+        body.appendChild(a);
+        a.click();
+        body.removeChild(a);
+    } else {
+        window.open(content);
+    }
+}
+
+
+/* Keybindings */
+
 export type KeyCallback = (event?: KeyboardEvent) => void;
 
 export class Keybindings {

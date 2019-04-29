@@ -7,8 +7,8 @@ import type { AnalysisResults, AnalysisResult } from "./game.js";
 import type { Halfspace, JSONUnion } from "./geometry.js";
 import type { StateData, StatesData, ActionsData, SupportData, TraceData,
               AnalysisData, RefineData, TakeSnapshotData, LoadSnapshotData, NameSnapshotData,
-              SnapshotData, SystemSummaryData, RefineHolisticRequest, RefineTransitionRequest
-            } from "./inspector-worker-system.js";
+              SnapshotData, SystemSummaryData, RefineHolisticRequest, RefineTransitionRequest,
+              ExportSessionData } from "./inspector-worker-system.js";
 import type { Vector, Matrix } from "./linalg.js";
 import type { Proposition, AutomatonStateID, AutomatonShapeCollection } from "./logic.js";
 import type { AbstractedLSS, LSS, StateID, ActionID, PredicateID } from "./system.js";
@@ -594,6 +594,13 @@ class SystemModel extends ObservableMixin<ModelChange> {
             this.notify("snapshot");
             return data;
         }).catch((e) => {
+            this.log.writeError(e);
+            throw e;
+        });
+    }
+
+    exportSession(): Promise<ExportSessionData> {
+        return this._comm.request("export-session", null).catch((e) => {
             this.log.writeError(e);
             throw e;
         });
@@ -2096,8 +2103,11 @@ class TraceViewStepCtrl extends WidgetPlus {
 // Export to other applications
 class Connectivity extends WidgetPlus {
 
+    +_model: SystemModel;
+
     constructor(model: SystemModel, systemViewCtrl: SystemViewCtrl): void {
         super("Connectivity", "info-connectivity");
+        this._model = model;
         // Open polytopic calculator with basic problem setup loaded
         const calculator = dom.createButton({}, ["Calculator"], () => {
             const [y, _] = model.state;
@@ -2115,10 +2125,24 @@ class Connectivity extends WidgetPlus {
         const plotter = dom.createButton({}, ["Plotter"], () => {
             window.open("polytopic-plotter.html#" + systemViewCtrl.toExportURL());
         });
+        // ...
+        const save = dom.createButton({}, ["Export Session"], () => this.exportSession());
         // Assemble
         this.node = dom.DIV({}, [
-            dom.P({}, [calculator, " ", plotter])
+            dom.P({}, [calculator, " ", plotter, " ", save])
         ]);
+    }
+
+    exportSession(): void {
+        this._model.exportSession().then((data) => {
+            this.pushLoad();
+            dom.popupDownload("data:application/json;base64," + window.btoa(JSON.stringify(data)), "session.json");
+        }).catch((e) => {
+            // ...
+        }).finally(() => {
+            this.popLoad();
+        });
+        
     }
 
 }

@@ -4,6 +4,7 @@
 import type { JSONTrace } from "./controller.js";
 import type { Region, JSONPolytope, JSONUnion } from "./geometry.js";
 import type { JSONGameGraph, AnalysisResult, AnalysisResults } from "./game.js";
+import type { JSONSession } from "./inspector.js";
 import type { JSONObjective, AutomatonStateID } from "./logic.js";
 import type { Refinery, RobustReachabilitySettings, TransitionRefineryLayers } from "./refinement.js";
 import type { Snapshot } from "./snapshot.js";
@@ -190,6 +191,15 @@ class SystemManager {
             no: sNo,
             maybe: sMaybe,
             unreachable: sUnreach
+        };
+    }
+
+    // ...
+
+    serialize(includeGraph?: boolean): JSONSession {
+        return {
+            objective: this.objective.serialize(),
+            snapshots: this._snapshots.serialize(includeGraph)
         };
     }
 
@@ -440,6 +450,13 @@ export type NameSnapshotData = null;
 inspector.onRequest("name-snapshot", function (data: NameSnapshotRequest): NameSnapshotData {
     $.nameSnapshot(...data);
     return null;
+});
+
+export type ExportSessionRequest = null;
+export type ExportSessionData = JSONSession;
+inspector.onRequest("export-session", function (data: ExportSessionRequest): ExportSessionData {
+    // Don't include game graph as it increases size of export substantially
+    return $.serialize(false);
 });
 
 

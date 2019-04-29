@@ -174,14 +174,17 @@ export class SnapshotTree {
 
     // Serialization
 
-    serialize(): JSONSnapshotTree {
+    serialize(includeGraph?: boolean): JSONSnapshotTree {
         const ids = Array.from(this._snapshots.keys());
         const snapshots = [];
         for (let id of ids) {
-            snapshots[id] = [
-                obj.clone(this.getSnapshot(id)),
-                Array.from(this.getChildren(id))
-            ];
+            const snapshot = obj.clone(this.getSnapshot(id));
+            if (includeGraph !== true) {
+                // Strip the game graph from the system, which drastically
+                // reduces the snapshot size
+                snapshot.system = AbstractedLSS.deserialize(snapshot.system).serialize(false);
+            }
+            snapshots[id] = [snapshot, Array.from(this.getChildren(id))];
         }
         return {
             ids: ids,

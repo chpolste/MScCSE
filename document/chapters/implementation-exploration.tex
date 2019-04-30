@@ -1,30 +1,33 @@
-LSS is a geometric problem, with a straightforward visual interpretation at least for low dimensions.
-The product game abstraction, while easily representable by its game graph, can contain hundreds and thousands of states and actions even for relatively simple, low dimensional problems.
-Depicting both the LSS and the product game together with the connection between the two is challenging and impossible to do all at once for all but the most simple problems.
-This dilemma can be resolved by interactive visualizations.
-Instead of showing all information at once, provide a coarse overview and allow the user to selectively add and remove information from the visualization.
-All information is accessible but there is no overload.
-Interactivity is mainly for convenience and accessibility, alternative is usually generating a series of static images, which can be tedious even in an interpreted language.
+Visualizations play an important role in scientific reasearch.
+Graphical representations of data leverage the cognitive abilities of the human brain to process information quickly and detect patterns.
+The visual interpretation of theoretical concepts can provide valuable perspectives for gaining insight into a problem and aid in building intuition.
 
-Interactive exploration is important for educational purposes, particularly for newcomers to a field.
-Easy-to-access implementation lowers the barrier of entry.
-User is able to answer questions and deepen understanding autonomously as they obtain immediate visual feedback to their input.
-Ability to quickly set up and explore custom problems supports this feedback loop additionally.
-It encourages experimentation which helps to build valuable intuition.
+In the given problem, the abstraction step connects a the linear stochastic system with a game graph model through a partition of the state space and the system's dynamics.
+While the continuous-state of the LSS is a major computational problem, it is much less of a challenge for visualization as the state space has a straightforward geometric interpretation.
+The game graph is computationally much more convenient, but harder to depict.
+The introduction of the second player and synchronous product with the objective automaton results in a comparatively large game graph which cannot easily be represented in a clean and uncluttered fashion.
+An LSS with a state space partiton size in the hundreds is likely to have thousands of game states and actions.
+Visualization of both the LSS and its abstraction model in their entirety while simultaneously illustrating the relation between the two is infeasible for all but the simplest problems.
 
-But the usefulness of an easy-to-access implementation extends to research as well.
-Basis of experiments, for which it is again important to have direct (visual) feedback.
-For the given problem the development of new refinement procedures based on insights from the interactive LSS and game exploration was a major focus.
-Human ability to recognize patterns is valuable when desiging heuristic approaches to refinement.
-Interactive visualization provides a unique perspective on the product game, combining dynamics and the game graph and allowing the user to make quick connections between the two.
-This is particularly useful for refinement where changes to the game graph are desired, but the effect of refinement on the graph is non-obvious as it depends heavily on the dynamics.
-Even for refinement procedures based on theoretical principles, an easily accessible and interactive implementation will help in testing new procedures and ironing out practical problems.
+Interactivity can help resolve the dilemma that arises when large amounts of information have to be displayed together.
+Instead of showing all information at once, an interactive visualization can provide only a partial view of the problem at any given time while allowing a user to selectively add and remove information.
+All information can be made accessible this way without overloading the visualization with content.
+Interactive exploration is useful in educational contexts, helping beginners in a field to grasp important concepts and relationships while also encouraging experimentation.
+The ability to quickly set up a problem and explore, means not just a lowered barrier of entry but can also support understanding through immediate visual feedback to user input.
+But the usefulness of interactive visualization extends to research as well.
+The ability to inspect a system of interest in detail can bring forth new approaches to solve a given problem, support the process of understanding and interpretation of experimental results and assist in testing ideas and resolving issues.
 
-Of course, visualizations on 2-dimensional screens limit the range of problems that can reasonably be considered.
-Furthermore, interactivity only makes sense if loading times are not too long so complexity of problems must not exceed some reasonable threshhold.
-However, the restriction to low dimensionality and simple objectives is not seen as a big problem.
-The linear dynamics offers few possible surprises in higher dimensions, so dynamical results should be transferrable and any important behaviour should already be found in low dimensions.
-After the abstraction, geometric dimensionality is non-existent in the game graph, so patterns found in 1- and 2-dimensional systems are unlikely to be fundamentally different than those emerging in higher dimensions.
-Many objectives in practice are variations and combinations of a set of standard objectives such as reachability, safety or recurrence.
-It is reasonable to expect that any refinement procedure that works for these simpler problems can also be used for refinement in more complex methods which exibit the same patterns.
+A major focus of this work has been the development of new refinement heuristics.
+Insights gained from representations of the LSS in connection with its abstraction model have aided this task substantially.
+Visualization of the state space partition while being able to interact with its elements and associated abstract states has been valuable for the recognition of patterns of interest in the system.
+Illustrating the connection between the system dynamics and the game construction helped to understand changes in the game graph in response to refinement, which is applied in the geometric realm of the state space but ultimately supposed to modify the game graph.
+
+Of course, visualizations on a 2-dimensional screen limit the range of problems that can reasonably be considered.
+Systems of dimension 3 and higher have to be projected into 2-dimensions for geometric representations which results in complex and potentially ambigous representations.
+The complexity of problems must not be too high, as interactivity only makes sense when loading times are short.
+The restriction to low-dimensional systems and simple objectives is not seen as an issue for the purpose of desining refinement procedures or the educational value of an interactive implementation.
+Linear dynamics is generally well understood, with only very little potential of unexpected behaviour in higher dimensions and the geometric dimensionality is only indirectly evident in the abstraction model.
+Patterns encountered in game graphs derived from 1- and 2-dimensional systems are unlikely to be fundamentally different than those emerging in higher dimensions.
+System objectives are often variations and combinations of a basic set of standard objectives such as reachability, safety or recurrence.
+A refinement procedure that can handle these basic building blocks can reasonably be expected to be able to handle objectives constructed from them, e.g.\ through a decomposition approach.
 

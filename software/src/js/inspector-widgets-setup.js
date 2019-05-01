@@ -177,7 +177,7 @@ export class ProblemSetup extends ObservableMixin<null> {
                 this.submit();
             }
         });
-        this.analyseWhenReady = new CheckboxInput(true, "Analyse at startup");
+        this.analyseWhenReady = new CheckboxInput(true, "Analyse at Startup");
         this.node = dom.FORM({}, [
             dom.H3({}, ["Dimensions"]),
             dom.P({}, [this.ssDim.node, " State Space"]),

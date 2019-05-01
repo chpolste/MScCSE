@@ -2165,7 +2165,10 @@ class Logger extends ObservableMixin<boolean> implements TabWidget {
             ]),
             this._entries
         ]);
-        this.heading = dom.H3({}, ["Log Messages"]);
+        this.heading = dom.H3({}, [
+            "Log Messages",
+            dom.DIV({ "class": "icons" }, [dom.infoBox("info-log")])
+        ]);
         this.handleFilterChange();
     }
 

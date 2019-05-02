@@ -91,39 +91,40 @@ After a cursory discussion of possible approaches, a transition-based decomposit
     the elements where a transition to any other automaton state happens with the next player 1 action, as well as all elements from the no-set of the previous analysis.
     These states are to be avoided.
     The three sets are disjunct except for the special case $q = q'$, where $\ReachStates{q}{q'} \cap \RefineStates{q}{q'} \ne \emptyset$.
+    To summarize, the goal is to refine the state space partition elements in $\RefineStates{q}{q'}$, such that $\ReachStates{q}{q'}$ can be reached almost-surely in finite time while avoiding $\AvoidStates{q}{q'}$.
 
 \stopsubsection
 
 
-\placefigure[top]{
+\placefigure[top][fig:refinement-transition-jagged]{
     Illustration of how jaggedness in a positive refinement target region causes very fine partitioning and how post-processing of $\RefinePos$ can reduce the number of generated state space partition elements.
-    See section \in[TODO] for a detailed discussion.
+    See section \in[sec:refinement-transition-reachability] for a detailed discussion.
 }{
     \bTABLE
         \setupTABLE[frame=off]
         \bTR
-            \bTD[nc=2] a) no post-processing \eTD
+            \bTD[nc=2] (a) no post-processing \eTD
         \eTR
         \bTR
             \bTD \externalfigure[refinement-transition-jagged-ref-attrr][width=0.47\textwidth] \eTD
             \bTD \externalfigure[refinement-transition-jagged-ref-ana][width=0.47\textwidth] \eTD
         \eTR
         \bTR
-            \bTD[nc=2] b) convex hull \eTD
+            \bTD[nc=2] (b) convex hull \eTD
         \eTR
         \bTR
             \bTD \externalfigure[refinement-transition-jagged-hull-attrr][width=0.47\textwidth] \eTD
             \bTD \externalfigure[refinement-transition-jagged-hull-ana][width=0.47\textwidth] \eTD
         \eTR
         \bTR
-            \bTD[nc=2] c) small state suppression, one iteration \eTD
+            \bTD[nc=2] (c) small state suppression, one iteration \eTD
         \eTR
         \bTR
             \bTD \externalfigure[refinement-transition-jagged-sup1-attrr][width=0.47\textwidth] \eTD
             \bTD \externalfigure[refinement-transition-jagged-sup1-ana][width=0.47\textwidth] \eTD
         \eTR
         \bTR
-            \bTD[nc=2] d) small state suppression, two iterations \eTD
+            \bTD[nc=2] (d) small state suppression, two iterations \eTD
         \eTR
         \bTR
             \bTD \externalfigure[refinement-transition-jagged-sup2-attrr][width=0.47\textwidth] \eTD
@@ -135,55 +136,80 @@ After a cursory discussion of possible approaches, a transition-based decomposit
 \startsubsection[title={Robust Reachability Refinement},reference=sec:refinement-transition-reachability]
 
     In section \in[sec:refinement-holistic-positive] a positive refinement procedure was presented based on the $\RefinePos$ kernel.
-    Limitation was that yes-states have to exists for method to be applicable.
+    Limitation was that yes-states have to exist for method to be applicable.
     While this is not generally a given, any co-safe objective has yes-states guaranteed.
-    In particular, this includes the avoid-reach systems from the transition decomposition given in the previous section.
-    Avoid-reach allows unique association of states as satisfying, unknown or non-satisfying.
+    In particular, this includes the reachability/avoidance systems from the transition decomposition.
 
-    Positive robust refinement has progress guarantee and one-step robust reachability can be decided with the $\ActR$ operator without need for game construction (see section \in[sec:refinement-robust]).
+    Idea is to construct a multi-step refinement procedure based on robust dynamics.
+    Positive robust refinement has progress guarantee.
+    One-step robust reachability can generally be decided with the $\ActR$ operator without need for game construction (see section \in[sec:refinement-robust]).
     Restriction to robust reachability allows skipping of expensive game construction for analysis.
     While this means that the probabilistic dynamics is ignored completely, abstraction step is removed and entire procedure has polynomial complexity.
-    The idea is to perform multiple robust steps between analysis to obtain best of both worlds: multi-step refinement in the robust framework, but consideration of probabilistic dynamics by analysing every couple of refinements.
+    Best of both worlds: multi-step refinement in the robust framework, but consideration of probabilistic dynamics by analysing every couple of refinements.
 
+    Procedure: evolution of \cite[Svorenova2017] positive refinement to multi-step procedure based on reachability decomposition.
     First pick a transition and extract reachability problem.
-    Refine every state wrt target region using AttrR+ refinement.
-    Use progress guarantee to immediately extend region of yes-states.
-    Iterate a few times.
+    Refine every state wrt target region using $\RefinePos$ refinement.
+    Use $ActR$ condition to determine states for which robust reachability is fulfilled.
+    Extend target region with new yes states.
+    Refine again wrt to the extended target region and iterate for a given number of times.
     Transfer partition to full system and analyse.
-    Evolution of \cite[Svorenova2017] positive refinement to multi-step procedure.
 
     Additional tweaks possible to improve method.
     Known that small states cannot be targeted individually due to probabilistic dynamics have no self loops and are therefore unlikely to be a problem if surrounded by bigger states for which robust satisfaction can be established.
     Expansion of target region can be accelerated by considering all small polytopes as satisfying (without proper probabilistic check).
-    This brings some of the probabilistic tolerance back into the robust dynamics at the cost of losing the progress guarantee for a few special cases (pratcise shows that ignoring small states is not an issue as long as they are safe).
-    Post-processing with additional loss of progress guarantees but possibility of generation of less states and reduced non-convexness.
+    This brings some of the probabilistic tolerance back into the robust dynamics at the cost of losing the progress guarantee for a few special cases (practice shows that ignoring small states is not an issue as long as they are safe).
+
+    Post-processing of $\RefinePos$ can improve refinement performance significantly.
+    Idea is to over- or underapproximate the robust region from $\RefinePos$ in order to decrease size of state space partition.
+    Overapproximation has the potential to accelerate progress but no guarantees exist.
+    Underapproximation inherits guarantee at the cost of progress per step.
+    Figure \in[fig:refinement-transition-jagged] illustrates the problem of over-refinement and how post-processing affects the complexity of the state space partition.
+    Situation after one step of robust refinement for the double integrator test system introduced later in section \in[sec:cases-integrator].
+    Green states are recognized yes-states and the reachability target.
+    Implementation of $\RefinePos$ using $\AttrR$, according to Algorithms \in[alg:refinement-robust-kernel] and \in[alg:refinement-robust-control].
+    Orange states are $\AttrR$-region determined in refinement.
+    Issue here is jaggedness of target region, which is reflected and amplified in the $\AttrR$-region.
+
+    Easy to see that refinement without post-processing (a) can quickly lead to state space explosion as jaggedness increases with every iteration and moves to smaller scales.
+    Overapproximation shown in (b), method is to take $\AttrR$-region of every state that is refined and refine with respect to its convex hull.
+    Cut away region is always a polytope, increase in complexity of state space partition mainly by convex partitioning of remaining region.
+    Issue: progress guarantee lost in general (in the figure, the analysis on the right shows that in this case it works out).
+    Underapproximation in (c) by dropping polytopes $Y$ where $Y \ominus W = \emptyset$ from the $\AttrR$-region.
+    This reduces small-scale jaggedness while keeping the progress guarantee intact.
+    Possiblility to compensate for less progress by going to multi-step robust refinement.
+    2-iteration robust refinement shown in (d), first iteration is orange, second yellow.
+    Similar state count as no post-processing after one iteration but much volume recognized as yes-states in the analysis.
+    More progress than convex hull approximation with only a few states more but full progress guarantee.
 
 \stopsubsection
 
 
 \startsubsection[title={Layered Robust Reachability Refinement},reference=sec:refinement-transition-layered]
 
-    Problem with pure AttrR+ refinement is that progress guarantee only works for AttrR-generated states.
-    For some, reachability can be decided with ActR and small states can be ignored but purely robust view means over-refinement and conservative analysis, slowing progress.
-    Analysing system fully from time to time required, but relatively expensive due to need for action computation.
-
-    They also introduced the idea of a layer decomposition that works only for refinement but splits problem into multiple decoupled subproblems.
-    Problem of \cite[Svorenova2017]: they used Pre, which required much refinement until entire region is decided.
-    Even though parallelization, some subproblems were still very expensive.
-    For robust refinement, importance of the PreR also recognized by \cite[Svorenova2017].
+    \cite[Svorenova2017] introduced the idea of a layer decomposition that works only for reachability but splits problem into multiple decoupled subproblems.
+    Use one-step reachability property of predecessor to generate layers and then solve single-step reachability for each layer wrt its inner companion.
+    Problem: $\AttrR$-based refinement is robust but they used the non-robust $\Pre$.
+    However, for robust refinement, importance of the PreR also recognized by \cite[Svorenova2017].
     Propsal: combine transition decomposition, layer decomposition and robust refinement.
     Use PreR which is more aligned with robust refinement and provides guarantee that single-step robust solution can be found.
-    Hybrid approach between multi-step and single-step: general idea of moving from layer to layer is multi-step, but transitions inside layers are single step.
-    Solution for outer layers depends on solution of inner layers.
+    Hybrid approach between multi-step and single-step: general idea of using the layers to move towards the target is multi-step, but transitions from layer to layer individually are single step.
 
+    Advantages: decoupling into more, simpler subproblems.
+    Limits jaggedness since $\PreR$ of a convex target region is convex (for convex control region).
+    Prescribes basic structure of progress towards target, limits the effects of the randomization introduced in $\GetCtrl$
+    Parallelization possible.
+    But solution for outer layers depends on solution of inner layers otherwise multi-step concept falls apart.
+
+    Procedure:
     First extract reachability problem for transition.
-    Then decompose reachability problems into PreR layers.
-    Solve single-step reachability problem for each layer.
-    Combine into solution for transition reachability problem.
+    Then decompose reachability problems into PreR layers. % TODO formulas!
+    Solve reachability problem for each layer-to-layer transition.
+    Combine into solution for reachability problem.
     Apply partition to product game.
 
     To combat problem of \epsilon-limit behaviour, shrink layer-generating control space.
-    Other optimizations from robust refinement still apply (target expansion, ignoring of safe, small states, post-processing).
+    Other optimizations from robust refinement still apply (target expansion, ignoring of small but safe states, post-processing).
 
 \stopsubsection
 

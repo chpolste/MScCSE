@@ -37,6 +37,43 @@ After a cursory discussion of possible approaches, a transition-based decomposit
 \stopsubsection
 
 
+\placefigure[top]{
+    Illustration of how jaggedness in a positive refinement target region causes very fine partitioning and how post-processing of $\RefinePos$ can reduce the number of generated state space partition elements.
+    See section \in[TODO] for a detailed discussion.
+}{
+    \bTABLE
+        \setupTABLE[frame=off]
+        \bTR
+            \bTD[nc=2] a) no post-processing \eTD
+        \eTR
+        \bTR
+            \bTD \externalfigure[refinement-transition-jagged-ref-attrr][width=0.47\textwidth] \eTD
+            \bTD \externalfigure[refinement-transition-jagged-ref-ana][width=0.47\textwidth] \eTD
+        \eTR
+        \bTR
+            \bTD[nc=2] b) convex hull \eTD
+        \eTR
+        \bTR
+            \bTD \externalfigure[refinement-transition-jagged-hull-attrr][width=0.47\textwidth] \eTD
+            \bTD \externalfigure[refinement-transition-jagged-hull-ana][width=0.47\textwidth] \eTD
+        \eTR
+        \bTR
+            \bTD[nc=2] c) small state suppression, one iteration \eTD
+        \eTR
+        \bTR
+            \bTD \externalfigure[refinement-transition-jagged-sup1-attrr][width=0.47\textwidth] \eTD
+            \bTD \externalfigure[refinement-transition-jagged-sup1-ana][width=0.47\textwidth] \eTD
+        \eTR
+        \bTR
+            \bTD[nc=2] d) small state suppression, two iterations \eTD
+        \eTR
+        \bTR
+            \bTD \externalfigure[refinement-transition-jagged-sup2-attrr][width=0.47\textwidth] \eTD
+            \bTD \externalfigure[refinement-transition-jagged-sup2-ana][width=0.47\textwidth] \eTD
+        \eTR
+    \eTABLE
+}
+
 \startsubsection[title={Transition-based Reachability Decomposition},reference=sec:refinement-transition-decomposition]
 
     Systematic way to decompose any objective into a series of co-safe reachability problems based on transitions.

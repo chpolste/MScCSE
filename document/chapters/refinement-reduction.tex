@@ -1,0 +1,37 @@
+Holistic refinement procedures seek patterns in the entire product game graph.
+The procedures presented in \in[sec:refinement-holistic] only consider a single step of the system dynamics due to the high computational cost of obtaining deeper insights into the game graph.
+But without the consideration of multi-step behaviour, refinement progress is limited to a local scale.
+Due to the high computational cost of construction and analysis of the product game, patters suitable for non-local refinenment are expensive to identify.
+Computational demands can be reduced through the extraction of meaningful subsets of the game graph.
+This is particularly interesting in the context of positive refinement.
+Every satisfying player 1 strategy based on a subset of the product game can also be realized in the full product game as long as the power of player 2 has not been reduced by the subset selection.
+
+Removing all but one action from all player 1 states states in one possible subset extraction method.
+It only limits the abilities of player 1, so almost-sure satisfying strategies obtained from the subset can be transferred to the full game.
+This reduction allows the removal of player 1 from the game, which is reduced to an MDP.
+The lower computational complexity of MDP analysis and uncontrolled dynamics improves the feasibility of multi-step analysis.
+A refinement procedure based on this reduction can be constructed in the following way:
+First a control region is assigned to every element of the state space partition.
+This turns the controlled dynamcis of the LSS into a piecewise dynamics without control.
+An MDP abstraction is constructed on top of the piecewise system.
+The state space of the MDP system is refined based on insights from the MDP.
+Finally, the state space partition of the MDP system is transferred back to the original system.
+
+Experience gathered with a prototype implementation of such a refinement scheme revealed drawbacks.
+The choice of a control region for every state space partition element is non-trivial.
+Player 1 game states associated with a state space partition element can make incompatible demands on the selection.
+A certain amount of foresight is required in order to obtain an effective refinement procedure since badly chosen control regions significantly limit its potential.
+Once the control regions are chosen, problems with \quotation{smoothness} of the refinement occur.
+The non-continuous piecewise dynamics causes refinement to produce jagged regions, which result in a very fine partitioning of the state space due to the restrictions of convex geometry.
+Such jaggedness quickly snowballs into an explosion of the number of partition elements (see also Figure \in[fig:refinement-transition-jagged]a, where this is demonstrated for continuous dynamics), which can offset the complexity reduction gained from the MDP abstraction.
+Due to these issues, the approach was abandoned in favour of another subset extraction technique.
+
+Instead of reducing the number of actions per state, one can directly reduce the number of states.
+This makes sense when the remaining subset of states and actions forms a meaningful sub-problem of the entire product game.
+It is not uncommon to encounter objectives made up of multiple separable sub-objectives, e.g.\ a safety property in conjunction with a recurrence, which is a sequence of inifinitly many reachability problems.
+If these sub-objectives can be separated in the product game and solved individually, one can expect that a solution for the composite objective emerges.
+For refinement this is advantageous as the sub-problems will often provide more immediate feedback between refinement and analysis.
+Analysis of simple sub-problems might be possible without the need to construct a game abstraction altogether.
+Saftey properties e.g. can be verified with only the $\ActR$-operator.
+Parallel refinement of the sub-problems is generally possible but restricted by the fact that state space partition is shared between the individual sub-problems in the product game.
+

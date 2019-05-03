@@ -1,40 +1,7 @@
-Holistic refinement procedures seek patterns in the entire product game graph.
-Geometric refinement procedures are that can work without the game graph are limited in their scope, usually restricted to insights from a single-step lookahead. 
-Deeper insight into the game graph based on multi-step behaviour is expensive to obtain, especially because the game graph grows rapidly when the number of state space partition elements increases.
-
-Here, an approach based on the extraction of simpler sub-problems from the product game is presented.
-The idea behind this approach is that once enough sub-problems have been solved, a solution for the full problems is likely to emerge.
-After a cursory discussion of possible approaches, a transition-based decomposition into a series of reachability/avoidance problems is presented that, when combined with positive robust refinement, results in a computationally cheap but powerful refinement technique.
-
-
-\startsubsection[title={Subset Approaches}]
-
-    Construction of the full product game graph is expensive due to the exponential complexity of the computation of player actions.
-    Every satisfying strategy that requires only a subset of the entire product game can obviously also be realized in the full product game.
-    This property can be exploited by positive refinement techniques to reduce computational demands.
-    Negative refinement based on a partial game graph in general does not benefit from this property as the full product game allows more behaviour than any of its subsets.
-
-    A notable subset extraction consists of choosing a fixed control input region for every state of the product game, such that only a single action is enabled in every player 1 state.
-    In this subset, the dynamics of the associated LSS become piecewise linear and player 1 has no control abilities anymore, dropping out of the game which is reduced to a 1½-player game, i.e.\ an MDP.
-    Because the complexity of an MDP is much lower than that of a 2½-player game, insights about problematic patters in the game graph are more accessible and analysis results can be obtained faster.
-    One can imagine a positive refinement procedure that reduces the product game to an MDP by associating fixed actions to every game state, executes a few iterations of refinement in this reduced system and transfers the results back to the full system.
-    Experience with a prototype implementation of such a scheme however revealed some important drawbacks.
-    The process of choosing a fixed action for every player 1 state is non-trivial and requires a certain amout of foresight in order to lead to an effective refinement procedure.
-    Badly chosen control regions will significantly limit the potential of the refinement procedure.
-    Once the system has been equipped with a piecewise dynamics, jaggedness in the refinement progress was very common, resulting in many small states being generated to account for the highly non-convex intermediate solutions.
-    Once jaggedness has been introduced into the state space partition, it is hard to remove and the increasing computational cost of dealing with small polytopes starts to offset the gains from the removal of a player from the game.
-    The MDP-reduction approach was therefore abandoned and another way of extracting useful subsets from the product game explored.
-
-    Instead of reducing the number of actions per state, one can directly reduce the number of states.
-    This makes sense when the remaining subset of states and actions forms a meaningful sub-problem of the entire product game.
-    It is not uncommon to encounter objectives made up of multiple separable sub-objectives, e.g.\ a safety property in conjunction with a recurrence, which is a sequence of inifinitly many reachability problems.
-    If these sub-objectives can be separated in the product game and solved individually, one can expect that a solution for the composite objective emerges.
-    For refinement this is advantageous as the sub-problems will often provide more immediate feedback between refinement and analysis.
-    Analysis of simple sub-problems might be possible without the need to construct a game abstraction altogether.
-    Saftey properties e.g. can be verified with only the $\ActR$-operator.
-    Parallel refinement of the sub-problems is generally possible but restricted by the fact that state space partition is shared between the individual sub-problems in the product game.
-
-\stopsubsection
+A decomposition approach is presented that extracts a series of reachability problems from the product game.
+These sub-problems are solved with positive robust refinement, which is computationally inexpensive even when multi-step dynamics is taken into account.
+Solutions of the sub-problems are transferred back to the product game through refinement.
+When all reachability problems have been solved, a solution for the original problem emerges.
 
 
 \startsubsection[title={Transition-based Reachability Decomposition},reference=sec:refinement-transition-decomposition]
@@ -171,7 +138,7 @@ After a cursory discussion of possible approaches, a transition-based decomposit
     Orange states are $\AttrR$-region determined in refinement.
     Issue here is jaggedness of target region, which is reflected and amplified in the $\AttrR$-region.
 
-    Easy to see that refinement without post-processing (a) can quickly lead to state space explosion as jaggedness increases with every iteration and moves to smaller scales.
+    Easy to see that refinement without post-processing (a) can quickly lead to a snowball effect as jaggedness increases with every iteration and moves to smaller scales.
     Overapproximation shown in (b), method is to take $\AttrR$-region of every state that is refined and refine with respect to its convex hull.
     Cut away region is always a polytope, increase in complexity of state space partition mainly by convex partitioning of remaining region.
     Issue: progress guarantee lost in general (in the figure, the analysis on the right shows that in this case it works out).

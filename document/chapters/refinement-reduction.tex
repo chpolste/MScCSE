@@ -23,7 +23,7 @@ Player 1 game states associated with a state space partition element can make in
 A certain amount of foresight is required in order to obtain an effective refinement procedure since badly chosen control regions significantly limit its potential.
 Once the control regions are chosen, problems with \quotation{smoothness} of the refinement occur.
 The non-continuous piecewise dynamics causes refinement to produce jagged regions, which result in a very fine partitioning of the state space due to the restrictions of convex geometry.
-Such jaggedness quickly snowballs into an explosion of the number of partition elements (see also Figure \in[fig:refinement-transition-jagged]a, where this is demonstrated for continuous dynamics), which can offset the complexity reduction gained from the MDP abstraction.
+Such jaggedness quickly snowballs into an explosion of the number of (small) partition elements, which can offset the complexity reduction gained from the MDP abstraction.
 Due to these issues, the approach was abandoned in favour of another subset extraction technique.
 
 Instead of reducing the number of actions per state, one can directly reduce the number of states.

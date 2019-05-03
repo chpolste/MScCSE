@@ -6,59 +6,65 @@ When all reachability problems have been solved, a solution for the original pro
 
 \startsubsection[title={Transition-based Reachability Decomposition},reference=sec:refinement-transition-decomposition]
 
-    Decompose product game into series of co-safe reachability problems based on the transitions of the objective automaton.
-    Idea is again based on the stuttering equivalence of traces with respect to a $\Next$-free LTL formula.
-    Solve reachability for every individual automaton transition an assemble solution strategy from the partial strategies that enable a change of the automaton state.
+    Because of the stuttering equivalence of paths in $\Next$-free LTL, the product game $\ProductGame$ can be decomposed into a set of co-safe reachability/avoidance problems.
+    The idea behind this decomposition is motivated by an example:
 
-    Example: recurrence objective from Table \in[tab:theory-logic-objectives].
-    Goal is to realize the accepting run $(q_0 q_1)^\omega$ in the product game (there are other accepting runs, but this one is chosen here).
-    Recurrence is $\Next$-free, therefore any run of the form $q_0^+ q_1^+ q_0^+ q_1^+ ...$ is also accepting.
-    Decompose system into two co-safe reachability problems:
-    $\mathcal{R}_{q_0 \rightarrow q_1}$, whose objective is to reach a $q_1$ state from the $q_0$ states of the product game, and $\mathcal{R}_{q_1 \rightarrow q_0}$, whose objective is to reach a $q_0$ state from the $q_1$ states of the product game.
-    Assume that solutions to these problems have been found and the sets of satisfying initial states of the state space $\InitialStates^{\mathcal{R}_{q_0 \rightarrow q_1}}$ and $\InitialStates^{\mathcal{R}_{q_1 \rightarrow q_0}}$ are known.
-    Then for every $\VecState \in \InitialStates^{\mathcal{R}_{q_0 \rightarrow q_1}}$, there exists a player 1 strategy $\Strategy{1}{q_0 \rightarrow q_1}$ that leads a trace to a state space region where the associated play switches to a $q_1$ state almost-surely and in finite time.
-    A strategy $\Strategy{1}{q_1 \rightarrow q_0}$ exists analogously for all $\VecState \in \InitialStates^{\mathcal{R}_{q_1 \rightarrow q_0}}$.
+    Assume the recurrence objective $\Globally \Finally \varphi$ is specified for some LSS, translated to a one-pair Streett automaton as shown in Table \in[tab:theory-logic-objectives].
+    One possible satisfying path through the automaton is $(q_0 q_1)^\omega$.
+    Because recurrence is a $\Next$-free specification, any stuttering equivalent path $q_0^+ q_1^+ q_0^+ q_1^+ ...$ is also satisfying, so remaining in any of the two automaton states for a finite amount number of steps before transitioning has no consequence with respect to the acceptance condition.
+    Based on this observation, two reachability problems are extracted from the product game:
+    First, $\TransitionReach{q_0}{q_1}$ where player 1 has to reach some state $q_1$-associated player state of the product game almost-surely, starting from a state $\Tuple{\State{j}}{q_0}$ and only visiting $q_0$-associated states until a target state is reached.
+    Second, $\TransitionReach{q_1}{q_0}$ which is defined analogously but with the roles of $q_0$ and $q_1$ exchanged.
+    
+    Let $\InitialStates^\TransitionReach{q_0}{q_1}$ and $\InitialStates^\TransitionReach{q_1}{q_0}$ be the sets of satisfying initial states of the LSS for problems $\TransitionReach{q_1}{q_0}$ and $\TransitionReach{q_1}{q_0}$, respectively.
+    Then a player 1 strategy $\TransitionStrategy{q_0}{q_1}$ exists that leads any trace starting in $\InitialStates^\TransitionReach{q_0}{q_1}$ almost-surely and in finite time to the state space region where an associated play of the product game switches from a $q_0$- to a $q_1$-associated state, i.e.\ the region defined by $\varphi$.
+    An analogous strategy $\TransitionStrategy{q_1}{q_0}$ exists for traces starting in $\InitialStates^\TransitionReach{q_1}{q_0}$ with a target region defined by $\neg \varphi$.
+    Based on these strategies an almost-sure winning player 1 strategy for full product game can be assembled.
+    Let $\VecState$ be a trace starting in some state $\Tuple{\State{i}}{q_0}$.
+    Player 1 plays with $\TransitionStrategy{q_0}{q_1}$ until a state $\Tuple{X_j}{q_1}$ is reached.
+    Player 1 then switches to the strategy $\TransitionStrategy{q_1}{q_0}$ until a state $\Tuple{X_k}{q_0}$ is reached.
+    Then player 1 switches back to strategy $\TransitionStrategy{q_0}{q_1}$ and keeps switching whenever the automaton state changes in the play.
+    Because automaton runs induced by a composite strategy alternating in this fashion are stuttering equivalent to $(q_0 q_1)^\omega$, the recurrence objective is satisfied almost-surely.
+    Note that each sub-problem strategy is guaranteed to achieve its reachability goal in finite time as the sub-problems are interpreted in the co-safe setting.
 
-    Based on these strategies an almost-sure winning strategy for the recurrence objective of the complete product game can be assembled.
-    Let $x$ be a trace starting in some state $\Tuple{\State{i}}{q_0}$.
-    Player 1 plays with $\Strategy{1}{q_0 \rightarrow q_1}$ until a state $\Tuple{X_j}{q_1}$ is reached.
-    Then player 1 switches to strategy $\Strategy{1}{q_1 \rightarrow q_0}$ until a state $\Tuple{X_k}{q_0}$ is reached.
-    Then player 1 switches back to strategy $\Strategy{1}{q_0 \rightarrow q_1}$.
-    Alternating between both strategies in this fashion guarantees satisfaction of the recurrence objective as long as the trace does not leave the solution regions $\InitialStates^{\mathcal{R}_{q_0 \rightarrow q_1}}$ and $\InitialStates^{\mathcal{R}_{q_1 \rightarrow q_0}}$.
-    Note that each strategy is guaranteed to achieve its reachability goal in finite time as the sub-problems are interpreted in the co-safe setting.
+    The example illustrates how a solution to a verification problem involving a $\Next$-free LTL specification can emerge from solutions to a series of reachability sub-problems extracted from the product game based on transitions of the objective automaton.
+    Generally, it is not sufficient to just consider a single path and its stuttering equivalents.
+    The above strategy construction fails when a trace enters the region $\StateSpace \setminus \InitialStates^\TransitionReach{q_0}{q_1}$ while the corresponding play transitions from a $q_0$-associated to a $q_1$-associated state.
+    However, since the decomposition targets individual automaton transitions and not entire paths, strategies for all possible paths through the automaton can be constructed once a solution for every reachability sub-problem is available.
 
-    The example illustrates the principle of how a solution for the original problem can emerge from solutions to the problems generated by the transition-based reachability decomposition.
-    Formalize the construction of a reachability sub-problem $\mathcal{R}$ based on an automaton transition from $q$ to $q'$.
-    The system is based on the same LSS $\LSS$ as the product game and initially uses its state space partition.
-    The partition elements are sorted into 3 categories.
+    For a product game $\ProductGame$, generated with the objective automaton $\Automaton$, a reachability/avoidance sub-problem $\TransitionReach{q}{q'}$ for an automaton transition from $q$ to $q'$ can be constructed as follows:
+    The elements of the current state space partition are sorted into 3 categories.
     First,
 
     \startformula
         \ReachStates{q}{q'} = \Set{ \State{i} \mid \Tuple{\State{i}}{q} \in P_1 \MidAnd \State{i} \notin \NoStates{q} \MidAnd ( \QNext{i}{q} = q' \MidOr \YesStates{q} ) } \EndComma
     \stopformula
 
-    the elements whose union has to be reached.
-    These are parts where a transition to the target automaton state happens with any of the next player 1 actions in the product game.
-    It also includes all parts that have already been recognized as satisfying for the origin $q$ by a previous analysis.
+    the state space partition elements whose union has to be reached.
+    These are state space parts where a transition to the target automaton state happens with any of the next player 1 actions of the product game.
+    Also included are all parition elements that were already recognized as satisfying for the origin $q$ in a previous analysis of $\ProductGame$.
     Second,
 
     \startformula
         \RefineStates{q}{q'} = \Set{ \State{i} \mid \Tuple{\State{i}}{q} \in P_1 \MidAnd \State{i} \notin \NoStates{q} \MidAnd \QNext{i}{q} = q } \EndComma
     \stopformula
 
-    the elements which do not trigger an automaton transition with their player 1 actions.
-    These elements will be refined.
-    Due to stuttering equivalence any number of steps inside this region can be made as long as the number is finite.
+    the state space partition elements that do not trigger an automaton transition with their player 1 actions.
+    These elements will be the subject of refinement.
+    Due to stuttering equivalence, any finite number of transitions inside this region can be made without affecting satisfaction of the objective.
     And finally,
 
     \startformula
         \AvoidStates{q}{q'} = \IndexedStates{i}{I} \setminus \left( \ReachStates{q}{q'} \cup \RefineStates{q}{q'} \right) \EndComma
     \stopformula
 
-    the elements where a transition to any other automaton state happens with the next player 1 action, as well as all elements from the no-set of the previous analysis.
+    the elements where a transition to any other automaton state happens with the next player 1 action, as well as all elements from the no-set of the last product game analysis.
     These states are to be avoided.
     The three sets are disjunct except for the special case $q = q'$, where $\ReachStates{q}{q'} \cap \RefineStates{q}{q'} \ne \emptyset$.
-    To summarize, the goal is to refine the state space partition elements in $\RefineStates{q}{q'}$, such that $\ReachStates{q}{q'}$ can be reached almost-surely in finite time while avoiding $\AvoidStates{q}{q'}$.
+
+    To summarize, the goal of sub-problem $\TransitionReach{q}{q'}$ is to refine the state space partition elements in $\RefineStates{q}{q'}$ such that $\ReachStates{q}{q'}$ can be reached almost-surely and in finite time while avoiding the region $\AvoidStates{q}{q'}$.
+    Note that the individual reachability/avoidance sub-problems can overlap, i.e. a state space partition element can be the subject of refinement of more than one sub-problem.
+    The decomposition of the product game graph is therefore not disjunct.
 
 \stopsubsection
 
@@ -183,13 +189,14 @@ When all reachability problems have been solved, a solution for the original pro
 
 \startsubsection[title={Transition Selection},reference=refinement-transition-selection]
 
-    If refinement wrt every transition has taken place, full problem should be decidable.
-    The state space partition of the product system is shared between all copies for the automaton states.
-    The individual reachability problems for each transition are therefore weakly linked, i.e.\ they can all be solved independently in parallel and then combined into one partition or they can be solved sequentially such that the partitions from earlier refinements potentially provide partial solutions to later reachability problems.
-    Finding a \quotation{best} order of these refinements is again a non-trivial task.
-    For co-safe objectives, it makes sense to work backwards from the final states, which are guaranteed to be satisfying.
-    For infinite objectives a best path through the automaton is not obvious and multiple paths may even be required to find all satisfying initial states.
-    Related to controller synthesis problem.
+    If a solution for every transition of the objective automaton has been found through refinement, the LSS can be fully analysed with respect to the objective specification due to the strategy construction outlined in section \in[sec:refinement-transition-decomposition].
+    However, the individual reachability sub-problems are not completely independent as they initially share the state space partition of the original LSS.
+    While it is possible to solve the sub-problems independently and then combine the resulting state space partitions into a single paritition, this combination is likely to generate many additional states.
+    Solving the reachability systems sequentially, using only one state space partition that is handed from refinement procedure to refinement procedure, can be beneficial as the refinement applied to achieve one transition may provide a partial solution to a following sub-problem.
+
+    Satisfying paths through the objective automaton can be plentiful even when considering stuttering equivalence.
+    While it is generally not sufficient for the determination of $\InitialStates$ to pick one satisfying path and only refine with respect to the transitions that occur along this specific path, this approach to selecting transition for refinement can lead to faster availability of partial analysis results than a breadth-first exploration of the automaton starting from its initial state.
+    The issues arising with the selection of optimal paths as the basis for transition refinement occur also in the synthesis of optimal controllers.
 
 \stopsubsection
 

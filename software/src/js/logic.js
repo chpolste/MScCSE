@@ -107,11 +107,11 @@ export class Objective {
             if (y < ymin) ymin = y;
             if (y > ymax) ymax = y;
         }
-        // Add 100 padding around each state. In a 1:1 projection to pixels,
+        // Add 120/80 padding around each state. In a 1:1 projection to pixels,
         // this should leave enough room for labels and self-loops around
         // states. The state positioning should therefore be expressed in px,
         // considering the scale prescribed by this padding.
-        shapes.extent = [[xmin - 100, xmax + 100], [ymin - 100, ymax + 100]];
+        shapes.extent = [[xmin - 120, xmax + 120], [ymin - 80, ymax + 80]];
         return shapes;
     }
 

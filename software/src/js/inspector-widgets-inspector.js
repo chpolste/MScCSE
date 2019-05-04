@@ -151,12 +151,11 @@ export class ProblemSummary {
         const cs = new AxesPlot([90, 90], csFig, autoProjection(1, ...system.lss.uu.extent));
         const rs = new AxesPlot([90, 90], rsFig, autoProjection(1, ...system.lss.ww.extent));
         const ss = new AxesPlot([90, 90], ssFig, autoProjection(1, ...system.lss.xx.extent));
-        // Show formula with transition label and substituted propositions
-        let formula = objective.kind.formula;
+        // Show formulas of transition labels
+        const transitionFormulas = [];
         for (let [symbol, prop] of objective.propositions) {
-            formula = replaceAll(formula, symbol, "(" + texifyProposition(prop, dom.snLabel.toTeX) + ")");
+            transitionFormulas.push(symbol + " = " + texifyProposition(prop, dom.snLabel.toTeX));
         }
-        formula = objective.kind.formula + " = " + formula;
         // Assemble
         this.node = dom.DIV({ "id": "problem-summary" }, [
             dom.renderTeX("x_{t+1} = " + matrixToTeX(system.lss.A) + " x_t + " + matrixToTeX(system.lss.B) + " u_t + w_t", dom.P()),
@@ -173,11 +172,14 @@ export class ProblemSummary {
             ]),
             dom.DIV({}, [
                 dom.H3({}, ["Objective"]),
-                dom.renderTeX(formula, dom.P()),
                 dom.P({}, [
                     objective.kind.name,
-                    objective.coSafeInterpretation ? " (co-safe)" : ""
-                ])
+                    (objective.coSafeInterpretation ? " (co-safe)" : ""), ": "
+                ]),
+                dom.P({}, [
+                    dom.renderTeX(objective.kind.formula, dom.SPAN()), ", where"
+                ]),
+                dom.P({}, arr.intersperse(", ", transitionFormulas.map(_ => dom.renderTeX(_, dom.SPAN()))))
             ])
         ]);
     }

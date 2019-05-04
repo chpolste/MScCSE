@@ -514,7 +514,7 @@ export class TransitionRefinery extends Refinery {
             const qNext = this._qNext(x, origin);
             const result = this._getResult(x);
             // A no-state must be avoided
-            if (result.no.has(origin)) {
+            if (x.isOuter || result.no.has(origin)) {
                 bad.push(x.polytope);
             // Reaching a yes-state is acceptable
             } else if (result.yes.has(origin)) {

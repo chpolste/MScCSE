@@ -2,14 +2,14 @@
 "use strict";
 
 
-// Automaton specification: transitions | init | E | F
+// Automaton specification: transitions ; init ; E ; F
 export const objectives = {
 
     "Reachability": {
         name: "Reachability",
         formula: "\\mathsf{F} \\varphi",
         variables: ["\\varphi"],
-        automaton: "q0>(\\varphi)>q1,q0>>q0,q1>>q1 | q0 | q0 | q1",
+        automaton: "q0>(\\varphi)>q1,q0>>q0,q1>>q1 ; q0 ; q0 ; q1",
         automatonPlacement: { "q0": [0, 0, 0], "q1": [300, 0, 0] }
     },
 
@@ -17,7 +17,7 @@ export const objectives = {
         name: "Reachability & Avoidance",
         formula: "(\\neg \\pi) \\mathsf{U} \\varphi",
         variables: ["\\varphi", "\\pi"],
-        automaton: "q0>(\\varphi)>q1,q0>(!\\pi)>q0,q1>>q1 | q0 | q0 | q1",
+        automaton: "q0>(\\varphi)>q1,q0>(!\\pi)>q0,q1>>q1 ; q0 ; q0 ; q1",
         automatonPlacement: { "q0": [0, 0, 0], "q1": [300, 0, 0] }
     },
 
@@ -25,7 +25,7 @@ export const objectives = {
         name: "Safety",
         formula: "\\mathsf{G} (\\neg \\pi)",
         variables: ["\\pi"],
-        automaton: "q0>(!\\pi)>q0 | q0 | | ",
+        automaton: "q0>(!\\pi)>q0 ; q0 ; ; ",
         automatonPlacement: { "q0": [0, 0, 0] }
     },
 
@@ -33,7 +33,7 @@ export const objectives = {
         name: "Eventual Safety",
         formula: "\\mathsf{F} \\mathsf{G} \\neg \\pi",
         variables: ["\\pi"],
-        automaton: "q0>(!\\pi)>q1,q0>>q0,q1>(!\\pi)>q1,q1>>q0 | q0 | q0 | ",
+        automaton: "q0>(!\\pi)>q1,q0>>q0,q1>(!\\pi)>q1,q1>>q0 ; q0 ; q0 ; ",
         automatonPlacement: { "q0": [0, 0, 0], "q1": [300, 0, 0] }
     },
 
@@ -41,8 +41,18 @@ export const objectives = {
         name: "Recurrence",
         formula: "\\mathsf{G} \\mathsf{F} \\varphi",
         variables: ["\\varphi"],
-        automaton: "q0>(\\varphi)>q1,q0>>q0,q1>(\\varphi)>q1,q1>>q0 | q0 | q0 | q1",
+        automaton: "q0>(\\varphi)>q1,q0>>q0,q1>(\\varphi)>q1,q1>>q0 ; q0 ; q0 ; q1",
         automatonPlacement: { "q0": [0, 0, 0], "q1": [300, 0, 0] }
+    },
+
+    "Safe Back & Forth": {
+        name: "Safe Back & Forth",
+        formula: "\\mathsf{G} (\\mathsf{F} \\varphi \\wedge \\mathsf{F} \\theta) \\wedge \\mathsf{G} (\\neg \\pi)",
+        variables: ["\\varphi", "\\theta", "\\pi"],
+        automaton: "q0>(!\\pi & \\varphi & \\theta)>q0,q0>(!(\\pi | \\varphi))>q1,q0>(!(\\pi | \\theta) & \\varphi)>q2,"
+                 + "q1>(!(\\pi | \\varphi))>q1,q1>(!\\pi & \\varphi & \\theta)>q0,q1>(!(\\pi | \\theta) & \\varphi)>q2,"
+                 + "q2>(!(\\pi | \\theta))>q2,q2>(!\\pi & \\theta)>q0 ; q0 ; q1,q2 ; q0",
+        automatonPlacement: { "q0": [0, 75, -10], "q1": [300, 150, 10], q2: [230, 0, 170] }
     }
 
 }

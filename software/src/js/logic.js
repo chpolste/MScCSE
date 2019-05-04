@@ -479,7 +479,7 @@ export class OnePairStreettAutomaton {
         return { states: ss, transitions: tss };
     }
 
-    // Serialization to form "1|2|3|4", where
+    // Serialization to form "1;2;3;4", where
     // 1: transitions in the form ORIGIN>(PROPOSITION)>TARGET, comma-separated
     // 2: initial state
     // 3: acceptance set E of states, comma-separated
@@ -509,13 +509,13 @@ export class OnePairStreettAutomaton {
             this.initialState.label,
             acceptE.join(","),
             acceptF.join(",")
-        ].join(" | ");
+        ].join(" ; ");
     }
 
     // Deserialization
     static parse(s: string): OnePairStreettAutomaton {
         const automaton = new OnePairStreettAutomaton();
-        const [transitions, initialState, acceptanceSetE, acceptanceSetF] = s.split("|");
+        const [transitions, initialState, acceptanceSetE, acceptanceSetF] = s.split(";");
         for (let transition of transitions.split(",").map(x => x.trim()).filter(x => x.length > 0)) {
             // origin > (propositional formula) > target
             const opIdx = transition.indexOf(">");

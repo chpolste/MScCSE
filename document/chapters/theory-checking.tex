@@ -1,18 +1,13 @@
-The goal of model checking is to verify with an automatic procedure if some system meets a specification.
-To achieve this, the two components \quotation{system} and \quotation{specification} have to be represented in a way that they can be brought together and then analysed.
-Typically, the system is abstracted to a system model, able to reproduce all behaviour required to accurately verify the properties of interest but reduced to be computationally feasible. % TODO
-For the specification, a formulation in logic, usually a temporal logic, is sought.
-The specifications may concern qualitative (e.g. \quotation{can something bad happen?}) or quantitative (e.g. \quotation{will something bad happen with more than 90\% probability in the first hour of operation?}) questions about the system.
+Model checking is a formal technique for the automatic verification of a system model with respect to a given specification \cite[authoryears][Baier2008].
+Its general field of application is the verification of soft- and hardware systems with respect to specifications, typically formulated in a temporal logic.
+Specifications may concern qualitative (e.g.\ \quotation{can something bad happen?}) or quantitative (e.g.\ \quotation{can something bad happen with more than 20\% probability in the first hour of operation?}) questions about the system.
 
-Model checking is a brute-force approach in which the system model is explored exhaustively, i.e. every possible system state is considered during the verification procedure.
-This approach ensures that no malicious behaviour of the system is missed and is also able to produce counterexamples when a system model fails to meet the specification.
-Counterexamples guide the search for system errors making them a valuable part of the verification process. % TODO: CEGAR reference
-However, the exhaustive approach means that substantial resources are often required to carry out the desired analysis.
-Appropriate and expressive abstractions for the system and specification lead to a large number of possible states that need to be checked, often growing exponentially with the complexity of the abstractions.
-Dealing with this so-called state space explosion is a major challenge when designing a model checking procedure.
-To combat state space explosion and ensure the computational feasability of finding solutions, abstractions have to be chosen with care and efficient state space exploration techniques must be used.
-
-The advent of increasingly powerful computers has brought larger and larger systems into the reach of formal verification by model checking.
-Since the beginning of model checking by TODO and TODO, procedures for a variety of systems and specifications have been devised and are actively being reasearched. % TODO inventors of model checking
-Model checking today has widespread applications from detecting deadlocks states in concurrent programs to robot motion planning to hardware and security protocol verification. %TODO some e.g. references
+The process of model checking starts with the construction of a system model.
+A system under consideration has to be transformed into an finite and unambiguous representation which reproduces all essential behaviour and provides the information required to verify the specification.
+The model checker will then explore this system representation exhaustively by brute-force, considering every possible state of the system model and looking for counterexamples that violate the specification.
+This approach ensures that no malicious behaviour of the system is missed and the produced counterexamples can be used to guide the search for system or system model errors \cite[alternative=authoryears,left={(e.g.\ }][Clarke2000].
+However, the exhaustive approach also often means that substantial resources are required to carry out the verification.
+Systems with rich behaviour require complex models for accurate representation, leading to a large number of possible states that need to be checked by the procedure.
+Dealing with this so-called state-space explosion is a major challenge when designing a model checking procedure.
+While the continuous increase in available computing power allows for the verification of increasingly complex systems, techniques such as partial order reduction and abstraction refinement are available to combat the state-space explosion problem \cite[authoryears][Baier2008].
 

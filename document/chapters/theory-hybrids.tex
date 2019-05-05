@@ -1,87 +1,80 @@
-Hybrid systems present a framework in which discrete-event and continuous-variable dynamics are coupled to produce heterogeneous behaviour emerging from the interaction of both domains.
-While \cite[VanDerSchaft2000] remarked at the start of the 21st century that the area of hybrid systems was \quotation{still largely unexplored}, two decades later \cite[Lin2014] introduce hybrid systems observing that they \quotation{have recently been at the center of intense research activity}.
-
+Hybrid systems combine discrete events with continuous-variable dynamics, allowing heterogeneous behaviour to emerge from the interaction of both domains.
+\cite[VanDerSchaft2000] remarked at the start of the 21st century that the area of hybrid systems was \quotation{still largely unexplored}, but two decades later \cite[Lin2014] introduce hybrid systems by observing that they \quotation{have recently been at the center of intense research activity}.
 The reason this interest has emerged is the broad, multidisciplinary application spectrum of the hybrid system framework and its many related theoretical research questions.
-It has found use in computer-aided verification of programs interacting with continuous environments (embedded and cyber-physical systems) and is applied to control theory as well as robotics and artificial intelligence problems. %TODO: references!
+Hybrid systems are found in computer-aided verification of programs interacting with continuous environments (embedded and cyber-physical systems) as well as optimal control problems and robot motion planning. %TODO: references!
+
 Many examples of hybrid systems are found in the introductions by \cite[VanDerSchaft2000,Lin2014] and the references therein.
-Probably the most often invoked example of a simple hybrid system is a heater controlled by a thermostat.
-The heater works in a discrete domain, its state is either on or off.
-The thermostat measures temperature, which is a continuous, real valued variable.
-Both are coupled with discrete if-then-else rules: if the observed temperature falls below some threshold, the thermostat activates the heater.
+The probably most often used example of a simple hybrid system is a heater controlled by a thermostat.
+The heater works in a discrete domain and its state is either on or off.
+The thermostat measures temperature, which is a continuous, real-valued variable.
+Both are coupled by discrete if-then-else rules: if the observed temperature falls below some threshold, the thermostat activates the heater.
 Once the desired temperature is reached, the heater is turned off.
 
-It is essential to every hybrid system that the discrete and continuous domains not just coexist but interact with each other.
-The discrete domain is often governed by a set of events resulting in threshold- or switching behaviour of the system.
-The continuous variables are usually associated with physical processes such as mechanical phase space, temperature or electrical current.
-Time can be both discrete or continuous, leading to a description of the dynamics with difference or differential equations, respectively.
+It is essential for every hybrid system that its discrete- and continuous domains not just coexist but interact with each other.
+The discrete domain is most often governed by a set of events resulting in threshold- or switching behaviour of the system.
+Continuous variables are usually associated with physical processes such as mechanical phase space, temperature or electrical current.
+The concept of time of a hybrid system can be both discrete or continuous, leading to a description of the dynamics with difference- or differential equations, respectively.
 Because hybrid systems can be assembled from such a variety of components, it is difficult to find a general definition.
-The solution approaches to problems involving hybrid systems however generally revolve around the synchronous evolution of the discrete and continuous domain, formalized by so-called hybrid automata.
-
-For the purposes of this work, a special class of hybrid system must be introduced, the linear stochastic system.
+In general, solution approaches to problems involving hybrid systems revolve around the synchronous evolution of the discrete and continuous domain, formalized by so-called hybrid automata.
 
 
 \startsubsection[title={Linear Stochastic Systems},reference=sec:theory-hybrids-lss]
 
-    A linear stochastic system (LSS) $\LSS$ is a discrete-time continuous-space stochastic process evolving in traces governed by the evolution equation
+    A linear stochastic system (LSS) $\LSS$ is a discrete-time continuous-space stochastic process governed by the evolution equation
 
     \placeformula[formula:lssevo]
     \startformula
-        \VecX_{t+1} = \MatA \VecX_t + \MatB \VecU_t + \VecW_t \EndComma
+        \VecState_{t+1} = \MatA \VecState_t + \MatB \VecControl_t + \VecRandom_t \EndComma
     \stopformula
 
-    where $\VecX_t \in X \subset \reals^n$ is the state of the trace $\VecX = \VecX_0 \VecX_1 ...$ at time $t \in \naturalnumbers_0$,
-    $\VecU_t \in U \subset \reals^m$ is a control input and
-    $\VecW_t \in W \subset \reals^n$ is a random perturbation, also at time $t$.
-    The state space $\StateSpace$ and control space $\ControlSpace$ are embedded in Eucledian, real-valued vector spaces of dimensions $n$ and $m$, respectively.
-    $X, U, W$ are bounded sets.
-    The probability distribution from which the random vector is sampled is assumed to have non-zero density everywhere in $W$ for all times $t$.
+    where $\VecState_t \in \StateSpace \subset \reals^n$ is the state of a trace $\VecState = \VecState_0 \VecState_1 ...$ at time $t \in \naturalnumbers_0$,
+    $\VecControl_t \in \ControlSpace \subset \reals^m$ is a control input and
+    $\VecRandom_t \in W \subset \reals^n$ is a random perturbation.
+    The state space $\StateSpace$, random space $\RandomSpace$ and control space $\ControlSpace$ are bounded subsets of Eucledian, real-valued vector spaces of dimensions $n$, $n$ and $m$, respectively.
+    The probability distribution from which the random vector is sampled at each timestep is assumed to have non-zero density everywhere in $\RandomSpace$ for all times $t$.
 
-    A trace evolves under the influence of matrix $\MatA \in \reals^{n \times n}$ transforming the current state $\VecState_t$, a stochastic perturbation $\VecRandom_t$ and external control, which is exerted by a control input $\VecControl_t$ and projected into the state space by matrix $\MatB \in \reals^{n \times m}$.
-    The control inputs are chosen every time step by a strategy $\Function{S_\mathcal{T}}{X^+}{U}$ which takes the evolution of the trace up to its current state into account. % TODO: ^+ notation introduced later
-    To reason about properties of a trace, it is augmented with discrete events, e.g. entering or exiting some region of the state space.
+    A trace through the linear stochastic system evolves under the influence of matrix $\MatA \in \reals^{n \times n}$, which transforms the current state $\VecState_t$, a stochastic perturbation $\VecRandom_t$ and external control in the form of a control vector $\VecControl_t$ projected into the state space by matrix $\MatB \in \reals^{n \times m}$.
+    The control inputs are chosen for every time step by a strategy $\Function{S_\mathcal{T}}{\StateSpace^+}{U}$, where $\StateSpace^+$ denotes the set of all non-empty finite sequences of elements of $\StateSpace$.
+    A strategy may therefore take the evolution of a trace up to its current state into account when selecting the control vector.
+    Strategies that only depend on the current state are called memoryless.
+    To reason about properties of a trace, it is subjected to discrete events, e.g.\ entering or exiting some region of the state space.
 
 \stopsubsection
 
 
 \startsubsection[title={Related Systems}]
 
-    The non-stochastic variant of an LSS has the dynamics
-
-    \placeformula[formula:linearsystem]
-    \startformula
-        \VecX_{t+1} = \MatA \VecX_t + \MatB \VecU_t + \VecC \EndComma
-    \stopformula
-
-    where $\VecC \in \reals^n$ can be seen as a degenerate case of an LSS with $W = \Set{\VecC}$.
-    Such linear systems are a special case of piecewise affine systems, also known as piecewise linear systems, whose state space is partitioned into multiple disjunct regions, called modes, each with their own evolution equation
+    In the degenerate case where $W = \Set{\VecC}$, $\VecC \in \reals^n$, the LSS is stripped of its stochastic dynamics.
+    Linear systems in general are a special case of piecewise affine systems, also known as piecewise linear systems, whose state space is partitioned into multiple disjunct regions, called modes, each with their own evolution equation
 
     \startformula
-        \VecX_{t+1} = \MatA_l \VecX_t + \MatB_l \VecU_t + \VecW_{l,t} \EndComma
+        \VecState_{t+1} = \MatA_l \VecState_t + \MatB_l \VecControl_t + \VecRandom_{l,t} \EndComma
     \stopformula
 
     where $l$ is an index enumerating the modes.
-    A trace evolves according the evolution equation associated with the mode its current state is a member of. % TODO phrasing
-    A non-stochastic variant ($W_l = \Set{\VecC_l}$ for all modes $l$) of piecewise affine systems was used e.g. by \cite[Yordanov2009]. % TODO: more references. Also: what did they use the system for?
+    Traces in piecewise affine systems evolve according the evolution equation associated with the mode that the current state of the trace is a member of.
+    The non-stochastic variant of piecewise affine systems where $W_l = \Set{\VecC_l}$ for all modes $l$ was used e.g. by \cite[Yordanov2009]. % TODO: more references. Also: what did they use the system for?
 
-    More generally, any kind of (non-linear) dynamics can be considered with evolution equations of the form
+    More generally, evolution equations of the form
 
     \startformula
-        \VecX_{t+1} = F(\VecX_t, \VecU_t, \VecW_t) \EndPeriod
+        \VecState_{t+1} = F(\VecState_t, \VecControl_t, \VecRandom_t)
     \stopformula
 
-    In (stochastic) switched systems control is not excerted by choosing the value of a control vector at each timestep, but choosing the entire form of the dynamics
+    can accommodate any kind of non-linear dynamics.
+    In (stochastic) switched systems, strategies do not control traces by choosing the value of a control vector for each step, but by choosing the entire form of the dynamics
 
     \startformula
-        \VecX_{t+1} = U_t(\VecX_t, \VecW_t) \EndPeriod
+        \VecState_{t+1} = U_t(\VecState_t, \VecRandom_t) \EndPeriod
     \stopformula
     
     The choice of $\Function{U_{t}}{X \times W}{X}$ is usually restricted to a finite set of available dynamics between which the controller can switch at each timestep.
-    This kind of system was used for example by \cite[Lahijanian2015]. % TODO: more references
+    This kind of system was used for example by \cite[Lahijanian2015]. % TODO: more references, what did they use the system for?
 
-    All presented systems so far have used discrete time and therefore difference equations to describe the evolution of traces.
+    The systems presented so far have used discrete time and difference equations to describe the evolution of traces.
     But the dynamics can also be entirely continuous, with traces evolving in time according to differential equations.
     Continuous-time, countinuous-space systems can still have hybrid characteristics when equipped with discrete events or if controlled in a discrete manner (analogous to switched systems).
-    However, continuous time is not of interest in this work and will not be discussed futher. % TODO: provide reference for continuous time systems
+    However, continuous time is not of relevance for this work and therefore not be discussed futher. % TODO: provide reference for continuous time systems?
 
 \stopsubsection
 

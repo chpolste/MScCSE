@@ -1,25 +1,25 @@
 If a system of interest exhibits stochastic behaviour, there is a need for probabilistic abstractions that can reflect this stochasticity appropriately.
 Markov models and the closely related probabilistic games are such models for systems with discrete time evolution.
-A few classes of these models are introduced in this section.
+A few of these models are introduced in this section.
 
 
 \startsubsection[title={Markov Models}]
 
-    Markov models are transition systems enriched with probabilistic behaviour and have found numerous applications, including in probabilistic model checking \cite[alternative=authoryears,left={(see e.g. chapter 10 of }][Baier2008]. % TODO reference one or two papers as well
+    Markov models are transition systems enriched with probabilistic behaviour and have found numerous applications, including in probabilistic model checking \cite[alternative=authoryears,left={(e.g. }][Baier2008,Svorenova2013,Chatterjee2014,Lahijanian2015].
 
     The simplest Markov model is the Markov chain (MC).
-    A Markov chain is a tuple $\Tuple{G}{\delta}$ where $G$ is a set of states and $\Function{\delta}{G}{\ProbDist{G}}$ a transition relation with $\ProbDist{G}$ denoting the set of all probability distributions over $G$.
-    At every step of a trace through the MC, a successor is chosen by sampling the probability distribution of successors of the current state defined by $\delta$.
+    A Markov chain is a tuple $\Tuple{G}{\Transition}$ where $G$ is a set of states and $\Function{\Transition}{G}{\ProbDist{G}}$ a transition relation with $\ProbDist{G}$ denoting the set of all probability distributions over $G$.
+    Weith every step of a trace through the MC, a successor is chosen by sampling the probability distribution of successors of the current state defined by $\Transition$.
 
-    Markov decision processes (MDPs) extend MCs by introducing actions.
-    MDPs are 3-tuples $\Triple{G}{Act}{\delta}$, where $G$ is a set of states, $Act$ is a set of actions and $\Function{\delta}{G \times Act}{\ProbDist{G}}$ is a probabilistic transition relation.
-    At every step of a trace through the MDP, an action is chosen and the successor state determined by sampling the probability distribution associated with the current state and chosen action through $\delta$.
+    Markov decision processes (MDPs) extend Markov chains by introducing actions.
+    An MDP is a 3-tuple $\Triple{G}{Act}{\Transition}$, where $G$ is a set of states, $Act$ is a set of actions and $\Function{\Transition}{G \times Act}{\ProbDist{G}}$ is a probabilistic transition relation.
+    With every step of a trace through the MDP, an action is selected by some decision-making process and the successor state determined by sampling the probability distribution associated with the current state and chosen action through $\Transition$.
     Not all actions are enabled in every state, but at least one action from $Act$ must be.
     A Markov chain is the degenerate case of a MDP with exactly one action enabled in every state.
 
-    The introduction of actions with the MDP opens up a game-theoretic perspective on Markov models.
+    The introduction of actions in the MDP opens up a game-theoretic perspective on Markov models.
     From the perspective of games, the transition system of an MDP is a game graph on which a turn-based game is played between a player and a probabilistic environment.
-    The player chooses their move each turn by picking an action and the outcome is determined stochastically by the environment, which acts as a sort of passive player.
+    The player chooses their move each turn by picking an enabled action of the current state and the successor state is sampled by the environment from the corresponding probability distribution.
     MDPs are therefore also called 1-player probabilistic games or 1½-player games, with one \quotation{proper} player and the environment in a player-like role.
     This game-based view of Markov models extends naturally to more complicated behaviour through the introduction of additional players.
 
@@ -35,21 +35,22 @@ A few classes of these models are introduced in this section.
     \stopformula
 
     where $G_1$, $G_2$ are disjoint sets of player 1 and 2 states, respectively.
-    $Act$ and $\delta$ are defined as for the MDP with $G = G_1 \cup G_2$.
-    A play is a sequence of states $g = g_0 g_1 ... \in G^\omega$ such that $g_i \in G_1$ for all even and $g_i \in G_2$ for all odd indices $i$, i.e. player's turns alternate beginning with player 1. % TODO ^\omega notation not introduced yet
-    In their turn, players choose an available action from the finite set of actions $Act$.
-    The next state of the play is then chosen stochastically based on the probability distribution defined by the probability transition function $\delta: G \times Act \rightarrow \mathcal{D}(G)$.
-    Therefore, for every $g_i$ there must be an action $a \in Act$ such that $\delta(g_i, a)(g_{i+1}) \gt 0$.
+    $Act$ and $\Transition$ are defined as they were for the MDP with $G = G_1 \cup G_2$.
+    A play is a sequence of states $g = g_0 g_1 ... \in G^\omega$ such that $g_i \in G_1$ for all even and $g_i \in G_2$ for all odd indices $i$, i.e. player's turns alternate beginning with player 1.
+    $G^\omega$ denotes the set of all infinite sequences of members of $G$.
+    When it is their turn, players choose an action that is enabled for the current game states from the set of actions $Act$.
+    The next state of the play is then chosen stochastically based on the probability distribution defined by the probabilistic transition function $\Transition: G \times Act \rightarrow \mathcal{D}(G)$.
+    Therefore, for every $g_i$ there must be an action $a \in Act$ such that $\Transition(g_i,\, a)(g_{i+1}) \gt 0$.
 
     A player $k$ strategy is a function $\Strategy{k}{\GameGraph}: G^+ \rightarrow Act$ that determines the action taken after a finite prefix of a play ending in a state of player $k$.
-    A strategy requiring only a fixed-size prefix is called finite-memory and one using only the current game state to select an action is called memoryless.
+    Analogous to strategies for linear stochastic systems, a strategy that requires a fixed-size prefix to determine an action is called finite-memory while a strategy using only the current game state for the action selection is called memoryless.
 
 \stopsubsection
 
 
 \startsubsection[title={Winning and Solving 2-Player Probabilistic Games}]
 
-    A notion of winning is introduced by extending the game graph $\mathcal{G}$ with an acceptance condition $\mathcal{C}$ to form the game
+    A notion of winning is introduced by extending the game graph $\mathcal{G}$ with an acceptance condition $\mathcal{C}$ (also called winning condition) to form the game
 
     \startformula
         \GameGraph' = (G_1, G_2, Act, \Transition, \Condition) \EndPeriod
@@ -57,16 +58,13 @@ A few classes of these models are introduced in this section.
 
     The acceptance condition separates the set of all possible plays into those which are won by player 1 and those plays are won by player 2.
     Every play has exacly one winning player, no plays are won by neither or both players.
+    Acceptance conditions of games are analogous to those of \omega-automata and are discussed further in section \in[sec:theory-automata-acceptance].
 
-    The solution of a game are the sets of initial states for which player 1 (2) has a winning strategy, i.e. a strategy that ensures a win of player 1 (2).
-    The meaning of \quotation{ensuring a win} depends on the type of analysis carried out. % TODO phrasing
-    In this work, (qualititive) almost-sure analysis for and adversarial and cooperative player 2 is the main concern.
-    In almost-sure analysis, game states are sought for which a winning strategy exists for one player, ensuring a win with probability 1. % TODO phrasing
-    Adversarial analysis means that the player strategy must lead to a win for every possible strategy of the opponent player, while in a cooperative setting a winning strategy only has to exist for some strategy of the other player, i.e. a win is possible but only ensurable if the opponent is \quotation{nice} and cooperates.
-    In the cooperative interpretation, the 2 player probabilistic game can be reduced to a 1 player probabilistic game \cite[authoryears][Svorenova2017].
-    The set of initial states for which player 1 has a strategy to ensure winning almost surely are denoted in the adversarial setting by $\Almost{\GameGraph'}$ and in the cooperative setting as $\AlmostCoop{\GameGraph'}$.
-
-    % TODO transition, variety of ways to express condition analogously to automata
+    The solution of a game are the sets of initial states for which player 1 (2) has a winning strategy, which is a strategy that player 1 (2) can use to ensure winning under some circumstances.
+    The circumstances depend on the type of game analysis that is carried out.
+    In this work, (qualititive) almost-sure analysis for an adversarial and cooperative player 2 is the main concern, i.e.\ game states are sought for which a player 1 strategy exists that leads to player 1 winning the game with probability 1.
+    In the adversarial setting, the strategy must lead to a player 1 win for every possible strategy of the opponent, while in the cooperative setting an almost-sure winning strategy only has to exist for some strategy of the other player, meaning that player 1 can win if the opponent is \quotation{nice} and cooperates.
+    The set of initial states for which player 1 has an almost-sure winning strategy are denoted in the adversarial setting by $\Almost{\GameGraph'}$ and in the cooperative setting as $\AlmostCoop{\GameGraph'}$.
 
 \stopsubsection
 

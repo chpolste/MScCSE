@@ -36,7 +36,7 @@ In general, solution approaches to problems involving hybrid systems revolve aro
     A trace through the linear stochastic system evolves under the influence of matrix $\MatA \in \reals^{n \times n}$, which transforms the current state $\VecState_t$, a stochastic perturbation $\VecRandom_t$ and external control in the form of a control vector $\VecControl_t$ projected into the state space by matrix $\MatB \in \reals^{n \times m}$.
     The control inputs are chosen for every time step by a strategy $\Function{S_\mathcal{T}}{\StateSpace^+}{U}$, where $\StateSpace^+$ denotes the set of all non-empty finite sequences of elements of $\StateSpace$.
     A strategy may therefore take the evolution of a trace up to its current state into account when selecting the control vector.
-    Strategies that only depend on the current state are called memoryless.
+    If a strategies only depends on the current state it is called memoryless, otherwise it is a finite-memory strategy.
     To reason about properties of a trace, it is subjected to discrete events, e.g.\ entering or exiting some region of the state space.
 
 \stopsubsection

@@ -1,82 +1,110 @@
-A temporal logic is an extension of propositional logic by a set of temporal connectives, enabling the expression of statements about not just the current but also the future state of a system.
-While formulae of propositional logic are evaluated with a single valuation, temporal logic formulae are evaluated with a sequence or a tree of valuations, describing the evolution of the system state in time.
-
-A comprehensive and rigorous introduction to temporal logics is given e.g. by \cite[Baier2008]. % TODO another reference
-Here, a summarized look at the basics of linear time logic is presented and supplemented by brief survey of related temporal logics.
+A temporal logic is an extension of propositional logic by a set of temporal connectives \cite[authoryears][Baier2008].
+With these connectives, statements about the current and future state of a system can be expressed.
+While formulae of propositional logic are evaluated with a single valuation of the atomic propositions, temporal logic formulae are evaluated with a sequence or tree of valuations that describe the evolution of the system state in time.
 
 
 \startsubsection[title={Linear Temporal Logic},reference=sec:theory-logic-ltl]
 
-    Linear temporal logic (LTL) is an extension of propositional logic applied to discrete-time infinite sequences of valuations of propositional atoms.
-    LTL formulae are able to express the temporal order of events occurring in such a sequence.
-    As the name suggests, LTL is concerned with a linear, path-based understanding of time, considering one specific path through time when evaluated, with exactly one successor for each state in the sequence.
+    Linear temporal logic (LTL) is an extension of propositional logic applied to discrete-time, infinite sequences of valuations of propositional atoms.
+    LTL formulae are able to express the relative temporal order of events occurring in such sequences.
+    As the name suggests, LTL is concerned with a linear, path-based understanding of time where every moment in time has a unique successor.
 
-    The syntax of LTL formulae over a set of atomic propositions $AP$ follows the grammar
+    LTL formulae over a set of atomic propositions $AP$ are formed from the grammar
     
     \startformula
-        \varphi \coloncolonequals \True \mid a \mid \varphi_1 \wedge \varphi_2 \mid \neg \varphi \mid \Next \varphi \mid \varphi_1 \Until \varphi_2 \EndComma
+        \varphi \coloncolonequals \True \mid a \mid \varphi_1 \wedge \varphi_2 \mid \neg \varphi \mid \Next \varphi \mid \varphi_1 \Until\, \varphi_2 \EndComma
     \stopformula
 
-    where $a \in AP$.
+    where $a \in AP$ \cite[authoryears][Baier2008].
     $\wedge$ and $\neg$ are the known propositional operators \quotation{and} and \quotation{not}.
-    $\Next$ and $\Until$ are temporal operators named \quotation{next} and \quotation{until}, respectively.
+    $\Next$ and $\empty\Until\empty$ are temporal operators named \quotation{next} and \quotation{until}.
     $\True$ is the tautology symbol.
     Operator precedence is adopted from propositional logic where possible, $\Next$ binds as strongly as $\neg$ and $\Until$ takes precedence over all propositional binary operators.
 
-    LTL formulae are interpreted over paths $w = w_0 w_1 ... \in (2^{AP})^\omega$ which are sequences of valuations and the words in a formula's language over the alphabet $AP$.
-    The semantics of LTL, expressed by the satisfaction relation $\vDash$, is 
+    LTL formulae are interpreted over words $w = w_0 w_1 ... \in (2^{AP})^\omega$ constructed from an alphabet of valuations of the atomic propositions.
+    The semantics of LTL is expressed by the satisfaction relation $\vDash$, given by 
 
     \startformula
         \startalign[n=3,align={right,left,left}]
-            \NC w \vDash \NC \True \NC ~~\text{unconditionally (tautology),} \NR
-            \NC w \vDash \NC a \NC \iff a \in w_0 \EndComma \NR
-            \NC w \vDash \NC \neg \varphi \NC \iff w \nvDash \varphi \EndComma \NR
-            \NC w \vDash \NC \varphi_1 \wedge \varphi_2 \NC \iff w \vDash \varphi_1 \;\text{and}\; w \vDash \varphi_2 \EndComma \NR
-            \NC w \vDash \NC \Next \varphi \NC \iff w_1 w_2 ... \vDash \varphi \EndComma \NR
-            \NC w \vDash \NC \varphi_1 \Until \varphi_2 \NC \iff \exists j \ge 0 : w_j w_{j+1} ... \vDash \varphi_2 \;\text{and}\; \forall 0 \le i \lt j : w_i w_{i+1} ... \vDash \varphi_1 \EndPeriod \NR
+            \NC w \vDash
+            \NC \True
+            \NC ~~\text{unconditionally (tautology),}
+            \NR
+            \NC w \vDash
+            \NC a
+            \NC \iff a \in w_0 \EndComma
+            \NR
+            \NC w \vDash
+            \NC \neg \varphi
+            \NC \iff w \nvDash \varphi \EndComma
+            \NR
+            \NC w \vDash
+            \NC \varphi_1 \wedge \varphi_2
+            \NC \iff w \vDash \varphi_1 \;\text{and}\; w \vDash \varphi_2 \EndComma
+            \NR
+            \NC w \vDash
+            \NC \Next \varphi
+            \NC \iff w_1 w_2 ... \vDash \varphi \EndComma
+            \NR
+            \NC w \vDash
+            \NC \varphi_1 \Until\, \varphi_2
+            \NC \iff \exists j \ge 0 : w_j w_{j+1} ... \vDash \varphi_2 \;\text{and}\; \forall 0 \le i \lt j : w_i w_{i+1} ... \vDash \varphi_1 \EndPeriod
+            \NR
         \stopalign
     \stopformula
 
-    Other connectives are derived, such as
+    Other connectives can be derived for convenience, for example
 
     \startformula
         \startalign[n=3,align={right,left,middle}]
-            \NC \varphi_1 \vee \varphi_2 \NC \colonequals \neg(\neg \varphi_1 \wedge \neg \varphi_2) ~~~\NC \text{\quotation{or},} \NR
-            \NC \Finally \varphi \NC \colonequals \True \Until \varphi \NC \text{\quotation{finally},} \NR
-            \NC \Globally \varphi \NC \colonequals \neg \Finally \neg \varphi \NC \text{\quotation{globally}.} \NR
+            \NC \varphi_1 \vee \varphi_2
+            \NC \colonequals \neg(\neg \varphi_1 \wedge \neg \varphi_2) ~~~
+            \NC \text{\quotation{or},}
+            \NR
+            \NC \Finally \varphi
+            \NC \colonequals \True \,\Until\, \varphi
+            \NC \text{\quotation{finally},}
+            \NR
+            \NC \Globally \varphi
+            \NC \colonequals \neg \Finally \neg \varphi
+            \NC \text{\quotation{globally}.}
+            \NR
         \stopalign
     \stopformula
 
-    Paths are usually derived from a transition system which might have more than one possible successor to a state.
-    Therefore multiple futures, i.e. multiple paths, are realizable when starting in such states.
-    The sematics of LTL is extended to a state-based notion in the following way:
-
+    Consider a transition system with states $2^{AP}$, such that the set of atomic propositions $AP$ coincides with that of an LTL formula $\varphi$.
+    The evolution of this transition system when starting in from state $s$ generates words $w = w_0 w_1 ...$, $w_0 = s$, over the alphabet $2^{AP}$.
+    The function
+    
     \startformula
-        s \vDash \phi \iff \forall w ~\text{starting in}~ s: w \vDash \phi \EndPeriod
+        \Function{{\mathrm Words}}{2^{AP}}{(2^{AP})^\omega}
     \stopformula
 
-    If and only if all possible paths starting in some state $s$ satisfy an LTL formula $\varphi$, $s$ is said to satisfy the the formula.
+    associates a state with all words that can be generated by starting in this state and following the transitions of the system.
+    The semantics of LTL is extended to a state-based notion in the following way:
+
+    \startformula
+        s \vDash \varphi \iff \forall w \in {\mathrm Words}(s) : w \vDash \varphi \EndPeriod
+    \stopformula
 
 \stopsubsection
 
 
 \startsubsection[title={Other Temporal Logics},reference=sec:theory-logic-other]
 
-    The path based, linear time semantics of LTL was extended to states by looking at all possible paths starting from a common initial state.
-    In a branching time framework, the future is not a collection of paths starting in the present but a tree of possible futures, branching further outward whenever there are multiple successors of a moment (i.e. state) in time.
-    Computation Tree Logic (CTL) is a temporal logic with this understanding of time and allows reasoning over the branching future with quantifiers $\exists$ (there is some future) and $\forall$ (for all possible futures).
-    The expressiveness of CTL only partially overlaps with LTL, i.e. some properties can be expressed by both LTL and CTL while some properties can only be expressed with LTL and some properties can only be expressed by CTL. % TODO reference
-    Despite the overlapping expressiveness, model checking approaches for linear and branching time properties are quite different. % TODO is this interesting information? Yes, if reference(s) for examples are added
-    Both LTL and CTL are unified in the temporal logic CTL*, that additionally extends the expressiveness of both.
+    Whenever there are multiple futures possible in a moment, the linear understanding of time considers every future individually.
+    In a branching time interpretation, the future is seen as a tree that branches out whenever a moment allows for more than one future.
+    Computation Tree Logic (CTL) is a temporal logic with this understanding of time.
+    CTL can reason over a branching future with the quantifiers $\exists$ (there is some future) and $\forall$ (for all possible futures).
+    While the expressiveness of CTL overlaps with that of LTL, properties exists that can only be expressed in one but not the other.
 
-    LTL and CTL are only concerned with the ordering of events in time but one might want to formulate properties that include the distance between events in time. % TODO phrasing
-    Temporal logic can be equipped with the concept of a clock that measures time in discrete units and operators that depend on the amount of time as measured by this clock.
-    Therefore, properties such as \quotation{in x units of time} or \quotation{for x units of time} can be expressed.
-    Timed CTL \cite[authoryears][Baier2008] or Metric Time Logic \cite[authoryears][TODO] are examples of temporal logics that include this concept of time intervals.
-
-    Not only the view of time (linear, branching) but also the properties of the transition system under consideration influence what is expressible in a temporal logic. % TODO phrasing, this is really about the "construction" of a temporal logic
-    For example, if the transition system exhibits probabilistic behaviour and/or associates rewards to paths, one should be able to express qualitative and/or quantitative probabilistic and/or reward properties, too.
-    Therefore many variants of temporal logics for such purposes have been constructed, e.g. Probabilistic CTL or Probabilistic Reward CTL \cite[authoryears][Baier2008].
+    The understanding of time as linear or branching is not the only concept that influences the construction of a temporal logic.
+    While LTL and CTL are only concerned with the ordering of time, there are also temporal logics that include the concept of a clock.
+    In such logics properties like \quotation{in less than 10 time units} or \quotation{for the next 10 time units} can be expressed.
+    Quantitative and qualitative properties are of interest when verifying probabilistic systems and systems that associate rewards with certain behaviour.
+    Probabilistic Computation Tree Logic incorporates quantitative measures of certainty with the addition of a probabilistic operator to CTL.
+    The certainty of temporal logic properties can also be quantified on the semantic level by changing the satisfaction relation \cite[authoryears][Baier2008].
+    The boolean question \quotation{Does formula $\varphi$ hold?} can therefore be transformed into a quantitative inquiry such as \quotation{With which probability does formula $\varphi$ hold?} in the probabilistic setting.
 
 \stopsubsection
 
@@ -86,8 +114,8 @@ Here, a summarized look at the basics of linear time logic is presented and supp
     node_dash.a[1][1](btex $q_0$ etex);
     node_double.a[1][4](btex $q_1$ etex);
     incoming(0, "") (a[1][1]) 180;
-    loop.rt(.4, btex \small ${\neg \varphi}$ etex) (a[1][1]) 90;
-    arrow.top(.5, btex \small ${\varphi}$ etex) (a[1][1],a[1][4]) a[1][1].c..a[1][4].c;
+    loop.rt(.4, btex \small ${\neg \phi}$ etex) (a[1][1]) 90;
+    arrow.top(.5, btex \small ${\phi}$ etex) (a[1][1],a[1][4]) a[1][1].c..a[1][4].c;
     loop.rt(.4, btex \small ${\True}$ etex) (a[1][4]) 90;
 \stopreusableMPgraphic
 
@@ -97,7 +125,7 @@ Here, a summarized look at the basics of linear time logic is presented and supp
     node_double.a[1][4](btex $q_1$ etex);
     incoming(0, "") (a[1][1]) 180;
     loop.rt(.4, btex \small ${\neg \theta}$ etex) (a[1][1]) 90;
-    arrow.top(.5, btex \small ${\varphi}$ etex) (a[1][1],a[1][4]) a[1][1].c..a[1][4].c;
+    arrow.top(.5, btex \small ${\phi}$ etex) (a[1][1],a[1][4]) a[1][1].c..a[1][4].c;
     loop.rt(.4, btex \small ${\True}$ etex) (a[1][4]) 90;
 \stopreusableMPgraphic
 
@@ -106,10 +134,10 @@ Here, a summarized look at the basics of linear time logic is presented and supp
     node_dash.a[1][1](btex $q_0$ etex);
     node_double.a[1][4](btex $q_1$ etex);
     incoming(0, "") (a[1][1]) 180;
-    loop.rt(.4, btex \small ${\neg \varphi}$ etex) (a[1][1]) 90;
-    arrow.top(.5, btex \small ${\varphi}$ etex) (a[1][1],a[1][4]) a[1][1].c..a[0][2].c..a[0][3].c..a[1][4].c;
-    loop.rt(.4, btex \small ${\varphi}$ etex) (a[1][4]) 90;
-    arrow.bot(.5, btex \small ${\neg \varphi}$ etex) (a[1][4],a[1][1]) a[1][4].c..a[2][3].c..a[2][2].c..a[1][1].c;
+    loop.rt(.4, btex \small ${\neg \phi}$ etex) (a[1][1]) 90;
+    arrow.top(.5, btex \small ${\phi}$ etex) (a[1][1],a[1][4]) a[1][1].c..a[0][2].c..a[0][3].c..a[1][4].c;
+    loop.rt(.4, btex \small ${\phi}$ etex) (a[1][4]) 90;
+    arrow.bot(.5, btex \small ${\neg \phi}$ etex) (a[1][4],a[1][1]) a[1][4].c..a[2][3].c..a[2][2].c..a[1][1].c;
 \stopreusableMPgraphic
 
 \startreusableMPgraphic{automaton-safety}
@@ -132,16 +160,13 @@ Here, a summarized look at the basics of linear time logic is presented and supp
 
 \startsubsection[title={Automata for LTL Objectives},reference=sec:theory-logic-automata]
 
-    Every LTL formula can be represented by an \omega-automaton constructed such that the formula and automaton accept the same language of words over the alphabet $2^{AP}$.
-    Tools for the automatic translation of temporal logic formulae to various types of \omega-automata have beed developed, e.g. by \cite[Kretinsky2018], \cite[Duret2016] and \cite[Gastin2001].
-
-    Table \in[tab:theory-logic-objectives] presents five basic LTL formulas and corresponding \omega-automata with one-pair Streett acceptance conditions.
-    The automata for objectives reachability, recurrence and eventual safety are complete, whereas reachability/avoidance and safety are incomplete.
-    Noteworthy is the Streett pair of the eventual safety automaton., which expresses that state $q_0$ must not be visited infinitely often.
-    The empty set in the pair cannot be visited infinitely often, therefore the condition can only be fulfilled by visiting $q_0$ only a finitely often.
+    For every LTL formula an \omega-automaton can be constructed such that the automaton accepts all words that satisfy the formula and rejects all words that do not satisfy the formula.
+    Formula-to-automaton translation is a key component of LTL model checking because it allows to systematically combine the system model and the specification it is verified against.
+    Tools for the automatic translation of LTL formulae to various types of \omega-automata have beed developed, e.g. by \cite[Kretinsky2018], \cite[Duret2016] and \cite[Gastin2001].
 
     \placetable[top][tab:theory-logic-objectives]{
-        Description of four basic linear time objectives and their corresponding \omega-automata with acceptance condition.
+        Description of five basic linear time objectives and their translations into \omega-automata with one-pair Streett acceptance condition.
+        The highlighting of states from the acceptance sets is analogous to Figure \in[fig:theory-automaton-example].
     }{
         \setupTABLE[frame=off,option=stretch]
         \setupTABLE[r][each][bottomframe=on]
@@ -150,69 +175,86 @@ Here, a summarized look at the basics of linear time logic is presented and supp
         \setupTABLE[c][2][toffset=2mm,align={middle,lohi}]
         \bTABLE
             \bTR
-                \bTD \underbar{Reachability}: $\Finally \varphi$. \par Eventually reach a state where $\varphi$ is satisfied. \par One-pair Streett condition: $(\Set{q_0}, \Set{q_1})$ \eTD
+                \bTD \underbar{Reachability}: $\Finally \phi$. \par Eventually satisfy $\phi$. \par One-pair Streett condition: $(\Set{q_0}, \Set{q_1})$ \eTD
                 \bTD {\leavevmode\reuseMPgraphic{automaton-reachability}} \eTD
             \eTR
             \bTR
-                \bTD \underbar{Reachability/Avoidance}: $\neg \theta \Until \varphi$. \par Avoid satisfying $\theta$ until a state satisfying $\varphi$ is reached. \par One-pair Streett condition: $(\Set{q_0}, \Set{q_1})$ \eTD
+                \bTD \underbar{Reachability/Avoidance}: $\neg \theta \,\Until\, \phi$. \par Avoid satisfying $\theta$ until a $\phi$ is satisfied. \par One-pair Streett condition: $(\Set{q_0}, \Set{q_1})$ \eTD
                 \bTD {\leavevmode\reuseMPgraphic{automaton-avoidance}} \eTD
             \eTR
             \bTR
-                \bTD \underbar{Recurrence}: $\Globally \Finally \varphi$. \par Satisfy $\varphi$ again and again. \par One-pair Streett condition: $(\Set{q_0}, \Set{q_1})$ \eTD
+                \bTD \underbar{Recurrence}: $\Globally \Finally \phi$. \par Satisfy $\phi$ again and again. \par One-pair Streett condition: $(\Set{q_0}, \Set{q_1})$ \eTD
                 \bTD {\leavevmode\reuseMPgraphic{automaton-recurrence}} \eTD
             \eTR
             \bTR
-                \bTD \underbar{Safety}: $\Globally \neg \theta$. \par Forever avoid states where $\theta$ is satisfied. \par Acceptance expressed through incompletness of $\delta$. \eTD
+                \bTD \underbar{Safety}: $\Globally \neg \theta$. \par Forever avoid satisfaction of $\theta$. \par Acceptance expressed through incompletness of $\delta$. \eTD
                 \bTD {\leavevmode\reuseMPgraphic{automaton-safety}} \eTD
             \eTR
             \bTR
-                \bTD \underbar{Eventual Safety}: $\Finally \Globally \neg \theta$. \par Eventually, $\theta$ can never be satisfied. \par One-pair Streett condition: $(\Set{q_0}, \emptyset)$ \eTD
+                \bTD \underbar{Eventual Safety}: $\Finally \Globally \neg \theta$. \par Eventually, $\theta$ must never be satisfied. \par One-pair Streett condition: $(\Set{q_0}, \emptyset)$ \eTD
                 \bTD {\leavevmode\reuseMPgraphic{automaton-eventualsafety}} \eTD
             \eTR
         \eTABLE
     }
+
+    Table \in[tab:theory-logic-objectives] presents five basic LTL formulae together with corresponding \omega-automata.
+    The formulae are specified over words over an alphabet of valuations of the propositional atoms $\phi$ and $\theta$.
+    Transition labels of the automata are propositional formulas.
+    A transition is taken if the current symbol (i.e.\ valuation) of the run-inducing word satisfies its associated propositional formula.
+    The chosen acceptance conditions are one-pair Streett tuples for all but the safety automaton which expresses acceptance sufficiently through an incomplete transition relation.
 
 \stopsubsection
 
 
 \startsubsection[title={Fragments of LTL},reference=sec:theory-logic-fragments]
 
-    Model checking with general LTL specifications is computationally demanding and in fact PSPACE-hard \cite[authoryears][Baier2008].
-    Fragments of LTL exist that offer more favorable computational complexity and simple automaton constructions at the cost of restrictions in expressivity.
-    However, if designed carefully, such restricted subsets of LTL can still include many properties that are relevant in practical applications.
+    The complexity of an LTL model checking procedure is goverened by the cost of the translation of the specification formula to an automaton and the analysis of the synchronized product of the automaton and system model.
+    The size of a deterministic automaton corresponding to an LTL formula is doubly exponential in the number of subformulae in the worst case \cite[authoryears][Baier2008].
+    The worst-case time complexity of a DFA-based model checking procedure for LTL is therefore at least doubly exponential in the size of the specification, assuming that the procedure has to visit each state in the product of automaton and system model at least once.
+    Restricting specifications to a fragment of LTL with reduced expressivity can limit the exponential blow-up in the automaton translation or simplify the analysis procedure.
+    If designed carefully, such LTL fragments can still include many properties that are relevant in practical applications.
 
-    One such fragment is the subset of Generalized Ractivity(1) formulas of form
+    The class of LTL formulae with form
 
-    \placeformula[fml:theory-logic-gr]
     \startformula
-        \bigwedge_{i = 1 ... n} \Globally \Finally \mu_i \rightarrow \bigwedge_{i = 1 ... m} \Globally \Finally \pi_i
+        \Big( \bigwedge_{i = 1 ... n} \Globally \Finally \phi_i \Big) \; \rightarrow \; \Big( \bigwedge_{i = 1 ... m} \Globally \Finally \mu_i \Big) \EndComma
     \stopformula
 
-    where $\mu_i$ and $\pi_i$ are propositional formulas \cite[authoryears][TODO].
+    where $\phi_i$ and $\mu_i$ are propositional formulae, was named General Reactivity(1) (GR(1)) and popularized by \cite[Piterman2005].
+    The complexity of model checking procedures with GR(1) specifications is polynomial in the size of the specification which is a substantial reduction from the doubly exponential complexity of full LTL \cite[authoryears][Piterman2005].
+    The expressivity of GR(1) is sufficient for many problems in TODO \cite[authoryears][Bloem2012] and GR(1) has been widely used, e.g.\ by \cite[TODO,TODO,TODO].
+    An extended variant of GR(1) contains all formulae
 
-    It was first introduced by \cite[TODO] and is used frequently in robotics applications \cite[authoryears][TODO].
-    The restriction to formulas of form (\in[fml:theory-logic-gr]) allows for the use of model checking algorithms with polynomial complexity.
-    An extended variant of GR(1) contains all formulas with form
-
-    \placeformula[fml:theory-logic-grextended]
     \startformula
-        \Big( \displaystyle\bigwedge_{i = 1 ... n} \mu_i \Big) \Longrightarrow \Big( \displaystyle\bigwedge_{i = 1 ... m} \pi_i \Big) \EndComma
+        \Big( \bigwedge_{i = 1 ... n} \varphi_i \Big) \; \rightarrow \; \Big( \bigwedge_{i = 1 ... m} \psi_i \Big) \EndComma
     \stopformula
 
-    where every \math{\mu_i} and \math{\pi_i} is representable by a deterministic \omega-automaton with Büchi acceptance condition.
-    For the entire GR(1) formula, an \omega-automaton with one-pair Streett acceptance condition can then be constructed based on the individual Büchi automata for the terms $\mu_i$ and $\pi_i$. % TODO: reference, Svorenova?
-    Therefore, all objectives in Table \in[tab:theory-logic-objectives] are part of the (extended) GR(1) fragment.
-    In this work GR(1) always refers to the extended variant.
+    where $\varphi_i$ and $\psi_i$ are LTL formulae representable by deterministic automata with Büchi acceptance condition \cite[authoryears][Piterman2005].
+    Model checking procedures for GR(1) are generally compatible with extended GR(1).
+    In both fragments, a deterministic one-pair Streett automaton of polynomial complexity in the size of the formula (GR(1)) or the number of Büchi conditions (extended GR(1)) can be constructed from the specification \cite[authoryears][Kesten2005].
 
-    Linear temporal logic as defined above is interpreted over infinite sequences.
-    However, for a subset of formulas, satisfiability can be decided based on a finite prefix of the sequence.
-    These formulas from the class of co-safe LTL \cite[authoryears][TODO].
-    % TODO see [5] of Lacerda 2014, syntactic restrictions
-    Co-safe objectives occur in many real-world scenarios, e.g.\ in robotics where typical objectives of a robot are usually not infinite procedures or allowed to take infinite time, but are isolated, finite tasks that can be chained to form more complex behaviour. % TODO: references that use co-safe objectives
-    In Table \in[fig:tab-theory-logic-objectives]), both reachability and reachability/avoidance are co-safe objectives.
+    LTL formulae are interpreted over words of infinite length.
+    For some formulas, satisfiability of a word can be decided already after a finite prefix.
+    Any infinite continuation of the word after this prefix has no impact on the satisfiability of the formula.
+    A language $\Language \subseteq \Alphabet^\omega$ over the alphabet $\Alphabet$ is called a co-safety language if and only if every word $w \in \Language$ has a prefix $x \in \Alphabet^\ast$ such that $x \cdot y \in \Language$ for all $y \in \Alphabet^\omega$, where $\cdot$ is the concatenation operator \cite[Kupferman2001].
+    The fragment of co-safe LTL contains all formulae whose language is a co-safety language.
+    A co-safe LTL formula can be identified syntactially.
+    All formulae that can be written in positive normal form (where negation occurs only in front of atomic propositions) and use only the temporal operators $\Next$ and $\Until$ are co-safe \cite[authoryears][PrasadSistla1994].
+    Co-safety languages can be represented by deterministic \omega-automata with an acceptance condition that requires reaching a state in a set of final states.
+    Model checking with co-safe LTL specifications can therefore be reduced to a reachability analysis problem with respect to these final states \cite[Kupferman2001].
+    Note that every one-pair Streett automaton with $E \cup F = Q$ and $\Transition(q, \sigma) = q$ for all $q \in F$ and for all $\sigma \in \Alphabet$ defines a co-safety language.
+    Therefore, the reachability and reachability/avoidance objectives in Table \in[tab:theory-logic-objectives] are co-safe.
+    Co-safe LTL objectives have been used e.g.\ in the verification of discrete-time linear systems by \cite[AydinGol2014,AydinGol2015] or in conjunction with MDPs by \cite[Lacerda2014].
+    
+    Finally the class of $\Next$-free LTL formulae is introduced, i.e.\ the class of all LTL formulae in which the $\Next$ operator does not appear.
+    Two words $w$ and $w'$ over an alphabet $\Alphabet$ are called stuttering equivalent if and only if there exist two integer sequences $i_0 < i_1 < ...$ and $j_0 < j_1 < ...$ and a word $v_0 v_1 ... \in \Alphabet^\omega$ such that 
+    
+    \startformula
+        w = (v_0)^{i_0} (v_1)^{i_1} ... \MidAnd w' = (v_0)^{j_0} (v_1)^{j_1} ... \EndPeriod
+    \stopformula
 
-    %Co-safe objectives are also useful when dealing with problems where some accumulated cost is supposed to be minimized.
-    %In an infinite setting costs might accumulate forever and not yield a finite value that can be optimized. % TODO: reference (Lacerda 2014?)
+    If a word satisfies a $\Next$-free LTL formula, all stuttering equivalent words also satisfy this formula \cite[authoryears][Baier2008].
+    \cite[Yordanov2012] used stuttering equivalence to capture additional behaviour in their system model and were thus able to reduce the conservativeness of their verification procedure for $\Next$-free LTL specifications.
 
 \stopsubsection
 

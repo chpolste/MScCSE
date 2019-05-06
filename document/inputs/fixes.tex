@@ -93,6 +93,25 @@ end
     \endgroup}
 \protect
 
+
 % Vertical position of default coloncolon command is not right
 \definemathcommand[coloncolon][rel]{\colon\!\colon}
+
+
+% Fix missing space between compressed years in authoryear cite style
+% (from context/tex/texmf-context/tex/context/base/mkiv/bibl-tra.mkiv)
+\unprotect
+
+\unexpanded\def\findmatchingyear
+  {\edef\wantednumber{\the\bibitemwanted}%
+   \getfromcommacommand[\thebibyears][\wantednumber]%
+   \ifx\commalistelement\empty
+     \edef\myyear{{\myyear}}%
+   \else
+     \edef\myyear{{\commalistelement, \myyear}}%
+   \fi
+   \edef\newcommalistelement{\myyear}%
+   \doglobal\replaceincommalist \thebibyears \wantednumber}
+
+\protect
 

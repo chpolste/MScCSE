@@ -22,7 +22,7 @@ For control problems involving (piecewise) linear dynamics, convex geometry is a
         P = \bigcup_{j \in J} H_j = \Set{\VecX \in \reals^n \mid \MatK \VecX \leq \VecC } \EndComma
     \stopformula
 
-    where $\Mat{U}$ is the stack of transposed normal vectors $\VecK_j$ of the halfspaces, $\Mat{C}$ is the corresponding stack of offset values $c_j$ and the inequation holds component-wise.
+    where $\MatK$ is the stack of transposed normal vectors $\VecK_j$ of the halfspaces, $\VecC$ is the corresponding stack of offset values $c_j$ and the inequation holds component-wise.
     If the set of halfspaces is minimal, i.e.\ no halfspace can be removed without changing the bounded region, the representation is called the H-representation of a convex polytope.
     Redundant halfspaces can be identified by solving a series of linear programs \cite[authoryears][Baotic2009].
 

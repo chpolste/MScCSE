@@ -1,8 +1,6 @@
 \usecolors[xwi]
 \usemodule[algorithmic]
 
-% Fixes for broken rendering
-\input{inputs/fixes}
 % Custom TeX-commands
 \input{inputs/commands}
 
@@ -243,6 +241,10 @@
 \stopsectionblockenvironment
 
 
+% Fixes for stuff that seems/is broken (must come after setups, else some fixes
+% are overwritten)
+\input{inputs/fixes}
+
 
 \starttext
 
@@ -302,7 +304,7 @@
                 \input{chapters/theory-checking}
             \stopsection
 
-            \startsection[title={Transition System Abstractions},reference=sec:theory-abstractions]
+            \startsection[title={Transition Systems and Abstractions},reference=sec:theory-abstractions]
                 \input{chapters/theory-abstractions}
             \stopsection
 
@@ -318,7 +320,7 @@
                 \input{chapters/theory-games}
             \stopsection
 
-            \startsection[title={Automata and Languages},reference=sec:theory-automata]
+            \startsection[title={Languages and Automata},reference=sec:theory-automata]
                 \input{chapters/theory-automata}
             \stopsection
 

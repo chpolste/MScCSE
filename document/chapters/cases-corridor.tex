@@ -5,22 +5,88 @@ Reachability/Avoidance through a corridor.
 \stopformula
 
 where $\VecState_{t} \in \StateSpace = \ClosedInterval{0}{4} \times \ClosedInterval{0}{3}$, $\VecControl_{t} \in \ControlSpace = \ClosedInterval{-0.5}{0.5}^2$ and $\VecRandom_{t} \in \RandomSpace = \ClosedInterval{-0.1}{0.1}^2$.
-Objective is avoidance and reachability
 
-\startformula
-    ( \neg \pi ) \Until \varphi
-\stopformula
+\startsubsection[title={Reachability Analysis}]
 
-co-safe interpretation.
-Narrow passage between two rooms, challenge is the relatively precise control required to enter the corridor.
+    First look at objective avoidance and reachability objective
 
-Show how layered refinement adapts to corridor due to removal of known no-states.
-Compare with solution from pure robust refinement with target expansion and small state suppression.
-Demonstrate variability of solution due to randomized $\RefinePos$ and how layered refinement can contribute to stabilize the variability in the refinement.
+    \startformula
+        ( \neg \pi ) \Until \varphi
+    \stopformula
 
-2-dimensional control space.
-Compare game complexity to double integrator with 1D control space.
+    co-safe interpretation.
+    Narrow passage between two rooms, challenge is the relatively precise control required to enter the corridor.
 
-Problematic performance of round-robin controller which does not violate avoidance objective but does not want to enter the corridor.
-Show off reordered round-robin controller for reachability that does better job of guiding the trace through the corridor.
+    Solve with multi-step robust refinement.
+    Show problem with long thin states and skipping of small states.
+    Show variations in progress due to randomization.
+
+    Layered refinement.
+    Demonstrate how variability of solution due to randomized $\RefinePos$ is stabilized.
+    Note that refinement around corridor entrance is finer that in rest of the room.
+
+    2-dimensional control space.
+    Compare game complexity to double integrator with 1D control space.
+
+\stopsubsection
+
+
+\startsubsection[title={Reachability Controller}]
+
+    Problematic performance of round-robin controller which does not violate avoidance objective but does not want to enter the corridor.
+    Apply layered approach to reachability.
+    Show off reordered round-robin controller for reachability that does better job of guiding the trace through the corridor.
+
+\stopsubsection
+
+
+\startreusableMPgraphic{cases-corridor-backandforth-automaton}
+    beginfig(0);
+        with spacing((18,16)) matrix.a(9,9);
+        node_double.a[1][1](btex $q_0$ etex);
+        node_dash.a[1][8](btex $q_1$ etex);
+        node_dash.a[8][1](btex $q_2$ etex);
+        % Outgoing transitions of q0
+        incoming(0, "") (a[1][1]) 180;
+        loop.top(.4, btex \small \;$ \neg \theta \wedge \phi \wedge \mu$ etex) (a[1][1]) 90;
+        arrow.top(.5, btex \small $ \neg \theta \wedge \phi $ etex) (a[1][1],a[1][8]) a[1][1].c..a[0][4].c..a[0][5].c..a[1][8].c;
+        arrow.rt(.5, btex \small $ \neg (\theta \vee \phi)$ etex) (a[1][1],a[8][1]) a[1][1].c..a[4][2].c..a[5][2].c..a[8][1].c;
+        % Outgoing transitions of q1
+        loop.top(.4, btex \small \;$ \neg (\theta \vee \phi) $ etex) (a[1][8]) 90;
+        arrow.bot(.5, btex \small $ \neg \theta \wedge \phi \wedge \mu $ etex) (a[1][8],a[1][1]) a[1][8].c..a[2][5].c..a[2][4].c..a[1][1].c;
+        arrow.rt(.5, btex \small \;$ \neg (\theta \vee \mu) \wedge \phi $ etex) (a[1][8],a[8][1]) a[1][8].c..a[2][8].c..a[8][2].c..a[8][1].c;
+        % Outgoing transitions of q2
+        loop.bot(.5, btex \small \;$ \neg (\theta \vee \mu) $ etex) (a[8][1]) 270;
+        arrow.lft(.5, btex \small $ \neg \theta \wedge \mu $ etex) (a[8][1],a[1][1]) a[8][1].c..a[5][0].c..a[4][0].c..a[1][1].c;
+    endfig;
+\stopreusableMPgraphic
+
+\startsubsection[title={2-Recurrence and Safety}]
+
+    \placefigure[top][fig:cases-corridor-backandforth-automaton]{
+        TODO
+    }{
+        % Put in wide box so that figure caption has full width
+        \framed[width=\textwidth,frame=off]{\reuseMPgraphic{cases-corridor-backandforth-automaton}}
+    }
+
+    Finally consider a sighly more complex objective that requires traces to visit both rooms over and over again while avoiding the walls of the corridor
+
+    \startformula
+        \Globally (\neg a \wedge \Finally b \wedge \Finally c )
+    \stopformula
+
+    No co-safe interpretation.
+
+    Explain repeated (q0 q1 q2) trace as decomposition targets.
+    Mention that refinement for one direction only does not lead to satisfaction for entire objective.
+    Apply layered refinement for both transitions.
+    Note that overrefinement in corridor occurs due to fixed layer structure.
+
+    Use layered in one direction and robust in other instead to avoid this.
+    Mention blow up of state space and that no progress guarantee can help here as nothing is in yes-region at the beginning.
+
+    Use layered approach again for controller synthesis.
+
+\stopsubsection
 

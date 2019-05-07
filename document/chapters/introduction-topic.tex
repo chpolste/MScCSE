@@ -1,5 +1,17 @@
-What is this thesis about?
-Where do the problems appear?
+What are cyber-physical systems.
+Also called hybrid systems.
+Encopasses a range of different systems.
+Dynamics: deterministic/probabilistic, linear/piecewise affine/non-linear
+Knowledge: complete/partial.
+Control: disrete=switching/continuous
+Specification: qualitative (almost-sure,robust)/quantitative (rewards, bounded probabilities).
+Fixed specification/adaptive.
+From basic reachability or safety properties to full temporal logics (LTL, CTL, PCTL, and many more).
 
-Examples of other people who have done similar stuff.
+The number of approaches within the model checking framework is as diverse as the properties of the hybrid systems as every combination requires or suits different techniques.
+Questions of complexity important, especially as formal methods are picked up by practicioners and applied in robotics, multi-agent coordination tasks and real-time environments such as automated driving.
+
+One particular approach was first introduced by \cite[Svorenova2017] for discrete-time, linear stochastic systems with continuous state and control spaces, verified with respect to almost-sure satisfaction of specifications from the General Reactivity (1) fragment of linear temporal logic.
+The approach uses a 2½-player game abstraction build on iteratively refined partitions of the state and control space to construct a sound verification procedure.
+It is the foundation this work builds on.
 

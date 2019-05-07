@@ -1,0 +1,18 @@
+This work has been concerned with the computation of the set of initial states of a linear stochastic system, such there exists a control strategy to ensure an objective specified in the extended GR(1) frament of linear temporal logic with probability 1.
+The problem was previously posed by \cite[Svorenova2017], who also devised an iterative abstraction-analysis-refinement procedure for its solution.
+A 2½-player game serves as the abstraction model and is constructed based on the dynamics of the LSS.
+It is combined with the temporal logic specification by translating the latter into an \omega-automaton and taking the synchronized product of game and automaton.
+Analysing the resulting product game in both an adversarial and cooperative setting allows to classify parts of the abstraction as members of the sets of satisfying and non-satisfying initial states.
+Due to coarse abstraction, membership cannot be decided for some states.
+Therefore, refinement is applied to the abstraction based on information from the system dynamics, and game analysis.
+The procedure generates correct (partial) solutions at every step but is not guaranteed to terminate.
+
+Building on the ideas layed out by \cite[Svorenova2017], new refinement procedures were presented in this work.
+The positive refinement approach has been evolved into a more general robust refinement scheme and the layered refinement technique extended to general objectives through a product game decomposition based on automaton transitions.
+The new category of neutral refinement methods has been introduced together with two procedures called safety refinement and self-loop removal.
+Their merits were discussed in the context of stutter-equivalence in next-free LTL.
+
+The abstraction and analysis procedure together will all presented refinement methods was implemented as an interactive application for problems in 1 and 2 dimensions.
+Significant improvements in the refinement performance in terms of time to solution and the number of abstraction states required for a solution have been demonstrated.
+The layered decomposition approach in particularly has shown promising performance in the case studies.
+

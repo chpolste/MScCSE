@@ -1,7 +1,6 @@
 \usecolors[xwi]
+\usemodule[algorithmic]
 
-% Fixes for broken rendering
-\input{inputs/fixes}
 % Custom TeX-commands
 \input{inputs/commands}
 
@@ -15,15 +14,15 @@
 
 % Setup links and assign PDF metadata
 \setupinteraction[
-        state=start,
-        color=black,
-        contrastcolor=black,
-        style=,
-        focus=standard,
-        title={}, % TODO
-        subtitle={}, % TODO
-        author={Christopher Polster},
-        ]
+    state=start,
+    color=black,
+    contrastcolor=black,
+    style=,
+    focus=standard,
+    title={}, % TODO
+    subtitle={}, % TODO
+    author={Christopher Polster},
+    ]
 
 % Title of table of content
 \setupheadtext[content={Table of Contents}]
@@ -39,7 +38,6 @@
 \definefontfamily[titlefont][sans][dejavusans]
 \definefont[CoverTitleFont][dejavusansbold at 19pt]
 \definefont[CoverSubtitleFont][dejavusansbold at 15pt]
-\definefont[AbstractHeadingFont][dejavusans at 11pt]
 \definefont[ChapterFont][dejavusans at 19pt]
 \definefont[SectionFont][dejavusans at 13pt]
 \definefont[SubsectionFont][dejavusans at 12pt]
@@ -58,7 +56,8 @@
 \definealternativestyle[SubsectionStyle][\SubsectionFont]
 
 % No chapter numbering, apply heading styles
-\setuphead[chapter][number=no,style=ChapterStyle,page=yes]
+\definepagebreak[oddemptyfill][yes,footer,header,right] % https://wiki.contextgarden.net/Titles#Truly_empty_pagebreak_before_chapters
+\setuphead[chapter][number=no,style=ChapterStyle,page=oddemptyfill]
 \setuphead[section][style=SectionStyle,sectionsegments=section]
 \setuphead[subsection][style=SubsectionStyle,sectionsegments=section:subsection]
 
@@ -75,42 +74,34 @@
 % Which captions to include in the table of contents?
 \placebookmarks[chapter,section,subsection]
 
-% Footnotes
-\define[1]\footnotebrack{\narrownobreakspace\high{[#1]}}
-\setupnotation[footnote][alternative=text]
-\setupfootnotes[
-        way=bytext,
-        frameoffset=0mm,
-        topframe=on,
-        rule=off,
-        toffset=1mm,
-        roffset=-14cm,
-        before={\blank[7mm]}%,
-        %textcommand=\footnotebrack
-        ] % fixes weird spacing when only one line of footnote
+% Float captions
+\setupcaptions[
+    style={FigureStyle},
+    suffix={:},
+    headstyle={FigureCaptionStyle},
+    prefixsegments=none,
+    width=fit,
+    way=bytext,
+    spaceafter=2mm,
+    ]
 
 % Figures
 \setupexternalfigures[directory=figures/]
-\setupcaptions[figure][
-        style={FigureStyle},
-        suffix={:},
-        headstyle={FigureCaptionStyle},
-        prefixsegments=none,
-        width=fit,
-        way=bytext,
-        spaceafter=2mm
-        ]
 
-% Tables
-\setupcaptions[table][
-        style={FigureStyle},
-        suffix={:},
-        headstyle={FigureCaptionStyle},
-        prefixsegments=none,
-        width=fit,
-        way=bytext,
-        spaceafter=2mm
-        ]
+% Algorithms
+\definefloat[algorithm][algorithms]
+\setupalgorithmic[
+    numbering=yes,
+    width=1.2em,
+    numberwidth=1.5em,
+    margin=2.7em,
+    align=flushright,
+    location=text,
+    spacebefore=0.5em,
+    spaceafter=0.5em,
+    ]
+\setupframedtext[frame=off,topframe=on,bottomframe=on]
+
 % Formulas
 \defineseparatorset[none][][]
 \setupformulas[way=bytext,prefixsegments=none,numberseparatorset=none]
@@ -121,7 +112,15 @@
 \setupbibtex[database={inputs/references},sort=author]
 \setuppublications[criterium=cite,alternative=apa,sorttype=bbl,refcommand=authoryear]
 \setuppublicationlist[artauthoretallimit=40,criterium=all]
-\setupcite[authoryears][pubsep={; },lastpubsep={; },inbetween={ },compress=no,left={(},right={)}]
+\setupcite[inbetween={\ }] % fix spacing after et al.
+\setupcite[authoryears][
+    pubsep={; },
+    lastpubsep={; },
+    inbetween={\ }, % no comma
+    compress=no,
+    left={(},
+    right={)},
+    ]
 
 % Taken from bibl-apa.tex and added doi
 \setuppublicationlayout[article]{%
@@ -157,35 +156,32 @@
 
 
 % Cover
-\definesectionblock[cover][,]
-\setupsectionblock[cover][page=right]
+\definesectionblock[cover]
+\setupsectionblock[cover][page=odd]
 \startsectionblockenvironment[cover]
     \switchtobodyfont[titlefont,10pt]
     \setupinterlinespace[line=14pt]
     \setupwhitespace[medium]
 \stopsectionblockenvironment
 
-% Abstract
-\definesectionblock[abstract][,]
-\setupsectionblock[abstract][page=right]
-\startsectionblockenvironment[abstract]
-    \setuppagenumbering[state=stop,alternative=doublesided]
+% Declaration
+\definesectionblock[declaration]
+\setupsectionblock[declaration][page=odd]
+\startsectionblockenvironment[declaration]
     \setupinterlinespace[line=1.5em]
     \setupwhitespace[medium]
-    \setupnarrower[middle=10mm]
-    \page[right]
 \stopsectionblockenvironment
 
 % Table of contents
-\definesectionblock[tableofcontents][,]
-\setupsectionblock[tableofcontents][page=right]
+\definesectionblock[tableofcontents]
+\setupsectionblock[tableofcontents][page=odd]
 \startsectionblockenvironment[tableofcontents]
     \setupwhitespace[0.5em]
     \setuppagenumbering[state=stop,alternative=doublesided]
 \stopsectionblockenvironment
 
 % Frontmatter: acknowledgements, preface
-\setupsectionblock[frontpart][page=right]
+\setupsectionblock[frontpart][page=odd]
 \startsectionblockenvironment[frontpart]
     \setuplayout[footerdistance=8mm,footer=6mm]
     \setcounter[userpage][1] % Reset page counter
@@ -203,7 +199,7 @@
 \stopsectionblockenvironment
 
 % Bodymatter: text
-\setupsectionblock[bodypart][page=right]
+\setupsectionblock[bodypart][page=odd]
 \startsectionblockenvironment[bodypart]
     \setuplayout[footerdistance=8mm,footer=6mm]
     \setcounter[userpage][1] % Reset page counter
@@ -215,38 +211,39 @@
             alternative=doublesided,
             style=\PageNumberFont
             ]
+    \setupfooter[text][
+            before={\startframed[frame=off,topframe=on,offset=0mm,rulethickness=0.2mm]},
+            after={\stopframed},
+            ]
     \setupfootertexts[{\FooterFont {\DocTitleFooter}}]
                      [pagenumber]
                      [pagenumber]
                      [{\FooterFont Master's Thesis of {\Author} (\YearOfCompletion)}]
-    \setupbackgrounds[footer][text][topframe=on]
     \setupwhitespace[medium]
     \setupinterlinespace[line=1.5em]
 \stopsectionblockenvironment
 
 % Backmatter: bibliography
-\setupsectionblock[backpart][page=right]
+\setupsectionblock[backpart][page=odd]
 \startsectionblockenvironment[backpart]
     \setuppagenumbering[alternative=doublesided,style=\PageNumberFont]
     \setuplayout[footerdistance=8mm,footer=6mm]
+    \setupfooter[text][
+            before={\startframed[frame=off,topframe=on,offset=0mm,rulethickness=0.2mm]},
+            after={\stopframed},
+            ]
     \setupfootertexts[{\FooterFont {\DocTitleFooter}}]
                      [pagenumber]
                      [pagenumber]
                      [{\FooterFont Master's Thesis of {\Author} (\YearOfCompletion)}]
-    \setupbackgrounds[footer][text][topframe=on]
     \setupwhitespace[medium]
     \setupinterlinespace[line=1.5em]
 \stopsectionblockenvironment
 
-% Declaration
-\definesectionblock[declaration][,]
-\setupsectionblock[declaration][page=right]
-\startsectionblockenvironment[declaration]
-    \setuppagenumbering[state=stop,alternative=doublesided]
-    \setupinterlinespace[line=1.5em]
-    \setupwhitespace[medium]
-\stopsectionblockenvironment
 
+% Fixes for stuff that seems/is broken (must come after setups, else some fixes
+% are overwritten)
+\input{inputs/fixes}
 
 
 \starttext
@@ -255,8 +252,8 @@
         \input{inputs/cover}
     \stopsectionblock
 
-    \startsectionblock[abstract]
-        \input{inputs/abstract}
+    \startsectionblock[declaration]
+        \input{inputs/declaration}
     \stopsectionblock
 
     \startsectionblock[tableofcontents]
@@ -265,13 +262,13 @@
 
     \startfrontmatter
 
-        \startchapter[title=Acknowledgements]
-            ...
+        \startchapter[title={Abstract}]
+            \input{inputs/abstract}
         \stopchapter
 
         \page[even,empty]
 
-        \startchapter[title=Notation]
+        \startchapter[title=Acknowledgements]
             ...
         \stopchapter
 
@@ -285,53 +282,49 @@
 
             \input{chapters/introduction}
 
-            \startsection[title={Model Checking of Hybrid Systems}]
+            \startsection[title={Model Checking of Hybrid Systems},reference=sec:introduction-topic]
                 \input{chapters/introduction-topic}
             \stopsection
 
-            \startsection[title={Review of Related Work}]
+            \startsection[title={Review of Related Work},reference=sec:introduction-review]
                 \input{chapters/introduction-review}
             \stopsection
 
-            \startsection[title={Goals of This Work}]
+            \startsection[title={Goals of This Work},reference=sec:introduction-goals]
                 \input{chapters/introduction-goals}
             \stopsection
 
         \stopchapter
 
-        \startchapter[title={Theoretical Foundations}]
+        \startchapter[title={Preliminaries}]
 
             \input{chapters/theory}
 
-            \startsection[title={Model Checking}]
+            \startsection[title={Model Checking},reference=sec:theory-checking]
                 \input{chapters/theory-checking}
             \stopsection
 
-            \startsection[title={Transition Systems}]
-                \input{chapters/theory-transitions}
+            \startsection[title={Transition Systems and Abstractions},reference=sec:theory-abstractions]
+                \input{chapters/theory-abstractions}
             \stopsection
 
-            \startsection[title={Abstraction Refinement}]
-                \input{chapters/theory-refinement}
-            \stopsection
-
-            \startsection[title={Hybrid Systems}]
+            \startsection[title={Hybrid Systems},reference=sec:theory-hybrids]
                 \input{chapters/theory-hybrids}
             \stopsection
 
-            \startsection[title={Convex Geometry}]
+            \startsection[title={Convex Geometry},reference=sec:theory-geometry]
                 \input{chapters/theory-geometry}
             \stopsection
 
-            \startsection[title={Markov Models and Probabilistic Games}]
+            \startsection[title={Markov Models and Probabilistic Games},reference=sec:theory-games]
                 \input{chapters/theory-games}
             \stopsection
 
-            \startsection[title={Automata and Languages}]
+            \startsection[title={Languages and Automata},reference=sec:theory-automata]
                 \input{chapters/theory-automata}
             \stopsection
 
-            \startsection[title={Temporal Logic}]
+            \startsection[title={Temporal Logic},referenc=sec:theory-logic]
                 \input{chapters/theory-logic}
             \stopsection
 
@@ -341,68 +334,86 @@
 
             \input{chapters/problem}
 
-            \startsection[title={Setup}]
+            \startsection[title={System Setup},reference=sec:problem-setup]
                 \input{chapters/problem-setup}
             \stopsection
 
-            \startsection[title={Satisfiability Analysis}]
-                \input{chapters/problem-analysis}
+            \startsection[title={Problem Statement},reference=sec:problem-statement]
+                \input{chapters/problem-statement}
             \stopsection
 
-            \startsection[title={Controller Synthesis}]
-                \input{chapters/problem-synthesis}
-            \stopsection
-
-            \startsection[title={Approach Overview}]
+            \startsection[title={Solution Approach},reference=sec:problem-approach]
                 \input{chapters/problem-approach}
             \stopsection
 
         \stopchapter
 
-        \startchapter[title={Game-based Abstraction}]
+        \startchapter[title={Abstraction and Analysis}]
 
             \input{chapters/abstraction}
 
-            \startsection[title={Dynamics Operators}]
+            \startsection[title={Dynamics Operators},reference=sec:abstraction-operators]
                 \input{chapters/abstraction-operators}
             \stopsection
 
-            \startsection[title={Game Graph}]
+            \startsection[title={Game Graph},reference=sec:abstraction-graph]
                 \input{chapters/abstraction-graph}
             \stopsection
 
-            \startsection[title={Objective Automaton}]
-                \input{chapters/abstraction-objective}
-            \stopsection
-
-            \startsection[title={Product Game}]
+            \startsection[title={Product Game},reference=sec:abstraction-product]
                 \input{chapters/abstraction-product}
             \stopsection
 
-            \startsection[title={Example}]
-                \input{chapters/abstraction-example}
+            \startsection[title={Analysis},reference=sec:abstraction-analysis]
+                \input{chapters/abstraction-analysis}
+            \stopsection
+
+            \startsection[title={Controller Synthesis},reference=sec:abstraction-synthesis]
+                \input{chapters/abstraction-synthesis}
             \stopsection
 
         \stopchapter
 
-        \startchapter[title={Solution}]
+        \startchapter[title={Abstraction Refinement}]
 
-            \input{chapters/solution}
+            \input{chapters/refinement}
 
-            \startsection[title={Game Analysis}]
-                \input{chapters/solution-analysis}
+            \startsection[title={Refinement Guidance},reference=sec:refinement-guidance]
+                \input{chapters/refinement-guidance}
             \stopsection
 
-            \startsection[title={Controller Synthesis}]
-                \input{chapters/solution-synthesis}
+            \startsection[title={Positive Refinement with Robust Operators},reference=sec:refinement-robust]
+                \input{chapters/refinement-robust}
             \stopsection
 
-            \startsection[title={Abstraction Refinement}]
-                \input{chapters/solution-refinement}
+            \startsection[title={Holistic Refinement},reference=sec:refinement-holistic]
+                \input{chapters/refinement-holistic}
             \stopsection
 
-            \startsection[title={Solution Properties}]
-                \input{chapters/solution-properties}
+            \startsection[title={A Reduction Approach},reference=sec:refinement-reduction]
+                \input{chapters/refinement-reduction}
+            \stopsection
+
+            \startsection[title={Transition Refinement},reference=sec:refinement-transition]
+                \input{chapters/refinement-transition}
+            \stopsection
+
+        \stopchapter
+
+        \startchapter[title={An Interactive Implementation}]
+
+            \input{chapters/implementation}
+
+            \startsection[title={The Case for Interactive Exploration},reference=sec:implementation-exploration]
+                \input{chapters/implementation-exploration}
+            \stopsection
+
+            \startsection[title={Platform Selection},reference=sec:implementation-platform]
+                \input{chapters/implementation-platform}
+            \stopsection
+
+            \startsection[title={Features},reference=sec:implementation-features]
+                \input{chapters/implementation-features}
             \stopsection
 
         \stopchapter
@@ -411,34 +422,30 @@
 
             \input{chapters/cases}
 
-            \startsection[title={An Interactive Implementation}]
-                \input{chapters/cases-app}
-            \stopsection
-
-            \startsection[title={Double Integrator}]
+            \startsection[title={Double Integrator},reference=sec:cases-integrator]
                 \input{chapters/cases-integrator}
             \stopsection
 
-            \startsection[title={Corridor}]
+            \startsection[title={Corridor},reference=sec:cases-corridor]
                 \input{chapters/cases-corridor}
-            \stopsection
-
-            \startsection[title={Inverted Pendulum}]
-                \input{chapters/cases-pendulum}
             \stopsection
 
         \stopchapter
 
-        \startchapter[title={Discussion}]
+        \startchapter[title={Conclusion}]
 
-            \input{chapters/discussion}
+            \input{chapters/conclusion}
 
-            \startsection[title={Conclusions}]
-                \input{chapters/discussion-conclusions}
+            \startsection[title={Review},reference=sec:conclusion-review]
+                \input{chapters/conclusion-review}
             \stopsection
 
-            \startsection[title={Outlook}]
-                \input{chapters/discussion-outlook}
+            \startsection[title={Summary of Contributions},reference=sec:conclusion-contributions]
+                \input{chapters/conclusion-contributions}
+            \stopsection
+
+            \startsection[title={Outlook},reference=sec:conclusion-outlook]
+                \input{chapters/conclusion-outlook}
             \stopsection
 
         \stopchapter
@@ -446,15 +453,16 @@
     \stopbodymatter
 
     \startbackmatter
+
+        \startchapter[title=Appendix]
+            \input{chapters/appendix}
+        \stopchapter
+
         \startchapter[title=References]
             \placepublications
-            \break % makes footer work properly
         \stopchapter
-    \stopbackmatter
 
-    \startsectionblock[declaration]
-        \input{inputs/declaration}
-    \stopsectionblock
+    \stopbackmatter
 
 \stoptext
 

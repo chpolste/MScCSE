@@ -546,7 +546,7 @@ export class TwoPlayerProbabilisticGame {
             // Default state priority is 2
             game.setPriority(state, 2);
             // States from difference of automaton acceptance sets E \ F have
-            // priority 0. Dead end states also have priority 1 so only player
+            // priority 1. Dead end states also have priority 1 so only player
             // 2 can win.
             if (priority1.has(state.automatonState) || state === deadEndP1 || state === deadEndP2) {
                 game.setPriority(state, 1);

@@ -1,0 +1,49 @@
+If a given state space partition has been found to be too coarse and does not allow a membership decision with respect to $\InitialStates$ and $\StateSpace \setminus \InitialStates$ for all its elements, how should one determine which of its parts require refinement and how should this refinement look like?
+Answers to these question are given by the idea of counterexample-guided abstraction refinement \cite[alternative=authoryears,left={(CEGAR, }][Clarke2000].
+In classical CEGAR, the analysis procedure generates a counterexample if the specification cannot be met from some state in form of a path through the abstraction that results in non-satisfaction.
+If the counterexample is found to be spurious, i.e.\ it requires behaviour that is possible in the abstraction but not the original system, refinement is applied that eliminates this behaviour from the abstraction.
+
+The analysis procedure described above does not return specific counterexample plays for states in which player 2 has a strategy to win with non-zero probability.
+It does however return the set $P_\Maybe$, containing all states in which player 1 cannot win almost-surely against an aversarial opponent, but winning is possible when player 2 is cooperative.
+States in $P_\Maybe$ are therefore exactly those states with are associated with spurious behaviour in the abstraction, i.e.\ behaviour where player 1 might be able to win, but is unable to due to the limitations of the abstraction.
+Without a specific counterexample trace, knowledge of the game graph and the LSS dynamics have to be combined with the analysis results to determine how to refine.
+Based on $P_\Maybe$, one can restrict refinement to the state space partition elements
+
+\startformula
+    \Set{ \State{i} \mid \exists q \in Q : \State{i} \in \MaybeStates{q} } \EndPeriod
+\stopformula
+
+For other other elements of the partiton an almost-sure winning strategy for player 1 either is known to exist or not exist for both all associated player 1 states of the product game and initial states of the original LSS.
+This is guaranteed by the partial correctness of the analysis procedure (section \in[sec:abstraction-analysis-correctness]).
+
+\cite[Svorenova2017] separated their refinement procedures into two categories named positive and negative.
+The goal of positive refinement is to enlarge the total state space volume associated with states in $P_\Yes$ while negative refinement aims to enlarge the volume associated with $P_\No$.
+Here, an additional category called neutral refinement is introduced.
+The purpose of procedures from this category is not to enlarge $P_\Yes$ or $P_\No$ immediately, but to transfer control over the behaviour of a trace from player 2 to player 1, such that \quotation{bad} transitions can be avoided for longer.
+The value of creating such a \quotation{neutral} environment without inevitable bad transitions is derived from the stutter equivalence of traces evaluated with LTL formulas that do not contain the next operator (e.g.\ GR(1) formulas).
+In $\Next$-free LTL, only the order of events can be specified and not the temporal distance between them.
+For almost-sure verification, this means that there is no need to satisfy an objective in an efficient manner.
+Player 1 can take any number of turns to reach a state that has a desirable transition as long as the number of turns is finite and player 2 is unable to force an unwanted transition during these turns.
+Even if the desired transition is only possible with a small but non-zero probability, player 1 can still win almost-surely as long as the play remains in a neutral environment and the corresponding state can be reached over and over again after a finite time.
+With each try, the overall probability that the desired transition happens approaches 1.
+Neutral refinement procedures aim to break patterns in the game graph that allow player 2 to win, i.e.\ the aforementioned bad transitions, and transfer control to player 1 through the creation of a neutral environment.
+An almost-sure winning player 1 strategy for the objective may not immediately exist after neutral refinement but finding one through positive refinement should have become easier.
+
+Even for positive refinement, feedback to a refinement of the state space partition will not be immediate in general.
+Particularly for more complex objectives, multiple refinement steps might be necessary until the first states of the product game are recognized as members of $P_\Yes$ or $P_\No$ by the analysis.
+This can be a challenge when fully autonomous selection of refinement procedures is desired.
+One cannot solely rely on direct feedback from the sets $P_{\Yes}$, $P_{\No}$ and $P_{\Maybe}$ to evalute which refinement procedure to apply next since progress cannot be guaranteed in general.
+Unless a co-safe interpretation is adopted, where the final states are trivially satisfying, the set $P_\Yes$ will likely be empty initially.
+The design of refinement procedures has to take these concerns into account.
+
+With multiple refinement procedures are at one's disposal, questions related to their coordination arise:
+Which procedures should be selected?
+In which order and how oftern should these procedures be applied?
+How often should the system be analysed between refinement steps to assess progress?
+General answers to these questions are hard to find.
+The best strategy for refinement coordination will depend on the objective, the properties of the LSS and even on the meaning of \quotation{best}.
+One can optimize refinement for the shortest time until a certain percentage of the state space has been decided by the analysis, the smallest number of states space partition elements that have to be generated until a solution is found, the suitability of the generated game graph for controller synthesis purposes and many other metrics.
+When performance is of importance, note has to be taken that the application of a refinement procedure invalidates (parts of) the game graph.
+If multiple refinement procedures are chained without an intermediate analysis (for which the game graph must be constructed inevitably), the invokation of some procedures may include significant additional computational cost because the game graph has to be recomputed, which involves operations of exponential complexity in the number of states.
+This gives an advantage to procedures based only on the analysis results and system dynamics as they can be chained without incurring additional computational cost.
+

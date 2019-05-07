@@ -1,36 +1,26 @@
-Automata provide a way to represent a language.
-A Language contains words made up from symbols originating from an alphabet.
-An automaton is a transition system constructed such that any given word induces a run, which is either accepted or rejected.
-All words inducing accepted runs are part of the language of the automaton, while rejected words are not.
-Many different types of automata exist for many different types of languages.
-In this work, deterministic finite-state automata (DFAs) and languages containing infinite words are of interest, for which \omega-automata are appropriate.
-
-Before defining \omega-automata, some notation for working with languages is introduced:
-The language of an automaton ${\mathcal A}$ is denoted as $\Language({\mathcal A})$.
-A word is written as a sequence of symbols, e.g. $w_0 w_1 w_2$.
-The set of all finite words over an alphabet $\Sigma$ is written as $\RepeatFinitely{\Sigma}$, while the set of all infinite words is written as $\RepeatInfinitely{\Sigma}$.
-This notation is more generally used for sets of sequences and for (\omega-)regular expressions over an alphabet, where it represents finite ($\RepeatFinitely{\,}$) or infinite ($\RepeatInfinitely{\,}$) recurrence of a symbol (consult chapter 4 in the book of \cite[Baier2008] for a more thorough introduction to regular expressions).
+A language is a collection of words, formed from an alphabet of symbols according to a set of rules.
+Finite automata are transition systems with which such rules can be expressed.
 
 
 \startsubsection[title={\omega-Automata},reference=sec:theory-automata-omega]
 
-    A deterministic \omega-automaton is type of DFA, specified by a tuple 
+    A deterministic \omega-automaton is a 5-tuple 
 
     \startformula
-        \mathcal{A} = (Q, \Sigma, \delta, q_0, \mathcal{C}) \EndComma
+        \Automaton = (Q, \Alphabet, \Transition, q_{\mathrm init}, \Condition) \EndComma
     \stopformula
 
     where
     $Q \neq \emptyset$ is a finite set of states,
-    $\Sigma$ is a finite alphabet of symbols,
-    $\delta: Q \times \Sigma \rightarrow Q$ is a deterministic transition function,
-    $q_0 \in Q$ is the initial state of the automaton.
-    If the transition function is defined for every combination of state from $Q$ and symbol from $\Sigma$, the automaton is called complete otherwise is is called incomplete.
+    $\Alphabet$ is a finite alphabet of symbols,
+    $\Transition: Q \times \Alphabet \rightarrow Q$ is a deterministic transition relation and
+    $q_{\mathrm init} \in Q$ is the initial state of the automaton.
+    If the transition relation is defined for every combination of state in $Q$ and symbol in $\Alphabet$, the automaton is called complete, otherwise it is called incomplete.
 
-    A run is an infinite sequence of states $q_0 q_1 ... \in \RepeatInfinitely{Q}$ such that $q_{i+1} = \delta(q_i, w_i)$, $w_i \in \Sigma$ for all $i \in \naturalnumbers_0$.
-    Every run is associated with a word $w = w_0 w_1 ... \in \RepeatInfinitely{\Sigma}$, induced by the symbols that label the transitions.
-    The purpose of the acceptance condition $\mathcal{C}$ is to specify which words are accepted by the automaton and therefore part of $\Language({\mathcal A})$ and which which words are rejected.
-    It can be expressed in different ways.
+    A run is an infinite sequence of states $q_0 q_1 ... \in Q^\omega$ such that $q_0 = q_init$ and $q_{i+1} = \delta(q_i, w_i)$, $w_i \in \Alphabet$ for all $i \in \naturalnumbers_0$.
+    Because the transitions of $\Automaton$ are deterministic, every run is uniquely associated with a word $w = w_0 w_1 ... \in \Alphabet^\omega$ through the transition labels from $\Sigma$ assigned by $\Transition$.
+    The language $\Language(\Automaton)$ of an automaton $\Automaton$ is defined as the set of all words whose corresponding runs are accepted by the acceptance condition $\Condition$.
+    Note that a \quotation{run} refers to a sequence of automaton states, a \quotation{word} to sequence of symbols from an alphabet, a \quotation{trace} to a sequence of states of an LSS and a \quotation{play} is sequence of states of a game.
 
 \stopsubsection
 
@@ -49,44 +39,45 @@ This notation is more generally used for sets of sequences and for (\omega-)regu
     endfig;
 \stopreusableMPgraphic
 
-\startsubsection[title={Acceptance Conditions}]
+\startsubsection[title={Acceptance Conditions},reference=sec:theory-automata-acceptance]
 
-    For a run to be accepted by the automaton it has to start in the initial state $q_0$ and all transitions required to realize the run have to be defined by the transition function.
-    In case of an incomplete automaton, all words that require a transition not defined by $\delta$ in their corresponding run are rejected.
-    In addition to these basic requirements of accepted runs, the acceptance condition specifies further restrictions.
-
-    Formally, the acceptance condition ${\mathcal C}$ divides the set of all runs into a set containing all accepted runs and a set containing all not accepted runs.
-    A word is called accepted if the corresponding run is accepted.
-    The set of all accepted words is the language of the automaton.
-    Since there are usually infinitely many accepted words, the acceptance condition is expressed by other means than a set of words.
-
-    A Büchi condition is expressed by a set of states and requires that at least one state from this set is visited infinitely often in every accepted run.
-    A generalization of the Büchi acceptance condition is the Büchi-implication condition, also known as the one-pair Streett condition.
-    It is specified by a tuple of sets $\mathcal{C} = (E, F) \subseteq Q \times Q$ and accepts all runs $r$ satisfying
+    An acceptance condition $\Condition$ specifies the set of all accepted runs.
+    If a run is not accepted, it is rejected.
+    The set of all accepted runs is generally an infinite set.
+    The acceptance condition is therefore usually expressed by other means than an enumeration of runs from the accepted set.
+    A Büchi acceptance condition is defined by a set of states of which at least one has to be visited infinitely often in a run or the run is rejected.
+    A Büchi-implication condition, also known as a one-pair Streett condition, is specified by a tuple of sets $\mathcal{C} = (E, F) \subseteq Q \times Q$ and accepts all runs $r$ satisfying
 
     \startformula
         (\InfinitelyOften{r} \cap E \ne \emptyset) \Longrightarrow (\InfinitelyOften{r} \cap F \ne \emptyset) \EndComma
     \stopformula
 
     where the set of states which occur infinitely often in the run $r$ is denoted by $\InfinitelyOften{r}$.
-    I.e., in every accepted run an infinite occurrence of at least one state from $E$ implies that at least one state from $F$ is also visited infinitely often.
+    If any state from $E$ occurs infinitely often in a run, a state from $F$ has to occur infinitely often as well otherwise the run is rejected.
+    The condition is trivially fulfilled if $E$ is empty.
+    If $F$ is empty, all runs in which a state from $E$ occurs infinitely often are rejected.
 
     \placefigure[top][fig:theory-automaton-example]{
-        An automaton with the one-pair Streett acceptance condition $(\Set{q_0}, \Set{q_2})$.
+        A deterministic, incomplete \omega-automaton with a one-pair Streett acceptance condition $\Tuple{E}{F} = \Tuple{\Set{q_0}}{\Set{q_2}}$.
+        States from $E$ are highlighted with a dashed border and states from $F$ with a double border.
+        The language of the automaton consists of all words of the form $a^\ast b c d^\omega$.
     }{
         % Put in wide box so that figure caption has proper width
         \framed[width=\textwidth,frame=off]{\reuseMPgraphic{theory-automaton-example}}
     }
 
-    For example, consider the automaton with one-pair Streett acceptance condition
+    Figure \in[fig:theory-automaton-example] shows the automaton
 
     \startformula
-        (\Set{q_0, q_1, q_2}, \Set{a, b, c, d}, \delta, q_0, (\Set{q_0}, \Set{q_2})) \EndComma
+        (\Set{q_0, q_1, q_2}, \Set{a, b, c, d}, \Transition, q_0, (\Set{q_0}, \Set{q_2}))
     \stopformula
 
-    where the transition function defines $\delta(q_0, a) = q_0$, $\delta(q_0, b) = q_1$, $\delta(q_1, c) = q_2$ and $\delta(q_2, d) = q_2$.
-    This automaton accepts all words starting with a finite number of $a$s, followed by a single $b$, a single $c$ and then $d$s forever, i.e. all words of the form $\RepeatFinitely{a} b c \RepeatInfinitely{d}$.
-    It is shown in Figure \in[fig:theory-automaton-example], which demonstrate show states from one-pair Streett acceptance sets $E$ (dashed border) and $F$ (double border) are highlighted in automaton depictions here.
+    with a one-pair Streett acceptance condition.
+    The transition relation defines $\delta(q_0, a) = q_0$, $\delta(q_0, b) = q_1$, $\delta(q_1, c) = q_2$ and $\delta(q_2, d) = q_2$.
+    The automaton is therefore incomplete.
+    This automaton accepts all runs that stay in $q_0$ for a finite number of steps before transitioning to $q_1$ and then immediately to $q_2$, where they stay forever.
+    The corresponding language of the automaton contains all words starting with a finite number of $a$s, followed by a single $b$, a single $c$ and then $d$s forever.
+    Words of this form are written as $a^\ast b c d^\omega$, where $a^\ast$ denotes any finite repetition of $a$ and $d^\omega$ the infinite repetition of $d$.
 
 \stopsubsection
 

@@ -1,13 +1,19 @@
+% Convention: CamelCase for custom commands
 
-% CamelCase for custom commands
-
-\define\DocTitleFooter{Refinement for game-based abstractions of continuous-space LSSs} % TODO
+\define\DocTitleFooter{Refinement for Game-based Abstractions of Continuous-space LSSs} % TODO
 \define\Author{Christopher Polster}
 \define\YearOfCompletion{2019}
 \define\DateOfCompletion{\YearOfCompletion-??-??} % TODO
 
+
+% Math
+% ----
+
 % Tall version of \mid
 \definemathcommand[Bigmid][rel]{\mathrel{\Big|}}
+
+% Cartesian product with flattening
+\definemathcommand[ftimes][op]{\mathrel{\check\times}}
 
 % Equation endings
 \define\EndComma{\;\text{,}}
@@ -16,12 +22,15 @@
 % Inline connectors
 \define\MidComma{\text{,}\;}
 \define\MidAnd{\;\text{and}\;}
+\define\MidOr{\;\text{or}\;}
+\define\StartIf{\text{if}\;}
 
-
-% General math
-% ------------
-
+% Function definition
 \define[3]\Function{#1:#2\rightarrow#3}
+
+% Probability distribution
+\definemathcommand[Supp][nolop]{\mfunction{Supp}}
+\define[1]\Support{\Supp({#1})}
 
 % 2-Norm
 \define[1]\TwoNorm{\lVert{#1}\rVert}
@@ -35,32 +44,14 @@
 \define\VecX{\Vec{x}}
 \define\VecY{\Vec{y}}
 \define\VecZ{\Vec{z}}
+\define\VecK{\Vec{k}}
 
 % Matrix variables with bolditalic font
 \define[1]\Mat{{\bi{#1}}}
 \define\MatA{\Mat{A}}
 \define\MatB{\Mat{B}}
 \define\MatU{\Mat{U}}
-
-
-% https://mailman.ntg.nl/pipermail/ntg-context/2017/089631.html
-%\unprotect
-%
-%\def\math_matrix_stop
-%  {\crcr
-% % \ifgridsnapping \else
-%     \mathstrut\crcr
-%     \noalign{\vskip-\baselineskip}%
-% % \fi
-%   \egroup
-%  %\popmacro\math_matrix_NC % Too early!
-%   \egroup
-%   \mathmatrixright
-%   \endgroup
-%   \popmacro\math_matrix_NC} % ungrouped!
-%
-%\protect
-
+\define\MatK{\Mat{K}}
 
 % Vectors and matrices with square brackets
 \definemathmatrix[sqmatrix][left={\left\lbrack\,},right={\,\right\rbrack},strut=0.8,distance=0.8em]
@@ -74,8 +65,8 @@
 \define[2]\TwoByOneSmall{ \startssqmatrix[n=1,align={middle}] \NC #1 \NR \NC #2 \NR \stopssqmatrix }
 
 % Sets and Intervals
-\define[1]\Set{{\{ {#1} \}}}
-\define[1]\BigSet{{\Big\{ {#1} \Big\}}}
+\define[1]\Set{\{ {#1} \}}
+\define[1]\BigSet{\Big\{ {#1} \Big\}}
 \define[2]\IndexedSet{\Set{#1}_{#2}}
 \define[2]\ClosedInterval{\left[\, #1,\, #2 \,\right]}
 
@@ -92,8 +83,8 @@
 % ----------------------
 
 % Polytope components
-\definemathcommand[Hull][nolop]{\mfunction{hull}}
-\definemathcommand[Vertices][nolop]{\mfunction{vert}}
+\definemathcommand[Hull][nolop]{\mfunction{Hull}}
+\definemathcommand[Vertices][nolop]{\mfunction{Vert}}
 % Posterior
 \definemathcommand[Post][nolop]{\mfunction{Post}}
 % Predecessors
@@ -108,19 +99,44 @@
 \definemathcommand[ActR][nolop]{\mfunction{ActR}}
 \definemathcommand[ActC][nolop]{\mfunction{ActC}}
 
+% LSS
+\define\LSS{{\mathcal{T}}}
+
 % States
 \define\StateSpace{X}
-\define\StateRegion{X'}
-\define\ExtendedStateSpace{\StateSpace_{ext}}
-\define\InitStateSpace{\StateSpace_{init}}
+\define\StateRegion{\StateSpace'}
+\define\StateTarget{\tilde\StateSpace}
+\define\ExtendedStateSpace{\StateSpace_{\mathrm ext}}
+\define\InitialStates{\StateSpace_{\mathrm init}}
 \define\VecState{\VecX}
 \define[1]\State{X_{#1}}
 \define[2]\IndexedStates{\IndexedSet{\State{#1}}{{#1} \in {#2}}}
+\define\StateIndices{I}
+\define\StateIndicesInner{I_{\mathrm in}}
+\define\StateIndicesOuter{I_{\mathrm out}}
+
+% Analysis Results
+\define\No{{\mathrm no}}
+\define\Yes{{\mathrm yes}}
+\define\Maybe{{\mathrm ?}}
+\define[1]\NoStates{X_{\No}^{#1}}
+\define[1]\YesStates{X_{\Yes}^{#1}}
+\define[1]\MaybeStates{X_{\Maybe}^{#1}}
+
+% Reachability States
+\define[2]\ReachStates{X_{\mathrm reach}^{#1 \rightarrow #2}}
+\define[2]\AvoidStates{X_{\mathrm avoid}^{#1 \rightarrow #2}}
+\define[2]\RefineStates{X_{\mathrm refine}^{#1 \rightarrow #2}}
+
+% Linear Predicates
+\definemathcommand[FulfilledPredicates][nolop]{\mfunction{\pi}}
 \define\Predicates{\Pi}
-\define[1]\PredicatesOf{\pi({#1})}
+\define\Predicate{\pi}
+\define[1]\PredicatesOf{\FulfilledPredicates({#1})}
 
 % Control
 \define\ControlSpace{U}
+\define\ControlRegion{\ControlSpace'}
 \define\VecControl{\VecU}
 \define[2]\Action{\Act({#1},\, {#2})}
 
@@ -138,6 +154,29 @@
 \define[2]\Action{\Act({#1},\, {#2})}
 \define[2]\RobustAction{\ActR({#1},\, {#2})}
 \define[2]\ConcreteAction{\ActC({#1},\, {#2})}
+% And variants with big parenthesis (I don't like how \left and \right handle some situations
+\define[2]\BigPosterior{\Post\Big({#1},\, {#2}\Big)}
+\define[3]\BigPredecessor{\Pre\Big({#1},\, {#2},\, {#3}\Big)}
+\define[3]\BigRobustPredecessor{\PreR\Big({#1},\, {#2},\, {#3}\Big)}
+\define[3]\BigPrecisePredecessor{\PreP\Big({#1},\, {#2},\, {#3}\Big)}
+\define[3]\BigAttractor{\Attr\Big({#1},\, {#2},\, {#3}\Big)}
+\define[3]\BigRobustAttractor{\AttrR\Big({#1},\, {#2},\, {#3}\Big)}
+\define[2]\BigAction{\Act\Big({#1},\, {#2}\Big)}
+\define[2]\BigRobustAction{\ActR\Big({#1},\, {#2}\Big)}
+\define[2]\BigConcreteAction{\ActC\Big({#1},\, {#2}\Big)}
+
+% Refinement
+% Decomposition into convex polytopes
+\definemathcommand[Convexify][nolop]{\mfunction{Convexify}}
+% Generic positive refinement kernel
+\definemathcommand[RefinePos][nolop]{\mfunction{RefineRobust_+}}
+\define[2]\RefinePositive{\RefinePos({#1},\, {#2})}
+\definemathcommand[GetCtrl][nolop]{\mfunction{GetControl}}
+\define[2]\GetControl{\GetCtrl({#1},\, {#2})}
+% Generic refinement step
+\definemathcommand[RefineStep][nolop]{\mfunction{RefineStep}}
+\define[2]\RefinementStep{\RefineStep({#1},\, {#2})}
+
 
 
 % Logic and Automata
@@ -151,12 +190,11 @@
 \define\Language{{\mathcal L}}
 \define\Condition{{\mathcal C}}
 \define\Transition{\delta}
-\define[1]\RepeatFinitely{{#1}^{\ast}}
-\define[1]\RepeatInfinitely{{#1}^{\omega}}
+\define\Alphabet{\Sigma}
 
 \definemathcommand[True]{{\mathss true}}
 \definemathcommand[Next]{{\mathss X}}
-\definemathcommand[Until]{\,{\mathss U}\,}
+\definemathcommand[Until]{{\mathss U}}
 \definemathcommand[Finally]{{\mathss F}}
 \definemathcommand[Globally]{{\mathss G}}
 
@@ -167,15 +205,28 @@
 \definemathcommand[AlmostSure][nolop]{\mfunction{Almost}}
 
 \define\GameGraph{{\mathcal G}}
+\define\Adversarial{{\mathrm adv}}
+\define\Cooperative{{\mathrm coop}}
 \define[2]\Strategy{S_{#2}^{#1}}
-\define[1]\Almost{\AlmostSure_{#1}}
-\define[1]\AlmostCoop{\AlmostSure_{#1}^{coop}}
+\define[1]\Almost{\AlmostSure({#1})}
+\define[1]\AlmostAdv{\AlmostSure^{\Adversarial}({#1})}
+\define[1]\AlmostCoop{\AlmostSure^{\Cooperative}({#1})}
 \define[1]\ProbDist{\mathcal{D}(#1)}
 
 \define\ProductGame{{\mathcal P}}
 \define[2]\PlayerOneAction{{#1}\rightarrow{#2}}
 \define[3]\PlayerTwoAction{\Tuple{#1}{#2}\rightarrow{#3}}
 
+\definemathcommand[Succ][nolop]{\mfunction{Succ}}
+\define[2]\Successor{\Succ({#1},\,{#2})}
+\define[2]\QNext{\Transition_\Automaton(#2, \PredicatesOf{\State{#1}})}
+
+\define\DeadEnd{{\mathrm END}}
+\define\SatEnd{{\mathrm SAT}}
+
+\define[2]\TransitionReach{{{\mathcal R}_{{#1} \rightarrow {#2}}}}
+\define[2]\TransitionStrategy{{\Strategy{1}{{#1} \rightarrow {#2}}}}
+\define[3]\TransitionLayer{{{\mathcal L}_{{#1} \rightarrow {#2}}^{#3}}}
 
 % Physics
 % -------
@@ -194,4 +245,92 @@
 \define\Friction{\mu}
 \define\Thrust{u}
 \define\Deltat{\Delta t}
+\define\BigO{{\mathcal O}}
+
+
+% Additional commands for algorithmic
+
+\unprotect
+
+\starttexdefinition algorithmic_input
+  \par
+  \algorithmic_label{input}
+  \space
+\stoptexdefinition
+
+\starttexdefinition algorithmic_output
+  \par
+  \algorithmic_label{output}
+  \space
+\stoptexdefinition
+
+\starttexdefinition algorithmic_do
+  \par
+  \algorithmic_label{do}
+  \algorithmic_begsub
+\stoptexdefinition
+
+\starttexdefinition algorithmic_enddowhile #1
+  \algorithmic_endsub
+  \algorithmic_label{while} #1
+\stoptexdefinition
+
+\setupalgorithmictext[\s!en][input=Input:]
+\setupalgorithmictext[\s!en][output=Output:]
+
+\algorithmic_define[INPUT][\algorithmic_input]
+\algorithmic_define[OUTPUT][\algorithmic_output]
+\algorithmic_define[DO][\algorithmic_do]
+\algorithmic_define[ENDDOWHILE][\algorithmic_enddowhile]
+
+\protect
+
+
+% Case-study refinement table
+
+\def\RefinementTable#1{
+    \setupTABLE[frame=off,roffset=2mm]
+    \setupTABLE[c][1][align={middle,top}]
+    \setupTABLE[c][2][align={flushleft,lohi}]
+    \setupTABLE[c][3][align={flushleft,lohi}]
+    \setupTABLE[c][4][align={flushleft,lohi}]
+    \bTABLE
+        #1
+    \eTABLE
+}
+
+\def\RefinementTableRow[#1]{%
+    \getparameters[RTR][#1]
+    % \bTD interferes with the scoping of the RTR... macros generated by
+    % \getparameters. Using \expandafter\bTD fixes this except when \bTD has
+    % parameters. Wrapping everything in expanded seems works properly.
+    \expanded{
+        \bTR
+            \bTD[nr=6] \RTRiteration) \eTD
+            \bTD $\StateSpace$-partition: \RTRparts~elements. \eTD
+            \bTD Player 1: \eTD
+            \bTD \RTRonestates~states, \RTRoneactions~actions \eTD
+        \eTR
+        \bTR[boffset=1mm]
+            \bTD[nr=5] {\leavevmode\externalfigure[\RTRfigure][width=0.4\textwidth]} \eTD
+            \bTD Player 2: \eTD
+            \bTD \RTRtwostates~states, \RTRtwoactions~actions \eTD
+        \eTR
+        \bTR[toffset=1mm,topframe=on]
+            \bTD Refinement: \eTD
+            \bTD \RTRrefinement \eTD
+        \eTR
+        \bTR
+            \bTD Game Graph: \eTD
+            \bTD \RTRgamegraph \eTD
+        \eTR
+        \bTR[boffset=1mm]
+            \bTD Analysis: \eTD
+            \bTD \RTRanalysis \eTD
+        \eTR
+        \bTR[toffset=1mm,topframe=on,boffset=6mm]
+            \bTD[nc=2] \RTRyes\% yes, \RTRno\% no, \RTRmaybe\% maybe \eTD
+        \eTR
+    }
+}
 

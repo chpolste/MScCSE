@@ -1,8 +1,8 @@
-\startreusableMPgraphic{flowchart-approach}
+\startreusableMPgraphic{mp:problem-approach-flowchart}
     with spacing((25,10)) matrix.a(11,15);
     with shape(none) node.a[0][0](btex \ssd \strut LSS etex);
-    with shape(none) node.a[0][3](btex \ssd \strut linear predicates etex);
-    with shape(none) node.a[0][9](btex \ssd \strut objective etex);
+    with shape(none) node.a[0][3](btex \ssd \strut Linear Predicates etex);
+    with shape(none) node.a[0][9](btex \ssd \strut Objective etex);
     with shape(circle) with size(3) node.a[1][0]("");
     with shape(circle) with size(3) node.a[1][2]("");
     with shape(circle) with size(3) node.a[1][9]("");
@@ -15,25 +15,46 @@
     arrow.rt(.5, "") (a[1][0],a[4][1]) a[1][0].c..a[4][0].c;
     arrow.rt(.5, "") (a[1][2],a[4][1]) a[1][2].c..a[4][2].c;
     arrow.rt(.5, "") (a[1][9],a[4][9]) a[1][9].c..a[4][9].c;
-    arrow.top(.5, btex \ssd game graph etex) (a[4][1],a[4][9]) a[4][1].c..a[4][9].c;
-    arrow.bot(.5, btex \ssd undecided states etex) (a[4][9],a[10][5]) a[4][9].c---a[10][9].c---a[10][5].c;
-    arrow.bot(.5, btex \ssd state space partition etex) (a[10][5],a[4][1]) a[10][5].c---a[10][1].c---a[4][1].c;
-    arrow.rt(1, btex \ssd part of ${\InitStateSpace}$ etex) (a[4][9],a[3][12]) a[3][9].c---a[3][12].c;
-    arrow.rt(1, btex \ssd part of ${\StateSpace \setminus \InitStateSpace}$ etex) (a[4][9],a[5][12]) a[5][9].c---a[5][12].c;
+    arrow.top(.5, btex \ssd Game Graph etex) (a[4][1],a[4][9]) a[4][1].c..a[4][9].c;
+    arrow.bot(.5, btex \ssd Undecided States etex) (a[4][9],a[10][5]) a[4][9].c---a[10][9].c---a[10][5].c;
+    arrow.bot(.5, btex \ssd State Space Partition etex) (a[10][5],a[4][1]) a[10][5].c---a[10][1].c---a[4][1].c;
+    arrow.rt(1, btex \ssd Part of ${\InitialStates}$ etex) (a[4][9],a[3][12]) a[3][9].c---a[3][12].c;
+    arrow.rt(1, btex \ssd Part of ${\StateSpace \setminus \InitialStates}$ etex) (a[4][9],a[5][12]) a[5][9].c---a[5][12].c;
 \stopreusableMPgraphic
 
 
-\placefigure[top][fig:review-flowchart-approach]{
-    TODO
+The analysis and synthesis problems for the given problem setup have been solved by \cite[Svorenova2017].
+An overview of their approach is depicted in Figure \in[fig:problem-approach-flowchart] and summarized here.
+The individual steps are reviewed in detail and, in case of refinement, extended by novel additions in the following chapters.
+
+First, the state space of the linear stochastic system (\in[eq:problem-setup-lsseq]) is partitioned into a finite set of disjunct, convex and polytopic equivalence classes.
+To compensate for the lack of knowledge of precise system state due to the introduction of these equivalence classes, a second player has to be introduced to MDP of the LSS.
+The result is a 2½-player game abstraction of the LSS built from the state space partitioning and polytopic operations in the state- and control space relating to the dynamics of the system.
+The initial partition is induced by the set of linear predicates used in the objective specification.
+This is the \quotation{Abstraction} phase.
+
+Next, the synchronous product of the game graph and the \omega-automaton representing the objective is constructed.
+The resulting game's winning condition is transferred from the automaton and, for practical purposes, transformed into a parity-3 objective.
+The product game is then analysed once for an adversarial player 2 and once for a cooperative player 2.
+From both solutions, parts of the state space abstraction can be identified as belonging to $\InitialStates$ or $\StateSpace \setminus \InitialStates$.
+However, generally, some parts can remain undecided due to a coarse abstraction.
+Therefore, refinement is applied to the undecided parts of the state space partition.
+With heuristic methods based on the analysis results and system dynamics, a new state space partition is constructed and the procedure returns to the \quotation{Abstraction} phase.
+
+The procedure is constructed such that after every iteration, a partial solution to the problem is obtained \cite[authoryears][Svorenova2017].
+That means once a part of the state space has been identified as a part of $\InitialStates$ or $\StateSpace \setminus \InitialStates$, this identification is provably correct and will not change in subsequent analyses or after refinement.
+If the procedure terminates, the analysis problem from \in[sec:problem-statement-analysis] is solved.
+However, refinement heuristics can only provide progress guarantees in some circumstances and there are systems for which this procedure will provably never terminate (see TODO).
+
+Finally, a controller can be synthesized based on the game graph and analysis results.
+\cite[Svorenova2017] presented a non-randomized (i.e.\ pure), finite-memory controller, but \quotation{better} controllers can be constructed.
+For example, memoryless controllers can be synthesized for reachability objectives through deeper analysis of the game graph \cite[authoryears][TODO].
+
+\placefigure[top][fig:problem-approach-flowchart]{
+    Flowchart representation of the solution approach described in section \in[sec:problem-approach].
+    $\InitialStates$ is the set of states for which a controller can guarantee satisfaction of the objective when a trace originates from within.
+    Adapted from Fig.\ 1 of \cite[Svorenova2017] with inspiration from Fig.\ 1 of \cite[Lahijanian2015].
 }{
-    \framed[width=\textwidth,frame=off]{\reuseMPgraphic{flowchart-approach}}
+    \framed[width=\textwidth,frame=off]{\reuseMPgraphic{mp:problem-approach-flowchart}}
 }
-
-The solution approach to the analysis problem is depicted in Figure \in[fig:review-flowchart-approach].
-
-Convex discretization, initially with linear predicates.
-LSS is continuous-space MDP, suitable abstraction is 2-player probabilistic game, second player represents non-determinism introduced by abstracted states (one doesn't know where exactly in the state one is).
-Almost-sure analysis: product of automaton and game, convert to parity objective, adversarial and cooperative solution.
-Iterative refinement with heuristics informed by dynamics and analysis results.
-Strategy synthesis makes use of player 1 actions of the abstraction and analysis results to select control inputs.
 

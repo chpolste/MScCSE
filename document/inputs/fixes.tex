@@ -1,3 +1,75 @@
+% SVG conversion patch: because my svg exports can contain objects outside of
+% the visible area, inkscape extends the size of the page when converting to
+% pdf such that the extent of these objects is included in the view (even
+% though they are not drawn). With the parameter --export-area-page, this
+% behaviour can be changed to match the expected output (no empty borders).
+% However, the parameters given to inkscape (which context calls for the
+% conversion) are hard-coded into the lua code, so the lua code has to be
+% patched.
+% The following is a patch for the file
+% context/tex/texmf-context/tex/context/base/mkiv/grph-con.lua
+% and overrides the svg converter defined there.
+\startluacode
+do
+
+    local longtostring      = string.longtostring
+    local expandfilename    = dir.expandname
+    local figures           = figures
+    local converters        = figures.converters
+    local programs          = figures.programs
+
+    local svgconverter = converters.svg
+    converters.svgz    = svgconverter
+
+    local runner = sandbox.registerrunner {
+        name     = "custom svg to something",
+        program  = "inkscape",
+        template = longtostring [[
+            "%oldname%"
+            --export-area-page
+            --export-dpi=%resolution%
+            --export-%format%="%newname%"
+        ]],
+        checkers = {
+            oldname    = "readable",
+            newname    = "writable",
+            format     = "string",
+            resolution = "string",
+        },
+        defaults = {
+            format     = "pdf",
+            resolution = "600",
+        }
+    }
+
+    programs.inkscape = {
+        runner = runner,
+    }
+
+    function svgconverter.pdf(oldname,newname)
+        runner {
+            format     = "pdf",
+            resolution = "600",
+            newname    = expandfilename(newname),
+            oldname    = expandfilename(oldname),
+        }
+    end
+
+    function svgconverter.png(oldname,newname)
+        runner {
+            format     = "png",
+            resolution = "600",
+            newname    = expandfilename(newname),
+            oldname    = expandfilename(oldname),
+        }
+    end
+
+    svgconverter.default = svgconverter.pdf
+
+end
+\stopluacode
+
+
 % Fix for mathmatrix/mathalign problem:
 % https://mailman.ntg.nl/pipermail/ntg-context/2019/094460.html
 % https://tex.stackexchange.com/questions/481411:
@@ -21,6 +93,25 @@
     \endgroup}
 \protect
 
+
 % Vertical position of default coloncolon command is not right
 \definemathcommand[coloncolon][rel]{\colon\!\colon}
+
+
+% Fix missing space between compressed years in authoryear cite style
+% (from context/tex/texmf-context/tex/context/base/mkiv/bibl-tra.mkiv)
+\unprotect
+
+\unexpanded\def\findmatchingyear
+  {\edef\wantednumber{\the\bibitemwanted}%
+   \getfromcommacommand[\thebibyears][\wantednumber]%
+   \ifx\commalistelement\empty
+     \edef\myyear{{\myyear}}%
+   \else
+     \edef\myyear{{\commalistelement, \myyear}}%
+   \fi
+   \edef\newcommalistelement{\myyear}%
+   \doglobal\replaceincommalist \thebibyears \wantednumber}
+
+\protect
 

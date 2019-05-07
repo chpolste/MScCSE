@@ -1,13 +1,19 @@
-\cite[Svorenova2017] introduce procedure for analysis and controller synthesis of (discrete-time, continuous-space) LSS, GR(1) problems.
-Procedure is foundation of this work and therefore reviewed in detail here.
+The abstraction and analysis phases of the solution procedure outlined in section \in[sec:problem-approach] are described in this chapter, followed by a brief discussion of the controller synthesis problem.
+The presented solution is the work of \cite[Svorenova2017], who attribute their approach to \cite[Yordanov2012].
+It is the foundation this work is built on and therefore reviewed in detail.
 
-TODO
-Suitable abstraction for LSS is 2 1/2 player game.
-Fully captures controllable, nondeterministic and probabilistic aspects of system evoulution.
-Restriction to convex geometry for convenience.
+First, a set of polytopic operators capturing important aspects of the dynamics is introduced in section \in[sec:abstraction-operators].
+A 2½-player game graph is then build as an abstraction of the linear stochastic system in \in[sec:abstraction-graph].
+This game graph is combined with an \omega-automaton obtained from the GR(1) specification in a synchronous product in \in[sec:abstraction-product].
+Section \in[sec:abstraction-analysis] demonstrates how to obtain a solution to the analysis problem from the product game.
+Based on this solution, an almost-sure winning control strategy for player 1 is synthesized in \in[sec:abstraction-synthesis].
 
-Introduce operators that capture important aspects of the dynamics.
-Create player 1 states by partitioning the state space, and associated (deterministic) actions from the control space.
-Introduce second player to compensate for non-determinism introduced in partitioning, and associated probabilistic actions.
-Finally, introduce objective by constructing the product of the game abstraction and an objective automaton (here: one-pair Streett) to obtain a 2 1/2 player game with one-pair Streett objective.
+Throughout this chapter the simple, 1-dimensional LSS 
+
+\placeformula[fml:abstraction-example]
+\startformula
+    \VecState_{t+1} = \VecState_t + \VecControl_t + \VecRandom_t \EndComma
+\stopformula
+
+where $\VecState_t \in \StateSpace = \ClosedInterval{0}{4}$, $\VecRandom_t \in \RandomSpace = \ClosedInterval{-0.1}{0.1}$ and $\VecControl_t \in \ControlSpace = \ClosedInterval{-1}{1}$ for all $t$, is used to illustrate the construction of the solution.
 

@@ -1,17 +1,109 @@
-Double integrator, the example of \cite[Svorenova2017].
+Consider the double integrator dynamics
 
 \startformula
-    \VecX_{t+1} = ...
+    \VecX_{t+1} = \TwoByTwo{1}{1}{0}{1} \VecState_{t} + \TwoByOne{0.5}{1} \VecControl_{t} + \VecRandom_{t} \EndComma
 \stopformula
 
-Shown here again, to demonstrate improvements in the refinement.
-Challenge: limit-behaviour at edge.
-TODO: proof that at boundary of Outer Attr, only a single control input point is usable, therefore procedure can never terminate.
-Motivate shrinking of PreR again, which avoids this issue.
-Explain why boundary behaviour inside the polytope is not as problematic and how random sampling is used to solve this.
+where $\VecState_{t} \in \StateSpace = \ClosedInterval{-5}{5} \times \ClosedInterval{-3}{3}$, $\VecControl_{t} \in \ControlSpace = \ClosedInterval{-1}{1}$ and $\VecRandom_{t} \in \RandomSpace = \ClosedInterval{-0.1}{0.1}^2$.
+The objective is to reach $\ClosedInterval{-1}{1}^2$, therefore the linear predicates $\Predicate_{1}$, $\Predicate_{2}$, $\Predicate_{3}$ and $\Predicate_{4}$ are introduced, corresponding to halfspaces governed by the inequalities $x \leq 1$, $-x \leq 1$, $y \leq 1$ and $-y \leq 1$.
+The LTL formula expressing this reachability objective is then
 
-Performance comparison: single-step Attr-/AttrR+ vs multi-step Attr- and layered refinement (vs multi-step static control?).
-Layer-by-layer analysis with game simplification faster than one analysis for everything?
+\startformula
+    \Finally ( p_1 \wedge p_2 \wedge p_3 \wedge p_4 )
+\stopformula
 
-Also demonstrate with recurrence objective and how layered refinement overcomes the yes-states issues of AttrR+ refinement.
+with a co-safe interpretation.
+\cite[Svorenova2017] used this exact system for their case studies and it is used here again as a baseline for comparison.
+
+\placefigure[top][fig:cases-integrator-initial]{
+    The double integrator test system and its initial partition.
+    Polytopes $\State{1}$ to $\State{4}$ (grey) are outer states from the decomposition of $\ExtendedStateSpace \setminus \StateSpace$.
+    The reachability target is $\State{12}$ (green).
+}{
+    \externalfigure[cases-integrator-initial][width=\textwidth]
+}
+
+
+\startsubsection[title={Negative Refinement},reference=sec:cases-integrator-negative]
+
+    \placetable[top][tab:cases-integrator-negative]{
+        TODO
+    }{
+        \RefinementTable{
+            \RefinementTableRow[iteration=1,parts=9,onestates=28,oneactions=44,twostates=26,twoactions=216,
+                                refinement={-},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=0,maybe=93.3,figure=cases-integrator-iteration1]
+            \RefinementTableRow[iteration=2,parts=13,onestates=36,oneactions=60,twostates=38,twoactions=362,
+                                refinement={TODO},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=11.3,maybe=82.1,figure=cases-integrator-iteration2]
+            \RefinementTableRow[iteration=3,parts=17,onestates=44,oneactions=80,twostates=50,twoactions=592,
+                                refinement={TODO},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=16.1,maybe=77.3,figure=cases-integrator-iteration3]
+            \RefinementTableRow[iteration=4,parts=21,onestates=52,oneactions=104,twostates=66,twoactions=794,
+                                refinement={TODO},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=17.2,maybe=76.2,figure=cases-integrator-iteration4]
+        }
+    }
+
+    Negative attractor refinement.
+    Iterate until convergence.
+    Introduction into refinement progress reporting.
+
+    Note that due to progress guarantee analysis is technically not necessary and procedure could be speed up.
+    Analysis status of other states could be affected by refinement which can only be determined by an analysis.
+
+    Show that simplification with multiple iterations of negative attractor does not generally work because of self-loops.
+
+\stopsubsection
+
+
+\startsubsection[title={Positive Robust Refinement},reference=sec:cases-integrator-positive]
+
+    Recreation of Svorenova positive refinement procedure, who refined wrt 3 random actions.
+    Control selection for $\RefinePos$ is generally better than action-based, therefore, two single-step applications here.
+    Also use PreR?
+
+    Problem is already reachability and co-safe, therefore extraction of robust reachability problem trivial (transition $q_0$ to $q_1$).
+    Positive refinement, two iterations per step, with target expansion.
+    More progress per iteration.
+    Should be a bit faster than 2x single-step, but similar state counts.
+    Progress guarantee could be used to speed up, but this has not been implemented.
+    It would only work if the target region is recognized as part of the yes states too, not in general.
+
+    Positive refinement, two iterations per step, small state suppression.
+    Additional iteration required but faster progress, much fewer states.
+    Show comparison (super-small states).
+    Similar result if 8 iterations are carried out directly.
+    Again, for this reachability problem analysis time could be reduced by using progress guarantee, which small state-suppression delivers.
+    Compare to convex hull overapproximation which gets stuck.
+
+\stopsubsection
+
+
+\startsubsection[title={Positive Robust Refinement with Layer Decomposition},reference=sec:cases-integrator-layered]
+
+    Positive robust refinement with layer decomposition, target expansion, small state suppression and PreR, 4 iterations.
+    Show how limit behaviour causes small states to appear despite suppression.
+    Instead, show with 95\% shrunk U ($\ClosedInterval{-0.95}{0.95}$).
+    Limit behaviour gone, performance comparable to 9 iterations direct, but less costly refinement due to simpler robust sub-problems.
+    Structure of layered refinement prescribes minimum number of states.
+
+    Show unintuitive behaviour: only 2 layers at a time, faster time to solution despite more states.
+    Reason: game simplification.
+    Conclusion: progress guarantee should be used if it exists.
+
+\stopsubsection
+
+
+\startsubsection[title={Results},reference=sec:cases-integrator-results]
+
+    Show table with average numbers for all problems.
+    Talk about randomization.
+    Give numbers as percent progress per second?
+    Layered refinement performs best, importance of small-state suppression (combats over-refinement) and problems with jaggedness (which just causes more jaggedness).
+    Plot number of state space partition elements vs. game size for full analysis.
+    Show how product game simplification can save time.
+    Illustrated also by 2-layers at a time experiment.
+
+\stopsubsection
 

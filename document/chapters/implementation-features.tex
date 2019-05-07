@@ -1,0 +1,34 @@
+\placefigure[top][fig:implementation-features-setup]{
+    The problem setup screen of the interactive implementation.
+}{
+    \externalfigure[implementation-features-setup][width=\textwidth]
+}
+
+\placefigure[top][fig:implementation-features-inspector]{
+    The problem exploration screen of the interactive implementation.
+}{
+    \externalfigure[implementation-features-inspector][width=\textwidth]
+}
+
+Figure \in[fig:implementation-features-setup] shows the problem setup screen of the created application.
+The user is able to specify the state-, random- and control space in 1 and 2 dimensions as well as the set of linear predicates used in the initial partitioning of the state space.
+A preview of the initial state space configuration provides instantaneous feedback to the user input.
+The objective can be chosen from a list of predefined GR(1) formulas (automated LTL-to-automaton translation is not implemented).
+While the structure of the temporal logic formulas is fixed, they contain placeholder variables that can be defined by the user by combining the linear predicates with connectives from propositional logic.
+
+Figure \in[fig:implementation-features-inspector] shows the exploration screen, which is shown once the problem setup has been submitted by the user.
+Its main interface element is a visualization of the state space and its partition.
+The view is customizable by panning and zooming and can be downloaded as an SVG image.
+The selection of state space partition element reveals information about the corresponding product game states in the \quotation{State} tab to the right of the system view.
+Player actions from the game graph are accessible from there as well and the associated $\ActC$ and $\PreP$ regions can be highlighted.
+The product game can be explored further with the selection of a state from the objective automaton, displayed below the state space view.
+State space elements are coloured according to the analysis status of the player 1 states corresponding to the currently selected automaton state.
+Green polytopes are members of $P_\Yes$, grey polytopes are in $P_\No$, red polytopes are unreachable in the product game and uncoloured polytopes are members of $P_\Maybe$.
+
+Accessible in the tabs on the right are also controls for analysis and refinement procedures.
+The 4 presented holistic refinement algorithms from section \in[sec:refinement-holistic] as well as the robust refinement for individual automaton transitions in the product game from section \in[sec:refinement-transition] are implemented and can be applied to the system with custom configurations.
+A snapshot system can save the current state of the system abstraction and restore it later, allowing the user to try and compare different refinement approaches.
+Snapshots can be exported to disk and imported again from the problem setup screen.
+Brief reports with performance metrics and information about the product game are logged after every refinement and analysis invocation.
+Traces can be sampled with a synthesized round-robin controller and the individual trace steps inspected.
+

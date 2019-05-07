@@ -1,0 +1,20 @@
+To implement an interactive system exploration tool, the web browser was chosen as a platform.
+Browsers are taylored to the display of visual interfaces and have built-in vector graphics capabilites.
+They are arguably the most accessible platform of the modern age, as browsers are freely available for virtually any operating system and device with a screen.
+Interactivity is achieved through the JavaScript programming language which is natively tied to the browser's interface representation, the document object model.
+JavaScript is an easy-to-use language which offers good performance due to sophisticated JIT compilation and debugging tools are conveniently available out-of-the-box in modern browsers.
+With node.js, JavaScript can also be used outside of the browser.
+
+However, for the purposes of this work, there was also an important disadvantages associated with the choice of the browser.
+Native browser applications are restricted to JavaScript without the possibility to interface with other programming languages via direct-call APIs or wrappers.
+The only way to connect JavaScript to the outside world from within the browser is through a client-server infrastructure.
+This was particularly an issue given that established JavaScript libraries for control problems of hybrid systems could not be found.
+The MPT is written in MATLAB, TuLiP in Python and CDD in C++, so none is easily accessible from the browser.
+While node.js can resolve at least some of these issues it limits the interactive graphical capabilities.
+
+Nevertheless, the browser was still chosen.
+The range of problems under consideration is limited to relatively simple, low-dimensional problems due to the representation- and responsiveness requirements of interactive visualization.
+Additional work that had to be invested to implement basic operations from convex geometry as well as game and automata theory was embraced in exchange for the accessibility and graphical features that the browser has to offer.
+It also provided a learning opportunity for the author of this thesis that has supported the understanding of the given problem and its solution.
+The result is an interactive application that can be run in any modern browser without the need for additional server infrastructure, making it highly accessible.
+

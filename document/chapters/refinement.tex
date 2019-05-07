@@ -1,0 +1,8 @@
+The game-based abstraction requires a state space partition from which to derive player 1 states.
+The initial partition described in section \in[sec:abstraction-graph-playerone] is governed by the set of linear predicates.
+This partition is convenient for the synchronous product construction because it creates a unique association between its elements and the linear predicates satisfied within these state space regions.
+However, this partition will generally be too coarse to fully solve the analysis problem for the given objective, with product game states remaining in the undecided set $P_\Maybe$.
+
+In this chapter, heuristic procedures are presented that refine the state space partition.
+Ideally, these procedures should enable a solution or at least a partial solution after some iterations of the abstraction-analysis-refinement cycle (Figure \in[fig:problem-approach-flowchart]).
+

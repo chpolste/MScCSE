@@ -1,0 +1,260 @@
+A decomposition approach is presented that extracts a series of reachability problems from the product game.
+These sub-problems are solved with positive robust refinement, which is computationally inexpensive even when multi-step dynamics is taken into account.
+Solutions of the sub-problems are transferred back to the product game through refinement.
+When all reachability problems have been solved, a solution for the original problem emerges.
+
+
+\startsubsection[title={Transition-based Reachability Decomposition},reference=sec:refinement-transition-decomposition]
+
+    Because of the stuttering equivalence of paths in $\Next$-free LTL, the product game $\ProductGame$ can be decomposed into a set of co-safe reachability/avoidance problems.
+    The idea behind this decomposition is motivated by an example:
+
+    Assume the recurrence objective $\Globally \Finally \varphi$ is specified for some LSS, translated to a one-pair Streett automaton as shown in Table \in[tab:theory-logic-objectives].
+    One possible satisfying path through the automaton is $(q_0 q_1)^\omega$.
+    Because recurrence is a $\Next$-free specification, any stuttering equivalent path $q_0^+ q_1^+ q_0^+ q_1^+ ...$ is also satisfying, so remaining in any of the two automaton states for a finite amount number of steps before transitioning has no consequence with respect to the acceptance condition.
+    Based on this observation, two reachability problems are extracted from the product game:
+    First, $\TransitionReach{q_0}{q_1}$ where player 1 has to reach some state $q_1$-associated player state of the product game almost-surely, starting from a state $\Tuple{\State{j}}{q_0}$ and only visiting $q_0$-associated states until a target state is reached.
+    Second, $\TransitionReach{q_1}{q_0}$ which is defined analogously but with the roles of $q_0$ and $q_1$ exchanged.
+    
+    Let $\InitialStates^\TransitionReach{q_0}{q_1}$ and $\InitialStates^\TransitionReach{q_1}{q_0}$ be the sets of satisfying initial states of the LSS for problems $\TransitionReach{q_1}{q_0}$ and $\TransitionReach{q_1}{q_0}$, respectively.
+    Then a player 1 strategy $\TransitionStrategy{q_0}{q_1}$ exists that leads any trace starting in $\InitialStates^\TransitionReach{q_0}{q_1}$ almost-surely and in finite time to the state space region where an associated play of the product game switches from a $q_0$- to a $q_1$-associated state, i.e.\ the region defined by $\varphi$.
+    An analogous strategy $\TransitionStrategy{q_1}{q_0}$ exists for traces starting in $\InitialStates^\TransitionReach{q_1}{q_0}$ with a target region defined by $\neg \varphi$.
+    Based on these strategies an almost-sure winning player 1 strategy for full product game can be assembled.
+    Let $\VecState$ be a trace starting in some state $\Tuple{\State{i}}{q_0}$.
+    Player 1 plays with $\TransitionStrategy{q_0}{q_1}$ until a state $\Tuple{X_j}{q_1}$ is reached.
+    Player 1 then switches to the strategy $\TransitionStrategy{q_1}{q_0}$ until a state $\Tuple{X_k}{q_0}$ is reached.
+    Then player 1 switches back to strategy $\TransitionStrategy{q_0}{q_1}$ and keeps switching whenever the automaton state changes in the play.
+    Because automaton runs induced by a composite strategy alternating in this fashion are stuttering equivalent to $(q_0 q_1)^\omega$, the recurrence objective is satisfied almost-surely.
+    Note that each sub-problem strategy is guaranteed to achieve its reachability goal in finite time as the sub-problems are interpreted in the co-safe setting.
+
+    The example illustrates how a solution to a verification problem involving a $\Next$-free LTL specification can emerge from solutions to a series of reachability sub-problems extracted from the product game based on transitions of the objective automaton.
+    Generally, it is not sufficient to just consider a single path and its stuttering equivalents.
+    The above strategy construction fails when a trace enters the region $\StateSpace \setminus \InitialStates^\TransitionReach{q_0}{q_1}$ while the corresponding play transitions from a $q_0$-associated to a $q_1$-associated state.
+    However, since the decomposition targets individual automaton transitions and not entire paths, strategies for all possible paths through the automaton can be constructed once a solution for every reachability sub-problem is available.
+
+    For product game $\ProductGame$ and objective automaton $\Automaton$, a reachability/avoidance sub-problem
+
+    \startformula
+        \TransitionReach{q}{q'} = \Triple{\ReachStates{q}{q'}}{\RefineStates{q}{q'}}{\AvoidStates{q}{q'}}
+    \stopformula
+
+    for an automaton transition from $q$ to $q'$ can be constructed as follows:
+    First, identify
+
+    \startformula
+        \ReachStates{q}{q'} = \Set{ \State{i} \mid \Tuple{\State{i}}{q} \in P_1 \MidAnd \State{i} \notin \NoStates{q} \MidAnd ( \QNext{i}{q} = q' \MidOr \YesStates{q} ) } \EndComma
+    \stopformula
+
+    the state space partition elements whose union has to be reached.
+    These are state space parts where a transition to the target automaton state happens with any of the next player 1 actions of the product game.
+    Also included are all partition elements that were already recognized as satisfying for the origin $q$ in a previous analysis of $\ProductGame$.
+    Second,
+
+    \startformula
+        \RefineStates{q}{q'} = \Set{ \State{i} \mid \Tuple{\State{i}}{q} \in P_1 \MidAnd \State{i} \notin \NoStates{q} \MidAnd \QNext{i}{q} = q } \EndComma
+    \stopformula
+
+    the state space partition elements that do not trigger an automaton transition with their player 1 actions.
+    These elements will be the subject of refinement.
+    Due to stuttering equivalence, any finite number of transitions inside this region can be made without affecting satisfaction of the objective.
+    And finally,
+
+    \startformula
+        \AvoidStates{q}{q'} = \IndexedStates{i}{I} \setminus \left( \ReachStates{q}{q'} \cup \RefineStates{q}{q'} \right) \EndComma
+    \stopformula
+
+    the elements where a transition to any other automaton state happens with the next player 1 action, as well as all elements from the no-set of the last product game analysis.
+    These states are to be avoided.
+    The three sets are disjunct except for the special case $q = q'$, where $\ReachStates{q}{q'} \cap \RefineStates{q}{q'} \ne \emptyset$.
+
+    To summarize, the goal of sub-problem $\TransitionReach{q}{q'}$ is to refine the state space partition elements in $\RefineStates{q}{q'}$ such that $\ReachStates{q}{q'}$ can be reached almost-surely and in finite time while avoiding the region $\AvoidStates{q}{q'}$.
+    Note that the individual reachability/avoidance sub-problems can overlap, i.e. a state space partition element can be the subject of refinement of more than one sub-problem.
+    The decomposition of the product game graph is therefore not disjunct.
+
+\stopsubsection
+
+
+\startbuffer[buf:refinement-transition-reachability-algorithm]
+    \startalgorithmic[numbering=no,margin=0em]
+        \INPUT{$\ReachStates{q}{q'}$, $\RefineStates{q}{q'}$ and $i_{max}$}
+        \OUTPUT{Sub-partition of $\RefineStates{q}{q'}$}
+    \stopalgorithmic
+    \startalgorithmic
+        \STATE{$T \leftarrow \ReachStates{q}{q'}$}
+        \STATE{$Y \leftarrow \RefineStates{q}{q'}$}
+        \STATE{$i \leftarrow 0$}
+        \WHILE{$Y \setminus T \neq \emptyset$ and $i < i_{max}$}
+            \STATE{$Y' \leftarrow \emptyset$}
+            \FORALL{$Y_n \in Y \setminus T$}
+                \STATE{$Y' \leftarrow Y' \cup \RefinePositive{Y_n}{T}$}
+            \ENDFOR
+            \STATE{$Y \leftarrow Y'$}
+            \DO
+                \STATE{$T' \leftarrow T$}
+                \FORALL{$Y_n \in Y \setminus T$}
+                    \IF{$\RobustAction{Y_n}{T} \neq \emptyset$}
+                        \STATE{$T' \leftarrow T' \cup \Set{Y_n}$}
+                    \ENDIF
+                \ENDFOR
+            \ENDDOWHILE{$T' \neq T$}
+            \STATE{$i \leftarrow i + 1$}
+        \ENDWHILE
+        \RETURN{$Y$}
+    \stopalgorithmic
+\stopbuffer
+
+\startbuffer[buf:refinement-transition-jagged-combination]
+    \bTABLE
+        \setupTABLE[frame=off]
+        \setupTABLE[c][1][width=0.04\textwidth] % padding for the figure caption width
+        \setupTABLE[c][4][width=0.04\textwidth] % padding for the figure caption width
+        \bTR
+            \bTD[nr=8] \eTD
+            \bTD[nc=2] (a) no post-processing \eTD
+            \bTD[nr=8] \eTD
+        \eTR
+        \bTR
+            \bTD \externalfigure[refinement-transition-jagged-ref-attrr][width=0.45\textwidth] \eTD
+            \bTD \externalfigure[refinement-transition-jagged-ref-ana][width=0.45\textwidth] \eTD
+        \eTR
+        \bTR
+            \bTD[nc=2] (b) convex hull \eTD
+        \eTR
+        \bTR
+            \bTD \externalfigure[refinement-transition-jagged-hull-attrr][width=0.45\textwidth] \eTD
+            \bTD \externalfigure[refinement-transition-jagged-hull-ana][width=0.45\textwidth] \eTD
+        \eTR
+        \bTR
+            \bTD[nc=2] (c) small state suppression, one iteration \eTD
+        \eTR
+        \bTR
+            \bTD \externalfigure[refinement-transition-jagged-sup1-attrr][width=0.45\textwidth] \eTD
+            \bTD \externalfigure[refinement-transition-jagged-sup1-ana][width=0.45\textwidth] \eTD
+        \eTR
+        \bTR
+            \bTD[nc=2] (d) small state suppression, two iterations \eTD
+        \eTR
+        \bTR
+            \bTD \externalfigure[refinement-transition-jagged-sup2-attrr][width=0.45\textwidth] \eTD
+            \bTD \externalfigure[refinement-transition-jagged-sup2-ana][width=0.45\textwidth] \eTD
+        \eTR
+    \eTABLE
+\stopbuffer
+
+\startsubsection[title={Robust Reachability Refinement},reference=sec:refinement-transition-reachability]
+
+    \placealgorithm[top][alg:refinement-transition-reachability]{
+        Basic robust reachability solver for a problem $\TransitionReach{q}{q'}$ obtained from the transition-based product game decomposition.
+        Input $i_{max}$ limits the number of iterations carried out by the procedure (the progress condition $Y \cap T \neq Y$ of the outer loop is not satisfiable in general due to the restriction to robust dynamics).
+    }{
+        \startframedtext[width=\textwidth]
+            \getbuffer[buf:refinement-transition-reachability-algorithm]
+        \stopframedtext
+    }
+
+    When analysing a problem $\TransitionReach{q}{q'}$ from the reachability decomposition, the product game construction can be skipped as co-safe almost-sure reachability can be decided with a simple backwards-search starting from the target region in the corresponding game abstraction. % TODO reference? algorithm outline?
+    The exponential computational demands of game graph construction from the state space partition is not reduced.
+    In order to build an inexpensive, multi-step refinement procedure based on the decomposition approach, an additional restriction has to be introduced.
+
+    Robust dynamics was introduced in section \in[sec:refinement-robust] in the context of positive refinement.
+    A single-step positive refinement procedure based on the $\RefinePos$ kernel was then presented in section \in[sec:refinement-holistic-positive].
+    The major advantage of the robust framework is that reachability can be decided geometrically with the $\ActR$ operator and no analysis of some abstraction model is required.
+    The co-safe reachability/avoidance sub-problems can therefore be analysed in the framework of robust dynamics without any abstractions, using only geometric operations.
+    Iterating single-step robust refinement and robust analysis can therefore be performed with polynomial complexity, since $\PreR$, $\AttrR$ and $\ActR$ can be computed in polynomial time.
+    This allows the construction of an inexpensive, robust multi-step refinement procedure.
+    It is presented in Algorithm \in[alg:refinement-transition-reachability].
+    First, the reachability/avoidance problem $\TransitionReach{q}{q'}$ for the automaton transition from $q$ to $q'$ is set up.
+    Polytopes in $\RefineStates{q}{q'}$ are refined with respect to the target region $\ReachStates{q}{q'}$ using the $\RefinePos$ kernel (lines 5-9).
+    The target region is then expanded based on a $ActR$-condition that determines robust reachability (lines 10-17).
+    The two steps are iterated until all polytopes satisfy the reachability objective or a given number of iterations has been exceeded (line 4).
+    The generated sub-partition of $\ReachStates{q}{q'}$ is then used to refine the state space partition of the original system.
+
+    \placefigure[top][fig:refinement-transition-jagged]{
+        Left column: illustration of how a jagged positive refinement target (green) causes small-scale overrefinement and how post-processing of the refinement kernel affects the generated polytopes (1st application orange, 2nd yellow).
+        The analysis progress of the original system (double integrator from section \in[sec:cases-integrator]) after refinement is shown on the right (green).
+        Discussed in section \in[sec:refinement-transition-reachability].
+    }{
+        \getbuffer[buf:refinement-transition-jagged-combination]
+    }
+
+    The efficiacy of Algorithm \in[alg:refinement-transition-reachability] can be improved with a few modifications.
+    For example, the expansion of the target region can be accelerated by immediately recognizing \quotation{small} polytopes of the partition as satisfying.
+    A polytope $Z$ is considered to be small if $Z \ominus W = \emptyset$.
+    These states cannot be targeted individually and can therefore also not have self-loops.
+    Experience shows that such states should be refined further only if they are unsafe, i.e.\ $\Action{Z}{\AvoidStates{q}{q'}} = \ControlSpace$.
+    Small states are otherwise very unlikely to void an almost-sure reachability guarantee and can therefore be skipped in the robust refinement even if robust reachability cannot be proven.
+
+    Over-refinement, leading to the creation of many (unnecessary) small states, is a problem in general.
+    Figure \in[fig:refinement-transition-jagged](a), left, illustrates how jagged target regions (green) can lead to the creation of many small states by the $\RefinePos$ kernel (orange).
+    This behaviour snowballs with subsequent iterations and affects smaller and smaller scales over time, contributing to the state space explosion and high computational cost of abstraction in the original problem after refinement.
+    To counteract this issue, post-processing can be applied to the output of $\RefinePos$.
+    This post-processing can either seek an over- or underapproximation to the region of $\RefinePos$.
+    Overapproximations have the potential to additionally accelerate progress but the guarantees of robust refinement are generally lost.
+    Underapproximations lead to slower progress but have the advantage that the robust guarantees are preserved.
+
+    Figure \in[fig:refinement-transition-jagged](b) shows an overapproximation of the refinement from \in[fig:refinement-transition-jagged](a) obtained from post-processing of the $\AttrR$-region of the $\RefinePos$ step with a simple convex hull computation.
+    In the example, the overapproximation has worked out and progress is made in the original system (right).
+    Figure \in[fig:refinement-transition-jagged](c), left, shows an underapproximation that removes all small states from the $AttrR$-region of the $\RefinePos$ step.
+    The benefit of this post-processing is not just the reduction of the number of states in the $\AttrR$-region but the reduction of its jaggedness.
+    This additionally reduces the number of states that have to be generated for the convex partitioning of the remaining region of the refined polytope.
+    As seen in the right panel, less progress is made in the original system but this can be compensated for by incresing the number of iterations in the robust reachability solver.
+    Figure \in[fig:refinement-transition-jagged](d), left, shows the same problem but with two instead of one robust refinement iterations applied with small state suppression post-processing.
+    Subsequent analysis of the refined original system (right) reveals more progress than both no and convex hull post-processing after one step and no overrefinement of small scales is discernible.
+
+\stopsubsection
+
+
+\startsubsection[title={Layered Robust Reachability Refinement},reference=sec:refinement-transition-layered]
+
+    A multi-step refinement scheme for reachability problems can be realized by iterating the robust refinement procedure more than once.
+    Another possibility is to apply a layer decomposition based on the robust predecessor, the operator that encapsulates one-step robust reachability.
+    A layered approach was originally used by \cite[Svorenova2017] in the full probabilistic setting using $\Pre$ as the layer-generating operator and is adopted here in the robust framework to further improve the performance of the robust reachability solver.
+    The idea is to generate layers around the target region using a $\PreR$ recurrence relation such that $k$-th layer is robustly reachable from every state in layer $k+1$.
+    Refining each layer to enable such transitions in the game abstraction, a strategy can be constructed that leads a trace toward the target by moving from layer to layer inwards.
+    The layered refinement procedure solves multi-step reachability by solving a series of single-step reachability problems.
+    If single-step reachability can be guaranteed for every single-step layer problem, multi-step reachability can be guaranteed for the original reachability target.
+
+    The robust reachability problem of the $k$-th layer of problem $\TransitionReach{q}{q'}$ is given by
+
+    \startformula
+        \TransitionLayer{q}{q'}{k} = \Triple{\ReachStates{k, q}{q'}}{\RefineStates{k, q}{q'}}{\AvoidStates{q}{q'}}
+    \stopformula
+
+    where the reach- and refine-polytope sets are generated by
+
+    \startformula
+        \startalign[n=2,align={right,left}]
+            \NC \ReachStates{k, q}{q'} =
+            \NC \RefineStates{k-1, q}{q'} \cup \ReachStates{k-1, q}{q'} \quad\EndAnd
+            \NR
+            \NC \RefineStates{k, q}{q'} =
+            \NC \BigSet{ \State{i} \cap \RobustPredecessor{\StateSpace}{\ControlSpace}{\ReachStates{k, q}{q'}} \mid \State{i} \in \RefineStates{q}{q'} } \EndPeriod
+            \NR
+        \stopalign
+    \stopformula
+
+    The recurrence is initialized with assignments $\ReachStates{0, q}{q'} = \ReachStates{q}{q'}$ and $\RefineStates{0, q}{q'} = \emptyset$.
+
+    The advantage of the layer decomposition is that the individual layer systems are generally simpler than the original reachability problem.
+    There are less states to refine in each system and the layers are fully independent, which allows parallelization.
+    The $\PreR$-based structure prescribed by the layer composition has a stabilizing effect on the refinement because it limits the occurrence of jaggedness (see Figure \in[fig:refinement-transition-jagged]) by removing the connection between the expanding target region and the refinement kernel.
+    Optimizations from standard robust refinement can also be used to solve the layer problems, such as skipping of small-but-safe states and post-processing of $\RefinePos$.
+    Experience shows that refinement performance benefits from shrinking the layer-generating control space polytope slightly to combat the occurrence of \epsilon-limit behaviour on the outer edges of the layers.
+    Removing the extreme control inputs at the (closed) edges of the control space has been found to reduce the generation of small state space polytopes at the edges of the layer regions in practice.
+
+\stopsubsection
+
+
+\startsubsection[title={Transition Selection},reference=refinement-transition-selection]
+
+    If a solution for every transition of the objective automaton has been found through refinement, the LSS can be fully analysed with respect to the objective specification due to the strategy construction outlined in section \in[sec:refinement-transition-decomposition].
+    However, the individual reachability sub-problems are not completely independent as they initially share the state space partition of the original LSS.
+    While it is possible to solve the sub-problems independently and then combine the resulting state space partitions into a single paritition, this combination is likely to generate many additional states.
+    Solving the reachability systems sequentially, using only one state space partition that is handed from refinement procedure to refinement procedure, can be beneficial as the refinement applied to achieve one transition may provide a partial solution to a following sub-problem.
+
+    Satisfying paths through the objective automaton can be plentiful even when considering stuttering equivalence.
+    While it is generally not sufficient for the determination of $\InitialStates$ to pick one satisfying path and only refine with respect to the transitions that occur along this specific path, this approach to selecting transition for refinement can lead to faster availability of partial analysis results than a breadth-first exploration of the automaton starting from its initial state.
+    The issues arising with the selection of optimal paths as the basis for transition refinement occur also in the synthesis of optimal controllers.
+
+\stopsubsection
+

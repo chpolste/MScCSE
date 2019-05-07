@@ -1,0 +1,18 @@
+Transition systems are ubiquitously used to represent system models in model checking applications \cite[authoryears][Baier2008].
+A basic transition system consists of a finite set of states which are combined into a directed graph by a transition relation that defines the edges between states.
+An initial state or a set of initial states is usually defined to provide an entry point for the system.
+The transition relation governs the evolution system from state to state.
+It can be deterministic, non-deterministic, probabilistic or combine different kind of transitions in the same model. 
+States and transitions can be associated with additional properties with a labeling function.
+This extensibility of transition systems means they can be adapted to represent a variety of systems, e.g.\ finite automata or turn-based games.
+Transition systems are also composable and support such operations like the synchronous product, which enforces the synchronous evolution of two transition systems and is particularly important in verification for bringing together a system model and the specification it is verified against.
+
+Transition systems are well suited as the foundation of system models for model checking purposes.
+However, many systems have state spaces so large they cannot be reasonably handled by a verification procedure.
+Some systems even have inifinite state spaces.
+It is possible to deal with such problems by introducing an abstraction, a grouping of states of the original system into a finite set of equivalence classes based on some common properties.
+The grouping should ideally be minimal in the number of states while still capturing the essential behaviour of the system required for the verification.
+Unfortunately, the knowledge required to construct such an abstraction is often not available a-priori.
+Counterexample-guided abstraction refinement \cite[alternative=authoryears,left={(CEGAR, }][Clarke2000] provides a way out of this predicament.
+The CEGAR technique iteratively refines a given initial abstraction by removing problematic behaviour from the system model based on feedback from the verification procedure until a suitable abstraction has been found.
+

@@ -6,6 +6,7 @@ document/*.log
 document/*.tuc
 document/*.pdf
 document/figures/*.svg.pdf
+software/bench/
 software/dist/
 software/modules/
 software/node_modules/

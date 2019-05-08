@@ -610,11 +610,12 @@ export class TransitionRefinery extends Refinery {
         }
     }
 
-    iterate(n?: number): void {
+    iterate(n?: number): TransitionRefinery {
         for (let problem of this._problems) {
             problem.iterate(n == null ? 1 : n);
         }
         this._updatePartitionCache();
+        return this;
     }
 
     partition(x: State): Region {

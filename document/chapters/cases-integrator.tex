@@ -27,7 +27,7 @@ with a co-safe interpretation.
 \startsubsection[title={Negative Refinement},reference=sec:cases-integrator-negative]
 
     \placetable[top][tab:cases-integrator-negative]{
-        TODO
+        TODO \par TODO
     }{
         \RefinementTable{
             \RefinementTableRow[iteration=1,parts=9,onestates=28,oneactions=44,twostates=26,twoactions=216,
@@ -57,7 +57,65 @@ with a co-safe interpretation.
 \stopsubsection
 
 
+
 \startsubsection[title={Positive Robust Refinement},reference=sec:cases-integrator-positive]
+
+    \placetable[top][tab:cases-integrator-positive-single]{
+        TODO \par TODO
+    }{
+        \RefinementTable{
+            \RefinementTableRow[iteration=1,parts=9,onestates=28,oneactions=44,twostates=26,twoactions=216,
+                                refinement={-},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=0,maybe=93.3,figure=cases-integrator-iteration1]
+            \RefinementTableRow[iteration=2,parts=13,onestates=36,oneactions=60,twostates=38,twoactions=362,
+                                refinement={TODO},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=11.3,maybe=82.1,figure=cases-integrator-iteration2]
+            \RefinementTableRow[iteration=3,parts=17,onestates=44,oneactions=80,twostates=50,twoactions=592,
+                                refinement={TODO},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=16.1,maybe=77.3,figure=cases-integrator-iteration3]
+            \RefinementTableRow[iteration=4,parts=21,onestates=52,oneactions=104,twostates=66,twoactions=794,
+                                refinement={TODO},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=17.2,maybe=76.2,figure=cases-integrator-iteration4]
+        }
+    }
+
+    \placetable[top][tab:cases-integrator-positive-double]{
+        TODO \par TODO
+    }{
+        \RefinementTable{
+            \RefinementTableRow[iteration=1,parts=9,onestates=28,oneactions=44,twostates=26,twoactions=216,
+                                refinement={-},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=0,maybe=93.3,figure=cases-integrator-iteration1]
+            \RefinementTableRow[iteration=2,parts=13,onestates=36,oneactions=60,twostates=38,twoactions=362,
+                                refinement={TODO},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=11.3,maybe=82.1,figure=cases-integrator-iteration2]
+            \RefinementTableRow[iteration=3,parts=17,onestates=44,oneactions=80,twostates=50,twoactions=592,
+                                refinement={TODO},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=16.1,maybe=77.3,figure=cases-integrator-iteration3]
+            \RefinementTableRow[iteration=4,parts=21,onestates=52,oneactions=104,twostates=66,twoactions=794,
+                                refinement={TODO},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=17.2,maybe=76.2,figure=cases-integrator-iteration4]
+        }
+    }
+
+    \placetable[top][tab:cases-integrator-positive-suppressed]{
+        TODO \par TODO
+    }{
+        \RefinementTable{
+            \RefinementTableRow[iteration=1,parts=9,onestates=28,oneactions=44,twostates=26,twoactions=216,
+                                refinement={-},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=0,maybe=93.3,figure=cases-integrator-iteration1]
+            \RefinementTableRow[iteration=2,parts=13,onestates=36,oneactions=60,twostates=38,twoactions=362,
+                                refinement={TODO},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=11.3,maybe=82.1,figure=cases-integrator-iteration2]
+            \RefinementTableRow[iteration=3,parts=17,onestates=44,oneactions=80,twostates=50,twoactions=592,
+                                refinement={TODO},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=16.1,maybe=77.3,figure=cases-integrator-iteration3]
+            \RefinementTableRow[iteration=4,parts=21,onestates=52,oneactions=104,twostates=66,twoactions=794,
+                                refinement={TODO},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=17.2,maybe=76.2,figure=cases-integrator-iteration4]
+        }
+    }
 
     Recreation of Svorenova positive refinement procedure, who refined wrt 3 random actions.
     Control selection for $\RefinePos$ is generally better than action-based, therefore, two single-step applications here.
@@ -82,6 +140,26 @@ with a co-safe interpretation.
 
 \startsubsection[title={Positive Robust Refinement with Layer Decomposition},reference=sec:cases-integrator-layered]
 
+    \placetable[top][tab:cases-integrator-layered-original]{
+        TODO \par TODO
+    }{
+        \RefinementTable{
+            \RefinementTableRow[iteration=1,parts=9,onestates=28,oneactions=44,twostates=26,twoactions=216,
+                                refinement={-},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=0,maybe=93.3,figure=cases-integrator-iteration1]
+        }
+    }
+
+    \placetable[top][tab:cases-integrator-layered-shrunk]{
+        TODO \par TODO
+    }{
+        \RefinementTable{
+            \RefinementTableRow[iteration=1,parts=9,onestates=28,oneactions=44,twostates=26,twoactions=216,
+                                refinement={-},gamegraph={TODO},analysis={TODO},
+                                yes=6.7,no=0,maybe=93.3,figure=cases-integrator-iteration1]
+        }
+    }
+
     Positive robust refinement with layer decomposition, target expansion, small state suppression and PreR, 4 iterations.
     Show how limit behaviour causes small states to appear despite suppression.
     Instead, show with 95\% shrunk U ($\ClosedInterval{-0.95}{0.95}$).
@@ -95,7 +173,157 @@ with a co-safe interpretation.
 \stopsubsection
 
 
+\startbuffer[buf:cases-integrator-results-statistics]
+    \setupTABLE[frame=off,rightframe=on]
+    \setupTABLE[c][first][rightframe=off]
+    \setupTABLE[r][last][bottomframe=on]
+    \bTABLE[align={middle,lohi}]
+        \bTR[topframe=off]
+            \bTH[width=0.06\textheight] \eTH
+            \bTH[width=0.09\textheight] \eTH
+            \bTH[width=0.17\textheight] single-step \times 2 \eTH
+            \bTH[width=0.17\textheight] two-step \eTH
+            \bTH[width=0.17\textheight] two-step \par no small \eTH
+            \bTH[width=0.17\textheight] layers \par four-step \par no small \eTH
+            \bTH[width=0.17\textheight] shrunk layers \par four-step \par no small \eTH
+        \eTR
+        \bTR[topframe=off]
+            \bTH Iter. \eTH
+            \bTH \eTH
+            \bTD min / avg / max \eTD
+            \bTD min / avg / max \eTD
+            \bTD min / avg / max \eTD
+            \bTD min / avg / max \eTD
+            \bTD min / avg / max \eTD
+        \eTR
+        \bTR[topframe=on]
+            \bTH[nr=3] 1-4 \par neg. \eTH
+            \bTD polytopes \eTD
+            \bTD[nc=5] 21 / 21 / 21 \eTD
+        \eTR
+        \bTR
+            \bTD elapsed \eTD
+            \bTD[nc=5] TODO / TODO / TODO \eTD
+        \eTR
+        \bTR
+            \bTD \% decided \eTD
+            \bTD[nc=5] 23.8 / 23.8 / 23.8 \eTD
+        \eTR
+        \bTR[topframe=on]
+            \bTH[nr=3] 5 \eTH
+            \bTD polytopes \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+        \eTR
+        \bTR
+            \bTD elapsed \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+        \eTR
+        \bTR
+            \bTD \% decided \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+        \eTR
+        \bTR[topframe=on]
+            \bTH[nr=3] 6 \eTH
+            \bTD polytopes \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+        \eTR
+        \bTR
+            \bTD elapsed \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+        \eTR
+        \bTR
+            \bTD \% decided \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+        \eTR
+        \bTR[topframe=on]
+            \bTH[nr=3] 7 \eTH
+            \bTD polytopes \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+        \eTR
+        \bTR
+            \bTD elapsed \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+        \eTR
+        \bTR
+            \bTD \% decided \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+        \eTR
+        \bTR[topframe=on]
+            \bTH[nr=3,bottomframe=on] 8 \eTH
+            \bTD polytopes \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+        \eTR
+        \bTR
+            \bTD elapsed \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+        \eTR
+        \bTR
+            \bTD \% decided \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+            \bTD  \eTD
+        \eTR
+    \eTABLE
+\stopbuffer
+
 \startsubsection[title={Results},reference=sec:cases-integrator-results]
+
+    % Rotation value has to be flipped for some reason (maybe because it refers
+    % to the page that includes the figure, not the figure itself?
+    % % TODO check rotation in final document
+    \placetable[here,\doifoddpageelse{270}{90}][tab:cases-integrator-results-statistics]{
+        TODO
+    }{
+        \startframedtext[width=\textheight,offset=0mm,frame=off,topframe=off,bottomframe=off]
+            \getbuffer[buf:cases-integrator-results-statistics]
+        \stopframedtext
+    }
 
     Show table with average numbers for all problems.
     Talk about randomization.

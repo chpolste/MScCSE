@@ -342,6 +342,7 @@ class RobustReachabilityProblem {
     +lss: LSS;
     +avoid: Region;
     +reach: Region;
+    +_epsPolytope: Polytope;
     // Configuration
     expandTarget: boolean;
     dontRefineSmall: boolean;
@@ -355,6 +356,10 @@ class RobustReachabilityProblem {
         this.lss = lss;
         this.avoid = avoid;
         this.reach = reach;
+        // Polytopes smaller than this size will not be refined to avoid
+        // numerical instability and state space explosion with very small
+        // polytopes
+        this._epsPolytope = lss.ww.scale(0.1);
         // Save configuration
         this.expandTarget = settings.expandTarget;
         this.dontRefineSmall = settings.dontRefineSmall;
@@ -415,6 +420,12 @@ class RobustReachabilityProblem {
         for (let part of this._parts) {
             // Don't refine parts marked as done
             if (part.done) {
+                parts.push(part);
+                continue;
+            // Analogous to system refinement: don't refine very small
+            // polytopes (even if they are unsafe)
+            } else if (part.polytope.pontryagin(this._epsPolytope).isEmpty) {
+                part.done = true;
                 parts.push(part);
                 continue;
             // A small polytope is only refined if dontRefineSmall is not set

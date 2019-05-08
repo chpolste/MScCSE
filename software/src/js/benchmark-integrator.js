@@ -122,7 +122,7 @@ export function run(sessionPath: string, logPath: string) {
     try {
         const settings1 = {
             expandTarget: false,
-            dontRefineSmall: true,
+            dontRefineSmall: false,
             postProcessing: "none"
         };
         step("[5] Positive Robust Single x2", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings1).iterate(2), false);
@@ -140,7 +140,7 @@ export function run(sessionPath: string, logPath: string) {
     try {
         const settings2 = {
             expandTarget: true,
-            dontRefineSmall: true,
+            dontRefineSmall: false,
             postProcessing: "none"
         };
         step("[5] Positive Robust Multi x2", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings2).iterate(2), false);

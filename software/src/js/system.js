@@ -253,7 +253,7 @@ export type JSONAbstractedLSS = {
     lss: JSONLSS,
     predicates: { [PredicateID]: JSONHalfspace },
     states: JSONState[],
-    labelNum: number
+    _labelNum: number
 };
 
 // Implements GameGraph interface for product with objective automaton
@@ -266,21 +266,26 @@ export class AbstractedLSS implements GameGraph {
     +lss: LSS;
     +states: Map<StateID, State>;
     +predicates: Map<PredicateID, Halfspace>;
-    labelNum: number;
+    +_epsPolytope: Polytope;
+    _labelNum: number;
 
     // Empty system (only for custom system construction)
     constructor(lss: LSS): void {
         this.lss = lss;
-        this.labelNum = 0;
         this.states = new Map();
         this.predicates = new Map();
+        // Polytopes smaller than this size will not be refined to avoid
+        // numerical instability and state space explosion with very small
+        // polytopes
+        this._epsPolytope = lss.ww.scale(0.1);
+        this._labelNum = 0;
     }
 
     // Recover an AbstractedLSS instance from its JSON serialization
     static deserialize(json: JSONAbstractedLSS): AbstractedLSS {
         const system = new AbstractedLSS(LSS.deserialize(json.lss));
         // labelNum
-        system.labelNum = json.labelNum;
+        system._labelNum = json._labelNum;
         // Add predicates
         for (let label in json.predicates) {
             system.predicates.set(label, Halfspace.deserialize(json.predicates[label]));
@@ -315,8 +320,8 @@ export class AbstractedLSS implements GameGraph {
 
     // Generate a label for a new state
     genLabel(): StateID {
-        this.labelNum++;
-        const label = "X" + this.labelNum.toString();
+        this._labelNum++;
+        const label = "X" + this._labelNum.toString();
         // If the label already exists for some reason, pick another one
         return this.states.has(label) ? this.genLabel() : label;
     }
@@ -352,6 +357,9 @@ export class AbstractedLSS implements GameGraph {
     refine(partitions: Map<State, Region>): RefinementMap {
         const refined = new Map();
         for (let [state, partition] of partitions) {
+            // To improve numerical stability, refuse refinement of small
+            // states even if a parition is given
+            if (state._isEpsSmall) continue;
             // Validate that partition covers state polytope
             // TODO: test disjunctness
             if (!state.polytope.isSameAs(partition)) throw new Error(
@@ -493,7 +501,7 @@ export class AbstractedLSS implements GameGraph {
             lss: this.lss.serialize(),
             predicates: predicates,
             states: Array.from(iter.map(_ => _.serialize(includeGraph), this.states.values())),
-            labelNum: this.labelNum
+            _labelNum: this._labelNum
         }
     }
 
@@ -521,6 +529,7 @@ export class State {
     +actions: Action[];
     _actions: ?Action[];
     _reachable: Set<State>;
+    +_isEpsSmall: boolean;
 
     constructor(system: AbstractedLSS, label: StateID, polytope: Polytope, isOuter: boolean, predicates?: Iterable<PredicateID>): void {
         this.system = system;
@@ -530,6 +539,7 @@ export class State {
         this.predicates = new Set(predicates == null ? [] : predicates);
         this._actions = null;
         this.resetActions(); // initializes _actions and _reachable
+        this._isEpsSmall = polytope.pontryagin(system._epsPolytope).isEmpty;
     }
 
     static deserialize(json: JSONState, system: AbstractedLSS, restoreActions?: boolean): State {
@@ -718,6 +728,12 @@ export class Action {
                     this, part.items, preP.intersect(this.origin.polytope).simplify()
                 );
             }).filter(_ => !_.origins.isEmpty);
+            // TODO there are still extreme cases with very small states where
+            // this comes out empty due to numerical instability in the
+            // geometry library. The problems are caught during game
+            // construction (a player 2 state with no actions) but this
+            // generally does not speak for the trustworthiness of the geometry
+            // algorithms in some extreme cases :/
             return this.supports;
         }
     }

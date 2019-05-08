@@ -536,13 +536,15 @@ export class Polytope {
 
     // A random point from inside the polytope, based on a uniform distribution
     sample(): Vector {
-        // Rejection based sampling should terminate eventually
         const extent = this.extent;
-        let point;
-        do {
-            point = this.extent.map(([l, u]) => l + (u - l) * Math.random());
-        } while (!this.contains(point));
-        return point;
+        // Rejection based sampling is not guaranteed to terminate, if no inner
+        // point is found after 10 * dim tries, settle for centroid, which is
+        // a known inner point
+        for (let i = 0; i < 10 * this.dim; i++) {
+            const point = this.extent.map(([l, u]) => l + (u - l) * Math.random());
+            if (this.contains(point)) return point;
+        }
+        return this.centroid;
     }
 
     // Scale the polytope wrt to the centroid point

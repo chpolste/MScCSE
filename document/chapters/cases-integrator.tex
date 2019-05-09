@@ -402,23 +402,31 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
         \stopframedtext
     }
 
-    Show table with average numbers for all problems.
-    Talk about randomization, stability of performance results, speed of progress.
-    Layered refinement performs best, importance of small-state suppression (combats over-refinement) and problems with jaggedness (which just causes more jaggedness).
+    Statistics from 8 runs of the 5 presented refinement configurations are given in \in{Table}[tab:cases-integrator-results-statistics].
+    The negative refinement was shared by all procedures, then the different methods were applied for 4 iterations or 1 iteration if layer decomposition was applied.
+    The runs shown above in detail are the median runs with respect to the elapsed time in the final iteration.
 
-    Show how product game simplification can save time but that step-wise expansion of yes-region is generally not possible.
-    System analysis is not set up to profit from the progress guarantee, analysis constructs game based on the previous results only.
-    Relying on progress guarantee of robust states alone neglects probabilistic aspects of dynamics and iteraction with other states generated in partitioning.
-    For this specific example where target region is known to be satisfying, additional performance could be gained from using the robust progress guarantee.
-    Game construction is by far the bottleneck and reducing the number of polytopic operations required would boost performance.
-    This is however not generally applicable, special case here for co-safe objective.
+    The most striking observation from this table is the variability in partition size and elapsed time exhibited by the procedures not based on a layer decomposition.
+    Randomization in the $\RefinePos$ kernel apparently has a significant effect on the refinement performance.
+    Elapsed times for both refinement methods without post-processing vary by more than 15 minutes and the state space partition size by up to 100 polytopes.
+    The variability of the non-layered procedure with small state suppression is much less, but still varies by half a minute.
+    In contrast, the layered methods vary only by a few seconds and less than 10 polytopes in the state space partition.
+    The results of the layer decomposition with shrunk control space show no variability at all in the volume of decided state space and less than 3 seconds of variability in the total elapsed time.
+    One can conclude that the layer decomposition has a strong stabilizing effect on the refinement that counters the variability of the randomization of $\RefinePos$ and results in methods that deliver consistently good and dependable performance.
 
-    3 additional discarded runs of single-step due to numerical instability when very small states appeared.
-    Failure when calculating PreP regions.
-    Unknown if due to limitation of implemented geometry library or unavoidable.
-    Countermeasure taken don't refine very small states further but they still can appear as part of the refinement partitioning.
-    Would be possible to refuse partitioning if small states appear at the cost of progress.
-    During development and testing no problems occurred when small state suppression was used, problem limited to small scale geometry.
+    Missing in the implementation is the leveraging of robust progress guarantees by the game graph abstraction after robust refinement.
+    This would speed up the methods further as robust reachability could be established without the need for abstraction.
+    Player actions for many polytopes would then not have to be computed and game construction, which is undeniably the bottleneck of the entire solution scheme, would be cheaper.
+
+    An issue that arose during the performance benchmark was numerical instability when operating on very small polytopes.
+    3 runs of the single-step procedure had to be repeated due to a faulty game construction detected by the implementation.
+    In every case the fault was a problem in the calculation of the $\PreP$-regions for extremely small polytopes.
+    This is either an instability in the geometry library (not unthinkable considering that it is a custom development) and/or a general problem with polytope sizes near the smallest representable scale.
+    Additional measures that avoid very fine partitioning could be implemented to combat this.
+    Currently there is a size threshold under which states are not refined further but this does not stop the creation of very small states completely.
+    Instead one could refuse any partitioning that produces a tiny polytope at the cost of refinement progress.
 
 \stopsubsection
+
+% TODO? 2x safety + full self-loop removal to show viability of neutral refinement.
 

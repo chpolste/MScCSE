@@ -13,9 +13,9 @@ The objective is to eventually reach the polytope $\ClosedInterval{-1}{1}^2$ alm
     \Finally ( \Predicate_{1} \wedge \Predicate_{2} \wedge \Predicate_{3} \wedge \Predicate_{4} ) \EndComma
 \stopformula
 
-where the 4 linear predicates $\Predicate_{1}$, $\Predicate_{2}$, $\Predicate_{3}$ and $\Predicate_{4}$ are specified, corresponding to halfspaces to halfspaces governed by the inequalities $x \leq 1$, $-x \leq 1$, $y \leq 1$ and $-y \leq 1$.
-The co-safe interpretation of the objective is chosen.
-The initial state space decomposition and the extended state space according to $\Posterior{\StateSpace}{\ControlSpace}$ is visualized in \in{Figure}[fig:cases-integrator-initial].
+where the linear predicates $\Predicate_{1}$, $\Predicate_{2}$, $\Predicate_{3}$ and $\Predicate_{4}$ correspond to halfspaces governed by the inequalities $x \leq 1$, $-x \leq 1$, $y \leq 1$ and $-y \leq 1$.
+The co-safe interpretation of The objective is chosen and the automaton from \in{Table}[tab:TODO] used.
+The initial state space decomposition and the extended state space are visualized in \in{Figure}[fig:cases-integrator-initial].
 
 \cite[Svorenova2017] have demonstrated that positive robust refinement is viable for this problem, so it is used here as a testbed for different configurations of robust refinement techniques.
 Double integrator dynamics were also used as an example by \cite[AydinGol2015] but in a non-probabilistic setting.
@@ -34,6 +34,7 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
     \placetable[top][tab:cases-integrator-negative]{
         Initial analysis and negative attractor refinement for the double integrator system.
         The refinement procedure converged after 3 iterations.
+        Polytopes in $\YesStates{q_0}$ are coloured green, polytopes in $\NoStates{q_0}$ grey and white polytopes are from $\MaybeStates{q_0}$.
         See \in{section}[sec:cases-integrator-negative] for discussion.
     }{
         \RefinementTable{
@@ -52,12 +53,18 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
         }
     }
 
-    Begin by removing negative attractor sets, here of the outer region.
-    Iterate until convergence, here 3 steps.
-    Introduction into refinement progress reporting:
-    Reported are the elapsed time since problem initialization, the number of polytopes in the current state space partition, the game size in player 1 and 2 states and actions, the elapsed time during the refinement application, game graph construction (abstraction) and analysis (game solution) as well as the volume fraction of regions $\YesStates{q_0}$ (yes), $\NoStates{q_0}$ (no) and $\MaybeStates{q_0}$ (maybe).
+    Before applying a positive refinement procedure, negative attractor (\in{section}[sec:refinement-holistic-negattr]) refinement is applied.
+    The initial negative region is made up from the outer polytopes of the system.
+    3 iterations of the refinement-abstraction-analysis cycle are shown in \in{Table}[tab:cases-integrator-negative] (2-4).
+    As guaranteed by the refinement method, the attractor regions are immediately recognized as members of $\NoStates{q_0}$.
+    After 3 iterations, the attractor has converged and no additional progress is made.
 
-    Show that simplification with multiple iterations of negative attractor does not generally work because of self-loops.
+    In addition to a depiction of the state space partition after each refinement step in \in{Table}[tab:cases-integrator-negative], the elapsed time since problem initialization and the number of polytopes in the current state space partition are stated above the figures.
+    Also reported are the size of the 2½-player game abstraction as player 1 and 2 state and action counts, the elapsed time during refinement application, game graph construction and analysis as well as the volume fraction of the regions $\YesStates{q_0}$ (yes), $\NoStates{q_0}$ (no) and $\MaybeStates{q_0}$ (maybe) with respect to the state space polytope $\StateSpace$.
+    The table shows that refinement, abstraction and analysis in all iterations took less than 1 second.
+    The initial analysis and the negative refinement required 1 second of run time in total.
+
+    % TODO? Show that simplification with multiple iterations of negative attractor does not generally work because of self-loops.
 
 \stopsubsection
 
@@ -104,6 +111,35 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
         }
     }
 
+    The first positive refinement procedure tested on the double integrator is constructed to resemble that of \cite[Svorenova2017] (see their chapter 5 and Figure 6).
+    Their robust refinement kernel was driven by control regions selected based on the player 1 actions of the game and they applied the kernel three times between each analysis.
+    The robust predecessor of the recognized yes-region was used to refine the system.
+    Here, only the kernel refinement is applied but with 2 applications between each analysis as the sampling-based control region selection is generally more effective than action-based selection and progress per iteration is therefore similar.
+
+    The progress from 4 iterations of refinement together with the familiar performance metrics are shown in \in{Table}[tab:cases-integrator-positive-single].
+    They are labeled iterations 5 to 8 to indicate that the procedure from the negative refinement is continued.
+    The size of the state space partition doubles after the first iteration of refinement and then more than triples in the next iteration.
+    A large amount of small states are created to the upper left and lower right of the target region.
+    The asymmetry of the partitioning outside of the robust attractor region is due to the implementation of the geometric operations.
+    Here, the partitioning in the lower right corner is favourable and leads to additional progress that is not seen in the upper left.
+    This allows faster progress in the upper right half of the state space in the 2 subsequent iterations whereas many small states are created in the upper left.
+    The polygon count exceeds 300 after 3 iterations and increases only by 61 in the 4th.
+    After the final iteration, 84\% of the state space volume has been categorized as parts of $\InitialStates$ or $\StateSpace \setminus \InitialStates$.
+    The elapsed time is just under 10 minutes with most of the time spent in the construction of the game abstraction.
+
+    Compared to the results of \cite[Svorenova2017] it can be noted that the amount of progress after 4 iterations is similar, but the partition generated here has more states.
+    This can partially be attributed to the omission of the $\PreR$ refinement which seems to reduce overall jaggedness aroung the $\AttrR$-regions.
+
+    The decomposition into robust reachability problems for specific automaton transitions enables multi-step refinement with an expanding target region.
+    The double integrator problem is already a reachability problem and co-safe, therefore the decomposition is trivial here and the transition $q_0$ to $q_1$ is chosen.
+    A single-step method was applied twice between analyses in the previous experiment, now a two-step method is applied once.
+    4 iterations of this refinement procedure are shown in \in{Table}[tab:cases-integrator-positive-double].
+    Immediately in the first iteration, progress is faster than with the single-step scheme with 20 additional polytopes generated.
+    The second iteration more than triples the partition size which leads to a costly game graph abstraction taking 4 minutes.
+    Progress after this iteration however is comparable to that of the third iteration of the single-step method.
+    The next 2 iterations grow the partition size by 125, with relatively short game graph construction times due to game simplification based on the fast progress in the first 2 iterations.
+    Only 0.3\% of the state space volume remain undecided after 4 iterations with an elapsed time that is more than 3 minutes shorter than that of the single-step method.
+
     \placetable[top][tab:cases-integrator-positive-suppressed]{
         Refinement of transition $q_0 \rightarrow q_1$ of the double integrator system using 4 iterations of positive robust two-step refinement with robust target expansion and small state suppression.
         See \in{section}[sec:cases-integrator-positive] for discussion.
@@ -124,30 +160,16 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
         }
     }
 
-    Recreation of Svorenova positive refinement procedure, who refined wrt 3 random actions.
-    Control selection for $\RefinePos$ is generally better than action-based, therefore, two single-step applications here.
-    Second iteration introduces much small-scale jaggedness in upper left and lower right regions.
-    Asymmetry of partitioning of the rest is an artifact of the geometry implementation.
-    Here, it works in favour of lower right region.
-    Polygon count exceeds 300 after 3 applications of positive refinement.
-    After 4 applications, 84\% of state space is decided as either belonging to $\InitialStates$ or $\StateSpace \setminus \InitialStates$.
+    The two-step refinement is applied again in \in{Table}[tab:cases-integrator-positive-suppressed] with two modifications:
+    First, any state $Y$ with $Y \ominus \RandomSpace$ is not further refined unless the probability of reaching the no-region is non-zero for all control inputs.
+    Second, the $\RefinePos$ partition is post-processed such that polytopes $Y$ where $Y \ominus \RandomSpace$ are removed from the $\AttrR$-region, as shown in \in{Figure}[fig:refinement-transition-jagged](d).
+    Note that this does not prevent the creation of such states entirely as the small state suppression is only applied to the $\AttrR$-region.
+    As expected, progress per iteration is slower than without post-processing but the state space explosion is significantly reduced because the refinement is able to handle jaggedness without it being propagated to smaller scales.
+    After 4 iterations that took only a tenth of the time of the unmodified procedure less than half the number of partition elements were generated and only 2.7\% of the system was left undecided.
 
-    Transition decomposition allows taking multiple robust steps.
-    Problem is already reachability and co-safe, therefore extraction of robust reachability problem trivial (transition $q_0$ to $q_1$).
-    Positive robust refinement, two iterations per step, with expanding target region based on robust reachability.
-    As expected, after one application more progress than single-step scheme.
-    Second iteration with gain of 168 polytopes and correspondingly an expensive game graph construction (almost twice the size of single-step iteration 2).
-    Progress after analysis however comparable to 3rd iteration of single-step.
-    Game simplification then allows faster analysis of remaining two iterations with very fast progress despite similar numbers of polytopes in the partition.
-    State space pretty much completely decided after 4 applications while elapsed time more than 3 minutes less than for single-step.
-
-    Same setup as two-step but with post-processing of $\RefinePos$ such that all polytopes $Y$ where $Y \ominus \RandomSpace$ are removed (compare with \in{Figure}[fig:refinement-transition-jagged]d).
-    Table \in[TODO] shows that progress in each iteration is slowed but state space explosion is significantly reduced.
-    Similar overall progress to method without post-processing reached in a tenth of the time, thanks to massively reduced cost of game construction.
-    Similar partitioning if 8 iterations are carried out directly (not shown).
-    Overall time takes longer due to intermediate game simplification.
-    Post-processing with overapproximation using convex hull yielded unstable results.
-    While overapproximation would sometimes work out and system would progress, it sometimes got stuck due to the lost robustness guarantees, that could not be compensated for by the probabilistic dynamics of the LSS.
+    Similar partitioning is also achieved if a single iteration with an eight-step procedure is carried out (not shown), although the overall elapsed time is longer because the game construction cannot benefit from intermediate results.
+    Applying an overapproximating post-processing using the convex hull as shown in \in{Figure}[fig:refinement-transition-jagged](b) resulted in varying performance (not shown).
+    While the overapproximation would sometimes work out and the system would continuously progress, the procedure could also get stuck due to the missing progress guarantee.
 
 \stopsubsection
 

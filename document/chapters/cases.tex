@@ -1,11 +1,9 @@
-Demonstrate the presented refinement procedures in 3 case studies.
-Goal is to compare performance and illustrate challenges.
-In particular, a double integrator problem that was examined in detail by \cite[Svorenova2017] is considered again in the first case study, offering the possibility to compare directly with their results.
-The second case study, a simple corridor between two rooms has to be passed.
-Finally, a practical problem is considered in form of an inverted pendulum which has to be stabilized in an upright position.
-It is shown how a linear stochastic system can be derived from the pendulum's equation and a controller is synthesized.
+The presented refinement procedures are applied to two case studies for comparison and performance assessment.
+Particular attention is given to the robust positive refinement for reachability problems.
+Multiple configurations are compared in the first case study, a basic reachability problem with two-dimensional double integrator dynamics.
+This exact problem was previously examined in detail by \cite[Svorenova2017].
+A second case study is concerned with a more complex objective with 3 automaton states and a 2-dimensional control space.
 
-Case studies produced from the implementation presented in the previous chapter.
-All problems have 2-dimensional state spaces which is the highest dimension supported by the implementation and convenient for representation in this document.
-The dimensionality is not restricted by the procedures, which are dimension-independent and, as argued in section \in[sec:implementation-exploration], it is not expected that higher-dimensional problems lead to fundamentally different behaviour and challenges, other than the increasing computational demands.
+All case studies were run on a machine with an Intel i5-4500U Haswell CPU (1.6 GHz base clock, 2.6 GHz turbo) and 8 GB of main memory.
+The JavaScript routines from the interactive system explorer were run inside node.js 12.2.0 without any multi-core parallelism.
 

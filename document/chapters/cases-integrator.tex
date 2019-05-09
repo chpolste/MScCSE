@@ -13,7 +13,7 @@ The LTL formula expressing this reachability objective is then
 \stopformula
 
 with a co-safe interpretation.
-\cite[Svorenova2017] used this exact system for their case studies and it is used here again as a baseline for comparison.
+\cite[Svorenova2017] used this exact system for their case studies and it is used here again for a detailed exploration of the robust refinement methods.
 
 \placefigure[top][fig:cases-integrator-initial]{
     The double integrator test system and its initial partition.
@@ -45,12 +45,12 @@ with a co-safe interpretation.
         }
     }
 
-    Negative attractor refinement.
-    Iterate until convergence.
+    Begin by removing negative attractor sets, here of the outer region.
+    Iterate until convergence, here 3 steps.
     Introduction into refinement progress reporting.
 
-    Note that due to progress guarantee analysis is technically not necessary and procedure could be speed up.
-    Analysis status of other states could be affected by refinement which can only be determined by an analysis.
+    System analysis is not set up to profit from the progress guarantee, analysis constructs game based on the previous results only.
+    Relying on progress guarantee of robust states alone neglects probabilistic aspects of dynamics and iteraction with other states generated in partitioning.
 
     Show that simplification with multiple iterations of negative attractor does not generally work because of self-loops.
 
@@ -118,21 +118,33 @@ with a co-safe interpretation.
 
     Recreation of Svorenova positive refinement procedure, who refined wrt 3 random actions.
     Control selection for $\RefinePos$ is generally better than action-based, therefore, two single-step applications here.
-    Also use PreR?
+    Second iteration introduces much small-scale jaggedness in upper left and lower right regions.
+    Asymmetry of partitioning of the rest is an artifact of the geometry implementation.
+    Here, it works in favour of lower right region.
+    Polygon count exceeds 300 after 3 applications of positive refinement.
+    After 4 applications, 84\% of state space is decided as either belonging to $\InitialStates$ or $\StateSpace \setminus \InitialStates$.
 
+    Transition decomposition allows taking multiple robust steps.
     Problem is already reachability and co-safe, therefore extraction of robust reachability problem trivial (transition $q_0$ to $q_1$).
-    Positive refinement, two iterations per step, with target expansion.
-    More progress per iteration.
-    Should be a bit faster than 2x single-step, but similar state counts.
-    Progress guarantee could be used to speed up, but this has not been implemented.
-    It would only work if the target region is recognized as part of the yes states too, not in general.
+    Positive robust refinement, two iterations per step, with expanding target region based on robust reachability.
+    As expected, after one application more progress than single-step scheme.
+    Second iteration with gain of 168 polytopes and correspondingly an expensive game graph construction (almost twice the size of single-step iteration 2).
+    Progress after analysis however comparable to 3rd iteration of single-step.
+    Game simplification then allows faster analysis of remaining two iterations with very fast progress despite similar numbers of polytopes in the partition.
+    State space pretty much completely decided after 4 applications while elapsed time more than 3 minutes less than for single-step.
 
-    Positive refinement, two iterations per step, small state suppression.
-    Additional iteration required but faster progress, much fewer states.
-    Show comparison (super-small states).
-    Similar result if 8 iterations are carried out directly.
-    Again, for this reachability problem analysis time could be reduced by using progress guarantee, which small state-suppression delivers.
-    Compare to convex hull overapproximation which gets stuck.
+    Again, for this specific example where target region is known to be satisfying, additional performance could be gained from using the robust progress guarantee.
+    Game construction is by far the bottleneck and reducing the number of polytopic operations required would boost performance \.
+    This is however not generally applicable, special case here for co-safe objective.
+    To not misrepresent the results for general applications, progress guarantee transfer has not been implemented.
+
+    Same setup as two-step but with post-processing of $\RefinePos$ such that all polytopes $Y$ where $Y \ominus \RandomSpace$ are removed (compare with \in{Figure}[fig:refinement-transition-jagged]d).
+    Table \in[TODO] shows that progress in each iteration is slowed but state space explosion is significantly reduced.
+    Similar overall progress to method without post-processing reached in a tenth of the time, thanks to massively reduced cost of game construction.
+    Similar partitioning if 8 iterations are carried out directly (not shown).
+    Overall time takes longer due to intermediate game simplification.
+    Post-processing with overapproximation using convex hull yielded unstable results.
+    While overapproximation would sometimes work out and system would progress, it sometimes got stuck due to the lost robustness guarantees, that could not be compensated for by the probabilistic dynamics of the LSS.
 
 \stopsubsection
 
@@ -149,6 +161,36 @@ with a co-safe interpretation.
         }
     }
 
+    Application of additional layer decomposition using the $\PreR$ operator as layer generator.
+    Due to previous success, use small state suppression post-processing and robust expansion of target region again.
+    Outer layers depend on solution of inner layers, therefore number of iterations of robust refinement applied in each layer raised to 4 to increase likelyhood of solution.
+
+    \placefigure[top][fig:cases-integrator-layers]{
+        TODO
+    }{
+        \bTABLE[offset=0mm,frame=off]
+            \bTR[boffset=4mm]
+                \bTD \externalfigure[cases-integrator-layers-prer100][width=0.494\textwidth] \eTD
+                \bTD \externalfigure[cases-integrator-layers-prer95][width=0.494\textwidth] \eTD
+            \eTR
+            \bTR
+                \bTD[nc=2] \externalfigure[cases-integrator-layers][width=\textwidth] \eTD
+            \eTR
+        \eTABLE
+    }
+
+    First with $\PreR$, one application with all layers ($\PreR$ converges after TODO applications) yields a partitioning of similar number of states as final iteration of two-step robust scheme with suppression.
+    No intermediate game simplification possible, therefore larger game has to be constructed and performance falls short.
+    One issue that increases the polytope count is that the $PreR$-regions exhibit \epsilon-limit behaviour.
+    This causes small, thin states to appear at its edges where a robust transition cannot be guaranteed as a single-vector control input is required which is not representable in the chosen abstraction model.
+    Appearance of such states cannot be suppressed as they are not part of the $\AttrR$ region of $\RefinePos$ but are created when partitioning the remaining region of the refined polytope.
+    Compare with partitioning when generating control region is shrunk by 95\% ($\ClosedInterval{-0.95}{0.95}$ instead of $\ClosedInterval{-1}{1}$).
+    Limit behaviour completely eliminated, at the cost of only a little less layer size (gap between negative attractor region and outermost layer.
+    Performance with shrunk control region exceeds that of two-step with intermediate analysis despite having to construct the entire game.
+    Lowest number of states seen and only 1\% of state space volume remaining undecided.
+    For comparison, minimum number of states that arise just from the layer decomposition alone is 106.
+    Less states is impossible, and refinement here shows need for only 23 additional states.
+
     \placetable[top][tab:cases-integrator-layered-shrunk]{
         TODO \par TODO
     }{
@@ -158,16 +200,6 @@ with a co-safe interpretation.
                                 yes=81.8,no=17.1,maybe=1.0,figure=cases-integrator-iteration5-slprms]
         }
     }
-
-    Positive robust refinement with layer decomposition, target expansion, small state suppression and PreR, 4 iterations.
-    Show how limit behaviour causes small states to appear despite suppression.
-    Instead, show with 95\% shrunk U ($\ClosedInterval{-0.95}{0.95}$).
-    Limit behaviour gone, performance comparable to 9 iterations direct, but less costly refinement due to simpler robust sub-problems.
-    Structure of layered refinement prescribes minimum number of states.
-
-    Show unintuitive behaviour: only 2 layers at a time, faster time to solution despite more states.
-    Reason: game simplification.
-    Conclusion: progress guarantee should be used if it exists.
 
 \stopsubsection
 
@@ -325,12 +357,17 @@ with a co-safe interpretation.
     }
 
     Show table with average numbers for all problems.
-    Talk about randomization.
-    Give numbers as percent progress per second?
+    Talk about randomization, stability of performance results, speed of progress.
     Layered refinement performs best, importance of small-state suppression (combats over-refinement) and problems with jaggedness (which just causes more jaggedness).
     Plot number of state space partition elements vs. game size for full analysis.
-    Show how product game simplification can save time.
-    Illustrated also by 2-layers at a time experiment.
+    Show how product game simplification can save time but that step-wise expansion of yes-region is generally not possible.
+
+    3 additional discarded runs of single-step due to numerical instability when very small states appeared.
+    Failure when calculating PreP regions.
+    Unknown if due to limitation of implemented geometry library or unavoidable.
+    Countermeasure taken don't refine very small states further but they still can appear as part of the refinement partitioning.
+    Would be possible to refuse partitioning if small states appear at the cost of progress.
+    During development and testing no problems occurred when small state suppression was used, problem limited to small scale geometry.
 
 \stopsubsection
 

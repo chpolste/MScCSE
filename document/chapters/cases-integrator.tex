@@ -160,10 +160,10 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
         }
     }
 
-    The two-step refinement is applied again in \in{Table}[tab:cases-integrator-positive-suppressed] with two modifications:
+    The two-step refinement is applied again with two modifications:
     First, any state $Y$ with $Y \ominus \RandomSpace$ is not further refined unless the probability of reaching the no-region is non-zero for all control inputs.
     Second, the $\RefinePos$ partition is post-processed such that polytopes $Y$ where $Y \ominus \RandomSpace$ are removed from the $\AttrR$-region, as shown in \in{Figure}[fig:refinement-transition-jagged](d).
-    Note that this does not prevent the creation of such states entirely as the small state suppression is only applied to the $\AttrR$-region.
+    4 iterations of this modified refinement are presented in \in{Table}[tab:cases-integrator-positive-suppressed].
     As expected, progress per iteration is slower than without post-processing but the state space explosion is significantly reduced because the refinement is able to handle jaggedness without it being propagated to smaller scales.
     After 4 iterations that took only a tenth of the time of the unmodified procedure less than half the number of partition elements were generated and only 2.7\% of the system was left undecided.
 
@@ -187,9 +187,18 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
         }
     }
 
-    Application of additional layer decomposition using the $\PreR$ operator as layer generator.
-    Due to previous success, use small state suppression post-processing and robust expansion of target region again.
-    Outer layers depend on solution of inner layers, therefore number of iterations of robust refinement applied in each layer raised to 4 to increase likelyhood of solution.
+    The layer decomposition approach offers an alternative approach to multi-step refinement.
+    It is now applied together with the underapproximated robust refinement from the previous section.
+    The robust predecessor is chosen as the layer generating operator.
+    Because reachability from the outer layers depends on the solution of the inner layers, up to 4 robust refinement steps are applied to each layer in order to increase the likelihood of successful refinement.
+
+    \in{Table}[tab:cases-integrator-layered-original] shows the partitioning and performance metrics for a layered decomposition refinement.
+    The $\PreR$ recurrence converged after 7 layers were generated.
+    The size of the resulting state space partition is similar to that of the final iteration of the post-processed two-step refinement but the elapsed time to solution is longer, since no intermediate analysis results are available for game simplification.
+    It also fails to guarantee almost-sure reachability for some polytopes from the 2 outermost layers.
+    This is likely related to the small-state suppression as these polytopes are relatively long and thin and any further refinement is rejected by the post-processing.
+    Long and thin states appear also along the edges of the layer boundaries.
+    This is due to \epsilon-limit behaviour at the edge of the $\PreR$-regions.
 
     \placefigure[top][fig:cases-integrator-layers]{
         Top row: illustration of the impact of \epsilon-limit behaviour (\in{section}[sec:abstraction-analysis-correctness]) when using $\ControlSpace$ unmodified to generate layers for the double integrator example (left).
@@ -209,17 +218,20 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
         \eTABLE
     }
 
-    First with $\PreR$, one application with all layers ($\PreR$ converges after TODO applications) yields a partitioning of similar number of states as final iteration of two-step robust scheme with suppression.
-    No intermediate game simplification possible, therefore larger game has to be constructed and performance falls short.
-    One issue that increases the polytope count is that the $PreR$-regions exhibit \epsilon-limit behaviour.
-    This causes small, thin states to appear at its edges where a robust transition cannot be guaranteed as a single-vector control input is required which is not representable in the chosen abstraction model.
-    Appearance of such states cannot be suppressed as they are not part of the $\AttrR$ region of $\RefinePos$ but are created when partitioning the remaining region of the refined polytope.
-    Compare with partitioning when generating control region is shrunk by 95\% ($\ClosedInterval{-0.95}{0.95}$ instead of $\ClosedInterval{-1}{1}$).
-    Limit behaviour completely eliminated, at the cost of only a little less layer size (gap between negative attractor region and outermost layer.
-    Performance with shrunk control region exceeds that of two-step with intermediate analysis despite having to construct the entire game.
-    Lowest number of states seen and only 1\% of state space volume remaining undecided.
-    For comparison, minimum number of states that arise just from the layer decomposition alone is 106.
-    Less states is impossible, and refinement here shows need for only 23 additional states.
+    It is possible to combat this refinement behaviour by shrinking the control region during the layer generation.
+    \in{Figure}[fig:cases-integrator-layers] shows the effects of \epsilon-limit behaviour on the partition in the top left frame.
+    The panel on the right shows the same layered refinement but the control space was shrunk by 5\% during the generation of the layers, here from $\ClosedInterval{-1}{1}$ to $\ClosedInterval{-0.95}{0.95}$.
+    This creates a \quotation{buffer zone} at the edges of the control space which allow the inner refinement steps to avoid the \epsilon-limit behaviour.
+    Due to the smaller resulting $\PreR$-layers, an additional layer is required until the generator converges.
+    As the bottom panel of \in{Figure}[fig:cases-integrator-layers] demonstrates, only a small border between the outermost layer and the no-region remains due to the shrunk $\ControlSpace$.
+
+    \in{Table}[tab:cases-integrator-layered-shrunk] shows the complete refinement results of this layer decomposition.
+    Due to the elimination of the \epsilon-limit behaviour, 37 fewer states have been created compared to the unmodified $\PreR$ decomposition.
+    The number of states that arise just from the layer decomposition alone is 106 (\in{Figure}[fig:cases-integrator-layers] bottom), meaning that 23 additional polytopes were generated to enable the desired layer-to-layer transitions.
+    The number of player 1 and 2 actions in the game graph has been reduced significantly and this is reflected in a much smaller run time of the game construction.
+    After the analysis, 99\% of the state space is decided with 29 seconds elapsed since initialization.
+    This is faster than two-step refinement with post-processing which profited from game simplification due to intermediate analysis results being available.
+    It is also the smallest state space partition of all positive robust refinement configurations tried.
 
     \placetable[top][tab:cases-integrator-layered-shrunk]{
         Refinement of transition $q_0 \rightarrow q_1$ of the double integrator reachability system using a layer decomposition generated by the robust predecessor with a 5\%-shrunk $\ControlSpace$ and four-step positive robust refinement with robust target expansion and small state suppression.
@@ -374,7 +386,7 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
     \eTABLE
 \stopbuffer
 
-\startsubsection[title={Results},reference=sec:cases-integrator-results]
+\startsubsection[title={Comparison and Discussion},reference=sec:cases-integrator-results]
 
     % Rotation value has to be flipped for some reason (maybe because it refers
     % to the page that includes the figure, not the figure itself?

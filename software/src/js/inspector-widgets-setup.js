@@ -164,7 +164,7 @@ export class ProblemSetup extends ObservableMixin<null> {
                 ]),
                 this.ss.node,
                 dom.H3({}, [
-                    "Initial State Space Decomposition",
+                    "Linear Predicates",
                     dom.DIV({ "class": "icons" }, [dom.infoBox("info-input-predicates")])
                 ]),
                 this.predicates.node
@@ -177,11 +177,11 @@ export class ProblemSetup extends ObservableMixin<null> {
                 this.submit();
             }
         });
-        this.analyseWhenReady = new CheckboxInput(true, "Analyse at Startup");
+        this.analyseWhenReady = new CheckboxInput(true, "analyse at startup");
         this.node = dom.FORM({}, [
             dom.H3({}, ["Dimensions"]),
-            dom.P({}, [this.ssDim.node, " State Space"]),
-            dom.P({}, [this.csDim.node, " Control Space"]),
+            dom.P({}, [this.ssDim.node, " state space"]),
+            dom.P({}, [this.csDim.node, " control space"]),
             dom.H3({}, ["Evolution Equation"]), this.equation.node,
             columns,
             dom.H3({}, ["Continue"]),
@@ -353,7 +353,7 @@ class EvolutionEquationInput {
         this.csDim = csDim;
         this.A = new MatrixInput(EvolutionEquationInput.parseNumber, [2, 2], 5);
         this.B = new MatrixInput(EvolutionEquationInput.parseNumber, [2, 2], 5);
-        this.showVectorField = new CheckboxInput(false, "Show Vector Field");
+        this.showVectorField = new CheckboxInput(false, "show vector field");
         this.showVectorField.node.title = "scaling: x0.25";
         this.node = dom.DIV({}, [
             dom.P({}, [
@@ -552,7 +552,7 @@ class ObjectiveInput extends ObservableMixin<null> implements Input<Objective> {
     constructor(predicates: Input<[Halfspace[], string[]]>): void {
         super();
         this.kind = new DropdownInput(presets.objectives, "Reachability");
-        this.coSafe = new CheckboxInput(false, "Co-safe Interpretation");
+        this.coSafe = new CheckboxInput(false, "co-safe interpretation");
         this.coSafeLine = dom.P();
         this.terms = new ObjectiveTermsInput(this.kind, predicates);
         this.formula = dom.SPAN();

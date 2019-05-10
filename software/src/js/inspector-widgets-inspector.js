@@ -972,14 +972,14 @@ class SystemViewCtrlCtrl {
     constructor(systemViewCtrl: SystemViewCtrl, keys: dom.Keybindings): void {
         // State label toggle
         const labels = new CheckboxInput(false, dom.SPAN({}, [
-            "State ", dom.create("u", {}, ["L"]), "abels"
+            dom.create("u", {}, ["L"]), "abel polytopes"
         ]));
         labels.attach(() => {
             systemViewCtrl.showLabels = labels.value;
         });
         // Vector field toggle
         const vectors = new CheckboxInput(false, dom.SPAN({}, [
-            dom.create("u", {}, ["V"]), "ector Field"
+            dom.create("u", {}, ["V"]), "ector field"
         ]));
         vectors.attach(() => {
             systemViewCtrl.showVectors = vectors.value;
@@ -1586,7 +1586,7 @@ class HolisticRefinementCtrl extends WidgetPlus {
     +_loopsOnlySafe: Input<boolean>;
 
     constructor(model: SystemModel): void {
-        super("Holistic Single-step Refinement", "info-holistic-refinement");
+        super("Holistic Refinement", "info-holistic-refinement");
         this._model = model;
         // Positive robust refinement
         const posRobustRefine = dom.createButton({}, ["refine"], () => this.refinePosRobust());

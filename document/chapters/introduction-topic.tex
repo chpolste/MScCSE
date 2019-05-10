@@ -1,17 +1,38 @@
 What are cyber-physical systems.
 Also called hybrid systems.
+Name some applications, give simple example.
+
 Encopasses a range of different systems.
 Dynamics: deterministic/probabilistic, linear/piecewise affine/non-linear
-Knowledge: complete/partial.
 Control: disrete=switching/continuous
+Knowledge: complete/partial.
+
+Verification and synthesis: requires specification
+From basic reachability or safety properties to full temporal logics (LTL, CTL, PCTL, and many more).
 Specification: qualitative (almost-sure,robust)/quantitative (rewards, bounded probabilities).
 Fixed specification/adaptive.
-From basic reachability or safety properties to full temporal logics (LTL, CTL, PCTL, and many more).
 
-The number of approaches within the model checking framework is as diverse as the properties of the hybrid systems as every combination requires or suits different techniques.
+Model checking approach:
+Discretization through abstraction.
+Common abstractions: MDPs, Markov interval chains, BPMDPs, games, automata.
+Continuous space partitioned into convex regions.
+Automaton also used for specification.
+Synchronized evolution.
+Analysis of resulting finite system.
+
 Questions of complexity important, especially as formal methods are picked up by practicioners and applied in robotics, multi-agent coordination tasks and real-time environments such as automated driving.
+State space explosion.
+Refinement for automatic generation of small abstractions.
 
-One particular approach was first introduced by \cite[Svorenova2017] for discrete-time, linear stochastic systems with continuous state and control spaces, verified with respect to almost-sure satisfaction of specifications from the General Reactivity (1) fragment of linear temporal logic.
-The approach uses a 2½-player game abstraction build on iteratively refined partitions of the state and control space to construct a sound verification procedure.
-It is the foundation this work builds on.
+\cite[Yordanov2012]: discrete-time piecewise-affine systems, computation of initial states and feedback control strategy, conservative abstraction.
+\cite[Yordanov2010]: discrete-time piecewise-affine systems, LTL, model checking, iterative refinement, example genetic networks.
+\cite[Lahijanian2015]: switching strategy synthesis and verification (= initial state computation), discrete-time continuous-space systems (examples are linear), PCTL, interval-valued Markov chain and bounded-parameter MDP abstractions, model checking, refinement.
+\cite[Lacerda2014]: MDP model, cost-optimal policy synthesis, co-safe LTL, dynamic replanning, translation into continuous motion planning with additional controller.
+\cite[Kloetzer2008]: linear system, $\Next$-free LTL, feedback control, initial states, transition system, model checking, continuous-time .
+\cite[Hahn2011]: game-based abstraction, iterative refinement, probabilistic hybrid automata.
+\cite[AydinGol2014]: discrete-time linear systems, co-safe LTL, initial states and feedback controllers, iterative refinement of automaton abstraction.
+\cite[AydinGol2015]: synthesis of control strategies, model predictive control, discrete-time linear systems, cost-minimization, refinement.
+\cite[Abate2011]: discrete-time stochastic hybrid system, Markov set-chain.
+
+
 

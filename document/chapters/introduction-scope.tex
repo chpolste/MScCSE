@@ -1,0 +1,23 @@
+Discrete-time continuous space system with continuous control and probabilistic linear dynamics.
+LTL/GR(1) objective defined over linear predicates.
+Almost-sure analysis and controller synthesis.
+
+Procedure introduced by \cite[Svorenova2017] for computation of initial states of a discrete-time linear stochastic system such that a control strategy exists that almost-surely satisfies a specification in linear temporal logic.
+The approach uses a 2½-player game abstraction build on iteratively refined partitions of the state space.
+Demonstration of basic refinement for reachability problem.
+Focus on reachability in general, no application to more complex specifications.
+Computationally demanding procedure.
+Performance of procedure linked to refinement performance.
+
+Using their work as starting point, evolve the refinement framework and develop procedures that produce small state space partitions that are applicable to any GR(1)/LTL objective.
+This addresses the issue of computational complexity by combatting the state space explostion problem.
+
+Motivated by little experience with computational geometry, LSS abstraction, model checking of the author.
+Build an educational tool, useful for interactive exploration.
+Helps to build intuition for the problem and can be used for the testing of refinement heuristics with immediate feedback.
+
+Focus on analysis and refinement, not controller synthesis which is a secondary, though related, problem.
+
+Structure:
+Introduce basic concepts, review the problem setup and solution procedure of \cite[Svorenova2017], then present refinement methods and the visualization tool and demonstrate capabilities and performance of refinement in two case studies.
+

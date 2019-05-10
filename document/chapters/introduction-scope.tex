@@ -1,23 +1,26 @@
-Discrete-time continuous space system with continuous control and probabilistic linear dynamics.
-LTL/GR(1) objective defined over linear predicates.
-Almost-sure analysis and controller synthesis.
+\cite[Svorenova2017] introduce a procedure to solve the verification and synthesis problem for the class of discrete-time, continuous-space and -control, linear stochastic systems and specification from the General Reactivity(1) fragment of linear temporal logic which have to be satisfied with probabiliy 1, i.e.\ almost-surely.
+The system is verified based on a 2-player probabilistic game abstraction of both the state- and control space.
+This abstraction is iteratively refined based on information obtained from the system dynamics.
+Satisfying controllers can be synthesized from the game once results from the verification are available.
 
-Procedure introduced by \cite[Svorenova2017] for computation of initial states of a discrete-time linear stochastic system such that a control strategy exists that almost-surely satisfies a specification in linear temporal logic.
-The approach uses a 2½-player game abstraction build on iteratively refined partitions of the state space.
-Demonstration of basic refinement for reachability problem.
-Focus on reachability in general, no application to more complex specifications.
-Computationally demanding procedure.
-Performance of procedure linked to refinement performance.
+Their solution is related to work for other classes of hybrid systems.
+\cite[Yordanov2012] use a game-based abstraction for systems with deterministic piece-wise linear dynamics and LTL specifications but do not implement abstraction refinement.
+\cite[AydinGol2014] present a dynamics-driven refinement procedure for deterministic linear systems.
+The abstraction of probability distributions is studied by \cite[Abate2011] for uncontrolled stochastic hybrid systems.
+Probabilistic switched (i.e.\ discretely controlled) systems and PCTL specifications are considered by \cite[Lahijanian2015] who develop an iterative refinement technique for a bounded-parameter Markov decision process abstraction.
 
-Using their work as starting point, evolve the refinement framework and develop procedures that produce small state space partitions that are applicable to any GR(1)/LTL objective.
-This addresses the issue of computational complexity by combatting the state space explostion problem.
+In a case study, \cite[Svorenova2017] apply their procedure to a reachability problem.
+Their refinement heuristics is able to generate a (partial) solution for the problem but the method proved to be computationally demanding.
+In this work, further refinement techniques are developed.
+The goal is to set up a refinement framework that achieves progress even for complex specifications and produces small state-space partitions without causing excessive state space explosion.
+Reducing the size of the state space partition reduces the size of the game abstraction, which scales exponentially with the number of partition elements, and therefore reduces the computational demands of the procedure.
+The development of refinement techniques is supported by the implementation of an interactive visualization of the abstraction-refinement-analysis procedure.
+This visualization will be used as a platform for the design of refinement heuristics and can serve as an educational tool after this work has concluded.
+The controller synthesis problem will not be a focus of this work.
 
-Motivated by little experience with computational geometry, LSS abstraction, model checking of the author.
-Build an educational tool, useful for interactive exploration.
-Helps to build intuition for the problem and can be used for the testing of refinement heuristics with immediate feedback.
-
-Focus on analysis and refinement, not controller synthesis which is a secondary, though related, problem.
-
-Structure:
-Introduce basic concepts, review the problem setup and solution procedure of \cite[Svorenova2017], then present refinement methods and the visualization tool and demonstrate capabilities and performance of refinement in two case studies.
+The chapters are structured as follows:
+First, the fundamental concepts required to express the topics of this work are introduced.
+The problem setup and solution procedure of \cite[Svorenova2017] are then reviewed in detail.
+The developed refinement methods are introduced subsequently as well as the visualization tool.
+Finally, two case studies are carried out in which the performance of the refinement methods is assessed and compared.
 

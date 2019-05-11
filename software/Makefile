@@ -47,7 +47,8 @@ JS_MODULES = ./modules
 JS_MODULES_FILES = $(JS_MODULES)/geometry.js $(JS_MODULES)/linalg.js $(JS_MODULES)/tools.js \
                    $(JS_MODULES)/parser.js $(JS_MODULES)/presets.js $(JS_MODULES)/logic.js \
                    $(JS_MODULES)/game.js $(JS_MODULES)/refinement.js $(JS_MODULES)/controller.js \
-				   $(JS_MODULES)/snapshot.js $(JS_MODULES)/system.js $(JS_MODULES)/benchmark-integrator.js
+				   $(JS_MODULES)/snapshot.js $(JS_MODULES)/system.js \
+				   $(JS_MODULES)/benchmark-integrator.js $(JS_MODULES)/benchmark-corridor.js
 
 
 # General rules

@@ -1,0 +1,8 @@
+#! /usr/bin/env bash
+
+name="corridor-$(date +"%Y-%m-%dT%T")"
+mkdir -p "./bench"
+
+require="require('./modules/benchmark-corridor.js')"
+
+time node --eval "${require}.run('./bench/${name}-session.json', './bench/${name}-log.json')"

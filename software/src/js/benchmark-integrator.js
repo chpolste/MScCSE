@@ -11,7 +11,8 @@ import { TwoPlayerProbabilisticGame, AnalysisResults } from "./game.js";
 import { Halfspace, Interval, Polygon } from "./geometry.js";
 import { parseProposition, Objective } from "./logic.js";
 import { objectives } from "./presets.js";
-import { TransitionRefinery, NegativeAttrRefinery, PositiveRobustRefinery } from "./refinement.js";
+import { TransitionRefinery, NegativeAttrRefinery, PositiveRobustRefinery,
+         SelfLoopRefinery, SafetyRefinery } from "./refinement.js";
 import { SnapshotTree } from "./snapshot.js";
 import { LSS } from "./system.js";
 import { iter, just, n2s, t2s } from "./tools.js";
@@ -46,15 +47,17 @@ export function run(sessionPath: string, logPath: string) {
     // Log entries
     const log = [];
 
-    function step(name: string, getRefinery: ?(() => Refinery), includeGraph: boolean): void {
+    function step(name: string, getRefineries: ?((() => Refinery)[]), includeGraph: boolean): void {
         const t0 = performance.now();
-        if (getRefinery != null) {
-            const refinery = getRefinery();
-            const partition = refinery.partitionAll(sys.states.values());
-            const refinementMap = sys.refine(partition);
-            // Update global analysis results
-            if (ana != null) {
-                ana.remap(refinementMap);
+        if (getRefineries != null) {
+            for (let getRefinery of getRefineries) {
+                const refinery = getRefinery();
+                const partition = refinery.partitionAll(sys.states.values());
+                const refinementMap = sys.refine(partition);
+                // Update global analysis results
+                if (ana != null) {
+                    ana.remap(refinementMap);
+                }
             }
         }
         const t1 = performance.now();
@@ -104,9 +107,15 @@ export function run(sessionPath: string, logPath: string) {
     step("[1] Initialization", null, false);
 
     // Preparation: negative refinement
-    step("[2] Negative Attractor", () => new NegativeAttrRefinery(sys, obj, just(ana)), false);
-    step("[3] Negative Attractor", () => new NegativeAttrRefinery(sys, obj, just(ana)), false);
-    step("[4] Negative Attractor", () => new NegativeAttrRefinery(sys, obj, just(ana)), true);
+    step("[2] Negative Attractor", [
+        () => new NegativeAttrRefinery(sys, obj, just(ana))
+    ], false);
+    step("[3] Negative Attractor", [
+        () => new NegativeAttrRefinery(sys, obj, just(ana))
+    ], false);
+    step("[4] Negative Attractor", [
+        () => new NegativeAttrRefinery(sys, obj, just(ana))
+    ], true);
 
     const startSnap = snaps.current;
 
@@ -125,10 +134,18 @@ export function run(sessionPath: string, logPath: string) {
             dontRefineSmall: false,
             postProcessing: "none"
         };
-        step("[5] Positive Robust Single x2", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings1).iterate(2), false);
-        step("[6] Positive Robust Single x2", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings1).iterate(2), false);
-        step("[7] Positive Robust Single x2", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings1).iterate(2), false);
-        step("[8] Positive Robust Single x2", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings1).iterate(2), false);
+        step("[5] Positive Robust Single x2", [
+            () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings1).iterate(2)
+        ], false);
+        step("[6] Positive Robust Single x2", [
+            () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings1).iterate(2)
+        ], false);
+        step("[7] Positive Robust Single x2", [
+            () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings1).iterate(2)
+        ], false);
+        step("[8] Positive Robust Single x2", [
+            () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings1).iterate(2)
+        ], false);
     } catch (e) {
         snaps.take("ERROR", sys, ana, false);
         console.log(e);
@@ -143,10 +160,18 @@ export function run(sessionPath: string, logPath: string) {
             dontRefineSmall: false,
             postProcessing: "none"
         };
-        step("[5] Positive Robust Multi x2", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings2).iterate(2), false);
-        step("[6] Positive Robust Multi x2", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings2).iterate(2), false);
-        step("[7] Positive Robust Multi x2", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings2).iterate(2), false);
-        step("[8] Positive Robust Multi x2", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings2).iterate(2), false);
+        step("[5] Positive Robust Multi x2", [
+            () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings2).iterate(2)
+        ], false);
+        step("[6] Positive Robust Multi x2", [
+            () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings2).iterate(2)
+        ], false);
+        step("[7] Positive Robust Multi x2", [
+            () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings2).iterate(2)
+        ], false);
+        step("[8] Positive Robust Multi x2", [
+            () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings2).iterate(2)
+        ], false);
     } catch (e) {
         snaps.take("ERROR", sys, ana, false);
         console.log(e);
@@ -161,10 +186,18 @@ export function run(sessionPath: string, logPath: string) {
             dontRefineSmall: true,
             postProcessing: "suppress"
         };
-        step("[5] Positive Robust Multi x2 Suppress", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings3).iterate(2), false);
-        step("[6] Positive Robust Multi x2 Suppress", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings3).iterate(2), false);
-        step("[7] Positive Robust Multi x2 Suppress", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings3).iterate(2), false);
-        step("[8] Positive Robust Multi x2 Suppress", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings3).iterate(2), false);
+        step("[5] Positive Robust Multi x2 Suppress", [
+            () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings3).iterate(2)
+        ], false);
+        step("[6] Positive Robust Multi x2 Suppress", [
+            () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings3).iterate(2)
+        ], false);
+        step("[7] Positive Robust Multi x2 Suppress", [
+            () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings3).iterate(2)
+        ], false);
+        step("[8] Positive Robust Multi x2 Suppress", [
+            () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings3).iterate(2)
+        ], false);
     } catch (e) {
         snaps.take("ERROR", sys, ana, false);
         console.log(e);
@@ -179,7 +212,9 @@ export function run(sessionPath: string, logPath: string) {
             dontRefineSmall: true,
             postProcessing: "suppress"
         };
-        step("[5] Positive Robust Multi x8 Suppress", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings4).iterate(8), false);
+        step("[5] Positive Robust Multi x8 Suppress", [
+            () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", null, settings4).iterate(8)
+        ], false);
     } catch (e) {
         snaps.take("ERROR", sys, ana, false);
         console.log(e);
@@ -199,7 +234,9 @@ export function run(sessionPath: string, logPath: string) {
             dontRefineSmall: true,
             postProcessing: "suppress"
         };
-        step("[5] Positive Robust Pre(100) Layer Multi x4 Suppress", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", layers5, settings5).iterate(4), false);
+        step("[5] Positive Robust Pre(100) Layer Multi x4 Suppress", [
+            () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", layers5, settings5).iterate(4)
+        ], false);
     } catch (e) {
         snaps.take("ERROR", sys, ana, false);
         console.log(e);
@@ -219,7 +256,27 @@ export function run(sessionPath: string, logPath: string) {
             dontRefineSmall: true,
             postProcessing: "suppress"
         };
-        step("[5] Positive Robust Pre(95) Layer Multi x4 Suppress", () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", layers6, settings6).iterate(4), false);
+        step("[5] Positive Robust Pre(95) Layer Multi x4 Suppress", [
+            () => new TransitionRefinery(sys, obj, just(ana), "q0", "q1", layers6, settings6).iterate(4)
+        ], false);
+    } catch (e) {
+        snaps.take("ERROR", sys, ana, false);
+        console.log(e);
+    }
+
+
+    // Benchmark #7: 2x safety, 5x self-loop (pessimistic, safe-only)
+    reset();
+    try {
+        step("[5] Neutral", [
+            () => new SafetyRefinery(sys, obj, just(ana)),
+            () => new SafetyRefinery(sys, obj, just(ana)),
+            () => new SelfLoopRefinery(sys, obj, just(ana), true, true),
+            () => new SelfLoopRefinery(sys, obj, just(ana), true, true),
+            () => new SelfLoopRefinery(sys, obj, just(ana), false, true),
+            () => new SelfLoopRefinery(sys, obj, just(ana), false, true),
+            () => new SelfLoopRefinery(sys, obj, just(ana), false, true)
+        ], false);
     } catch (e) {
         snaps.take("ERROR", sys, ana, false);
         console.log(e);

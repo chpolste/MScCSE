@@ -428,5 +428,31 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
 
 \stopsubsection
 
-% TODO? 2x safety + full self-loop removal to show viability of neutral refinement.
+\startsubsection[title={Neutral Refinement},reference=sec:cases-integrator-neutral]
+
+    \placetable[top][tab:cases-integrator-neutral]{
+        Refinement of the double integrator reachability system with 2 applications of safety refinement followed by 5 applications of self-loop removal.
+        See \in{section}[sec:cases-integrator-neutral] for discussion.
+    }{
+        \RefinementTable{
+            \RefinementTableRow[iteration=5,polys=201,onestates=412,oneactions=6660,twostates=6438,twoactions=142464,
+                                total={4:04},refinement={0:36},gamegraph={3:14},analysis={0:13},
+                                yes=80.8,no=17.1,maybe=2.1,figure=cases-integrator-iteration5-neutral]
+        }
+    }
+
+    Safety refinement twice, then 5 times self-loop removal.
+    Partition and analysis results shown in \in{Table}[tab:cases-integrator-neutral].
+    Not competitive to layered refinement in size of partition or elapsed time but better than the robust methods without post-processing.
+    Refinement took much longer than for any of the robust methods because game graph had to be partially constructed during the self-loop refinement.
+    Notable that partition is very fine around $y = 0$ and quite coarse for larger values of $|y|$.
+    Can be explained by dynamics, which has shear characteristics.
+    Inherent \quotation{drift} of traces is much stronger away from $y = 0$, therefore self-loops are less likely to occur.
+    The only way to remove self-loops near $y = 0$ is by partitioning the state space so fine, that all polytopes $\State{i}$ fulfill $\State{i} \ominus \RandomSpace$.
+
+    Neutral refinement can provide solution despite not even knowing about the reachability target.
+    This is a disadvantage as the partition size shows but also means that such refinement procedures are likely to genenerate paritions that work for diverse objectives.
+    While the robust reachability refinement targets a specific transition, neutral refinement has the potential to work for multiple transitions if they exist.
+
+\stopsubsection
 

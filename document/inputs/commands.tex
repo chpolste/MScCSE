@@ -306,7 +306,7 @@
     % parameters. Wrapping everything in expanded seems works properly.
     \expanded{
         \bTR
-            \bTD[nr=6] \RTRiteration) \eTD
+            \bTD[nr=6] \ifx\RTRiteration\empty \else \RTRiteration) \fi \eTD
             \bTD \RTRtotal~elapsed, \RTRpolys~polygons \eTD
             \bTD Player 1: \eTD
             \bTD \RTRonestates~states, \RTRoneactions~actions \eTD

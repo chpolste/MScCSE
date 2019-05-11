@@ -6,7 +6,18 @@ Reachability/Avoidance through a corridor.
 
 where $\VecState_{t} \in \StateSpace = \ClosedInterval{0}{4} \times \ClosedInterval{0}{3}$, $\VecControl_{t} \in \ControlSpace = \ClosedInterval{-0.5}{0.5}^2$ and $\VecRandom_{t} \in \RandomSpace = \ClosedInterval{-0.1}{0.1}^2$.
 
-\startsubsection[title={Reachability Analysis}]
+\startsubsection[title={Reachability Analysis},reference=sec:cases-corridor-reachability]
+
+    \placetable[top][tab:cases-corridor-reachability]{
+        TODO
+        See \in{section}[sec:cases-corridor-reachability] for discussion.
+    }{
+        \RefinementTable{
+            \RefinementTableRow[iteration={},polys=65,onestates=140,oneactions=6856,twostates=6778,twoactions=85804,
+                                total={1:35},refinement={0:02},gamegraph={1:29},analysis={0:04},
+                                yes=69.7,no=30.3,maybe=0.0,figure=cases-corridor-reachability]
+        }
+    }
 
     First look at objective avoidance and reachability objective
 
@@ -33,6 +44,15 @@ where $\VecState_{t} \in \StateSpace = \ClosedInterval{0}{4} \times \ClosedInter
 
 \startsubsection[title={Reachability Controller}]
 
+    \placefigure[top][fig:cases-corridor-reachability-trace]{
+        TODO
+    }{
+        \startcombination[nx=2,ny=1,distance=10mm]
+            {\externalfigure[cases-corridor-reachability-trace-robin][width=0.49\textwidth]}{}
+            {\externalfigure[cases-corridor-reachability-trace-layers][width=0.49\textwidth]}{}
+        \stopcombination
+    }
+
     Problematic performance of round-robin controller which does not violate avoidance objective but does not want to enter the corridor.
     Apply layered approach to reachability.
     Show off reordered round-robin controller for reachability that does better job of guiding the trace through the corridor.
@@ -40,7 +60,7 @@ where $\VecState_{t} \in \StateSpace = \ClosedInterval{0}{4} \times \ClosedInter
 \stopsubsection
 
 
-\startreusableMPgraphic{cases-corridor-backandforth-automaton}
+\startreusableMPgraphic{cases-corridor-recurrence-automaton}
     beginfig(0);
         with spacing((17,15)) matrix.a(9,9);
         node_double.a[1][1](btex $q_0$ etex);
@@ -61,7 +81,7 @@ where $\VecState_{t} \in \StateSpace = \ClosedInterval{0}{4} \times \ClosedInter
     endfig;
 \stopreusableMPgraphic
 
-\startreusableMPgraphic{cases-corridor-backandforth-automaton-pruned}
+\startreusableMPgraphic{cases-corridor-recurrence-automaton-pruned}
     beginfig(0);
         with spacing((17,15)) matrix.a(9,9);
         node_double.a[1][1](btex $q_0$ etex);
@@ -80,14 +100,14 @@ where $\VecState_{t} \in \StateSpace = \ClosedInterval{0}{4} \times \ClosedInter
     endfig;
 \stopreusableMPgraphic
 
-\startsubsection[title={2-Recurrence and Safety}]
+\startsubsection[title={2-Recurrence and Safety},reference=sec:cases-corridor-recurrence]
 
-    \placefigure[top][fig:cases-corridor-backandforth-automaton]{
+    \placefigure[top][fig:cases-corridor-recurrence-automaton]{
         TODO
     }{
         \startcombination[nx=2,ny=1,distance=10mm]
-            {\reuseMPgraphic{cases-corridor-backandforth-automaton}}{}
-            {\reuseMPgraphic{cases-corridor-backandforth-automaton-pruned}}{}
+            {\reuseMPgraphic{cases-corridor-recurrence-automaton}}{}
+            {\reuseMPgraphic{cases-corridor-recurrence-automaton-pruned}}{}
         \stopcombination
     }
 
@@ -101,12 +121,28 @@ where $\VecState_{t} \in \StateSpace = \ClosedInterval{0}{4} \times \ClosedInter
 
     Explain repeated (q0 q1 q2) trace as decomposition targets.
     Mention that refinement for one direction only does not lead to satisfaction for entire objective.
+
+    \placetable[top][tab:cases-corridor-recurrence]{
+        TODO
+        See \in{section}[sec:cases-corridor-recurrence] for discussion.
+    }{
+        \RefinementTable{
+            \RefinementTableRow[iteration={},polys=122,onestates=339,oneactions=46768,twostates=25139,twoactions=610511,
+                                total={3:11},refinement={0:02},gamegraph={2:09},analysis={1:00},
+                                yes=69.7,no=30.3,maybe=0.0,figure=cases-corridor-recurrence]
+        }
+    }
+
     Apply layered refinement for both transitions.
     Note that overrefinement in corridor occurs due to fixed layer structure.
-
-    Use layered in one direction and robust in other instead to avoid this.
     Mention blow up of state space and that no progress guarantee can help here as nothing is in yes-region at the beginning.
 
+    \placefigure[top][fig:cases-corridor-recurrence-trace]{
+        TODO
+    }{
+        \externalfigure[cases-corridor-recurrence-trace][width=0.8\textwidth]
+    }
+    
     Use layered approach again for controller synthesis.
 
 \stopsubsection

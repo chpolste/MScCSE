@@ -19,7 +19,7 @@ for (let i = 2; i < process.argv.length; i++) {
     // "type" are flow imports and are not included in the dependency chain for
     // make.
     const imports = ast.program.body.filter(
-        _ => (_.type === "ImportDeclaration" && _.importKind === "value")
+        _ => (_.type === "ImportDeclaration" && _.importKind === "value" && _.source.value.startsWith("./"))
     );
     // Turn source filenames into absolute paths
     const sources = imports.map(

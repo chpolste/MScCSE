@@ -2045,10 +2045,14 @@ class TraceViewStepCtrl extends WidgetPlus {
             // Length information and reason why trace was terminated early (if so)
             terminateText += pluralize(trace.length, "step");
             const last = trace[trace.length - 1];
-            if (this._model.objective.isCoSafeFinal(last.xTarget[2])) {
-                terminateText += ", objective satisfied"
-            } else if (just(this._model.states.get(last.xTarget[1])).isOuter) {
-                terminateText += ", outer state reached"
+            const lastX = just(this._model.states.get(last.xTarget[1]));
+            const lastQ = last.xTarget[2];
+            if (this._model.objective.isCoSafeFinal(lastQ)) {
+                terminateText += ", objective satisfied";
+            } else if (lastX.isOuter) {
+                terminateText += ", outer state reached";
+            } else if (lastX.analysis != null && lastX.analysis.no.has(lastQ)) {
+                terminateText += ", no-state reached";
             }
         } else {
             terminateText += "none";

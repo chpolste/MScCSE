@@ -45,9 +45,9 @@ export const objectives = {
         automatonPlacement: { "q0": [0, 0, 0], "q1": [300, 0, 0] }
     },
 
-    "Safe Back & Forth": {
-        name: "Safe Back & Forth",
-        formula: "\\mathsf{G} (\\mathsf{F} \\varphi \\wedge \\mathsf{F} \\theta) \\wedge \\mathsf{G} (\\neg \\pi)",
+    "Safe 2-Recurrence": {
+        name: "Safe 2-Recurrence",
+        formula: "\\mathsf{G} (\\mathsf{F} \\varphi \\wedge \\mathsf{F} \\theta \\wedge \\neg \\pi)",
         variables: ["\\varphi", "\\theta", "\\pi"],
         automaton: "q0>(!\\pi & \\varphi & \\theta)>q0,q0>(!(\\pi | \\varphi))>q1,q0>(!(\\pi | \\theta) & \\varphi)>q2,"
                  + "q1>(!(\\pi | \\varphi))>q1,q1>(!\\pi & \\varphi & \\theta)>q0,q1>(!(\\pi | \\theta) & \\varphi)>q2,"
@@ -104,8 +104,8 @@ export const setups = {
             randomSpace: "-0.1 < x\n   x < 0.1\n-0.1 < y\n   y < 0.1",
             stateSpace: "0 < x\nx < 4\n0 < y\ny < 3"
         },
-        predicates: "r1: x > 2.8\nr2: x < 1.2\nh1: y < 1.2\nh2: y > 1.8",
-        objective: "Safe Back & Forth\nr1\nr2\n!r1 & !r2 & (h1 | h2)\nf"
+        predicates: "r1: x > 2.7\nr2: x < 1.3\nh1: y < 1.3\nh2: y > 1.7",
+        objective: "Safe 2-Recurrence\nr1\nr2\n!r1 & !r2 & (h1 | h2)\nf"
     }
 
 }

@@ -42,7 +42,7 @@ where $\VecState_{t} \in \StateSpace = \ClosedInterval{0}{4} \times \ClosedInter
 
 \startreusableMPgraphic{cases-corridor-backandforth-automaton}
     beginfig(0);
-        with spacing((18,16)) matrix.a(9,9);
+        with spacing((17,15)) matrix.a(9,9);
         node_double.a[1][1](btex $q_0$ etex);
         node_dash.a[1][8](btex $q_1$ etex);
         node_dash.a[8][1](btex $q_2$ etex);
@@ -54,7 +54,26 @@ where $\VecState_{t} \in \StateSpace = \ClosedInterval{0}{4} \times \ClosedInter
         % Outgoing transitions of q1
         loop.top(.4, btex \small \;$ \neg (\theta \vee \phi) $ etex) (a[1][8]) 90;
         arrow.bot(.5, btex \small $ \neg \theta \wedge \phi \wedge \mu $ etex) (a[1][8],a[1][1]) a[1][8].c..a[2][5].c..a[2][4].c..a[1][1].c;
-        arrow.rt(.5, btex \small \;$ \neg (\theta \vee \mu) \wedge \phi $ etex) (a[1][8],a[8][1]) a[1][8].c..a[2][8].c..a[8][2].c..a[8][1].c;
+        arrow.rt(.4, btex \small \qquad$ \neg (\theta \vee \mu) \wedge \phi $ etex) (a[1][8],a[8][1]) a[1][8].c..a[2][8].c..a[8][2].c..a[8][1].c;
+        % Outgoing transitions of q2
+        loop.bot(.5, btex \small \;$ \neg (\theta \vee \mu) $ etex) (a[8][1]) 270;
+        arrow.lft(.5, btex \small $ \neg \theta \wedge \mu $ etex) (a[8][1],a[1][1]) a[8][1].c..a[5][0].c..a[4][0].c..a[1][1].c;
+    endfig;
+\stopreusableMPgraphic
+
+\startreusableMPgraphic{cases-corridor-backandforth-automaton-pruned}
+    beginfig(0);
+        with spacing((17,15)) matrix.a(9,9);
+        node_double.a[1][1](btex $q_0$ etex);
+        node_dash.a[1][8](btex $q_1$ etex);
+        node_dash.a[8][1](btex $q_2$ etex);
+        % Outgoing transitions of q0
+        incoming(0, "") (a[1][1]) 180;
+        arrow.top(.5, btex \small $ \neg \theta \wedge \phi $ etex) (a[1][1],a[1][8]) a[1][1].c..a[0][4].c..a[0][5].c..a[1][8].c;
+        arrow.rt(.5, btex \small $ \neg (\theta \vee \phi)$ etex) (a[1][1],a[8][1]) a[1][1].c..a[4][2].c..a[5][2].c..a[8][1].c;
+        % Outgoing transitions of q1
+        loop.top(.4, btex \small \;$ \neg (\theta \vee \phi) $ etex) (a[1][8]) 90;
+        arrow.rt(.4, btex \small \qquad$ \neg (\theta \vee \mu) \wedge \phi $ etex) (a[1][8],a[8][1]) a[1][8].c..a[2][8].c..a[8][2].c..a[8][1].c;
         % Outgoing transitions of q2
         loop.bot(.5, btex \small \;$ \neg (\theta \vee \mu) $ etex) (a[8][1]) 270;
         arrow.lft(.5, btex \small $ \neg \theta \wedge \mu $ etex) (a[8][1],a[1][1]) a[8][1].c..a[5][0].c..a[4][0].c..a[1][1].c;
@@ -66,8 +85,10 @@ where $\VecState_{t} \in \StateSpace = \ClosedInterval{0}{4} \times \ClosedInter
     \placefigure[top][fig:cases-corridor-backandforth-automaton]{
         TODO
     }{
-        % Put in wide box so that figure caption has full width
-        \framed[width=\textwidth,frame=off]{\reuseMPgraphic{cases-corridor-backandforth-automaton}}
+        \startcombination[nx=2,ny=1,distance=10mm]
+            {\reuseMPgraphic{cases-corridor-backandforth-automaton}}{}
+            {\reuseMPgraphic{cases-corridor-backandforth-automaton-pruned}}{}
+        \stopcombination
     }
 
     Finally consider a sighly more complex objective that requires traces to visit both rooms over and over again while avoiding the walls of the corridor

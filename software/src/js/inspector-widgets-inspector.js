@@ -529,14 +529,18 @@ class SystemModel extends ObservableMixin<ModelChange> {
         });
     }
 
-    refineTransition(settings: RefineTransitionRequest): Promise<null> {
-        return this._comm.request("refine-transition", settings).then((data: RefineData) => {
-            this.log.writeRefinement([
-                "Transition " + settings.origin + " → " + settings.target // TODO,
-                //"Layers " + settings.range[0] +  "-" + settings.range[1] + " of "
-                //          + n2s(settings.scaling * 100, 0) + "% " + settings.generator,
-                //pluralize(settings.iterations, "iteration")
-            ], data);
+    refineTransition(request: RefineTransitionRequest): Promise<null> {
+        return this._comm.request("refine-transition", request).then((data: RefineData) => {
+            const params = [
+                "Transition " + request.origin + " → " + request.target,
+                request.steps + "-step"
+            ];
+            const layers = request.layers;
+            if (layers != null) params.push(
+                "Layers " + layers.range[0] +  "-" + layers.range[1] + " of "
+                          + n2s(layers.scaling * 100, 0) + "% " + layers.generator,
+            );
+            this.log.writeRefinement(params, data);
             return data.removed.length > 0 ? this.updateStates() : null;
         }).catch((e) => {
             this.log.writeError(e);
@@ -1690,7 +1694,7 @@ class TransitionRefinementCtrl extends WidgetPlus {
     +_layerUScale: OptionsInput<number>;
     +_layerStart: OptionsInput<number>;
     +_layerEnd: OptionsInput<number>;
-    +_iterations: OptionsInput<number>;
+    +_steps: OptionsInput<number>;
     +_dontRefineSmall: Input<boolean>;
     +_postProcessing: Input<"none" | "hull" | "largest" | "suppress">;
     +_button: HTMLButtonElement;
@@ -1716,7 +1720,7 @@ class TransitionRefinementCtrl extends WidgetPlus {
         this._layerStart = new DropdownInput(DropdownInput.rangeOptions(1, 20, 1), "1");
         this._layerEnd = new DropdownInput({ "10": 10 }, "10");
         // Attr+ refinement
-        this._iterations = new DropdownInput(DropdownInput.rangeOptions(0, 10, 1), "2");
+        this._steps = new DropdownInput(DropdownInput.rangeOptions(0, 20, 1), "2");
         this._dontRefineSmall = new CheckboxInput(true, "don't refine small polytopes if safe");
         this._postProcessing = new DropdownInput({
             "none": "none",
@@ -1762,7 +1766,7 @@ class TransitionRefinementCtrl extends WidgetPlus {
                 ]),
                 dom.DIV({}, [
                     dom.DIV({}, [this._button]),
-                    dom.DIV({}, [this._iterations.node, " iteration(s) of robust refinement"])
+                    dom.DIV({}, ["with ", this._steps.node, "-step robust refinement"])
                 ])
             ]),
             //dom.P({}, [this._button])
@@ -1779,7 +1783,7 @@ class TransitionRefinementCtrl extends WidgetPlus {
         this._model.refineTransition({
             origin: this._origin.value,
             target: this._target.value,
-            iterations: this._iterations.value,
+            steps: this._steps.value,
             layers: (!this._useLayers.value) ? null : {
                 generator: this._layerGenerator.value,
                 scaling: (this._layerUScale.value / 100),

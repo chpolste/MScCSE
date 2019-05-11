@@ -382,7 +382,7 @@ function refineData(elapsed, refinementMap): RefineData {
 export type RefineTransitionRequest = {
     origin: AutomatonStateID,
     target: AutomatonStateID,
-    iterations: number,
+    steps: number,
     layers: ?TransitionRefineryLayers,
     settings: RobustReachabilitySettings
 
@@ -392,7 +392,7 @@ inspector.onRequest("refine-transition", function (data: RefineTransitionRequest
     const t0 = performance.now();
     const refinery = new TransitionRefinery($.system, $.objective, analysis, data.origin,
                                             data.target, data.layers, data.settings);
-    refinery.iterate(data.iterations);
+    refinery.iterate(data.steps);
     const refinementMap = $.refine(refinery);
     const t1 = performance.now();
     return refineData((t1 - t0), refinementMap);

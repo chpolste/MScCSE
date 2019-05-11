@@ -1,8 +1,10 @@
 // @flow
 "use strict";
 
+import type { JSONTrace } from "./controller.js";
 import type { FigureLayer, Shape } from "./figure.js";
 import type { JSONPolytope } from "./geometry.js";
+import type { Vector } from "./linalg.js";
 import type { Input } from "./widgets-input.js";
 
 import * as dom from "./dom.js";
@@ -22,8 +24,7 @@ type ItemView = SelectableNodes<PolytopeItem>;
 // nodes and with associated select and hover events. An observer can
 // distinguish between the two events using the boolean flag sent with the
 // notification (true: select, false: hover). Nodes are generated from the
-// items using the itemToNode function. A delimiter can be be inserted between
-// nodes with the optional third argument. When the collection of items is
+// items using the itemToNode function. When the collection of items is
 // empty the second emptyMessage argument of the constructor is shown.
 
 type NodeCreator<T> = (T) => HTMLElement;
@@ -32,16 +33,14 @@ export class SelectableNodes<T> extends ObservableMixin<boolean> {
     
     +node: HTMLDivElement;
     +itemToNode: NodeCreator<T>;
-    +delimiter: ?string;
     +emptyMessage: string;
     +nodeMap: Map<T, HTMLElement>; // TODO: conflict if same item is shown twice
     hoverSelection: ?T;
     _selection: ?T;
 
-    constructor(itemToNode: NodeCreator<T>, emptyMessage: string, delimiter?: ?string): void {
+    constructor(itemToNode: NodeCreator<T>, emptyMessage: string): void {
         super();
         this.itemToNode = itemToNode;
-        this.delimiter = delimiter;
         this.emptyMessage = emptyMessage;
         this._selection = null;
         this.hoverSelection = null;
@@ -56,11 +55,7 @@ export class SelectableNodes<T> extends ObservableMixin<boolean> {
         if (items.length == 0) {
             this.node.innerHTML = this.emptyMessage;
         } else {
-            let itemNodes = items.map(item => this.createNode(item));
-            if (this.delimiter != null) {
-                itemNodes = arr.intersperse(this.delimiter, itemNodes);
-            }
-            dom.replaceChildren(this.node, itemNodes);
+            dom.replaceChildren(this.node, items.map(item => this.createNode(item)));
         }
         this.notify();
     }
@@ -300,31 +295,68 @@ class PolytopeList extends ObservableMixin<null> {
 }
 
 
-// Add a polytope the the top of the list
-class PolytopeInput {
+class TraceContainer extends ObservableMixin<null> {
+
+    _steps: [Vector, Vector][];
+
+    constructor(): void {
+        super();
+        this._steps = [];
+    }
+
+    set steps(steps: [Vector, Vector][]): void {
+        this._steps = steps;
+        this.notify();
+    }
+
+    asShapes(): Shape[] {
+        return this._steps.map(([x, y]) => ({
+            kind: "arrow",
+            origin: x,
+            target: y
+        }));
+    }
+
+    save(): [Vector, Vector][] {
+        return this._steps;
+    }
+
+    load(json: [Vector, Vector][]): void {
+        this.steps = json;
+    }
+
+}
+
+
+// Add a polytope the the top of the list or add a trace
+class InputField {
 
     +polytopes: PolytopeList;
+    +trace: TraceContainer;
     +items: ItemView;
     +errorBox: HTMLDivElement;
-    +vertexInput: HTMLTextAreaElement;
+    +inputBox: HTMLTextAreaElement;
     +node: HTMLDivElement;
     counter: number;
 
-    constructor(polytopes: PolytopeList, items: ItemView): void {
+    constructor(polytopes: PolytopeList, trace: TraceContainer, items: ItemView): void {
         this.polytopes = polytopes;
+        this.trace = trace;
         this.items = items;
         // Errors in polytope input are shown to the user
         this.errorBox = dom.DIV({ "class": "error" });
-        // Vertex input box
-        this.vertexInput = dom.TEXTAREA({ rows: "6", cols: "70" }, []);
-        // Add the polytope returned by the input form 
-        const submit = dom.createButton({}, ["add hull"], () => this.addPolytope());
-        // Clear all polytopes
-        const clear = dom.createButton({}, ["clear"], () => this.clearPolytopes());
+        // Input box
+        this.inputBox = dom.TEXTAREA({ rows: "6", cols: "70" }, []);
+        // Polytope input
+        const submitPoly = dom.createButton({}, ["add hull"], () => this.addPolytope());
+        const clearPoly = dom.createButton({}, ["clear all polytopes"], () => this.clearPolytopes());
+        // Trace input
+        const submitTrace = dom.createButton({}, ["add trace"], () => this.addTrace());
+        const clearTrace = dom.createButton({}, ["clear trace"], () => this.clearTrace());
         // Build widget and initialize
         this.node = dom.DIV({}, [
-            dom.P({}, [this.vertexInput]),
-            dom.P({}, [submit, " :: ", clear]),
+            dom.P({}, [this.inputBox]),
+            dom.P({}, [submitPoly, " ", clearPoly, " :: ", submitTrace, " ", clearTrace]),
             this.errorBox
         ]);
         this.counter = 1;
@@ -335,7 +367,7 @@ class PolytopeInput {
         let vs = [];
         // Parse contents of vertex input textbox
         try {
-            vs = JSON.parse(this.vertexInput.value);
+            vs = JSON.parse(this.inputBox.value);
             if (vs.length === 0) throw new Error("Polytope is empty");
         } catch (err) {
             this.setError(err.message);
@@ -356,6 +388,24 @@ class PolytopeInput {
 
     clearPolytopes(): void {
         this.polytopes.load([]);
+    }
+
+    addTrace(): void {
+        let steps = [];
+        try {
+            const json = JSON.parse(this.inputBox.value);
+            for (let step of json) {
+                steps.push([step.xOrigin[0], step.xTarget[0]]);
+            }
+            this.setError(null);
+        } catch (err) {
+            this.setError(err.message);
+        }
+        this.trace.steps = steps;
+    }
+
+    clearTrace(): void {
+        this.trace.steps = [];
     }
 
     setError(message: ?string): void {
@@ -482,6 +532,7 @@ type ViewSettings = { size: ?Range };
 class PlotView extends ObservableMixin<null> {
 
     +polytopes: PolytopeList;
+    +trace: TraceContainer;
     +plot: InteractivePlot;
     +layers: { [string]: FigureLayer };
     +plotSizeX: Input<number>;
@@ -490,14 +541,17 @@ class PlotView extends ObservableMixin<null> {
 
     _lastNumberOfPolytopes: number;
 
-    constructor(polytopes: PolytopeList): void {
+    constructor(polytopes: PolytopeList, trace: TraceContainer): void {
         super();
         this.polytopes = polytopes;
         this.polytopes.attach(() => this.drawPolytopes());
+        this.trace = trace;
+        this.trace.attach(() => this.drawTrace());
         // Plot
         const fig = new Figure();
         this.layers = {
-            polytopes: fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" })
+            polytopes: fig.newLayer({ "font-family": "DejaVu Sans, sans-serif", "font-size": "8pt", "text-anchor": "middle" }),
+            arrows: fig.newLayer({ "stroke": "#000", "stroke-width": "1", "fill": "#000" })
         };
         this.plot = new InteractivePlot([100, 100], fig, autoProjection(1));
         // Resize form
@@ -536,6 +590,10 @@ class PlotView extends ObservableMixin<null> {
         this._lastNumberOfPolytopes = this.polytopes.length;
     }
 
+    drawTrace(): void {
+        this.layers.arrows.shapes = this.trace.asShapes();
+    }
+
     // Resize the plot and adapt the projection
     resizePlot(): void {
         const [x, y, extent] = this.plotParameters;
@@ -567,33 +625,41 @@ class PlotView extends ObservableMixin<null> {
 }
 
 
-function toExportURL(view: PlotView, polytopes: PolytopeList): string {
+function toExportURL(view: PlotView, polytopes: PolytopeList, trace: TraceContainer): string {
     const data = {
         view: view.save(),
-        polytopes: polytopes.save()
+        polytopes: polytopes.save(),
+        trace: trace.save()
     };
     return window.btoa(JSON.stringify(data));
 }
 
-function fromExportURL(url: string, view: PlotView, polytopes: PolytopeList): void {
+function fromExportURL(url: string, view: PlotView, polytopes: PolytopeList, trace: TraceContainer): void {
     const data = JSON.parse(window.atob(url));
-    view.load(data.view);
-    polytopes.load(data.polytopes);
+    if (data.view != null) view.load(data.view);
+    if (data.polytopes != null) polytopes.load(data.polytopes);
+    if (data.trace != null) trace.load(data.trace);
 }
 
 
 // Assemble the app
 document.addEventListener("DOMContentLoaded", function () {
 
-
     const polytopes = new PolytopeList();
-    const plotView = new PlotView(polytopes);
+    const trace = new TraceContainer();
+    const plotView = new PlotView(polytopes, trace);
     const itemView = new SelectableNodes(PolytopeItem.toNode, "no polytopes");
     polytopes.attach(() => {
         itemView.items = polytopes.items;
     });
     const selectionView = new SelectionView(itemView);
-    const input = new PolytopeInput(polytopes, itemView);
+    const input = new InputField(polytopes, trace, itemView);
+
+    const keys = new dom.Keybindings();
+    keys.bind("d", () => {
+        const selection = itemView.selection;
+        if (selection != null) selection.remove();
+    });
 
     // Build application
     const contentNode = just(document.getElementById("content"));
@@ -611,11 +677,11 @@ document.addEventListener("DOMContentLoaded", function () {
     // Load from #-part of URL if set at startup
     if (window.location.hash.length > 0) {
         const hash = window.location.hash.substring(1);
-        fromExportURL(hash, plotView, polytopes);
+        fromExportURL(hash, plotView, polytopes, trace);
     }
 
     // Keep #-part of URL updated after every change
-    const updateHash = () => { window.location.hash = "#" + toExportURL(plotView, polytopes) };
+    const updateHash = () => { window.location.hash = "#" + toExportURL(plotView, polytopes, trace) };
     plotView.attach(updateHash);
     polytopes.attach(updateHash);
     

@@ -858,7 +858,8 @@ class SystemViewCtrl {
     toExportURL(): string {
         const data = {
             view: { size: null },
-            polytopes: []
+            polytopes: [],
+            trace: this._model.trace.map((step) => [step.xOrigin[0], step.xTarget[0]])
         };
         // Operator highlight
         const opShapes = Array.from(this._layers.highlight1.shapes);

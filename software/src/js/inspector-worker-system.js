@@ -11,7 +11,7 @@ import type { Snapshot } from "./snapshot.js";
 import type { StateID, ActionID, SupportID, PredicateID, LSS, State, RefinementMap,
               JSONAbstractedLSS } from "./system.js";
 
-import { Controller, Trace } from "./controller.js";
+import { RandomController, RoundRobinController, PreRLayeredTransitionController, Trace } from "./controller.js";
 import { TwoPlayerProbabilisticGame } from "./game.js";
 import { Polytope, Union } from "./geometry.js";
 import { Objective } from "./logic.js";
@@ -296,6 +296,10 @@ inspector.onRequest("get-supports", function (data: SupportRequest): SupportData
 
 /* Trace Sampling */
 
+const Controllers = {
+    "random": RandomController,
+    "round-robin": RoundRobinController
+};
 export type TraceRequest = {
     controller: string,
     origin: [?StateID, AutomatonStateID],
@@ -304,7 +308,7 @@ export type TraceRequest = {
 export type TraceData = JSONTrace;
 inspector.onRequest("get-trace", function (data: TraceRequest): TraceData {
     const Cls = just(
-        Controller.builtIns()[data.controller],
+        Controllers[data.controller],
         "Controller '" + data.controller + "' not found in built-in controllers"
     );
     const controller = new Cls($.system, $.objective, $.analysis);

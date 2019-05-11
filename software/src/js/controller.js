@@ -2,11 +2,12 @@
 "use strict";
 
 import type { AnalysisResults } from "./game.js";
-import type { Polytope } from "./geometry.js";
+import type { Region, Polytope } from "./geometry.js";
 import type { Vector } from "./linalg.js";
 import type { Objective, AutomatonState, AutomatonStateID } from "./logic.js";
 import type { State, StateID, Action, ActionID, AbstractedLSS } from "./system.js";
 
+import { Union } from "./geometry.js";
 import { just, iter, NotImplementedError } from "./tools.js";
 
 
@@ -107,12 +108,12 @@ export class Controller {
 
     +system: AbstractedLSS;
     +objective: Objective;
-    +analysis: ?AnalysisResults;
+    +results: ?AnalysisResults;
 
-    constructor(system: AbstractedLSS, objective: Objective, analysis: ?AnalysisResults): void {
+    constructor(system: AbstractedLSS, objective: Objective, results: ?AnalysisResults): void {
         this.system = system;
         this.objective = objective;
-        this.analysis = analysis;
+        this.results = results;
         this.reset();
     }
 
@@ -122,14 +123,6 @@ export class Controller {
     // Produce control input (overwrite in subclass)
     control(origin: Vector, x: State, q: AutomatonState): Vector {
         throw new NotImplementedError("control method of Controller must be overwritten in subclass");
-    }
-
-    // Built-in controller lookup table
-    static builtIns(): { [string]: Class<Controller> } {
-        return {
-            "random": RandomController,
-            "round-robin": RoundRobinController
-        };
     }
 
 }
@@ -176,9 +169,9 @@ export class RoundRobinController extends Controller {
     }
 
     _isYes(x: State, q: AutomatonState): boolean {
-        const analysis = this.analysis;
-        if (analysis == null) return false;
-        const result = analysis.get(x.label);
+        const results = this.results;
+        if (results == null) return false;
+        const result = results.get(x.label);
         return result != null && result.yes.has(q.label);
     }
 
@@ -215,6 +208,126 @@ export class RoundRobinController extends Controller {
         const next = (last + 1) % n;
         this._setActionID(x, q, next);
         return actions[next].controls.sample();
+    }
+
+}
+
+
+// Controller based on transition and layer decomposition
+export class PreRLayeredTransitionController extends Controller {
+
+    +_onions: Map<AutomatonStateID, Region[]>;
+    +_controls: Map<State, Map<AutomatonStateID, Polytope>>;
+
+    constructor(system: AbstractedLSS, objective: Objective, results: ?AnalysisResults,
+                transitions: Map<AutomatonStateID, AutomatonStateID>): void {
+        super(system, objective, results);
+        const lss = system.lss;
+        // Construct PreR layers wrt transition targets
+        const onions = new Map();
+        for (let [qOrigin, qTarget] of transitions) {
+            // Determine transition target region
+            const reach = this._getTransitionRegion(qOrigin, qTarget);
+            // Determine unsafe region
+            const avoid = this._getUnsafeRegion(qOrigin);
+            // Construct layers around transition target
+            const onion = [reach.remove(avoid)];
+            while (true) {
+                // Compute robust predecessor wrt to previous layer and remove
+                // unsafe region
+                const previous = onion[onion.length - 1];
+                const preR = lss.preR(lss.xx, lss.uu, previous).remove(avoid);
+                // If layers have converged, stop
+                if (previous.covers(preR)) {
+                    break;
+                } else {
+                    onion.push(preR);
+                }
+            }
+            onions.set(qOrigin, onion);
+        }
+        this._onions = onions;
+        // Cost-minimizing controls will be cached
+        this._controls = new Map();
+    }
+
+    // No reset necessary, controller is memoryless
+
+    _getUnsafeRegion(q: AutomatonStateID): Region {
+        const results = just(
+            this.results,
+            "PreRLayeredTransitionController requires analysed system"
+        );
+        return Union.from(
+            Array.from(
+                iter.filter(
+                    (x) => (!x.isOuter && just(results.get(x.label)).no.has(q)),
+                    this.system.states.values()
+                ),
+                (x) => x.polytope
+            ),
+            this.system.lss.dim
+        );
+    }
+
+    _getTransitionRegion(qOrigin: AutomatonStateID, qTarget: AutomatonStateID): Region {
+        const qNext = (x) => this.objective.nextState(x.predicates, qOrigin);
+        return Union.from(
+            Array.from(
+                iter.filter(
+                    (x) => (!x.isOuter && qNext(x) === qTarget),
+                    this.system.states.values()
+                ),
+                (x) => x.polytope
+            ),
+            this.system.lss.dim
+        );
+    }
+
+    control(origin: Vector, x: State, q: AutomatonState): Vector {
+        // Try to obtain control region from cache
+        let controls = this._controls.get(x);
+        if (controls != null) {
+            const control = controls.get(q.label);
+            if (control != null) {
+                return control.sample();
+            }
+        // Create associated cache entry if it does not exist yet
+        } else {
+            controls = new Map();
+            this._controls.set(x, controls);
+        }
+        // Obtain layers for current automaton state
+        const onion = just(
+            this._onions.get(q.label),
+            "No layers are specified for " + q.label
+        );
+        // Find action with lowest cost
+        const act = iter.argmax((action) => {
+            let cost = 0;
+            let post = this.system.lss.post(x.polytope, action.controls);
+            const totalVolume = post.volume;
+            // Accumulate costs from layers
+            let i = 0;
+            for (let layer of onion) {
+                cost = cost + post.intersect(layer).volume * i;
+                post = post.remove(layer); 
+                i++;
+            }
+            // Assign very high cost to regions without robust reachability
+            // guarantee to deter traces
+            cost = cost + post.volume * 9999;
+            // Volume-weighted cost and negated (so argmax can be used)
+            return -cost / totalVolume;
+        }, x.actions);
+        // Extract control region associated with best action
+        const u = just( 
+            act,
+            "No action found for state (" + x.label + ", " + q.label + ")"
+        ).controls.polytopes[0];
+        // Cache this control input and return
+        controls.set(q.label, u);
+        return u.sample();
     }
 
 }

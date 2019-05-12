@@ -8,7 +8,7 @@ In contrast to the derivation of \cite[Svorenova2017], the game is build directl
 
 \startsubsection[title={Player 1},reference=sec:abstraction-graph-playerone]
 
-    The state-space discretization requires the grouping of all state-space vectors into a finite set of disjunct regions.
+    The state space discretization requires the grouping of all state space vectors into a finite set of disjunct regions.
     As seen in \in{Section}[sec:theory-geometry], convex geometry has many advantageous computational properties, therefore a convex, polytopic partition of the extended state space $\ExtendedStateSpace$ is chosen.
     The inclusion of $\ExtendedStateSpace \setminus \StateSpace$ in addition to the state space simplifies the handling of transitions out of the state space during construction.
     In the abstraction-analysis-refinement iterations of the solution procedure (\in{Figure}[fig:problem-approach-flowchart]), this partition is subject to change.
@@ -31,7 +31,7 @@ In contrast to the derivation of \cite[Svorenova2017], the game is build directl
     \stopformula
 
     of the game abstraction $\GameGraph$ are based on this decomposition of $\ExtendedStateSpace$.
-    These states are directly identified with the corresponding polytopes of the state-space partition, which are enumerated by the index set $I$.
+    These states are directly identified with the corresponding polytopes of the state space partition, which are enumerated by the index set $I$.
     In a geometric context $\State{i}$ refers to the polytope while in a game-theoretic context $\State{i}$ refers to the associated player 1 state.
 
     \placefigure[top][fig:abstraction-graph-partition]{
@@ -270,7 +270,7 @@ In contrast to the derivation of \cite[Svorenova2017], the game is build directl
     with $Act = Act_1 \cup Act_2$.
 
     To summarize, the game is played starting from a player 1 state as follows:
-    First, player 1 selects a set of state-space partition elements reachable from the current state.
+    First, player 1 selects a set of state space partition elements reachable from the current state.
     One of these elements will be randomly selected as the next player 1 state.
     Because the real state of the trace in the LSS to which the play corresponds is unknown in the discretized state space, the distribution from which the successor is sampled is not uniquely defined yet and must be chosen by player 2.
     Conveniently, only the supports of the probability distributions matter for almost-sure analysis, so player 2 can choose from a (finite) set of uniform distributions with supports from the power set of the reachable states selected by player 1.

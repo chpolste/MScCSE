@@ -9,23 +9,23 @@ When all reachability problems have been solved, a solution for the original pro
     Because of the stuttering equivalence of paths in $\Next$-free LTL, the product game $\ProductGame$ can be decomposed into a set of co-safe reachability/avoidance problems.
     The idea behind this decomposition is motivated by an example:
 
-    Assume the recurrence objective $\Globally \Finally \varphi$ is specified for some LSS, translated to a one-pair Streett automaton as shown in Table \in[tab:theory-logic-objectives].
+    Assume the recurrence objective $\Globally \Finally \varphi$ is specified for some LSS, translated to a one-pair Streett automaton as shown in \in{Table}[tab:theory-logic-objectives].
     One possible satisfying path through the automaton is $(q_0 q_1)^\omega$.
-    Because recurrence is a $\Next$-free specification, any stuttering equivalent path $q_0^+ q_1^+ q_0^+ q_1^+ ...$ is also satisfying, so remaining in any of the two automaton states for a finite amount number of steps before transitioning has no consequence with respect to the acceptance condition.
+    Because recurrence is a $\Next$-free specification, any stuttering equivalent path $q_0^+ q_1^+ q_0^+ q_1^+ ...$ is also satisfying, so remaining in any of the two automaton states for a finite number of steps before transitioning has no consequences with respect to the acceptance condition.
     Based on this observation, two reachability problems are extracted from the product game:
-    First, $\TransitionReach{q_0}{q_1}$ where player 1 has to reach some state $q_1$-associated player state of the product game almost-surely, starting from a state $\Tuple{\State{j}}{q_0}$ and only visiting $q_0$-associated states until a target state is reached.
+    First, $\TransitionReach{q_0}{q_1}$ where player 1 has to reach a $q_1$-associated player state of the product game almost-surely, starting from a state $\Tuple{\State{j}}{q_0}$ and only visiting $q_0$-associated states until a target state is reached.
     Second, $\TransitionReach{q_1}{q_0}$ which is defined analogously but with the roles of $q_0$ and $q_1$ exchanged.
     
     Let $\InitialStates^\TransitionReach{q_0}{q_1}$ and $\InitialStates^\TransitionReach{q_1}{q_0}$ be the sets of satisfying initial states of the LSS for problems $\TransitionReach{q_1}{q_0}$ and $\TransitionReach{q_1}{q_0}$, respectively.
     Then a player 1 strategy $\TransitionStrategy{q_0}{q_1}$ exists that leads any trace starting in $\InitialStates^\TransitionReach{q_0}{q_1}$ almost-surely and in finite time to the state space region where an associated play of the product game switches from a $q_0$- to a $q_1$-associated state, i.e.\ the region defined by $\varphi$.
     An analogous strategy $\TransitionStrategy{q_1}{q_0}$ exists for traces starting in $\InitialStates^\TransitionReach{q_1}{q_0}$ with a target region defined by $\neg \varphi$.
-    Based on these strategies an almost-sure winning player 1 strategy for full product game can be assembled.
+    Based on these strategies, an almost-sure winning player 1 strategy for full product game can be assembled.
     Let $\VecState$ be a trace starting in some state $\Tuple{\State{i}}{q_0}$.
     Player 1 plays with $\TransitionStrategy{q_0}{q_1}$ until a state $\Tuple{X_j}{q_1}$ is reached.
     Player 1 then switches to the strategy $\TransitionStrategy{q_1}{q_0}$ until a state $\Tuple{X_k}{q_0}$ is reached.
     Then player 1 switches back to strategy $\TransitionStrategy{q_0}{q_1}$ and keeps switching whenever the automaton state changes in the play.
     Because automaton runs induced by a composite strategy alternating in this fashion are stuttering equivalent to $(q_0 q_1)^\omega$, the recurrence objective is satisfied almost-surely.
-    Note that each sub-problem strategy is guaranteed to achieve its reachability goal in finite time as the sub-problems are interpreted in the co-safe setting.
+    Note that each sub-problem-strategy is guaranteed to achieve its reachability goal in finite time as the sub-problems are interpreted in the co-safe setting.
 
     The example illustrates how a solution to a verification problem involving a $\Next$-free LTL specification can emerge from solutions to a series of reachability sub-problems extracted from the product game based on transitions of the objective automaton.
     Generally, it is not sufficient to just consider a single path and its stuttering equivalents.
@@ -55,7 +55,7 @@ When all reachability problems have been solved, a solution for the original pro
     \stopformula
 
     the state space partition elements that do not trigger an automaton transition with their player 1 actions.
-    These elements will be the subject of refinement.
+    These elements will be the subject of the refinement.
     Due to stuttering equivalence, any finite number of transitions inside this region can be made without affecting satisfaction of the objective.
     And finally,
 
@@ -249,7 +249,7 @@ When all reachability problems have been solved, a solution for the original pro
 
     If a solution for every transition of the objective automaton has been found through refinement, the LSS can be fully analysed with respect to the objective specification due to the strategy construction outlined in section \in[sec:refinement-transition-decomposition].
     However, the individual reachability sub-problems are not completely independent as they initially share the state space partition of the original LSS.
-    While it is possible to solve the sub-problems independently and then combine the resulting state space partitions into a single paritition, this combination is likely to generate many additional states.
+    While it is possible to solve the sub-problems independently and then combine the resulting state space partitions into a single partition, this combination is likely to generate many additional states.
     Solving the reachability systems sequentially, using only one state space partition that is handed from refinement procedure to refinement procedure, can be beneficial as the refinement applied to achieve one transition may provide a partial solution to a following sub-problem.
 
     Satisfying paths through the objective automaton can be plentiful even when considering stuttering equivalence.

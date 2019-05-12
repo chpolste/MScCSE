@@ -1,4 +1,4 @@
-The product game has to be analysed twice in order to decide which elements of the state-space partition are subsets of $\InitialStates$ and which are subsets of $\StateSpace \setminus \InitialStates$.
+The product game has to be analysed twice in order to decide which elements of the state space partition are subsets of $\InitialStates$ and which are subsets of $\StateSpace \setminus \InitialStates$.
 First, the game is solved under the assumption that player 2 is an adversary.
 With the results of this analysis one can identify game states in which player 1 can win almost-surely independent of the strategy of player 2 (\quotation{yes}-states).
 Then, the game is solved under the assumption that player 2 cooperates with player 1.
@@ -6,7 +6,7 @@ Based on this analysis, game states in which player 1 cannot win almost-surely, 
 
 The game solutions are projected back onto the state space partition  through the association of state space partition elements with player 1 game states in the initial state $q_0$ of the automaton.
 In general, not all states will be identified as yes- or no-states by the analysis procedure.
-If the abstraction is too coarse, a set of \quotation{maybe}-states remains whose corresponding state-space partition elements can only be categorized after additional refinement.
+If the abstraction is too coarse, a set of \quotation{maybe}-states remains whose corresponding state space partition elements can only be categorized after additional refinement.
 
 
 \startbuffer[buf:abstraction-analysis-solution-algorithm]
@@ -158,7 +158,7 @@ If the abstraction is too coarse, a set of \quotation{maybe}-states remains whos
     \stopformula
 
     for all $q \in Q$.
-    The notation of these sets is overloaded such that they denote the union of their member polytopes in geometric contexts, analogous to the use of sets of state-space partition elements as arguments of the dynamics operators.
+    The notation of these sets is overloaded such that they denote the union of their member polytopes in geometric contexts, analogous to the use of sets of state space partition elements as arguments of the dynamics operators.
     The regions $\YesStates{q_0}$ and $\NoStates{q_0}$ are then subsets of $\InitialStates$ and $\StateSpace \setminus \InitialStates$ and a partial solution to the analysis problem posed in \in{Section}[sec:problem-statement-analysis].
 
 \stopsubsection
@@ -167,7 +167,7 @@ If the abstraction is too coarse, a set of \quotation{maybe}-states remains whos
 \startsubsection[title={Correctness and Termination},reference=sec:abstraction-analysis-correctness]
 
     The (partial) correctness of the procedure presented in this chapter is proven by \cite[Svorenova2017].
-    Given an LSS and a sequence of state-space partitions, ordered such that each partition of the sequence is a sub-partition of the previous, the volumes of the solution sets $\YesStates{q_0} \subseteq \InitialStates$ and $\NoStates{q_0} \subseteq \StateSpace \setminus \InitialStates$ are increasing monotonically.
+    Given an LSS and a sequence of state space partitions, ordered such that each partition of the sequence is a sub-partition of the previous, the volumes of the solution sets $\YesStates{q_0} \subseteq \InitialStates$ and $\NoStates{q_0} \subseteq \StateSpace \setminus \InitialStates$ are increasing monotonically.
     If $\YesStates{q_0} \cup \NoStates{q_0} = \StateSpace$, the procedure terminates.
     However, even if perfect refinement procedures were available, it is not guaranteed that the algorithm terminates for every LSS as the following examples demonstrate.
 
@@ -261,7 +261,7 @@ If the abstraction is too coarse, a set of \quotation{maybe}-states remains whos
     In \in{Section}[sec:abstraction-product-cosafe], the co-safe interpretation of objectives is achieved by redirecting final states from the product game into a special loop which guarantees player 1 to win any play that enters it.
     If partial knowledge of $P_\Yes$ and $P_\No$ is available from a previous abstraction-analysis-refinement iteration, it can be used to simplify the product game in a similar way, rendering parts of the game graph unreachable.
     The size of the product game can then be reduced by removing these states which reduces the cost of subsequent analysis efforts.
-    Because it is guaranteed that any set of states previously decided to be part of $P_\Yes$ has been identified correctly, redirecting the outgoing transitions of these states into the special winning loop does not affect the correctness of analysis results obtained from the modified game even if the state-space partition was refined in the meantime.
+    Because it is guaranteed that any set of states previously decided to be part of $P_\Yes$ has been identified correctly, redirecting the outgoing transitions of these states into the special winning loop does not affect the correctness of analysis results obtained from the modified game even if the state space partition was refined in the meantime.
     The same can be done to states recognized as members of $P_\No$ with redirection into the loop designed for dead-end states in \in{Section}[sec:abstraction-product-deadends].
 
     While this simplification can reduce the computational demands of product game construction and analysis significantly and does not affect the correctness of solutions obtained from the modified game, it has an unfortunate side-effect.

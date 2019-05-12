@@ -1,32 +1,25 @@
 Visualizations play an important role in scientific reasearch.
 Graphical representations of data leverage the cognitive abilities of the human brain to process information quickly and detect patterns.
-The visual interpretation of theoretical concepts can provide valuable perspectives for gaining insight into a problem and aid in building intuition.
+The visual interpretation of theoretical concepts can provide valuable perspectives and aid in building intuition for typical behaviour and characteristics of a problem.
 
-In the given problem, the abstraction step connects a the linear stochastic system with a game graph model through a partition of the state space and the system's dynamics.
-While the continuous-state of the LSS is a major computational problem, it is much less of a challenge for visualization as the state space has a straightforward geometric interpretation.
-The game graph is computationally much more convenient, but harder to depict.
-The introduction of the second player and synchronous product with the objective automaton results in a comparatively large game graph which cannot easily be represented in a clean and uncluttered fashion.
-An LSS with a state space partiton size in the hundreds is likely to have thousands of game states and actions.
-Visualization of both the LSS and its abstraction model in their entirety while simultaneously illustrating the relation between the two is infeasible for all but the simplest problems.
-
-Interactivity can help resolve the dilemma that arises when large amounts of information have to be displayed together.
-Instead of showing all information at once, an interactive visualization can provide only a partial view of the problem at any given time while allowing a user to selectively add and remove information.
+Interactivity can resolve the dilemma that arises when large amounts of information have to be displayed together.
+Instead of showing all information at once, an interactive visualization can provide only a partial view of a problem at any given time while allowing the user to selectively add and remove information as desired.
 All information can be made accessible this way without overloading the visualization with content.
 Interactive exploration is useful in educational contexts, helping beginners in a field to grasp important concepts and relationships while also encouraging experimentation.
-The ability to quickly set up a problem and explore, means not just a lowered barrier of entry but can also support understanding through immediate visual feedback to user input.
+The ability to quickly set up a problem and explore, it results not just in a lowered barrier of entry but can also support understanding through immediate and visual feedback to user inputs.
 But the usefulness of interactive visualization extends to research as well.
-The ability to inspect a system of interest in detail can bring forth new approaches to solve a given problem, support the process of understanding and interpretation of experimental results and assist in testing ideas and resolving issues.
+The ability to inspect a system of interest in detail can bring forth new approaches to solve a given problem, support the process of understanding and interpretation of experimental results and assist in testing ideas and resolving practical issues.
 
-A major focus of this work has been the development of new refinement heuristics.
-Insights gained from representations of the LSS in connection with its abstraction model have aided this task substantially.
-Visualization of the state space partition while being able to interact with its elements and associated abstract states has been valuable for the recognition of patterns of interest in the system.
-Illustrating the connection between the system dynamics and the game construction helped to understand changes in the game graph in response to refinement, which is applied in the geometric realm of the state space but ultimately supposed to modify the game graph.
+The focus of this work has been the development of new refinement heuristics for the LSS verification problem.
+Insights gained from graphical representations of the LSS in direct connection with its abstraction model have aided this task substantially.
+Illustrations of the connection between the system dynamics and the game construction helped to understand changes in the game graph in response to refinement.
+The ability to interactively inspect the game graph in its entirety and relate its states and actions to the geometry of the state- and control space has been valuable for the recognition of interesting patterns and the understanding of previously incomprehensible behaviour.
 
 Of course, visualizations on a 2-dimensional screen limit the range of problems that can reasonably be considered.
 Systems of dimension 3 and higher have to be projected into 2-dimensions for geometric representations which results in complex and potentially ambigous representations.
-The complexity of problems must not be too high, as interactivity only makes sense when loading times are short.
+The complexity of problems must not be too high, as the computational demands grow quickly with the problem size and interactivity only makes sense when loading times are short.
 The restriction to low-dimensional systems and simple objectives is not seen as an issue for the purpose of desining refinement procedures or the educational value of an interactive implementation.
-Linear dynamics is generally well understood, with only very little potential of unexpected behaviour in higher dimensions and the geometric dimensionality is only indirectly evident in the abstraction model.
+Linear dynamics is generally well understood with only little potential of unexpected behaviour in higher dimensions and the geometric dimensionality is only indirectly visible in the abstraction model.
 Patterns encountered in game graphs derived from 1- and 2-dimensional systems are unlikely to be fundamentally different than those emerging in higher dimensions.
 System objectives are often variations and combinations of a basic set of standard objectives such as reachability, safety or recurrence.
 A refinement procedure that can handle these basic building blocks can reasonably be expected to be able to handle objectives constructed from them, e.g.\ through a decomposition approach.

@@ -1,10 +1,9 @@
-Closer look at interactive system explorer application.
-Built-in help texts for the application's widgets.
+The help texts from the interactive application are reproduced here.
 
 
 \startsubject[title=View Widgets]
 
-    Widgets below the main state-space view.
+    These widgets are found below the state space view (see \in{Figure}[fig:implementation-features-inspector]).
 
     \startsubsubject[title={Widget: Objective Automaton}]
 
@@ -27,7 +26,7 @@ Built-in help texts for the application's widgets.
 
     \startsubsubject[title={Widget: View Settings}]
 
-        Add or remove information from the state-space view:
+        Add or remove information from the state space view:
 
         \startitemize[packed]
             \item{Label Polytopes: Display polytope labels $\State{i}$.}
@@ -41,7 +40,8 @@ Built-in help texts for the application's widgets.
 
 \startsubject[title={State Widgets}]
 
-    Widgets that display information about the game graph.
+    These widgets are found in the \quotation{State} tab of the sidebar, shown in \in{Figure}[fig:appendix-widgets-one], left.
+    They display information about the game graph.
 
     \startsubsubject[title={Widget: Selection}]
         Information about the currently selected state $\Tuple{\State{i}}{q_j}$ of the product game:
@@ -76,18 +76,19 @@ Built-in help texts for the application's widgets.
 
 \stopsubject
 
-\placefigure[top]{
-    TODO
+\placefigure[top][fig:appendix-widgets-one]{
+    The \quotation{State} and \quotation{System} tabs of the sidebar of the interactive implementation (see \in{Figure}[fig:implementation-features-inspector]).
 }{
     \startcombination[2*1]
-        {\externalfigure[TODO][width=0.49\textwidth]}{}
-        {\externalfigure[TODO][width=0.49\textwidth]}{}
+        {\externalfigure[appendix-tab-state][width=0.45\textwidth]}{}
+        {\externalfigure[appendix-tab-system][width=0.45\textwidth]}{}
     \stopcombination
 }
 
 \startsubject[title=System Widgets]
 
-    Controls for analysis and refinement.
+    These widgets are found in the \quotation{System} tab of the sidebar, shown in \in{Figure}[fig:appendix-widgets-one], right.
+    They provide controls for analysis and refinement of the system as well as the snapshot functionality.
 
     \startsubsubject[title={Widget: Analysis}]
 
@@ -152,18 +153,19 @@ Built-in help texts for the application's widgets.
 \stopsubject
 
 
-\placefigure[top]{
-    TODO
+\placefigure[top][fig:appendix-widgets-two]{
+    The \quotation{Control} and \quotation{Info} tabs of the sidebar of the interactive implementation (see \in{Figure}[fig:implementation-features-inspector]).
 }{
     \startcombination[2*1]
-        {\externalfigure[TODO][width=0.49\textwidth]}{}
-        {\externalfigure[TODO][width=0.49\textwidth]}{}
+        {\externalfigure[appendix-tab-control][width=0.45\textwidth]}{}
+        {\externalfigure[appendix-tab-info][width=0.45\textwidth]}{}
     \stopcombination
 }
 
 \startsubject[title=Control Widgets]
 
-    Trace sampling.
+    These widgets are found in the \quotation{Control} tab of the sidebar, shown in \in{Figure}[fig:appendix-widgets-two], left.
+    They provide trace sampling and inspection controls.
 
     \startsubsubject[title={Widget: Sample Trace}]
 
@@ -188,7 +190,8 @@ Built-in help texts for the application's widgets.
 
 \startsubject[title=Info Widgets]
 
-    Log-keeping, reports and connectivity to related applications.
+    These widgets are found in the \quotation{Info} tab of the sidebar, shown in \in{Figure}[fig:appendix-widgets-two], right.
+    They are responsible for log-keeping of analysis and refinement reports and connect to additional helper applications developed in the context of this work (not shown).
 
     \startsubsubject[title={Widget: Connectivity}]
 

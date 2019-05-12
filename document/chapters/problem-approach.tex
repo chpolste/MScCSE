@@ -35,17 +35,17 @@ The analysis and synthesis problems for the given LSS setup have been previously
 Their solution procedure is depicted in \in{Figure}[fig:problem-approach-flowchart] and summarized in this section.
 The individual steps are then reviewed in detail in the following chapter.
 
-First, a 2½-player game abstraction of the LSS is constructed based on a state-space partition and its dynamics.
+First, a 2½-player game abstraction of the LSS is constructed based on a state space partition and its dynamics.
 In the game, one player controls the evolution of a trace while the other player represents the uncertainty introduced by the abstraction model.
 For computational convenience, convex polytopic partitions are chosen.
-The initial state-space partition is induced by the set of linear predicates.
+The initial state space partition is induced by the set of linear predicates.
 
 Next, the objective is translated to a deterministic \omega-automaton and the synchronous product of this automaton and the game graph is constructed.
 The resulting game's winning condition is modelled on the one-pair Streett acceptance condition of the automaton.
 The product game is then solved once for an adversarial player 2 and once for a cooperative player 2.
 With both solutions, regions of the state space can be identified as parts of $\InitialStates$ or $\StateSpace \setminus \InitialStates$.
 However, some regions can remain undecided because of a too coarse abstraction.
-Therefore, refinement is applied to the state-space partition.
+Therefore, refinement is applied to the state space partition.
 Based on the game solutions and system dynamics, a new state space partition is constructed and the procedure returns to the abstraction phase and iterates.
 
 The procedure is constructed such that after every iteration, a partial solution to the problem is obtained \cite[authoryears][Svorenova2017].

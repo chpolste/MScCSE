@@ -5,7 +5,7 @@ This restriction limits the complexity of patterns that can be identified but si
 
 \startbuffer[buf:refinement-holistic-geometric-algorithm]
     \startalgorithmic[numbering=no,margin=0em]
-        \INPUT{Element of state space partition $\State{i}$ }
+        \INPUT{State-space partition element $\State{i}$ }
         \OUTPUT{Partition of $\State{i}$}
     \stopalgorithmic
     \startalgorithmic
@@ -24,11 +24,11 @@ This restriction limits the complexity of patterns that can be identified but si
     \stopalgorithmic
 \stopbuffer
 
-\startsubsection[title={Robust Positive Refinement},reference=sec:refinement-holistic-positive]
+\startsubsection[title={Positive Robust Refinement},reference=sec:refinement-holistic-positive]
 
     \placealgorithm[top][alg:refinement-holistic-positive]{
         A generic template for a single-step holistic refinement procedure based only on the system dynamics and analysis results.
-        Implementations of $\RefineStep$ based on ideas from sections \in[sec:refinement-holistic-positive] (positive robust refinement), \in[sec:refinement-holistic-negattr] (negative attractor refinement) and \in[sec:refinement-holistic-safety] (safety refinement) are summarized in Table \in[tab:refinement-holistic-kernels].
+        Implementations of $\RefineStep$ based on ideas from Sections \in[sec:refinement-holistic-positive] (positive robust refinement), \in[sec:refinement-holistic-negattr] (negative attractor refinement) and \in[sec:refinement-holistic-safety] (safety refinement) are summarized in \in{Table}[tab:refinement-holistic-kernels].
     }{
         \startframedtext[width=\textwidth]
             \getbuffer[buf:refinement-holistic-geometric-algorithm]
@@ -36,11 +36,11 @@ This restriction limits the complexity of patterns that can be identified but si
     }
 
     The first holistic refinement procedure is an adaptation of case 1 of the positive refinement proposed by \cite[Svorenova2017].
-    It identifies states from which $P_\Yes$ can be reached robustly in a single step and uses the $\RefinePos$-kernel from section \in[sec:refinement-robust-kernel] to partition the associated state space polytopes.
+    It identifies states from which $P_\Yes$ can be reached robustly in a single step and uses the $\RefinePos$ kernel from \in{Section}[sec:refinement-robust-kernel] to partition the associated state space polytopes.
     This can be done by looking for player 1 states in $P_\Maybe$ from which a state in $P_\Yes$ can be reached with probability 1 if both players cooperate, i.e.\ states $\Tuple{\State{i}}{q} \in P_\Maybe$ with an action $\PlayerOneAction{i}{J}$ leading to player 2 state $\Triple{\State{i}}{J}{q'}$, which has a player 2 action $\PlayerTwoAction{i}{J}{k}$ such that $\Tuple{\State{k}}{q'} \in P_\Yes$ for all $k \in K$.
-    While this is a viable implementation of the refinement condition, it binds the procedure to the availability of player actions which could be associated with expensive game graph recomputation when the method is not used directly after an analysis (see section \in[sec:refinement-guidance]).
+    While this is a viable implementation of the refinement condition, it binds the procedure to the availability of player actions which could be associated with expensive game graph recomputation when the method is not used directly after an analysis.
 
-    Algorithm \in[alg:refinement-holistic-positive] demonstrates how the game graph construction can be avoided.
+    \in{Algorithm}[alg:refinement-holistic-positive] demonstrates how the game graph construction can be avoided.
     Instead of analysing player actions, the algorithm systematically explores all player 1 states associated with a state space partition element $\State{i}$, filters out states that are not in $P_\Maybe$ (line 3) and determines the unique successor automaton state for all player 1 actions from the satisfied linear predicates (line 4).
     $\State{i}$ is then partitioned with a function $\RefineStep$ which, if chosen such that
 
@@ -49,13 +49,13 @@ This restriction limits the complexity of patterns that can be identified but si
     \stopformula
 
     encapsulates both the desired condition and executes the refinement (lines 5 to 9).
-    Because $\RefinePos$ can be implemented solely based on the LSS dynamics (Algorithm \in[alg:refinement-robust-kernel]), no dependence on the availability of the game graph exists.
+    Because $\RefinePos$ can be implemented solely based on the LSS dynamics (\in{Algorithm}[alg:refinement-robust-kernel]), no dependence on the availability of the game graph exists.
 
     The properties of the robust refinement kernel guarantee that the procedure enlarges the state space volume associated with $P_\Yes$ whenever a state is successfully partitioned.
     However, if $P_\Yes$ is empty, no refinement can take place at all.
     This is not a problem for co-safe specifications where the final states are immediately recognized as satisfying states in the first analysis.
     For other objectives though, the initial partition will generally not yield any yes-states after the first analysis.
-    This issue is addressed in section \in[sec:refinement-transition], where robust positive refinement will appear again in the context of a reachability decomposition approach.
+    This issue is addressed in \in{Section}[sec:refinement-transition], where robust positive refinement will appear again in the context of a reachability decomposition approach.
 
 \stopsubsection
 
@@ -77,13 +77,13 @@ This restriction limits the complexity of patterns that can be identified but si
     \stopformula
 
     where $q' = \QNext{i}{q}$.
-    It matches player 1 states in which player 2 can win the game with non-zero probability no matter which action player 1 chooses if playing as an adversary.
-    For refinement, they proposed a negative procedure that partitions state space partition elements according to the attractor sets $\Attractor{\State{i}}{\ControlSpace}{\NoStates{q'}}$.
+    It matches player 1 states in which an adversarial player 2 can win the game with non-zero probability independent of the action that player 1 chooses.
+    As refinement, they propose a negative procedure that partitions state space partition elements according to the attractor sets $\Attractor{\State{i}}{\ControlSpace}{\NoStates{q'}}$.
     Plays originating in this attractor region and transitioning to $q'$ are won by player 2 with non-zero probability inevitably, even if player 2 plays cooperatively.
-    The removed attractor region is therefore be guaranteed to be recognized as non-satisfying in the next analysis.
+    The removed attractor region is therefore guaranteed to be recognized as non-satisfying in the next analysis.
 
     Again, it is possible to execute this refinement without having to consult the player actions of the game graph.
-    Reusing the structure of algorithm \in[alg:refinement-holistic-positive], while choosing
+    Reusing the structure of \in{Algorithm}[alg:refinement-holistic-positive] and choosing
 
     \startformula
         \startalign[n=2,align={right,left}]
@@ -134,8 +134,8 @@ This restriction limits the complexity of patterns that can be identified but si
 
 \startsubsection[title={Safety},reference=sec:refinement-holistic-safety]
 
-    \placetable[top][tab:refinement-holistic-safety]{
-        Implementations of the function $\RefineStep$ invoked by Algorithm \in[alg:refinement-holistic-positive] based on ideas from sections \in[sec:refinement-holistic-positive] (a, positive robust refinement), \in[sec:refinement-holistic-negattr] (b, negative attractor refinement) and \in[sec:refinement-holistic-safety] (c, safety refinement).
+    \placetable[top][tab:refinement-holistic-kernels]{
+        Implementations of the function $\RefineStep$ invoked by \in{Algorithm}[alg:refinement-holistic-positive] based on ideas from Sections \in[sec:refinement-holistic-positive] (a, positive robust refinement), \in[sec:refinement-holistic-negattr] (b, negative attractor refinement) and \in[sec:refinement-holistic-safety] (c, safety refinement).
         All implementations only depend on the analysis results and the LSS dynamics but not the player actions of the product game graph.
     }{
         \startframedtext[width=\textwidth]
@@ -158,7 +158,7 @@ This restriction limits the complexity of patterns that can be identified but si
     In such cases, refinement should be applied that allows player 1 to enforce this safe transition even if player 2 plays as an adversary.
     A procedure of this kind belongs in the category of neutral refinement as it transfers control from player 2 to player 1 but neither aims to explicitly enlarge the state space volume associated with $P_\Yes$ nor the volume associated with $P_\No$.
 
-    Algorithm \in[alg:refinement-holistic-positive] with the choice
+    \in{Algorithm}[alg:refinement-holistic-positive] with the choice
 
     \startformula
         \RefinementStep{Y_n}{q'} = \RefinePositive{Y_n}{\StateSpace \setminus \NoStates{q'}}
@@ -166,16 +166,16 @@ This restriction limits the complexity of patterns that can be identified but si
 
     results in a procedure that improves safety for player 1 by splitting state space partition elements associated with unsafe states with $\RefinePos$, targeted at a safe region.
     The procedure can only guarantee the existence of a safe player 1 action for some parts of the generated partition so multiple iterations might be necessary to ensure safety for all states.
-    It is also possible that some regions of the state space cannot be made safe due to the \epsilon-limit behaviour seen in section \in[sec:abstraction-analysis-correctness].
+    It is also possible that some regions of the state space cannot be made safe due to the \epsilon-limit behaviour seen in \in{Section}[sec:abstraction-analysis-correctness].
 
-    Table \in[tab:refinement-holistic-safety] summarizes the choices for the function $\RefineStep$ of Algorithm \in[alg:refinement-holistic-positive] from this and the previous two sections.
+    \in{Table}[tab:refinement-holistic-kernels] summarizes the choices for the function $\RefineStep$ of \in{Algorithm}[alg:refinement-holistic-positive] from this and the previous two sections.
 
 \stopsubsection
 
 
 \startbuffer[buf:refinement-holistic-loops-algorithm]
     \startalgorithmic[numbering=no,margin=0em]
-        \INPUT{Element of state space partition $\State{i}$}
+        \INPUT{State-space partition element $\State{i}$ }
         \OUTPUT{Partition of $\State{i}$}
     \stopalgorithmic
     \startalgorithmic
@@ -201,13 +201,13 @@ This restriction limits the complexity of patterns that can be identified but si
     Such loops in the game graph may involve multiple elements of the state space partition or multiple states of the automaton, in which case deep analysis of the product game is required for their identification.
     Much easier to find are self-loops, i.e.\ individual states of the game graph in which player 2 can trap a trace indefinitely.
 
-    The same observation was made by \cite[Yordanov2012] in the context of hybrid systems with non-probabilistic, piecewise linear dynamics and LTL objectives.
+    The same observation was made by \cite[Yordanov2012] in the context of hybrid systems with non-probabilistic, piece-wise linear dynamics and LTL objectives.
     They separated self-loops of the abstraction into transient loops, which can be escaped in finite time in the original system by repeated application of the same control input, and non-transient loops, which cannot be broken by repeated application of the same control input.
     Their solution procedure did not incorporate abstraction refinement.
     Instead, they replaced non-transient self-loops in the game abstraction with corresponding non-looping player 1 actions, using the stutter equivalence property of $\Next$-free LTL.
     Here, instead of modifying the game graph pre-analysis, the problem of self-loops is approached with refinement.
     The goal is to refine the state space partition such that for all states of the game graph, player 1 has an action available after which player 2 is not able to enforce looping with probability 1.
-    The refinement procedure in Algorithm \in[alg:refinement-holistic-loops] is proposed to remove potentially problematic self-loops in the product game graph.
+    The refinement procedure in \in{Algorithm}[alg:refinement-holistic-loops] is proposed to remove potentially problematic self-loops in the product game graph.
 
     \placealgorithm[top][alg:refinement-holistic-loops]{
         Self-loop removal refinement for an element $\State{i}$ of the state space partition.
@@ -217,10 +217,10 @@ This restriction limits the complexity of patterns that can be identified but si
         \stopframedtext
     }
 
-    Given an element $\State{i}$ of the state space partition, Algorithm \in[alg:refinement-holistic-loops] searches for an associated player 1 state $\Tuple{\State{i}}{q} \in \MaybeStates{q}$ which has a safe player 1 action $\PlayerOneAction{i}{J}$ that leads to a player 2 state $\Triple{\State{i}}{\PlayerOneAction{i}{J}}{q}$ in which a player 2 action $\PlayerTwoAction{i}{J}{\Set{i}}$ exists whose only target is the origin player 1 state $\Tuple{\State{i}}{q}$ again.
+    Given an element $\State{i}$ of the state space partition, \in{Algorithm}[alg:refinement-holistic-loops] searches for an associated player 1 state $\Tuple{\State{i}}{q} \in \MaybeStates{q}$ which has a safe player 1 action $\PlayerOneAction{i}{J}$ that leads to a player 2 state $\Triple{\State{i}}{\PlayerOneAction{i}{J}}{q}$ in which a player 2 action $\PlayerTwoAction{i}{J}{\Set{i}}$ exists whose only target is the origin player 1 state $\Tuple{\State{i}}{q}$.
     The procedure only looks at player 1 states whose outgoing actions don't change the automaton state, otherwise stutter equivalence does not apply.
     Unsafe actions that lead to any state in $P_\No$ with non-zero probability are ignored as they are not considered to be neutral.
-    The safety refinement of section \in[sec:refinement-holistic-safety] should be applied to these states first.
+    The safety refinement of \in{Section}[sec:refinement-holistic-safety] should be applied to these states first.
     Self-loops initiated deterministically by player 1 with an action $\PlayerOneAction{i}{\Set{i}}$ are also ignored since player 1 already has full control over the looping behaviour for these actions.
 
     If any player 2 action fulfills the self-loop condition, its corresponding origin polytope $\State{i}$ is partitioned according to the precise predecessor associated with the player 2 action.

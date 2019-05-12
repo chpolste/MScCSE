@@ -1,10 +1,221 @@
-Put the help text from the inspector.
+Closer look at interactive system explorer application.
+Built-in help texts for the application's widgets.
 
-\startsubject[title=Example Widget]
 
-    Picture.
+\startsubject[title=View Widgets]
 
-    Help text.
+    Widgets below the main state-space view.
+
+    \startsubsubject[title={Widget: Objective Automaton}]
+
+        The one-pair Streett objective automaton.
+        Member states of the accepance pair $\Tuple{E}{F}$ are depicted with a dashed outline ($E$) and double outline ($F$).
+        Click on a state to view the system in that state.
+        Hover over a transition label with the mouse to reveal the associated transition region in the state space view.
+        The symbol * denotes the default transition if no other transition condition matches.
+        Transitions are highlighted blue for the currently selected product game state and red for the selected trace step.
+
+    \stopsubsubject
+
+    \startsubsubject[title={Widget: Control and Random Space}]
+
+        The control- and random space polytopes, $U$ (left) and $W$ (right).
+        $\ActC$ regions are highlighted when a player 1 action is selected.
+        Control and random vectors of trace steps are shown when a trace step is selected.
+
+    \stopsubsubject
+
+    \startsubsubject[title={Widget: View Settings}]
+
+        Add or remove information from the state-space view:
+
+        \startitemize[packed]
+            \item{Label Polytopes: Display polytope labels $\State{i}$.}
+            \item{Vector Field: Show $\VecState_{t+1} = \MatA \VecState_{t}$ as a vector field.}
+        \stopitemize
+
+    \stopsubsubject
 
 \stopsubject
+
+
+\startsubject[title={State Widgets}]
+
+    Widgets that display information about the game graph.
+
+    \startsubsubject[title={Widget: Selection}]
+        Information about the currently selected state $\Tuple{\State{i}}{q_j}$ of the product game:
+        Label of the selected state space partition element (choose by clicking in the state space view) and automaton state (choose by clicking in the automaton view) as well as the successor automaton state based on the satisfied linear predicates.
+        The analysis status for all product game states associated with the state space element is indicated by color.
+
+        A dynamics operator is selectable from the dropdown menu which is shown in the state space view.
+
+        \startitemize[packed]
+            \item{Posterior: $\Posterior{\State{i}}{\ControlSpace}$}
+            \item{Predecessor: $\Predecessor{\StateSpace}{\ControlSpace}{\State{i}}$}
+            \item{Robust Predecessor: $\RobustPredecessor{\StateSpace}{\ControlSpace}{\State{i}}$}
+            \item{Attractor: $\Attractor{\StateSpace}{\ControlSpace}{\State{i}}$}
+            \item{Robust Attractor: $\RobustAttractor{\StateSpace}{\ControlSpace}{\State{i}}$}
+        \stopitemize
+
+        If a player 1 action is selected, the posterior adapts to the concrete action polytope, the backward looking operators do not.
+
+    \stopsubsubject
+
+    \startsubsubject[title={Widget: Actions}]
+
+        Player 1 actions of the game graph denoted as $\State{i} \rightarrow \IndexedStates{j}{J}$.
+        The colors show the analysis status of the origin and target states, taking into account changes in the automaton state when transitioning.
+        The selection of a player 1 action highlights the associated region $\ConcreteAction{\State{i}}{\IndexedStates{j}{J}} = U_i^J$ in the control space view.
+        The transition is also depicted with arrows between the origin and target polytopes in the state space view.
+
+        Player 2 actions are shown when a player 1 action is selected in the form of the support sets $\IndexedStates{k}{K}$ of the probability distribution of the outgoing transition.
+        Hovering over a player 2 action with the mouse pointer reveals the corresponding $\PrecisePredecessor{\State{i}}{U_i^J}{\IndexedStates{k}{K}}$ region in the state space view, where $U_i^J$ is associated with the player 1 action and $K \subseteq J$.
+
+    \stopsubsubject
+
+\stopsubject
+
+\placefigure[top]{
+    TODO
+}{
+    \startcombination[2*1]
+        {\externalfigure[TODO][width=0.49\textwidth]}{}
+        {\externalfigure[TODO][width=0.49\textwidth]}{}
+    \stopcombination
+}
+
+\startsubject[title=System Widgets]
+
+    Controls for analysis and refinement.
+
+    \startsubsubject[title={Widget: Analysis}]
+
+        Analyse the system and update the analysis status of all states.
+        While interface remains responsive, only cached data can be displayed until the analysis is finished.
+        Activity is indicated by the loading symbol in the heading.
+        When the analysis is finished, a brief report is written to the log messages (Info tab).
+
+        Current analysis results can be removed by clicking reset, this allows analysing the system without any product game simplification.
+
+        Also displayed are the current number of yes- (green), no- (grey), unreachable- (red) and maybe-states (black).
+        A progress bar shows the state space volume fraction corresponding to each category for the currently selected automaton state.
+        The outer states are excluded from these statistics.
+
+    \stopsubsubject
+
+    \startsubsubject[title={Widget: Holistic Refinement}]
+
+        Refinement based on single-step look-ahead patterns in the entire product game.
+
+        \startitemize[packed]
+            \item{Positive refinement enables robust transitions to the yes-region (robust attractor mode) or refines with respect to the $\PreR$ of the yes-region (robust predecessor mode).}
+            \item{Negative attractor refinement refines with respect to the $\Attr$ of the no-region.}
+            \item{Safety refinement refines robustly with respect to the union of the yes- and maybe-regions.}
+            \item{
+                Self-loop removal refines with respect to the $\PreP$ of player 2 actions that lead to a self-loop.
+                Optimistic removal only refines if player 2 can force a loop for all player 1 actions, while pessimistic removal always refines if a self-loop is found.
+                Unsafe actions can be excluded from the pattern search.
+            }
+        \stopitemize
+
+    \stopsubsubject
+
+    \startsubsubject[title={Widget: Robust Transition Refinement}]
+
+        Transition-based refinement in a robust framework.
+        Select origin and target automaton states.
+        A reachability/avoidance problem is extracted based on the corresponding transition.
+        An additional decomposition into layers is possible.
+        Select which layers should be generated as well as the layer-inducing operator.
+        The specified number of refinement iterations is performed on the extracted problem(s) with a positive robust one-step kernel based on the $\AttrR$ operator.
+        The following options can be toggled:
+
+        \startitemize[packed]
+            \item{The target region can be automatically expanded between iterations using the progress guarantee of the refinement kernel.}
+            \item{Small polytopes where $\State{i} \ominus \RandomSpace = \emptyset$ can be skipped in the refinement if they are safe (i.e. a robust transition exists for the polytope that fulfills the avoidance condition).}
+            \item{Post-processing of the $\AttrR$ region is available to reduce jaggedness: over-approximation with a convex hull or under-approximation by only retaining the largest polytope of the region or by filtering out small polytopes.}
+            \item{The control region used for layer generation can be shrunk or expanded to deal with \epsilon-boundary behaviour.}
+        \stopitemize
+
+    \stopsubsubject
+
+    \startsubsubject[title={Widget: Snapshots}]
+
+        Store and restore the state space partition and analysis status of the system in a snapshot.
+        Snapshots are arranged in a tree based on their succession.
+        A snapshot is taken automatically after every analysis and can be taken manually at any time.
+        Progress not saved as a snapshot is lost when loading a previous snapshot.
+
+    \stopsubsubject
+
+\stopsubject
+
+
+\placefigure[top]{
+    TODO
+}{
+    \startcombination[2*1]
+        {\externalfigure[TODO][width=0.49\textwidth]}{}
+        {\externalfigure[TODO][width=0.49\textwidth]}{}
+    \stopcombination
+}
+
+\startsubject[title=Control Widgets]
+
+    Trace sampling.
+
+    \startsubsubject[title={Widget: Sample Trace}]
+
+        Generate trace samples in the system.
+        Select the controller used to obtain control vectors from the dropdown menu.
+        Traces are initiated randomly from inside the currently selected product game state or anywhere in the state space for the current automaton state if the polytope selection is empty.
+        Traces are terminated when the outer region is reached, a co-safe objective has been satisfied or the maximum number of steps is exceeded.
+
+    \stopsubsubject
+
+    \startsubsubject[title={Widget: Trace}]
+
+        The individual steps of the current trace.
+        Transitions in the objective automaton in the corresponding play of the product game are shown below the arrows depicting the steps.
+        Hovering over an arrow with the mouse pointer highlights the corresponding step in the state space view as well as the control and random vectors in their corresponding views.
+        The number of steps in the trace sample is given above together with the reason for the termination of the trace.
+
+    \stopsubsubject
+
+\stopsubject
+
+
+\startsubject[title=Info Widgets]
+
+    Log-keeping, reports and connectivity to related applications.
+
+    \startsubsubject[title={Widget: Connectivity}]
+
+        Export aspects of the system:
+
+        \startitemize[packed]
+            \item{Calculator: Open the current problem setup in the polytopic calculator application.}
+            \item{Plotter: Open the current state space partition in the polytopic plotter application.}
+            \item{Export Session: Download the snapshot tree so that it can be re-imported later from the problem setup screen (make sure to snapshot the current state if desired).}
+        \stopitemize
+
+    \stopsubsubject
+
+    \startsubsubject[title={Widget: Log Messages}]
+
+        Type of reports:
+
+        \startitemize[packed]
+            \item{Analysis reports: Information about the size of the product game graph, how many states were updated and timings for the game construction and solution.}
+            \item{Refinement reports: How many states were refined, how many states were created and timing of the refinement.}
+        \stopitemize
+
+        Also shown are error messages from the background WebWorker and notifications whenever a snapshot is restored.
+
+    \stopsubsubject
+
+\stopsubject
+
+
 

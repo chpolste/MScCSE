@@ -14,7 +14,7 @@ The objective is to eventually reach the polytope $\ClosedInterval{-1}{1}^2$ alm
 \stopformula
 
 where the linear predicates $\Predicate_{1}$, $\Predicate_{2}$, $\Predicate_{3}$ and $\Predicate_{4}$ correspond to halfspaces governed by the inequalities $x \leq 1$, $-x \leq 1$, $y \leq 1$ and $-y \leq 1$.
-The co-safe interpretation of The objective is chosen and the automaton from \in{Table}[tab:TODO] used.
+The co-safe interpretation of The objective is chosen and the automaton from \in{Table}[tab:theory-logic-objectives] used.
 The initial state space decomposition and the extended state space are visualized in \in{Figure}[fig:cases-integrator-initial].
 
 \cite[Svorenova2017] have demonstrated that positive robust refinement is viable for this problem, so it is used here as a testbed for different configurations of robust refinement techniques.
@@ -63,8 +63,6 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
     Also reported are the size of the 2½-player game abstraction as player 1 and 2 state and action counts, the elapsed time during refinement application, game graph construction and analysis as well as the volume fraction of the regions $\YesStates{q_0}$ (yes), $\NoStates{q_0}$ (no) and $\MaybeStates{q_0}$ (maybe) with respect to the state space polytope $\StateSpace$.
     The table shows that refinement, abstraction and analysis in all iterations took less than 1 second.
     The initial analysis and the negative refinement required 1 second of run time in total.
-
-    % TODO? Show that simplification with multiple iterations of negative attractor does not generally work because of self-loops.
 
 \stopsubsection
 
@@ -441,18 +439,16 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
         }
     }
 
-    Safety refinement twice, then 5 times self-loop removal.
-    Partition and analysis results shown in \in{Table}[tab:cases-integrator-neutral].
-    Not competitive to layered refinement in size of partition or elapsed time but better than the robust methods without post-processing.
-    Refinement took much longer than for any of the robust methods because game graph had to be partially constructed during the self-loop refinement.
-    Notable that partition is very fine around $y = 0$ and quite coarse for larger values of $|y|$.
-    Can be explained by dynamics, which has shear characteristics.
-    Inherent \quotation{drift} of traces is much stronger away from $y = 0$, therefore self-loops are less likely to occur.
-    The only way to remove self-loops near $y = 0$ is by partitioning the state space so fine, that all polytopes $\State{i}$ fulfill $\State{i} \ominus \RandomSpace$.
-
-    Neutral refinement can provide solution despite not even knowing about the reachability target.
-    This is a disadvantage as the partition size shows but also means that such refinement procedures are likely to genenerate paritions that work for diverse objectives.
-    While the robust reachability refinement targets a specific transition, neutral refinement has the potential to work for multiple transitions if they exist.
+    The discussion of the double integrator system is concluded by a demonstration of the effectiveness of neutral refinement techniques.
+    After the negative refinement from (\in{Table}[tab:cases-integrator-negative]), safety refinement is applied twice, followed by 5 iterations of self-loop removal without intermediate analysis.
+    The indended purpose of the safety refinement is to contain the \epsilon-limit behaviour along the edges of the negative attractor regions, while the removal of self-loops should allow strategies to evolve traces inside the safe region until the target is eventually reached probabilistically.
+    A partition of the state space resulting from such refinement is shown in \in{Table}[tab:cases-integrator-neutral] together with the familiar performance metrics.
+    It is evident that the neutral refinement techniques alone are not competitive with layered refinement with respect to both run time and partition size.
+    Notable is that the refinement took much longer than for any of the robust methods due to the self-loop refinement which requires the game graph to be (partially) constructed inbetween applications.
+    The resulting partition is very fine around $y = 0$ and rather coarse for larger values of $|y|$.
+    This can be explained by the dynamics of the double integrator, which has shear characteristics.
+    The inherent motion of traces prescribed by the transformation with $\MatA$ is stronger away from $y = 0$ where it vanishes entirely.
+    Therefore, self-loops are more likely to occur near $y = 0$, where they can only be avoided through the external control and a fine partition.
 
 \stopsubsection
 

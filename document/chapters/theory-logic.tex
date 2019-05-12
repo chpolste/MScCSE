@@ -1,6 +1,6 @@
 A temporal logic is an extension of propositional logic by a set of temporal connectives \cite[authoryears][Baier2008].
 With these connectives, statements about the current and future state of a system can be expressed.
-While formulae of propositional logic are evaluated with a single valuation of the atomic propositions, temporal logic formulae are evaluated with a sequence or tree of valuations that describe the evolution of the system state in time.
+While formulae of propositional logic are evaluated with a single valuation of its atomic propositions, temporal logic formulae are evaluated with a sequence or a tree of valuations that describe the evolution of the system state in time.
 
 
 \startsubsection[title={Linear Temporal Logic},reference=sec:theory-logic-ltl]
@@ -73,7 +73,7 @@ While formulae of propositional logic are evaluated with a single valuation of t
     \stopformula
 
     Consider a transition system with states $2^{AP}$, such that the set of atomic propositions $AP$ coincides with that of an LTL formula $\varphi$.
-    The evolution of this transition system when starting in from state $s$ generates words $w = w_0 w_1 ...$, $w_0 = s$, over the alphabet $2^{AP}$.
+    The evolution of this transition system when starting in state $s$ generates words $w = w_0 w_1 ...$, where $w_0 = s$, over the alphabet $2^{AP}$.
     The function
     
     \startformula
@@ -96,7 +96,7 @@ While formulae of propositional logic are evaluated with a single valuation of t
     In a branching time interpretation, the future is seen as a tree that branches out whenever a moment allows for more than one future.
     Computation Tree Logic (CTL) is a temporal logic with this understanding of time.
     CTL can reason over a branching future with the quantifiers $\exists$ (there is some future) and $\forall$ (for all possible futures).
-    While the expressiveness of CTL overlaps with that of LTL, properties exists that can only be expressed in one but not the other.
+    While the expressiveness of CTL overlaps with that of LTL, properties exists that can only be expressed in one but not the other \cite[authoryears][Baier2008].
 
     The understanding of time as linear or branching is not the only concept that influences the construction of a temporal logic.
     While LTL and CTL are only concerned with the ordering of time, there are also temporal logics that include the concept of a clock.
@@ -160,7 +160,7 @@ While formulae of propositional logic are evaluated with a single valuation of t
 
 \startsubsection[title={Automata for LTL Objectives},reference=sec:theory-logic-automata]
 
-    For every LTL formula an \omega-automaton can be constructed such that the automaton accepts all words that satisfy the formula and rejects all words that do not satisfy the formula.
+    For every LTL formula, an \omega-automaton can be constructed such that the automaton accepts all words that satisfy the formula and rejects all words that do not satisfy the formula.
     Formula-to-automaton translation is a key component of LTL model checking because it allows to systematically combine the system model and the specification it is verified against.
     Tools for the automatic translation of LTL formulae to various types of \omega-automata have beed developed, e.g. by \cite[Kretinsky2018], \cite[Duret2016] and \cite[Gastin2001].
 
@@ -197,7 +197,7 @@ While formulae of propositional logic are evaluated with a single valuation of t
         \eTABLE
     }
 
-    Table \in[tab:theory-logic-objectives] presents five basic LTL formulae together with corresponding \omega-automata.
+    \in{Table}[tab:theory-logic-objectives] presents five basic LTL formulae together with corresponding \omega-automata.
     The formulae are specified over words over an alphabet of valuations of the propositional atoms $\phi$ and $\theta$.
     Transition labels of the automata are propositional formulas.
     A transition is taken if the current symbol (i.e.\ valuation) of the run-inducing word satisfies its associated propositional formula.
@@ -208,8 +208,8 @@ While formulae of propositional logic are evaluated with a single valuation of t
 
 \startsubsection[title={Fragments of LTL},reference=sec:theory-logic-fragments]
 
-    The complexity of an LTL model checking procedure is goverened by the cost of the translation of the specification formula to an automaton and the analysis of the synchronized product of the automaton and system model.
-    The size of a deterministic automaton corresponding to an LTL formula is doubly exponential in the number of subformulae in the worst case \cite[authoryears][Baier2008].
+    The complexity of an LTL model-checking procedure is goverened by the cost of the translation of the specification formula to an automaton and the analysis of the synchronized product of the automaton and system model.
+    The size of a deterministic finite automaton (DFA) corresponding to an LTL formula is doubly exponential in the number of subformulae in the worst case \cite[authoryears][Baier2008].
     The worst-case time complexity of a DFA-based model checking procedure for LTL is therefore at least doubly exponential in the size of the specification, assuming that the procedure has to visit each state in the product of automaton and system model at least once.
     Restricting specifications to a fragment of LTL with reduced expressivity can limit the exponential blow-up in the automaton translation or simplify the analysis procedure.
     If designed carefully, such LTL fragments can still include many properties that are relevant in practical applications.
@@ -222,7 +222,6 @@ While formulae of propositional logic are evaluated with a single valuation of t
 
     where $\phi_i$ and $\mu_i$ are propositional formulae, was named General Reactivity(1) (GR(1)) and popularized by \cite[Piterman2005].
     The complexity of model checking procedures with GR(1) specifications is polynomial in the size of the specification which is a substantial reduction from the doubly exponential complexity of full LTL \cite[authoryears][Piterman2005].
-    The expressivity of GR(1) is sufficient for many problems in TODO \cite[authoryears][Bloem2012] and GR(1) has been widely used, e.g.\ by \cite[TODO,TODO,TODO].
     An extended variant of GR(1) contains all formulae
 
     \startformula
@@ -236,17 +235,16 @@ While formulae of propositional logic are evaluated with a single valuation of t
     LTL formulae are interpreted over words of infinite length.
     For some formulas, satisfiability of a word can be decided already after a finite prefix.
     Any infinite continuation of the word after this prefix has no impact on the satisfiability of the formula.
-    A language $\Language \subseteq \Alphabet^\omega$ over the alphabet $\Alphabet$ is called a co-safety language if and only if every word $w \in \Language$ has a prefix $x \in \Alphabet^\ast$ such that $x \cdot y \in \Language$ for all $y \in \Alphabet^\omega$, where $\cdot$ is the concatenation operator \cite[Kupferman2001].
+    A language $\Language \subseteq \Alphabet^\omega$ over the alphabet $\Alphabet$ is called a co-safety language if and only if every word $w \in \Language$ has a prefix $x \in \Alphabet^\ast$ such that $x \cdot y \in \Language$ for all $y \in \Alphabet^\omega$, where $\cdot$ is the concatenation operator \cite[authoryears][Kupferman2001].
     The fragment of co-safe LTL contains all formulae whose language is a co-safety language.
-    A co-safe LTL formula can be identified syntactially.
+    A co-safe LTL formula can be identified syntactically:
     All formulae that can be written in positive normal form (where negation occurs only in front of atomic propositions) and use only the temporal operators $\Next$ and $\Until$ are co-safe \cite[authoryears][PrasadSistla1994].
     Co-safety languages can be represented by deterministic \omega-automata with an acceptance condition that requires reaching a state in a set of final states.
-    Model checking with co-safe LTL specifications can therefore be reduced to a reachability analysis problem with respect to these final states \cite[Kupferman2001].
+    Model checking with co-safe LTL specifications can therefore be reduced to a reachability analysis problem with respect to these final states \cite[authoryears][Kupferman2001].
     Note that every one-pair Streett automaton with $E \cup F = Q$ and $\Transition(q, \sigma) = q$ for all $q \in F$ and for all $\sigma \in \Alphabet$ defines a co-safety language.
     Therefore, the reachability and reachability/avoidance objectives in Table \in[tab:theory-logic-objectives] are co-safe.
-    Co-safe LTL objectives have been used e.g.\ in the verification of discrete-time linear systems by \cite[AydinGol2014,AydinGol2015] or in conjunction with MDPs by \cite[Lacerda2014].
     
-    Finally the class of $\Next$-free LTL formulae is introduced, i.e.\ the class of all LTL formulae in which the $\Next$ operator does not appear.
+    Finally, the class of $\Next$-free LTL formulae is introduced, i.e.\ the class of all LTL formulae in which the $\Next$ operator does not appear.
     Two words $w$ and $w'$ over an alphabet $\Alphabet$ are called stuttering equivalent if and only if there exist two integer sequences $i_0 < i_1 < ...$ and $j_0 < j_1 < ...$ and a word $v_0 v_1 ... \in \Alphabet^\omega$ such that 
     
     \startformula
@@ -254,7 +252,6 @@ While formulae of propositional logic are evaluated with a single valuation of t
     \stopformula
 
     If a word satisfies a $\Next$-free LTL formula, all stuttering equivalent words also satisfy this formula \cite[authoryears][Baier2008].
-    \cite[Yordanov2012] used stuttering equivalence to capture additional behaviour in their system model and were thus able to reduce the conservativeness of their verification procedure for $\Next$-free LTL specifications.
 
 \stopsubsection
 

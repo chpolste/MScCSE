@@ -22,6 +22,14 @@
     arrow.rt(1, btex \ssd Part of ${\StateSpace \setminus \InitialStates}$ etex) (a[4][9],a[5][12]) a[5][9].c---a[5][12].c;
 \stopreusableMPgraphic
 
+\placefigure[top][fig:problem-approach-flowchart]{
+    A flowchart representation of the solution approach described in section \in[sec:problem-approach].
+    $\InitialStates$ is the set of states for which a controller can guarantee satisfaction of the objective when a trace originates from within.
+    Adapted from Fig.\ 1 of \cite[Svorenova2017] with inspiration from Fig.\ 1 of \cite[Lahijanian2015].
+}{
+    \framed[width=\textwidth,frame=off]{\reuseMPgraphic{mp:problem-approach-flowchart}}
+}
+
 
 The analysis and synthesis problems for the given LSS setup have been previously solved by \cite[Svorenova2017] with an iteratively refined, game-based abstraction.
 Their solution procedure is depicted in \in{Figure}[fig:problem-approach-flowchart] and summarized in this section.
@@ -46,12 +54,4 @@ If the procedure terminates, the analysis problem from \in[sec:problem-statement
 However, refinement heuristics can only provide progress guarantees in some circumstances and there are systems for which this procedure will provably never terminate.
 
 Finally, a controller is synthesized based on the game graph and the analysis results.
-
-\placefigure[top][fig:problem-approach-flowchart]{
-    Flowchart representation of the solution approach described in section \in[sec:problem-approach].
-    $\InitialStates$ is the set of states for which a controller can guarantee satisfaction of the objective when a trace originates from within.
-    Adapted from Fig.\ 1 of \cite[Svorenova2017] with inspiration from Fig.\ 1 of \cite[Lahijanian2015].
-}{
-    \framed[width=\textwidth,frame=off]{\reuseMPgraphic{mp:problem-approach-flowchart}}
-}
 

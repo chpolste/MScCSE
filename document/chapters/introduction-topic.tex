@@ -1,5 +1,13 @@
 Systems that combine interacting discrete and continuous domains are called hybrid systems.
+\cite[VanDerSchaft2000] remarked at the start of the 21st century that the area of hybrid systems was \quotation{still largely unexplored}, but two decades later \cite[Lin2014] introduce hybrid systems by observing that they \quotation{have recently been at the center of intense research activity}.
+The reason this interest has emerged is the broad, multidisciplinary application spectrum of the hybrid system framework and its many related theoretical research questions.
 Control problems of hybrid systems arise for example in robotics, where a robot has to complete discrete tasks while moving in a continuous environment, autonomous driving, where vehicle trajectories have to satisfy safety specifications, or the modelling and supervision of chemical and biological processes which exhibit threshold behaviour.
+
+The probably most often used example of a simple hybrid system is a heater controlled by a thermostat.
+The heater works in a discrete domain and its state is either on or off.
+The thermostat measures temperature, which is a continuous, real-valued variable.
+Both are coupled by discrete if-then-else rules: if the observed temperature falls below some threshold, the thermostat activates the heater.
+Once the desired temperature is reached, the heater is turned off.
 
 There are two essential problems in the control of hybrid systems:
 The verification or analysis problem is to determine from which intital states the system evolution can satisfy a specification.

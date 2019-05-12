@@ -17,7 +17,7 @@ Finite automata are transition systems with which such rules can be expressed.
     $q_{\mathrm init} \in Q$ is the initial state of the automaton.
     If the transition relation is defined for every combination of state in $Q$ and symbol in $\Alphabet$, the automaton is called complete, otherwise it is called incomplete.
 
-    A run is an infinite sequence of states $q_0 q_1 ... \in Q^\omega$ such that $q_0 = q_init$ and $q_{i+1} = \delta(q_i, w_i)$, $w_i \in \Alphabet$ for all $i \in \naturalnumbers_0$.
+    A run is an infinite sequence of states $q_0 q_1 ... \in Q^\omega$ such that $q_0 = q_{\mathrm init}$ and $q_{i+1} = \delta(q_i, w_i)$, $w_i \in \Alphabet$ for all $i \in \naturalnumbers_0$.
     Because the transitions of $\Automaton$ are deterministic, every run is uniquely associated with a word $w = w_0 w_1 ... \in \Alphabet^\omega$ through the transition labels from $\Sigma$ assigned by $\Transition$.
     The language $\Language(\Automaton)$ of an automaton $\Automaton$ is defined as the set of all words whose corresponding runs are accepted by the acceptance condition $\Condition$.
     Note that a \quotation{run} refers to a sequence of automaton states, a \quotation{word} to sequence of symbols from an alphabet, a \quotation{trace} to a sequence of states of an LSS and a \quotation{play} is sequence of states of a game.
@@ -53,7 +53,7 @@ Finite automata are transition systems with which such rules can be expressed.
     \stopformula
 
     where the set of states which occur infinitely often in the run $r$ is denoted by $\InfinitelyOften{r}$.
-    If any state from $E$ occurs infinitely often in a run, a state from $F$ has to occur infinitely often as well otherwise the run is rejected.
+    I.e.\, if any state from $E$ occurs infinitely often in a run, a state from $F$ has to occur infinitely often as well otherwise the run is rejected.
     The condition is trivially fulfilled if $E$ is empty.
     If $F$ is empty, all runs in which a state from $E$ occurs infinitely often are rejected.
 

@@ -1,7 +1,7 @@
 In order to describe events in and generate finite abstractions of continuous space, a discrete representation of that space is necessary.
 Discretizations in the framework of convex polytopic geometry are popular for this purpose as they have many advantageous properties.
-Convex geometry can be applied to problems of any dimension, has well understood computational properties due to its roots in linear optimization and mature libraries such as MPT \cite[authoryears][Herceg2013], TuLiP \cite[authoryears][Wongpiromsarn2011] and cdd \cite[authoryears][Fukuda2019] are freely available.
-For control problems involving (piecewise) linear dynamics, convex geometry is a commonly used and established tool \cite[authoryears][Baotic2009].
+Convex geometry can be applied to problems of any dimension, has well understood computational properties due to its roots in linear optimization and mature libraries such as MPT \cite[authoryears][Herceg2013], TuLiP \cite[authoryears][Filippidis2016] and cdd \cite[authoryears][Fukuda2019] are freely available.
+For control problems involving (piece-wise) linear dynamics, convex geometry is a commonly used and established tool \cite[authoryears][Baotic2009].
 
 
 \startsubsection[title={Convex Polytope Representations},reference=sec:theory-geometry-representations]
@@ -12,7 +12,7 @@ For control problems involving (piecewise) linear dynamics, convex geometry is a
         H = \Set{ \Vec{x} \in \reals^n \mid \VecK \cdot \VecX \leq c }
     \stopformula
 
-    that fulfill a linear inequality governed by a normal vector $\VecK \in \reals^n$, $\VecK \neq \Vec{0}$ and an offset $c \in \reals$.
+    that fulfill a linear inequality governed by a normal vector $\VecK \in \reals^n$, $\VecK \neq \Vec{0}$, and an offset $c \in \reals$.
     The normal vector $\VecK$ is pointing away from the halfspace set and for convenience and without restriction of generality it is always assumed that its length is normalized such that $\TwoNorm{\VecK} = 1$.
     Due to practical limitations of floating-point number representation on a computer, no distinction between closed and open halfspaces is made in this work and the closed form is generally used in the text.
 
@@ -23,7 +23,7 @@ For control problems involving (piecewise) linear dynamics, convex geometry is a
     \stopformula
 
     where $\MatK$ is the stack of transposed normal vectors $\VecK_j$ of the halfspaces, $\VecC$ is the corresponding stack of offset values $c_j$ and the inequation holds component-wise.
-    If the set of halfspaces is minimal, i.e.\ no halfspace can be removed without changing the bounded region, the representation is called the H-representation of a convex polytope.
+    If the set of halfspaces is minimal, i.e.\ no halfspace can be removed without changing the bounded region, the representation is called the H-representation of the convex polytope.
     Redundant halfspaces can be identified by solving a series of linear programs \cite[authoryears][Baotic2009].
 
     A convex polytope $P$ can alternatively be defined as the convex hull
@@ -34,10 +34,10 @@ For control problems involving (piecewise) linear dynamics, convex geometry is a
 
     of a set of points $X = \IndexedSet{x_i}{i \in I} \subset \reals^n$.
     The vertex set of $P$ is the smallest set of points $\Vertices(P) \subset \reals^n$ such that $P = \Hull({\Vertices(P)})$.
-    It uniquely defines the so-called V-representation of a convex polytope.
+    It uniquely defines the so-called V-representation of the convex polytope.
 
     In this work, \quotation{polytope} will always refer to a convex polytope and all polytopes mentioned are assumed to be convex unless otherwise stated.
-    A polytope $P \subseteq \reals^n$ is full-dimensional if an $n$-dimensional ball of radius $\epsilon > 0$ exists that is a subset of $P$.
+    A polytope $P \subseteq \reals^n$ is called full-dimensional if an $n$-dimensional ball of radius $\epsilon > 0$ exists that is a subset of $P$.
     All polytopes that are not full-dimensional (e.g.\ a line segment in $\reals^2$) are treated as if they were empty sets.
 
 \stopsubsection
@@ -50,7 +50,6 @@ For control problems involving (piecewise) linear dynamics, convex geometry is a
     They are also often very easy to express if the right representation is chosen.
     For example, the intersection of two convex polytopes is always a convex polytope and can easily be computed from the polytopes' H-representations by merging the sets of bounding halfspaces and reducing to minimal form.
     The transformations between the representations are called the vertex enumeration problem (H- to V-representation) and facet enumeration problem (V- to H-representation).
-    They can be handled by software packages such as cdd \cite[authoryears][Fukuda2019].
 
     The following linear transformations of a convex polytope $X \subset \reals^n$ are defined:
     application of a matrix $\MatA \in \reals^{m \times n}$ from the left and translation by a vector $\VecV \in \reals^m$
@@ -65,7 +64,7 @@ For control problems involving (piecewise) linear dynamics, convex geometry is a
         X \MatB \colonequals \Set{ \VecY \in \reals^m \mid \MatK \MatB \VecY \leq \VecC } \EndPeriod
     \stopformula
 
-    The shorthand $-X$ is used to express the inversion operation $(-{\mathbb 1})X$, where ${\mathbb 1}$ is an identity matrix of appropropriate size.
+    The shorthand $-X$ is used to express the operation $(-{\mathbb 1})X$, where ${\mathbb 1}$ is an identity matrix of appropropriate size.
     As evident from the definitions, matrix application from the left is easily computable with the V-representation, while the H-representation is better suited to compute the result of a matrix application from the right.
     Note that both operations involve a change in dimension if $n \neq m$.
 
@@ -92,7 +91,7 @@ For control problems involving (piecewise) linear dynamics, convex geometry is a
     \stopformula
 
     \cite[authoryears][Baotic2009].
-    This is illustrated in Figure \in[fig:theory-geometry-operations], where a concrete counterexample is provided showing that Minkowski sum cannot generally invert a Pontryagin difference operation.
+    This is illustrated in \in{Figure}[fig:theory-geometry-operations], where a concrete counterexample demonstrates that Minkowski sum cannot generally invert a Pontryagin difference operation.
 
     \placefigure[top][fig:theory-geometry-operations]{
         Illustration of the Pontryagin difference (center) and Minkowski sum (right).
@@ -111,9 +110,9 @@ For control problems involving (piecewise) linear dynamics, convex geometry is a
 
 \startsubsection[title={Non-convex Polytopic Regions},reference=sec:theory-geometry-nonconvex]
 
-    In practice not every problem encountered is conveniently convex.
-    However, any non-convex but polytopic region can be partitioned into a union of convex polytopes, e.g.\ by triangulation of the region's surface and subsequent decomposition into simplices.
-    Results from convex polytopic geometry are therefore generally applicable to non-convex polytopic geometry if any non-convex region is partitioned first.
+    Not every problem encountered in practice is conveniently convex.
+    However, any non-convex polytopic region can be partitioned into a union of convex polytopes, e.g.\ by triangulation of the region's surface and subsequent decomposition into simplices.
+    Results from convex polytopic geometry are therefore generally applicable to non-convex polytopic geometry if all non-convex regions are partitioned first.
     While many operations on convex polytopes can be extended to unions of convex polytopes in a straightforward manner, some require special care.
 
     Intersection can be distributed to the individual convex polytopes by taking the intersection of every polytope of one region with every polytope of the other region and keeping the non-empty intersections as the resulting union.
@@ -125,7 +124,7 @@ For control problems involving (piecewise) linear dynamics, convex geometry is a
         X \ominus Y = \reals^n \setminus ((\reals^n \setminus X) \oplus (-Y))
     \stopformula
 
-    \cite[authoryears][Rakovic2004].
+    \cite[left={(e.g.\ },alternative=authoryears][Rakovic2004].
     The set difference of two convex polytopes or two polytopic regions is a non-convex region in general.
     It can be computed using the regiondiff algorithm of \cite[Baotic2009], which returns the result of the difference operation as a set of disjunct convex polytopes.
 

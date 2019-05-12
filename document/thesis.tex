@@ -19,8 +19,8 @@
     contrastcolor=black,
     style=,
     focus=standard,
-    title={}, % TODO
-    subtitle={}, % TODO
+    title={Refinement for Game-Based Abstractions of Continuous-Space Linear Stochastic Systems},
+    subtitle={},
     author={Christopher Polster},
     ]
 
@@ -212,7 +212,7 @@
             style=\PageNumberFont
             ]
     \setupfooter[text][
-            before={\startframed[frame=off,topframe=on,offset=0mm,rulethickness=0.2mm]},
+            before={\startframed[frame=off,topframe=on,offset=0mm,rulethickness=0.1mm]},
             after={\stopframed},
             ]
     \setupfootertexts[{\FooterFont {\DocTitleFooter}}]
@@ -229,7 +229,7 @@
     \setuppagenumbering[alternative=doublesided,style=\PageNumberFont]
     \setuplayout[footerdistance=8mm,footer=6mm]
     \setupfooter[text][
-            before={\startframed[frame=off,topframe=on,offset=0mm,rulethickness=0.2mm]},
+            before={\startframed[frame=off,topframe=on,offset=0mm,rulethickness=0.1mm]},
             after={\stopframed},
             ]
     \setupfootertexts[{\FooterFont {\DocTitleFooter}}]
@@ -250,6 +250,10 @@
 
     \startsectionblock[cover]
         \input{inputs/cover}
+    \stopsectionblock
+
+    \startsectionblock[cover]
+        \input{inputs/title}
     \stopsectionblock
 
     \startsectionblock[declaration]
@@ -451,6 +455,8 @@
         \startchapter[title=References]
             \placepublications
         \stopchapter
+        
+        \page[empty]
 
     \stopbackmatter
 

@@ -1,33 +1,32 @@
 The game graph constructed in the previous section has no winning condition.
-In order to carry out an analysis with respect to some specification one has to be introduced.
-Temporal logic specifications can be translated into \omega-automata accepting the same language.
-It is possible to transfer the acceptance condition of such automata to the game graph by constructing their synchronous product.
-The resulting product game enforces the synchronized evaluation of the automaton while playing on the game graph.
+In order to carry out an analysis with respect to some specification, a winning condition has to be introduced.
+A temporal logic formula can be translated into a deterministic \omega-automaton that accepts the same language as the the formula.
+It is possible to transfer the acceptance condition of this automaton to the game graph by constructing their synchronous product.
+The resulting product game enforces the synchronized evaluation automaton runs and plays on the game graph.
 
 
 \startsubsection[title={Objective Automaton},reference=sec:abstraction-product-automaton]
 
-    The GR(1) objective formula $\varphi$ from section \in[sec:problem-statement] is formulated over a set of linear predicates $\Predicates$.
-    The initial decomposition of the state space (\in[fml:abstraction-graph-decomposition]) was induced by an equivalence relation governed by this set of linear predicates.
-    Every element $\State{i}$ of the initial state space partition fulfills and rejects exactly the same predicates from $\Predicates$.
-    The function $\FulfilledPredicates$ can therefore be extended to the partition without ambiguity, associating paritition elements with the set of predicates they fulfill.
-    Player 1 states of the game were identified uniquely with partition elements, so every play of $\GameGraph$ induces a word over the alphabet $2^\Predicates$.
+    The GR(1) objective formula $\varphi$ from \in{Section}[sec:problem-statement] is formulated over a set of linear predicates $\Predicates$.
+    The initial decomposition of the state space (\in[fml:abstraction-graph-decomposition]) is induced by an equivalence relation governed by this set of linear predicates.
+    Every element $\State{i}$ of the initial state-space partition therefore fulfills and rejects exactly the same predicates from $\Predicates$.
+    The function $\FulfilledPredicates$ can thus be extended to the partition without ambiguity, associating paritition elements with the set of predicates they satisfy.
+    Player 1 states of the game are identified uniquely with state-space partition elements, so every play of $\GameGraph$ induces a word over the alphabet $2^\Predicates$.
     Using this alphabet, an \omega-automaton
 
     \startformula
         \Automaton = (Q,\, 2^\Predicates,\, \Transition_\Automaton,\, q_0,\, \Condition_\Automaton)
     \stopformula
 
-    corresponding to $\varphi$ can be constructed.
-    A single Streett pair $\Transition_\Automaton = \Tuple{E_\Automaton}{F_\Automaton}$ can be chosen as the acceptance condition due to the restriction to objectives from the GR(1) fragment of LTL.
-    The restriction to GR(1) formulas allows expression of the acceptance condition with a single Streett pair (see \in[sec:theory-logic-fragments]).
+    accepting the language of $\varphi$ is constructed.
+    A single Streett pair $\Transition_\Automaton = \Tuple{E_\Automaton}{F_\Automaton}$ can be chosen as the acceptance condition due to the restriction of objectives to the GR(1) fragment of LTL.
 
 \stopsubsection
 
 
 \startsubsection[title={Synchronized Product},reference=sec:abstraction-product-product]
 
-    To enforce the evaluation of the automaton synchronized to plays on the game graph, their synchronous product
+    To enforce the evaluation of the automaton in synchronization with plays on the game graph, their synchronous product
 
     \startformula
         \ProductGame = ( P_1, P_2, Act, \Transition, \Condition )
@@ -35,9 +34,9 @@ The resulting product game enforces the synchronized evaluation of the automaton
 
     is constructed.
     $\ProductGame$ is a 2½-player game with a one-pair Streett winning condition $\Condition$ modelled after $\Condition_\Automaton$.
-    The states of player 1 and 2 are given by $P_1 = G_1 \ftimes Q$ and $P_2 = G_2 \ftimes Q$ respectively, where $\ftimes$ is the normal cartesian product but with flattened result tuples to reduce visual clutter.
+    The states of player 1 and 2 are given by $P_1 = G_1 \ftimes Q$ and $P_2 = G_2 \ftimes Q$ respectively, where $\ftimes$ is the normal Cartesian product but with flattened output tuples to reduce visual clutter.
     The set of actions $Act$ is taken directly from the game graph $\GameGraph$.
-    Synchronous evolution of automaton and game states is implemented through the transition relation
+    The synchronous evolution of automaton and game is implemented by the transition relation
 
     \startformula
         \Transition
@@ -74,11 +73,9 @@ The resulting product game enforces the synchronized evaluation of the automaton
     \stopformula
 
     for player 2.
-    Player states that cannot be reached with non-zero probability may be removed from sets $P_1$ and $P_2$ of the product game.
-    Note that a transition in the automaton is made once for every set of subsequent player 1 and 2 turns, corresponding to one step in the underlying LSS, with the transition always occurring after a player 1 action.
+    Player states that cannot be reached with non-zero probability are removed from sets $P_1$ and $P_2$ of the product game.
+    Note that a transition in the automaton is taken once for every subsequent player 1 and 2 turns, corresponding to one step of trace evolution in the underlying LSS, with the transition always occurring after a player 1 action.
     The one-pair Streett winning condition is given by $\Condition = \Tuple{E}{F}$ with $E = (G_1 \cup G_2) \ftimes E_\Automaton$ and $F = (G_1 \cup G_2) \ftimes F_\Automaton$.
-
-    Before handing $\ProductGame$ over to a game solver for analysis, issues arising from dead-end states and co-safe objectives have to be addressed.
 
 \stopsubsection
 
@@ -103,7 +100,7 @@ The resulting product game enforces the synchronized evaluation of the automaton
     arrow.top(.5, "1") (a[2][2],a[2][5]) a[2][2].c..a[2][5].c;
 \stopreusableMPgraphic
 
-\startsubsection[title={Dead-end States},reference=sec:abstraction-product-deadends]
+\startsubsection[title={Dead-End States},reference=sec:abstraction-product-deadends]
 
     \placefigure[top][fig:abstraction-product-endloop]{
         A player 1 state $\Tuple{\State{i}}{q}$ of the product game $\ProductGame$, connected to the dead-end loop.
@@ -111,10 +108,10 @@ The resulting product game enforces the synchronized evaluation of the automaton
         \framed[width=\textwidth,frame=off]{\reuseMPgraphic{mp:abstraction-product-endloop}}
     }
 
-    If $\Automaton$ is an incomplete \omega-automaton, $\ProductGame$ will be incomplete as well and contain dead-end states (i.e.\ states without any outgoing actions) in $P_1$.
-    Since a word is rejected immediately by an incomplete automaton when a non-existing transition is encountered, these dead-end states can be modified such that the modified game is complete.
+    If $\Automaton$ is an incomplete \omega-automaton, $\ProductGame$ is incomplete as well and contains dead-end states in $P_1$, i.e.\ states without any outgoing actions.
+    Because a word is rejected immediately by an incomplete automaton when a non-existing transition would be required to advance a run, these dead-end states can be modified to complete the game in the following way:
     First, a player 1 state $\State{\DeadEnd1}$, a player 2 state $\State{\DeadEnd2}$ and an action $\DeadEnd$ are added to $P_1$, $P_2$ and $Act$, respectively.
-    These special states are combined with the action $\DeadEnd$ to form a deterministic loop that traps any entering plays by defining
+    These states are combined with the action $\DeadEnd$ to form a deterministic loop that traps any entering plays by defining
 
     \startformula
         \startalign[n=2,align={right,left}]
@@ -144,27 +141,28 @@ The resulting product game enforces the synchronized evaluation of the automaton
     Then any dead-end state $\Tuple{\State{i}}{q}$ from $P_1$ is deterministically connected to this loop using the action $\DeadEnd$ as depicted in Figure \in[fig:abstraction-product-endloop].
     To ensure that a play stuck in the loop will never lead to player 1 winning the game, states $\State{\DeadEnd1}$ and $\State{\DeadEnd2}$ are added to the set $E$ of the one-pair Streett winning condition $\Condition = \Tuple{E}{F}$.
 
-    Dead-end states will also occur due to the outer states from $\ExtendedStateSpace \setminus \StateSpace$ which were explicitly constructed without actions in the game graph $\GameGraph$.
-    These are connected to the same dead-end loop used for handling incomplete automata, as traces that leave the state space immediately violate the specification.
+    Dead-end states also occur due to the outer states from $\ExtendedStateSpace \setminus \StateSpace$ which were explicitly constructed without actions in the game graph $\GameGraph$.
+    These are connected to the same dead-end loop used for handling incomplete automata.
+    Traces that leave the state space therefore immediately violate the specification.
 
 \stopsubsection
 
 
-\startsubsection[title={Co-safe Interpretation},reference=sec:abstraction-product-cosafe]
+\startsubsection[title={Co-Safe Interpretation},reference=sec:abstraction-product-cosafe]
 
-    There is an exception to the final statement of the previous section:
+    An exception to the handling of outer states in the previous section must be made:
     For objectives interpreted in a co-safe setting, traces that have already fulfilled their objective are free to go anywhere, even outside of the state space.
-    It is possible to accomodate this interpretation in the product game construction with a postprocessing step analogous to the one that resolves dead-end states.
+    It is possible to accommodate this interpretation in the product game construction with a post-processing step analogous to the one that resolves dead-end states.
 
     A new player 1 state $\State{\SatEnd1}$ and player 2 state $\State{\SatEnd2}$ is introduced together with an action $\SatEnd$.
-    Final states in the product game, i.e.\ player 1 states whose actions trigger satisfaction of the co-safe objective, are first stripped of their actions and then deterministically redirected into a loop constructed exactly as in Figure \in[fig:abstraction-product-endloop] but using $\State{\SatEnd1}$ instead of $\State{\DeadEnd1}$, $\State{\SatEnd2}$ instead of $\State{\DeadEnd2}$ and $\SatEnd$ instead of $\DeadEnd$.
+    Final states in the product game, i.e.\ player 1 states whose actions trigger satisfaction of the co-safe objective, are first stripped of their existing actions and then deterministically redirected into a loop constructed exactly as in Figure \in[fig:abstraction-product-endloop] but using $\State{\SatEnd1}$ instead of $\State{\DeadEnd1}$, $\State{\SatEnd2}$ instead of $\State{\DeadEnd2}$ and $\SatEnd$ instead of $\DeadEnd$.
     The only states occuring infinitely often in traces trapped in this loop are $\State{\SatEnd1}$ and $\State{\SatEnd2}$ which are not included in either of the acceptance sets of the one-pair Streett condition.
-    Trapping traces like that will therefore guarantee that player 1 wins the game almost-surely no matter what happens after the objective has been satisfied.
+    Trapped traces therefore guarantee that player 1 wins the game almost surely, independent of what happens after the objective has been satisfied.
 
-    The following requirements are expected for one-pair Streett acceptance conditions $\Tuple{E}{F}$ with co-safe interpretation:
+    The following requirements are expected of one-pair Streett acceptance conditions $\Tuple{E}{F}$ with co-safe interpretation:
     $F$ contains all final states of the automaton or game and must not be empty.
     All other states are members of $E$.
-    Using this convention, automata and games with the these properties can be interpreted in both the infinite framework where traces must never leave the state space and, after application of the above modifications, the co-safe framework, where this requirement is lifted once a final state has been reached.
+    Using this convention, automata and games with these properties can be interpreted in both the infinite framework, where traces must never leave the state space, and, after the above modifications, in the co-safe framework, where this requirement is lifted once a final state has been reached.
 
 \stopsubsection
 

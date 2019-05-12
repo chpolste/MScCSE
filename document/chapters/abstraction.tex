@@ -1,12 +1,12 @@
-The abstraction and analysis phases of the solution procedure outlined in section \in[sec:problem-approach] are described in this chapter, followed by a brief discussion of the controller synthesis problem.
-The presented solution is the work of \cite[Svorenova2017], who attribute their approach to \cite[Yordanov2012].
-It is the foundation this work is built on and therefore reviewed in detail.
+The abstraction and analysis phases of the solution procedure outlined in \in{Section}[sec:problem-approach] are described in this chapter, followed by a brief discussion of the controller synthesis problem.
+The solution was first proposed and implemented by \cite[Svorenova2017].
+It is reviewed here.
 
-First, a set of polytopic operators capturing important aspects of the dynamics is introduced in section \in[sec:abstraction-operators].
-A 2½-player game graph is then build as an abstraction of the linear stochastic system in \in[sec:abstraction-graph].
-This game graph is combined with an \omega-automaton obtained from the GR(1) specification in a synchronous product in \in[sec:abstraction-product].
-Section \in[sec:abstraction-analysis] demonstrates how to obtain a solution to the analysis problem from the product game.
-Based on this solution, an almost-sure winning control strategy for player 1 is synthesized in \in[sec:abstraction-synthesis].
+First, a set of polytopic operators capturing important aspects of the dynamics is introduced in \in{Section}[sec:abstraction-operators].
+A 2½-player game graph is then constructed from the linear stochastic system in \in{Section}[sec:abstraction-graph].
+This game graph is synchronized with a deterministic \omega-automaton obtained from the GR(1) specification in \in{Section}[sec:abstraction-product].
+\in{Section}[sec:abstraction-analysis] demonstrates how to obtain a solution to the analysis problem from the synchronized game.
+Based on this solution, an almost-sure winning control strategy for player 1 is synthesized in \in{Section}[sec:abstraction-synthesis].
 
 Throughout this chapter the simple, 1-dimensional LSS 
 

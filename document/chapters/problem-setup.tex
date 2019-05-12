@@ -1,24 +1,20 @@
-In this work, linear stochastic systems as defined in section \in[sec:theory-hybrids-lss] are considered.
-Their definition is repeated here together with a few additional assumptions that are made.
-
-An LSS $\LSS$ is a discrete-time, continuous-space dynamic system, in which traces $\VecState = \VecState_0 \VecState_1 ...$ evolve according to the equation
+The definition of linear stochastic systems from Section \in[sec:theory-hybrids-lss] is recalled.
+An LSS is a discrete-time dynamical system, in which traces $\VecState = \VecState_0 \VecState_1 ...$ evolve according to the difference equation
 
 \placeformula[fml:problem-setup-lsseq]
 \startformula
     \VecState_{t+1} = \MatA \VecState_t + \MatB \VecControl_t + \VecRandom_t \EndComma
 \stopformula
 
-with $\MatA \in \reals^{n \times n}$, $\MatB \in \reals^{n \times m}$, $\VecState_t \in \ControlSpace \subset \reals^n$, $\VecControl_t \in \ControlSpace \subset \reals^m$ and $\VecRandom \in \RandomSpace \subset \reals^n$.
+where $\MatA \in \reals^{n \times n}$, $\MatB \in \reals^{n \times m}$.
+$\VecState_t \in \ControlSpace \subset \reals^n$ is the state of the trace at time $t$, $\VecControl_t \in \ControlSpace \subset \reals^m$ is a control input and $\VecRandom \in \RandomSpace \subset \reals^n$ is a random perturbation.
 For convenience, it is assumed that $\StateSpace$, $\ControlSpace$ and $\RandomSpace$ are convex polytopes.
-The random vector distribution is uniform and non-zero in $\RandomSpace$.
-A trace is controlled by a strategy $\Function{\Strategy{}{\LSS}}{\StateSpace^+}{\ControlSpace}$, mapping finite, fixed-sized prefixes of traces to control inputs at every timestep.
-Note that such an LSS may be seen as a Markov decision process, with infinitely many states from $\StateSpace$ and infinitely many actions from $\ControlSpace$.
+The random vector distribution is uniform and non-zero everywhere in $\RandomSpace$.
+A trace is controlled by a strategy $\Function{\Strategy{}{\LSS}}{\StateSpace^+}{\ControlSpace}$ that maps finite prefixes of traces to control inputs.
+Note that such an LSS can be interpreted as a Markov decision process with infinitely many states $\StateSpace$ and infinitely many actions $\ControlSpace$.
 
-The LSS is equipped with a set of linear predicates over the state space.
+A set of linear predicates $\Predicates = \IndexedSet{\Predicate_k}{k \in K}$ is defined over the state space.
 Each linear predicate $\Predicate_k$ is associated with a halfspace $H_k = \Set{ \Vec{x} \in \reals^n \mid \VecU_k \cdot \VecX \leq c_k }$.
-The set of all predicates is $\Predicates = \IndexedSet{\Predicate_k}{k \in K}$ where $K$ is an appropriately sized set of indices.
-For a given state vector $\VecState$, the function $\Function{\Predicate}{\StateSpace}{2^\Predicates}$ returns the set of fulfilled predicates.
-When applied to a trace, $\Predicate$ generates a word over the alphabet $\Predicates$ which can be interpreted by a temporal logic specification.
-
-% TODO example?
+The function $\Function{\Predicate}{\StateSpace}{2^\Predicates}$ returns the set of fulfilled predicates for a given state vector $\VecState$.
+When applied element-wise to a trace, $\Predicate$ generates a word over the alphabet $2^\Predicates$ which can be interpreted by a temporal logic specification.
 

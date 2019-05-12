@@ -1,27 +1,28 @@
-A meaningful game-based abstraction of an LSS must reflect its dynamics.
-Here, operators on the state- and control space are introduced, each associated with a certain aspect of the system dynamics.
-They will be used in the following section to construct states and actions of a game graph.
-The operator introductions are complemented by descriptions of their computation using only polytopic operations from section \in[sec:theory-geometry].
+A meaningful game-based abstraction of a linear stochastic system must reflect its dynamics.
+Here, operators on the state- and control space are defined.
+Each operator expresses an aspect of characteristic one-step behaviour of the system dynamics.
+All operator introductions are complemented by descriptions of their computation based on the polytopic operations from \in{Section}[sec:theory-geometry].
 
 Because all operators are based on the dynamical properties of the LSS, they require knowledge of the LSS parameters, i.e.\ $\MatA$, $\MatB$, $\StateSpace$, $\RandomSpace$, $\ControlSpace$.
-The association between an operator and its LSS is not written out explicitly in the notation, but should always be clear from context.
+The association between an operator and its LSS is not captured explicitly by the presented notation and should always be clear from context that the operator is used in.
 
 
 \startsubsection[title={Posterior}]
 
-    The posterior ($\Post$) is a forward looking operator.
-    Given an origin region $\StateRegion \subseteq \StateSpace$ and control input region $\ControlSpace' \subseteq \ControlSpace$, it computes the set of states which can be reached from the origin region under the control inputs with non-zero probability.
+    The posterior ($\Post$) is a forward-looking operator.
+    Given an origin region $\StateRegion \subseteq \StateSpace$ and control input region $\ControlSpace' \subseteq \ControlSpace$, it computes the set of states which are reachable from the origin region under the control inputs with non-zero probability.
     The returned region is therefore the one-step reachable set
 
     \startformula
         \Posterior{\StateRegion}{\ControlRegion} := \Set{ \VecState \in \reals^n \mid \exists \VecState' \in \StateRegion\MidComma \exists \VecControl' \in \ControlRegion\MidComma \exists \VecRandom \in \RandomSpace : \VecState = \MatA \VecState' + \MatB \VecControl' + \VecRandom } \EndPeriod
     \stopformula
 
-    The posterior allows the computation of an extended state space $\ExtendedStateSpace = \StateSpace \,\cup\, \Posterior{\StateSpace}{\ControlSpace}$ which is the union of the original state space and its one-step reachable set.
+    The posterior allows the computation of an extended state space $\ExtendedStateSpace = \StateSpace \,\cup\, \Posterior{\StateSpace}{\ControlSpace}$, which is the union of the original state space and its one-step reachable set.
 
-    As defined above, $\Post$ takes set-valued arguments.
-    However, the notation of this operator as well as all following operators is overloaded for vector-valued state- and control space arguments as well as sets of elements of a state space decomposition in the following way:
-    Let $\VecState' \in \StateSpace$ and $\State{j} \in \StateSpace$ for all $j \in J$, then
+    $\Post$, as defined above, takes set-valued arguments.
+    The notation of this operator and all following operators is additionally overloaded for vector-valued state- and control-space arguments as well as sets of elements of a state space decomposition in the following way:
+    Let $\VecState' \in \StateSpace$, $\VecControl' \in \ControlSpace$ and $\State{j} \subseteq \StateSpace$ for all $j \in J$.
+    Then
 
     \startformula
         \startalign[n=2,align={right,left}]
@@ -48,8 +49,8 @@ The association between an operator and its LSS is not written out explicitly in
 
 \startsubsection[title={Predecessors}]
 
-    As the name suggests, the predecessors are backwards-looking operators, computing different kinds of origin regions for a given target and control input.
-    First, the predecessor ($\Pre$) and robust predecessor ($\PreR$) are defined as
+    As the name suggests, predecessors are backward-looking operators, computing origin regions with specific properties for a given state-space target and control input.
+    The predecessor ($\Pre$) and robust predecessor ($\PreR$) are defined as
 
     \startformula
         \startalign[n=2,align={right,left}]
@@ -62,12 +63,12 @@ The association between an operator and its LSS is not written out explicitly in
         \stopalign
     \stopformula
 
-    where the second argument $\ControlRegion \subseteq \ControlSpace$ is the considered control space region, the third argument $\StateRegion \subseteq \StateSpace$ is a target region in the extended state space and the first parameter $\StateTarget \subseteq \ExtendedStateSpace$ is a region of the state space to which the returned predecessor is restricted and exists mainly for convenience.
+    where the second argument $\ControlRegion \subseteq \ControlSpace$ is a control-space region, the third argument $\StateTarget \subseteq \ExtendedStateSpace$ is a target region in the extended state space and the first parameter $\StateRegion \subseteq \StateSpace$ is a region of the state space to which the returned predecessor is restricted and exists mainly for convenience.
 
-    From any state in the resulting $\Pre$-region, the specified target region can be reached with non-zero probability in the next step for some control input in the given set.
-    It should be noted that the control inputs that enable these transitions can (and likely will) be different for every state in the predecessor origin region.
-    The probability of reaching the target region in case of $\PreR$ is 1.
-    The robust predecessor is therefore robust in the sense that the target will be reached from the computed origin region under the given control inputs, irrespective of the stochastic dynamics.
+    From any state in a predecessor set, the specified target region is reachable with non-zero probability in one step of the system evolution for some control input in $\ControlRegion$.
+    The control inputs that enable these transitions can be different for every state in the predecessor origin region.
+    The probability of reaching the target region in case of the robust predecessor is 1.
+    The robust predecessor is therefore robust in the sense that the target will be reached exclusively from the computed origin region under the given control inputs, irrespective of the stochastic dynamics.
     Trivially, it holds that
 
     \startformula
@@ -75,7 +76,7 @@ The association between an operator and its LSS is not written out explicitly in
     \stopformula
 
     For target regions where $\StateTarget \ominus \RandomSpace = \emptyset$, the $\PreR$ is always empty.
-    This can easily be seen from the operator's computations based on polytopic operators
+    This can easily be seen from the operator's computations based on polytopic operators:
 
     \startformula
         \startalign[n=2,align={right,left}]
@@ -89,7 +90,7 @@ The association between an operator and its LSS is not written out explicitly in
     \stopformula
 
     Finally, the precise predecessor is defined.
-    It is an operator that only makes sense when used with elements of a state space partition:
+    This operator only makes sense when used when applied to elements of a state space partition:
 
     \startformula
         \startalign[n=2,align={right,left}]
@@ -107,9 +108,11 @@ The association between an operator and its LSS is not written out explicitly in
     The precise predecessor can be computed with
 
     \startformula
-        \RobustPredecessor{\StateRegion}{\ControlSpace'}{\IndexedSet{\State{j}}{j \in J}} =
-        \Big( \Big( \bigcap_{j \in J} (\State{j} \oplus - \RandomSpace) \setminus \bigcup_{j \in I \setminus J} ( \State{j} \oplus - \RandomSpace ) \Big) \oplus -\MatB \ControlSpace' \Big) \MatA \EndPeriod
+        \PrecisePredecessor{\StateRegion}{\ControlSpace'}{\IndexedSet{\State{j}}{j \in J}} =
+        \StateRegion \cap \Big( \Big( \bigcap_{j \in J} (\State{j} \oplus - \RandomSpace) \setminus \bigcup_{j \in I \setminus J} ( \State{j} \oplus - \RandomSpace ) \Big) \oplus -\MatB \ControlSpace' \Big) \MatA \EndComma
     \stopformula
+
+    where $I$ is the index set enumerating the partition of the extended state space.
 
 \stopsection
 
@@ -129,7 +132,7 @@ The association between an operator and its LSS is not written out explicitly in
         \stopalign
     \stopformula
 
-    i.e. for the attractors the predecessor properties hold for all control inputs in $\ControlRegion$, not just some.
+    i.e. predecessor properties hold for all control inputs in $\ControlRegion$ for the attractors, not just some.
     Therefore,
 
     \startformula
@@ -146,7 +149,7 @@ The association between an operator and its LSS is not written out explicitly in
         \stopalign
     \stopformula
 
-    The attractors can be computed from the predecessor operators as
+    The attractor operators can be computed from the predecessor operators as
 
     \startformula
         \startalign[n=2,align={right,left}]
@@ -159,14 +162,14 @@ The association between an operator and its LSS is not written out explicitly in
         \stopalign
     \stopformula
 
-    Although these operators are not used in the subsequent construction of the game graph, they play an important role in the refinement procedures presented later.
+    Although these operators are not used in the construction of the game graph, they play an important role in the refinement procedures presented later.
 
 \stopsection
 
 
-\startsubsection[title={Actions}]
+\startsubsection[title={Actions},reference=sec:abstraction-operators-actions]
 
-    The last operators defined here are control space operators, i.e.\ the resulting sets are subsets of $\ControlSpace$, not $\StateSpace$.
+    The last operators defined here are control space operators, i.e.\ the output of these operators is a subset of $\ControlSpace$, not $\StateSpace$.
     The action ($\Act$) and robust action ($\ActR$), given by
 
     \startformula
@@ -181,26 +184,27 @@ The association between an operator and its LSS is not written out explicitly in
     \stopformula
 
     return the sets of control inputs with which the probability of transitioning to the target region $\StateTarget$ from origin region $\StateRegion$ in one step is non-zero and 1, respectively.
-    In the non-probabilistic setting of \cite[Yordanov2009], $U^{X \rightarrow Y}$ corresponds to $\Action{X}{Y}$ and $U^{X \Rightarrow Y}$ corresponds to $\RobustAction{X}{Y}$.
+    These are probabilistic variants of the operators $U^{X \rightarrow Y}$ (corresponding to $\Action{X}{Y}$) and $U^{X \Rightarrow Y}$ (corresponding to $\RobustAction{X}{Y}$) defined by \cite[Yordanov2009] for a deterministic setting.
 
-    Both operators can be computed using the Minkowski sum and Pontryagin difference as
+    Both operators can be computed with the Minkowski sum and Pontryagin difference as
 
     \startformula
         \startalign[n=2,align={right,left}]
             \NC \Action{\State{i}}{\State{j}} =
-            \NC \Big( ( \State{j} \oplus - (\MatA \State{i} \oplus \RandomSpace) ) \MatB \Big) \cap \ControlSpace \EndAnd
+            \NC \ControlSpace \cap ( \State{j} \oplus - (\MatA \State{i} \oplus \RandomSpace) ) \MatB \EndAnd
             \NR
             \NC \RobustAction{\State{i}}{\State{j}} =
-            \NC \Big( ( \State{j} \ominus (\MatA \State{i} \oplus \RandomSpace) ) \MatB \Big) \cap \ControlSpace \EndPeriod
+            \NC \ControlSpace \cap ( \State{j} \ominus (\MatA \State{i} \oplus \RandomSpace) ) \MatB \EndPeriod
             \NR
         \stopalign
     \stopformula
 
-    Because only full-dimensional polytopes are considered here (see section \in[sec:theory-geometry]), lower-dimensional control space regions are not computable by the action operators.
-    This means e.g.\ that, under this constraint, it is possible that for some $\VecState \in \Predecessor{\StateRegion}{\ControlSpace}{\StateTarget}$ $\Action{\VecState}{\StateTarget} = \emptyset$, even though this would be true when lower-dimensional regions were allowed (see also section \in[sec:abstraction-analysis-correctness]).
+    Because only full-dimensional polytopes are considered here (see \in{Section}[sec:theory-geometry]), control-space regions of lower dimension than $\ControlSpace$ are not computable by the action operators.
+    With this constraint, it is possible that $\RobustAction{\VecState}{\StateTarget} = \emptyset$ for some $\VecState \in \RobustPredecessor{\StateRegion}{\ControlSpace}{\StateTarget}$, even though this should not be possible if lower-dimensional regions were allowed.
+    This artifact of the computational constraints plays an important role in \in{Section}[sec:abstraction-analysis-correctness].
 
-    Finally, the concrete action ($\ActC$) is introduced.
-    As for the precise predecessor, a state space partition is required for this operator to be meaningful:
+    Completing the set of action operators is the concrete action ($\ActC$).
+    As for the precise predecessor, a state-space partition is required for this operator to be meaningful:
 
     \startformula
         \startalign[n=2,align={right,left}]
@@ -213,10 +217,10 @@ The association between an operator and its LSS is not written out explicitly in
         \stopalign
     \stopformula
 
-    Under the returned control inputs, only $\StateTarget$ can be reached in one step from $\StateRegion$ (first condition) and for every element of the partitioned target region a state in $\StateRegion$ exists such that the probability of reaching the element is non-zero.
-    It should be noted that the conditions of $\PreP$ and $\ActC$ are quite different from one another:
+    Under the returned control inputs only $\StateTarget$ can be reached in one step from states in $\StateRegion$ (first condition) and for every element of the partitioned target region a state in $\StateRegion$ exists such that the probability of reaching this element is non-zero.
+    It must be noted that the conditions of $\PreP$ and $\ActC$ are quite different from one another:
     The precise predecessor requires some control input for every of its states for which both conditions (subset and part intersection) are fulfilled.
-    The concrete action requires that for every of its control vectors the subset condition is fulfilled for every origin state while the part intersections can be fulfilled independently by different states in $\StateRegion$, as long as every part is reachable from some state.
+    The concrete action requires that for every of its control vectors the subset condition is fulfilled for every origin state while the part intersections can be fulfilled independently by different states in $\StateRegion$ as long as every part is reachable from some state.
     Hence,
 
     \startformula
@@ -230,11 +234,12 @@ The association between an operator and its LSS is not written out explicitly in
     \startformula
         \startalign[n=2,align={right,left}]
             \NC \ConcreteAction{\StateRegion}{\IndexedStates{j}{J}} =
-            \NC \bigcap_{j \in J} \Action{\StateRegion}{\State{j}} \setminus \bigcup_{j \in I \setminus J} \Action{\StateRegion}{\State{j}} \EndPeriod
+            \NC \bigcap_{j \in J} \Action{\StateRegion}{\State{j}} \setminus \bigcup_{j \in I \setminus J} \Action{\StateRegion}{\State{j}} \EndComma
             \NR
         \stopalign
     \stopformula
 
+    where $I$ is again the index set enumerating the elements of the partition of $\ExtendedStateSpace$.
     Note that \cite[Svorenova2017] use $U_i^J$ to denote the set $\ConcreteAction{\State{i}}{\IndexedStates{j}{J}}$, an abbreviation that is adopted here as well when space constraints demand it.
 
 \stopsection

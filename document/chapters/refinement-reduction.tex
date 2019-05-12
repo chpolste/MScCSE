@@ -20,7 +20,7 @@ Finally, the state space partition of the MDP system is transferred back to the 
 Experience gathered with a prototype implementation of such a refinement scheme revealed drawbacks.
 The choice of a control region for every state space partition element is non-trivial.
 A certain amount of foresight is required in order to obtain an effective refinement procedure since badly chosen control regions significantly limit its potential.
-The non-continuous piece-wise dynamics causes the refinement to produce jagged regions, which result in a very fine partitioning of the state space (see \in{Figure}[fig:refinement-transition-jagged]a where this issue is illustrated for positive robust refinement).
+The non-continuous piece-wise dynamics causes the refinement to produce jagged regions, which result in a very fine partitioning of the state space (see \in{Figure}[fig:refinement-transition-jagged](a) where this issue is illustrated for positive robust refinement).
 Such jaggedness quickly snowballs into an explosion of the number of (small) partition elements, which can offset the complexity reduction gained from the MDP abstraction.
 Due to these issues, the approach was abandoned in favour of another subset extraction technique.
 

@@ -1,13 +1,13 @@
 In a second case study, the linear stochastic system
 
 \startformula
-    \VecX_{t+1} = \TwoByTwo{1}{0}{0}{1} \VecState_{t} + \TwoByTwo{1}{0}{0}{1} \VecControl_{t} + \VecRandom_{t}
+    \VecX_{t+1} = \TwoByTwo{1}{0}{0}{1} \VecState_{t} + \TwoByTwo{1}{0}{0}{1} \VecControl_{t} + \VecRandom_{t} = \VecState_{t} + \VecControl_{t} + \VecRandom_{t}
 \stopformula
 
 is considered, where $\VecState_{t} \in \StateSpace = \ClosedInterval{0}{4} \times \ClosedInterval{0}{3}$, $\VecControl_{t} \in \ControlSpace = \ClosedInterval{-0.5}{0.5}^2$ and $\VecRandom_{t} \in \RandomSpace = \ClosedInterval{-0.1}{0.1}^2$.
-The linear predicates, $\Predicate_1$, $\Predicate_2$, $\Predicate_3$ and $\Predicate_4$ are defined, corresponding to the halfspaces $x < 1.3$, $x > 2.7$, $y < 1.3$ and $y > 2.7$, respectively.
+Linear predicates $\Predicate_1$, $\Predicate_2$, $\Predicate_3$ and $\Predicate_4$ are defined, corresponding to the halfspaces $x \le 1.3$, $x \ge 2.7$, $y \le 1.3$ and $y \ge 2.7$, respectively.
 With these predicates, the state space is divided into two rooms on the left and right, which are connected by a narrow corridor in the center of the state space.
-The propositional formulas $\phi = \Predicate_1$ and $\mu = \Predicate_2$ describe the rooms and $\theta = \neg \Predicate_1 \wedge \neg \Predicate_2 \wedge (\Predicate_3 \vee \Predicate_4)$ defines the walls that line the central corridor.
+The propositional formulas $\phi = \Predicate_1$ and $\mu = \Predicate_2$ describe the left and right rooms, respectively, and $\theta = \neg \Predicate_1 \wedge \neg \Predicate_2 \wedge (\Predicate_3 \vee \Predicate_4)$ defines the walls that line the central corridor.
 
 \startsubsection[title={Reachability Analysis},reference=sec:cases-corridor-reachability]
 
@@ -34,8 +34,8 @@ The propositional formulas $\phi = \Predicate_1$ and $\mu = \Predicate_2$ descri
     Each layer is refined with a 4-step robust method without post-processing.
     A resulting partition of this refinement configuration is shown in \in{Table}[tab:cases-corridor-reachability].
     The system does not exhibit \epsilon-limit behaviour on the edges of the state space and is completely solved.
-    As expected, the partition is finer at the entrace region of the corridor than in the rest of the left room.
-    Both run time and the size of the product game measured in player actions are similar to that of the double integrator solution in \in{Table}[tab:cases-integrator-layers-prer100] despite a state space partition that has only a third of the number of polytopes.
+    As expected, the partition is finer at the entrance region of the corridor than in the rest of the left room.
+    Both run time and the size of the product game measured in player actions are similar to that of the double integrator solution in \in{Table}[tab:cases-integrator-layered-original] despite a state space partition that has only a third of the number of polytopes.
     This is a consequence of the additional dimension of the control space, which results in more player actions per state.
     The increased number of polytopic operations required to compute these actions raises the cost of the game construction.
 
@@ -54,13 +54,13 @@ The propositional formulas $\phi = \Predicate_1$ and $\mu = \Predicate_2$ descri
         \stopcombination
     }
 
-    Using the round-robin scheme introduced in \in{section}[sec:abstraction-analysis-synthesis], a strategy is synthesized from the solution of the reachability analysis problem (\in{Table}[tab:cases-corridor-reachability]).
+    Using the round-robin controller scheme of \cite[Svorenova2017], a control strategy is synthesized from the solution of the reachability analysis problem (\in{Table}[tab:cases-corridor-reachability]).
     A 60-step prefix of a trace controlled by this strategy is shown in \in{Figure}[fig:cases-corridor-reachability-trace], left.
-    The trace is initialized in the top left of the left room and moves towards the corridor for a few steps but then gets (temporarily) stuck around the left corridor entrance.
+    The trace is initialized in the top left of the left room and moves towards the corridor for a few steps but then gets stuck around the corridor entrance.
     While the trace does not violate the avoidance specification at any step, it does not manage to efficiently navigate the corridor.
     The issue is that the round-robin controller scheme has no built-in sense of direction.
-    It has no problem guaranteeing the safety of traces but in order to navigate the corridor, the trace evolution has to be controlled by \quotation{steering} to the right for multiple timesteps in sequence.
-    The lack of coordination between the selection of actions in the round-robin controller means that one could wait for a long time until a suitable sequence of actions is finally applied by the strategy.
+    It has no problem with guaranteeing the safety of traces but in order to navigate the corridor, the trace evolution has to be controlled by \quotation{steering} to the right for multiple timesteps consecutively.
+    The lack of coordination between the selection of actions in the round-robin controller means that one might wait for a long time until a suitable sequence of actions is finally applied by the strategy.
 
     An alternative controller construction is proposed based on the idea of layer decomposition and the availability of a robust solution to the current problem.
     A distance metric governed by the robust predecessor to calculate costs for player 1 actions of the product game graph is introduced and a memory-less strategy synthesized that minimizes the cost over the actions of each state.
@@ -69,7 +69,7 @@ The propositional formulas $\phi = \Predicate_1$ and $\mu = \Predicate_2$ descri
     The outer polytopes as well as the region $\StateSpace \setminus \InitialStates$ is associated with infinite cost.
     This assignment induces a distance metric on the state space.
     An action for each state of the game is chosen by valuing the posterior regions associated with all actions based on this distance metric and selecting the one with the minimal volume-weighted cost.
-    Because the layers were generated such that a robust transition from each layer inward to the next is possible, a trace controlled by this strategy will be guided from one layer, reducing the distance to the target until it is reached and the specification satisfied.
+    Because the layers were generated such that a robust transition from each layer inward to the next is possible, a trace controlled by this strategy will be guided from layer to layer toward smaller cost, reducing the distance to the target until it is reached and the specification satisfied.
 
     A trace controlled with a strategy derived from this layer-based distance minimization scheme is shown in \in{Figure}[fig:cases-corridor-reachability-trace], right.
     The controller is able to guide the trace towards the center and safely through the corridor into the right room.
@@ -130,16 +130,16 @@ The propositional formulas $\phi = \Predicate_1$ and $\mu = \Predicate_2$ descri
         \stopcombination
     }
 
-    The corridor system is now verfied against a more complex specification.
-    It is required that traces visit both rooms over and over again while staying inside the state space an avoiding the walls of the corridor, expressed by the GR(1) formula
+    The corridor system is now verified against a more complex specification.
+    It is required that traces visit both rooms over and over again while staying inside the state space and avoiding the walls of the corridor, expressed by the GR(1) formula
 
     \startformula
         \Globally (\neg \theta \wedge \Finally \phi \wedge \Finally \mu ) \EndPeriod
     \stopformula
 
-    This is an inifinite objective.
+    This is an infinite objective.
     A corresponding \omega-automaton for the specification is shown in \in{Figure}[fig:cases-corridor-recurrence-automaton], left.
-    In an accepting run, the state automaton $q_0$ must be visited infinitely often.
+    In an accepting run, the automaton state $q_0$ must be visited infinitely often.
     State $q_1$ is a waiting state for the left room and $q_2$ a waiting state for the right room.
     Because both rooms $\phi$ and $\mu$ do not overlap in the corridor system, two transitions can be removed from the automaton because their transition conditions are not satisfiable.
     The pruned automaton is shown in \in{Figure}[fig:cases-corridor-recurrence-automaton], right.
@@ -164,16 +164,16 @@ The propositional formulas $\phi = \Predicate_1$ and $\mu = \Predicate_2$ descri
     The same layered refinement configuration is used that solved the previous reachability problem.
     Refinement is applied with respect to both selected transitions, then the system is analysed.
     The resulting partition and performance statistics are shown in \in{Table}[tab:cases-corridor-recurrence].
-    Compared to the reachability solution (\in{Table}[tab:cases-corridor-reachability]), the number of polytopes in the partition has approximately doubled which could be expected considering that both rooms were refined instead of just the right one.
+    Compared to the reachability solution (\in{Table}[tab:cases-corridor-reachability]), the number of polytopes in the partition has approximately doubled which is to be expected considering that both rooms were refined instead of just the left one.
     The time required to construct the game graph increased by 45\%, while the size of the product game has increased significantly, particularly when comparing the number of player actions.
     The analysis of the product game takes 15 times as long as that of the reachability problem.
     Because the game graph has to be constructed only once from the partition and is then multiplied once with every automaton state, these results seem reasonable.
     The cost of the game graph computation is incurred only once and increases with the size of the partition.
     The computational demands of the analysis scale with the size of the product game which is governed by both the partition- and automaton sizes.
-    As this example demonstrates, one can expect that the performance of the game solution procedure grows with growing complexity of specification.
+    As this example demonstrates, one can expect that the performance of the game solution procedure grows with a growing complexity of the considered specification.
     
     A controller is again synthesized based on a distance metric induced by $\PreR$-generated layers.
-    When the automaton run corresponding to a trace is in state $q_1$, the controller selectes actions such that the $\PreR$-based distance to the $q_1 \rightarrow q_2$ transition region is minimized, i.e.\ the controller aims to visit the left room defined by $\phi$.
+    When the automaton run corresponding to a trace is in state $q_1$, the controller selects actions such that the $\PreR$-based distance to the $q_1 \rightarrow q_2$ transition region is minimized, i.e.\ the controller aims to visit the left room defined by $\phi$.
     When in state $q_2$, the conroller targets the $q_2 \rightarrow q_0$ transition region, i.e.\ the controller tries to visit the right room defined by $\mu$.
     In state $q_0$ the trace is just kept safe, as the next transition immediately leads to either $q_1$ or $q_2$.
     60 steps of a trace controlled with a strategy of this kind are shown in \in{Figure}[fig:cases-corridor-recurrence-trace].
@@ -183,7 +183,9 @@ The propositional formulas $\phi = \Predicate_1$ and $\mu = \Predicate_2$ descri
         The first 60 steps of a trace sampled using a layer-based distance minimization controller syntesized for a specification that requires to visit both rooms inifitely often while avoiding the walls lining the central corridor.
         See \in{section}[sec:cases-corridor-recurrence] for discussion.
     }{
-        \externalfigure[cases-corridor-recurrence-trace][width=0.8\textwidth]
+        % Put in wide box so that figure caption has full width
+        \framed[width=\textwidth,frame=off]{\externalfigure[cases-corridor-recurrence-trace][width=0.8\textwidth]}
+        
     }
 
 \stopsubsection

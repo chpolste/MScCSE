@@ -1,44 +1,44 @@
 Systems that combine interacting discrete and continuous domains are called hybrid systems.
 \cite[VanDerSchaft2000] remarked at the start of the 21st century that the area of hybrid systems was \quotation{still largely unexplored}, but two decades later \cite[Lin2014] introduce hybrid systems by observing that they \quotation{have recently been at the center of intense research activity}.
-The reason this interest has emerged is the broad, multidisciplinary application spectrum of the hybrid system framework and its many related theoretical research questions.
+The reason that this interest has emerged is the broad, multidisciplinary application spectrum of the hybrid system framework and its many related theoretical research questions.
 Control problems of hybrid systems arise for example in robotics, where a robot has to complete discrete tasks while moving in a continuous environment, autonomous driving, where vehicle trajectories have to satisfy safety specifications, or the modelling and supervision of chemical and biological processes which exhibit threshold behaviour.
 
 The probably most often used example of a simple hybrid system is a heater controlled by a thermostat.
 The heater works in a discrete domain and its state is either on or off.
-The thermostat measures temperature, which is a continuous, real-valued variable.
+The thermostat measures temperature which is a continuous, real-valued variable.
 Both are coupled by discrete if-then-else rules: if the observed temperature falls below some threshold, the thermostat activates the heater.
 Once the desired temperature is reached, the heater is turned off.
 
-There are two essential problems in the control of hybrid systems:
-The verification or analysis problem is to determine from which intital states the system evolution can satisfy a specification.
-The synthesis problem involves the construction of a control strategy that achieves satisfaction.
-Both problems are linked and typically solved together, i.e.\ the system anaylsis provides the information necessary to synthesize satisfying control strategies.
-Model checking approaches have been established that solve these problems of some classes of hybrid systems.
+There are two fundamental problems associated with the control of hybrid systems:
+The verification or analysis problem is to determine from which initial states the system evolution can satisfy a specification.
+The synthesis problem asks for the construction of a control strategy such that trajectories of the system state controlled by this strategy satisfy a specification.
+Both problems are linked and typically solved together, i.e.\ the system analysis provides the information necessary to synthesize satisfying control strategies.
+Model checking approaches have been developed that solve these problems for some classes of hybrid systems.
 
 The category of hybrid systems encompasses a variety of characteristics that can be combined to form a specific problem.
 The system dynamics governs the evolution of trajectories, i.e.\ how the state of a specific problem instance evolves in time.
 This evolution is generally modelled by differential equations in contexts with continuous time or difference equations when time is discrete.
-Linear and piece-wise linear (also known as piece-wise affine) equations are commonly found due to their simplicity and invertibility but non-linear dynamics can be encountered in the general case.
+Linear and piece-wise linear (also known as piece-wise affine) dynamics are commonly found due to their simplicity and invertibility but non-linear dynamics can be encountered in the general case.
 Aside from deterministic evolution, the dynamics can also prescribe a probabilistic evolution in environments with uncertainty.
-Control of the system is excerted by manipulating the dynamics, e.g. through a control term in the evolution equation or by switching between multiple admissible system evolutions.
+Control of the system is exerted by manipulating the dynamics, e.g. through a control term in the evolution equation or by switching between multiple admissible system evolutions.
 In unknown or changing environments, the controller may not be able to observe the entire system state which introduces unknowns that have to be accounted for by solution approaches.
 
 The verification and synthesis problems require a specification or an objective that define which behaviour is considered \quotation{good} or \quotation{bad}.
-Such objectives can be basic properties like reachability of safety or rich specifications, usually expressed in a temporal logic.
-The temporal logic is chosen according to the properties of the system under consideration and the specification.
-Objectives can be qualitative or quantitative with respect to the probabilistic aspects of the system or imposed reward schemes.
+Such objectives can be basic properties like reachability or safety but also rich specifications, usually expressed in a temporal logic.
+The temporal logic is chosen according to the desired properties of the specification and the characteristics of the system under consideration.
+Objectives can be qualitative or quantitative with respect to probabilistic aspects or reward schemes of the system.
 It may also be desirable to account for changes in objectives with time, e.g.\ due to external requirements.
 In such cases, solutions must be able to dynamically adjust the strategy while the system is evolving.
 
-Model checking approaches have to be adapted to the given characteristics of a given problem.
-In general, model checking approaches will construct a discretization of the continuous domain of the hybrid system such that the essential behaviour of the system is captured.
-The concrete discrete abstraction model depends on the system characteristics and specification.
+Model checking approaches have to be adapted to the specific characteristics of a given problem.
+In general, a model checking procedure will construct a discretization of the continuous domain of the hybrid system such that the essential behaviour of the system is captured.
+The concrete discrete abstraction model depends on the system properties and specification.
 Commonly encountered are automata, Markov models and (probabilistic) games.
 The system abstraction is then synchronized with the specification, which is first translated to an automaton.
-The resulting finite system model is then verified and used to synthesize discrete controllers.
-Post-processing of these discrete controllers can be applied to obtain continuous feedback controllers.
+The resulting finite system model is verified and used to synthesize discrete controllers.
+Postprocessing of these discrete controllers can be applied to obtain continuous feedback controllers.
 
-System abstraction and the synchronization of sytem and specifications generally cause an explosion of the size of the state space.
+System abstraction and the synchronization of system and specifications generally cause an explosion of the size of the state space.
 This makes the verification and synthesis procedures computationally demanding and is a major challenge for hybrid system analysis.
 Restrictions can be imposed on the expressivity of the temporal logic to reduce the complexity of the specification automaton and verification procedure.
 Iterative refinement techniques aim to generate small partitions of the continuous domain based on the system dynamics and therefore limit the extent of the state space explosion.
@@ -47,7 +47,7 @@ Verification and synthesis problems for hybrid systems have been developed and a
 \cite[Kloetzer2008] consider verification and control strategy synthesis for continuous-time linear system and $\Next$-free linear temporal logic (LTL).
 \cite[Yordanov2010] and \cite[Yordanov2012] deal with discrete-time piecewise-affine systems and LTL specifications, using iterative refinement and conservative analysis of transition system abstractions, respectively.
 Markov set-chain abstractions for uncontrolled discrete-time, stochastic dynamics are investigated by \cite[Abate2011].
-\cite[Hahn2011] construct game-abstractions with iterative refinement for probabilistic hybrid automata with discrete probability distributions.
+\cite[Hahn2011] construct game abstractions with iterative refinement for probabilistic hybrid automata with discrete probability distributions.
 \cite[AydinGol2014,AydinGol2015] develop an abstraction refinement technique for the verification of deterministic, discrete-time linear systems with respect to co-safe LTL specifications and derive optimal model predictive control strategies with a cost-minimization approach.
-Discrete-time, continuous-space switched systems are considered by \cite[Lahijanian2015] who solve the verification and synthesis problem for specifications given in probabilistic computation tree logic with iteratively refined interval-valued Markov chain and bounded parameter Markov decision process abstractions.
+Discrete-time, continuous-space switched systems are considered by \cite[Lahijanian2015] who solve the verification and synthesis problems for specifications given in probabilistic computation tree logic with iteratively refined interval-valued Markov chain and bounded parameter Markov decision process abstractions.
 

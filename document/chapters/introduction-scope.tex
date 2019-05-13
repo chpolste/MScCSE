@@ -1,4 +1,4 @@
-\cite[Svorenova2017] introduce a procedure to solve the verification and synthesis problem for the class of discrete-time, continuous-space and -control, linear stochastic systems and specification from the General Reactivity(1) fragment of linear temporal logic which have to be satisfied with probabiliy 1, i.e.\ almost-surely.
+\cite[Svorenova2017] introduce a procedure to solve the verification and synthesis problems for the class of discrete-time, continuous-space and -control, linear stochastic systems and specifications from the General Reactivity(1) fragment of linear temporal logic which have to be satisfied with probability 1, i.e.\ almost-surely.
 The system is verified based on a 2-player probabilistic game abstraction of both the state- and control space.
 This abstraction is iteratively refined based on information obtained from the system dynamics.
 Satisfying controllers can be synthesized from the game once results from the verification are available.
@@ -10,13 +10,12 @@ The abstraction of probability distributions is studied by \cite[Abate2011] for 
 Probabilistic switched (i.e.\ discretely controlled) systems and PCTL specifications are considered by \cite[Lahijanian2015] who develop an iterative refinement technique for a bounded-parameter Markov decision process abstraction.
 
 In a case study, \cite[Svorenova2017] apply their procedure to a reachability problem.
-Their refinement heuristics is able to generate a (partial) solution for the problem but the method proved to be computationally demanding.
+Their refinement heuristics is able to generate a (partial) solution for the problem but the method proves to be computationally demanding.
 In this work, further refinement techniques are developed.
 The goal is to set up a refinement framework that achieves progress even for complex specifications and produces small state space partitions without causing excessive state space explosion.
 Reducing the size of the state space partition reduces the size of the game abstraction, which scales exponentially with the number of partition elements, and therefore reduces the computational demands of the procedure.
-The development of refinement techniques is supported by the implementation of an interactive visualization of the abstraction-refinement-analysis procedure.
-This visualization will be used as a platform for the design of refinement heuristics and can serve as an educational tool after this work has concluded.
-The controller synthesis problem will not be a focus of this work.
+The development of refinement techniques is supported by the implementation of an interactive visualization of the abstraction-analysis-refinement procedure.
+This visualization is used as a platform for the design of refinement heuristics and can serve as an educational tool after this work has concluded.
 
 The chapters are structured as follows:
 First, the fundamental concepts required to express the topics of this work are introduced.

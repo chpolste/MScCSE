@@ -29,9 +29,9 @@ The propositional formulas $\phi = \Predicate_1$ and $\mu = \Predicate_2$ descri
 
     The challenge of this problem setup is the narrow corridor.
     Precise control is necessary for a trace to enter and navigate the corridor.
-    This demands fine partitioning around and inside the corridor and restricts the applicability of post-processing procedures that suppress small polytopes, as these polytopes are specifically required for a solution.
+    This demands fine partitioning around and inside the corridor and restricts the applicability of postprocessing procedures that suppress small polytopes, as these polytopes are specifically required for a solution.
     Based on the previous good performance in the double integrator example, a $\PreR$-based layer decomposition with 5\%-shrunk control region is selected.
-    Each layer is refined with a 4-step robust method without post-processing.
+    Each layer is refined with a 4-step robust method without postprocessing.
     A resulting partition of this refinement configuration is shown in \in{Table}[tab:cases-corridor-reachability].
     The system does not exhibit \epsilon-limit behaviour on the edges of the state space and is completely solved.
     As expected, the partition is finer at the entrance region of the corridor than in the rest of the left room.
@@ -174,13 +174,13 @@ The propositional formulas $\phi = \Predicate_1$ and $\mu = \Predicate_2$ descri
     
     A controller is again synthesized based on a distance metric induced by $\PreR$-generated layers.
     When the automaton run corresponding to a trace is in state $q_1$, the controller selects actions such that the $\PreR$-based distance to the $q_1 \rightarrow q_2$ transition region is minimized, i.e.\ the controller aims to visit the left room defined by $\phi$.
-    When in state $q_2$, the conroller targets the $q_2 \rightarrow q_0$ transition region, i.e.\ the controller tries to visit the right room defined by $\mu$.
+    When in state $q_2$, the controller targets the $q_2 \rightarrow q_0$ transition region, i.e.\ the controller tries to visit the right room defined by $\mu$.
     In state $q_0$ the trace is just kept safe, as the next transition immediately leads to either $q_1$ or $q_2$.
     60 steps of a trace controlled with a strategy of this kind are shown in \in{Figure}[fig:cases-corridor-recurrence-trace].
     As desired, the trace does not enter the unsafe regions and visits each room 6 times, navigating back and forth through the corridor.
 
     \placefigure[top][fig:cases-corridor-recurrence-trace]{
-        The first 60 steps of a trace sampled using a layer-based distance minimization controller syntesized for a specification that requires to visit both rooms inifitely often while avoiding the walls lining the central corridor.
+        The first 60 steps of a trace sampled using a layer-based distance minimization controller synthesized for a specification that requires to visit both rooms infinitely often while avoiding the walls lining the central corridor.
         See \in{section}[sec:cases-corridor-recurrence] for discussion.
     }{
         % Put in wide box so that figure caption has full width

@@ -110,7 +110,7 @@ When all reachability problems have been solved, a solution for the original pro
         \setupTABLE[c][4][width=0.04\textwidth] % padding for the figure caption width
         \bTR
             \bTD[nr=8] \eTD
-            \bTD[nc=2] (a) no post-processing \eTD
+            \bTD[nc=2] (a) no postprocessing \eTD
             \bTD[nr=8] \eTD
         \eTR
         \bTR
@@ -170,7 +170,7 @@ When all reachability problems have been solved, a solution for the original pro
     The generated sub-partition of $\ReachStates{q}{q'}$ is then used to refine the state space partition of the original system.
 
     \placefigure[top][fig:refinement-transition-jagged]{
-        Left column: illustration of how a jagged positive refinement target (green) causes small-scale overrefinement and how post-processing of the refinement kernel affects the generated polytopes (1st application orange, 2nd yellow).
+        Left column: illustration of how a jagged positive refinement target (green) causes small-scale overrefinement and how postprocessing of the refinement kernel affects the generated polytopes (1st application orange, 2nd yellow).
         The analysis progress of the original system (double integrator from \in{Section}[sec:cases-integrator]) after refinement is shown on the right (green).
         Discussed in \in{Section}[sec:refinement-transition-reachability].
     }{
@@ -187,19 +187,19 @@ When all reachability problems have been solved, a solution for the original pro
     Overrefinement, leading to the creation of many (unnecessary) small polytopes, is a problem in general.
     \in{Figure}[fig:refinement-transition-jagged](a), left, illustrates how jagged target regions (green) can lead to the creation of many small polytopes by the $\RefinePos$ kernel (orange).
     This behaviour snowballs with subsequent iterations and affects smaller and smaller scales over time, contributing to the state space explosion and high computational cost of abstraction in the original problem after refinement.
-    To counteract this issue, post-processing can be applied to the output of $\RefinePos$.
-    This post-processing can either seek an over- or underapproximation to the region of $\RefinePos$.
+    To counteract this issue, postprocessing can be applied to the output of $\RefinePos$.
+    This postprocessing can either seek an over- or underapproximation to the region of $\RefinePos$.
     Overapproximations have the potential to additionally accelerate progress but the guarantees of robust refinement are generally lost.
     Underapproximations lead to slower progress but have the advantage that the robust guarantees are preserved.
 
-    \in{Figure}[fig:refinement-transition-jagged](b) shows an overapproximation of the refinement from \in[fig:refinement-transition-jagged](a) obtained from post-processing of the $\AttrR$-region of the $\RefinePos$ step with a simple convex hull computation.
+    \in{Figure}[fig:refinement-transition-jagged](b) shows an overapproximation of the refinement from \in[fig:refinement-transition-jagged](a) obtained from postprocessing of the $\AttrR$-region of the $\RefinePos$ step with a simple convex hull computation.
     In the example, the overapproximation has worked out and progress is made in the original system (right).
     \in{Figure}[fig:refinement-transition-jagged](c), left, shows an underapproximation that removes all small polytopes from the $\AttrR$-region of the $\RefinePos$ step.
-    The benefit of this post-processing is not just the reduction of the number of polytopes in the $\AttrR$-region but the reduction of its jaggedness.
+    The benefit of this postprocessing is not just the reduction of the number of polytopes in the $\AttrR$-region but the reduction of its jaggedness.
     This additionally reduces the number of polytopes that have to be generated for the convex partitioning of the remaining region of the refined polytope.
-    As seen in the right panel, less progress is made in the original system but this can be compensated for by incresing the number of iterations in the robust reachability solver.
-    \in{Figure}[fig:refinement-transition-jagged](d), left, shows the same problem but with two instead of one robust refinement iterations applied with small polytope-suppression post-processing.
-    Subsequent analysis of the refined original system (right) reveals more progress than both no and convex hull post-processing after one step and no overrefinement of small scales is discernible.
+    As seen in the right panel, less progress is made in the original system but this can be compensated for by increasing the number of iterations in the robust reachability solver.
+    \in{Figure}[fig:refinement-transition-jagged](d), left, shows the same problem but with two instead of one robust refinement iterations applied with small polytope-suppression postprocessing.
+    Subsequent analysis of the refined original system (right) reveals more progress than both no and convex hull postprocessing after one step and no overrefinement of small scales is discernible.
 
 \stopsubsection
 
@@ -239,7 +239,7 @@ When all reachability problems have been solved, a solution for the original pro
     The advantage of the layer decomposition is that the individual layer systems are generally simpler than the original reachability problem.
     There are less polytopes to refine in each system and the layers are fully independent, which allows parallelization.
     The $\PreR$-based structure prescribed by the layer composition has a stabilizing effect on the refinement because it limits the occurrence of jaggedness by removing the connection between the expanding target region and the refinement kernel.
-    Optimizations from standard robust refinement can also be used to solve the layer problems, such as skipping of small-but-safe polytopes and post-processing of $\RefinePos$.
+    Optimizations from standard robust refinement can also be used to solve the layer problems, such as skipping of small-but-safe polytopes and postprocessing of $\RefinePos$.
     Experience shows that refinement performance benefits from shrinking the layer-generating control space polytope slightly to combat the occurrence of \epsilon-limit behaviour on the outer edges of the layers.
     Removing the extreme control inputs at the (closed) edges of the control space has been found to reduce the generation of small state space polytopes at the edges of the layer regions in practice.
 

@@ -187,7 +187,7 @@ While formulae of propositional logic are evaluated with a single valuation of i
                 \bTD {\leavevmode\reuseMPgraphic{automaton-recurrence}} \eTD
             \eTR
             \bTR
-                \bTD \underbar{Safety}: $\Globally \neg \theta$. \par Forever avoid satisfaction of $\theta$. \par Acceptance expressed through incompletness of $\delta$. \eTD
+                \bTD \underbar{Safety}: $\Globally \neg \theta$. \par Forever avoid satisfaction of $\theta$. \par Acceptance expressed through incompleteness of $\delta$. \eTD
                 \bTD {\leavevmode\reuseMPgraphic{automaton-safety}} \eTD
             \eTR
             \bTR
@@ -208,7 +208,7 @@ While formulae of propositional logic are evaluated with a single valuation of i
 
 \startsubsection[title={Fragments of LTL},reference=sec:theory-logic-fragments]
 
-    The complexity of an LTL model-checking procedure is goverened by the cost of the translation of the specification formula to an automaton and the analysis of the synchronized product of the automaton and system model.
+    The complexity of an LTL model checking procedure is governed by the cost of the translation of the specification formula to an automaton and the analysis of the synchronized product of the automaton and system model.
     The size of a deterministic finite automaton (DFA) corresponding to an LTL formula is doubly exponential in the number of subformulae in the worst case \cite[authoryears][Baier2008].
     The worst-case time complexity of a DFA-based model checking procedure for LTL is therefore at least doubly exponential in the size of the specification, assuming that the procedure has to visit each state in the product of automaton and system model at least once.
     Restricting specifications to a fragment of LTL with reduced expressivity can limit the exponential blow-up in the automaton translation or simplify the analysis procedure.

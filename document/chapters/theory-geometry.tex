@@ -64,7 +64,7 @@ For control problems involving (piece-wise) linear dynamics, convex geometry is 
         X \MatB \colonequals \Set{ \VecY \in \reals^m \mid \MatK \MatB \VecY \leq \VecC } \EndPeriod
     \stopformula
 
-    The shorthand $-X$ is used to express the operation $(-{\mathbb 1})X$, where ${\mathbb 1}$ is an identity matrix of appropropriate size.
+    The shorthand $-X$ is used to express the operation $(-{\mathbb 1})X$, where ${\mathbb 1}$ is an identity matrix of appropriate size.
     As evident from the definitions, matrix application from the left is easily computable with the V-representation, while the H-representation is better suited to compute the result of a matrix application from the right.
     Note that both operations involve a change in dimension if $n \neq m$.
 
@@ -117,7 +117,7 @@ For control problems involving (piece-wise) linear dynamics, convex geometry is 
 
     Intersection can be distributed to the individual convex polytopes by taking the intersection of every polytope of one region with every polytope of the other region and keeping the non-empty intersections as the resulting union.
     The linear operations matrix application and translation can be applied polytope-wise.
-    Minkowski sum can be distributed to the polytopes, but the result will generally not be a disjunct set of convex polytopes and may require post-processing if a disjunct set of output polytopes is desired.
+    Minkowski sum can be distributed to the polytopes, but the result will generally not be a disjunct set of convex polytopes and may require postprocessing if a disjunct set of output polytopes is desired.
     The Pontryagin difference cannot be distributed to the convex polytopes but it is possible to express it using the Minkowski sum and set difference operations as
 
     \startformula

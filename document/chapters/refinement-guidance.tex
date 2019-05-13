@@ -4,7 +4,7 @@ In classical CEGAR, the analysis procedure generates a counterexample in the for
 If the counterexample is found to be spurious, i.e.\ if it requires behaviour that is possible in the abstraction but not the original system, refinement is applied that eliminates this behaviour from the abstraction.
 
 The analysis procedure described above does not return specific counterexample plays for states in which player 2 has a strategy to win with non-zero probability.
-It does however return the set $P_\Maybe$, containing all states in which player 1 cannot win almost-surely against an aversarial opponent, but winning is possible when player 2 is cooperative.
+It does however return the set $P_\Maybe$, containing all states in which player 1 cannot win almost-surely against an adversarial opponent, but winning is possible when player 2 is cooperative.
 The states in $P_\Maybe$ are therefore exactly those states with are associated with spurious behaviour in the abstraction, i.e.\ behaviour where player 1 might be able to win, but is unable to because of coarse abstraction.
 Without a specific counterexample play or trace, knowledge of the game graph and the LSS dynamics have to be combined with the analysis results to determine how to refine.
 Based on $P_\Maybe$, one can restrict refinement to the state space partition elements
@@ -33,7 +33,7 @@ An almost-sure winning player 1 strategy for the objective may not immediately e
 Even for positive procedures, feedback to refinement of the state space partition will not be immediate in general.
 Particularly for more complex objectives, multiple refinement steps might be necessary until the first states of the product game are recognized as members of $P_\Yes$ or $P_\No$ by the analysis.
 This can be a challenge when fully autonomous selection of refinement procedures is desired.
-One cannot solely rely on direct feedback from the sets $P_{\Yes}$, $P_{\No}$ and $P_{\Maybe}$ to evalute which refinement procedure to apply next since progress cannot be guaranteed in general.
+One cannot solely rely on direct feedback from the sets $P_{\Yes}$, $P_{\No}$ and $P_{\Maybe}$ to evaluate which refinement procedure to apply next since progress cannot be guaranteed in general.
 Unless a co-safe interpretation is adopted, where the final states are trivially satisfying, the set $P_\Yes$ will likely be empty initially.
 The design of refinement procedures has to take this into account.
 
@@ -45,6 +45,6 @@ General answers to these questions are hard to find.
 The best strategy for refinement coordination will depend on the objective, the properties of the LSS and even on the meaning of \quotation{best}.
 One can optimize refinement for the shortest time until a certain percentage of the state space has been decided by the analysis, the smallest number of states space partition elements that have to be generated until a solution is found, the suitability of the generated game graph for controller synthesis purposes and many other metrics.
 When performance is of importance, note has to be taken that the application of a refinement procedure invalidates (parts of) the game graph.
-If multiple refinement procedures are chained without an intermediate analysis (for which the game graph must be constructed inevitably), the invokation of game graph-based procedures may include significant additional computational cost because the game graph has to be recomputed.
+If multiple refinement procedures are chained without an intermediate analysis (for which the game graph must be constructed inevitably), the invocation of game graph-based procedures may include significant additional computational cost because the game graph has to be recomputed.
 This gives an advantage to procedures based only on the analysis results and system dynamics as they can be chained without incurring this additional computational cost.
 

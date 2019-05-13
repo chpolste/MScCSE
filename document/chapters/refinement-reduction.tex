@@ -12,7 +12,7 @@ The reduction allows to remove player 1 from the game entirely so that it turns 
 The lower computational complexity of MDP analysis and uncontrolled dynamics improves the feasibility of multi-step analysis.
 A refinement procedure based on this reduction can be constructed in the following way:
 First a control region is assigned to every element of the state space partition.
-This turns the controlled dynamcis of the LSS into piece-wise dynamics without control.
+This turns the controlled dynamics of the LSS into piece-wise dynamics without control.
 An MDP abstraction is constructed on top of the piece-wise system.
 The state space is refined based on insights from the MDP.
 Finally, the state space partition of the MDP system is transferred back to the original system.
@@ -30,6 +30,6 @@ It is not uncommon to encounter objectives made up of multiple separable sub-obj
 If these sub-objectives can be separated in the product game and solved individually, one can expect that a solution for the composite objective emerges.
 For refinement, this is advantageous because the sub-problems will often provide more immediate analysis feedback after refinement.
 The analysis of simple sub-problems might be possible without the need to construct a game abstraction altogether.
-E.g., saftey properties can be verified with only the $\ActR$-operator.
+E.g., safety properties can be verified with only the $\ActR$-operator.
 Parallel refinement of the sub-problems is generally possible but restricted by the fact that state space partition is shared between the individual sub-problems in the product game.
 

@@ -7,11 +7,11 @@ Expectation is that higher dimensions quickly eat up improvements in refinement 
 Limitation of full dimensional polytopes is one source of non-termination.
 It would be interesting to see if it is possible to identify such behaviour analytically.
 It could be possible to design rounding approaches to resolve the issue.
-The problem is only an artefact of implementation/desire to have robust (non-empty) control inputs, solution can be computed with arbitrary precision by reducing size of $\epsilon$-ball.
+The problem is only an artifact of implementation/desire to have robust (non-empty) control inputs, solution can be computed with arbitrary precision by reducing size of $\epsilon$-ball.
 One could just decide if the limit-region should be satisfying or not and round to force termination of the procedure overall and accelerate refinement, where the issue occurs as well.
 
 GR(1) restriction here was mainly for convenience of solving game.
-Nothing stands in the way of full LTL if a sufficiently potent game sover is introduced, as noted already by \cite[Svorenova].
+Nothing stands in the way of full LTL if a sufficiently potent game solver is introduced, as noted already by \cite[Svorenova].
 Care has be be taken when applying transition refinement to objectives that contain the next operator but everything else is transferable in a straightforward manner.
 
 Refinement that takes probabilistic aspects of system fully into account.

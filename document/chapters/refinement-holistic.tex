@@ -152,7 +152,7 @@ This restriction limits the complexity of patterns that can be identified but si
         \stopframedtext
     }
 
-    The negative attractor refinement presented in the previous section does not generally resolve all occurences of the problematic pattern (\in[fml:refinement-holistic-negattr-condition]).
+    The negative attractor refinement presented in the previous section does not generally resolve all occurrences of the problematic pattern (\in[fml:refinement-holistic-negattr-condition]).
     It only identifies and refines regions where player 2 wins inevitably with non-zero probability.
     A state $\Tuple{\State{i}}{q}$ of the product game might satisfy condition (\in[fml:refinement-holistic-negattr-condition]) but also have a player 1 action after whose selection states from $\NoStates{q'}$ with $q' = \QNext{i}{q}$ can be avoided almost-surely if player 2 cooperates, resulting in a safe transition from the perspective of player 1.
     In such cases, refinement should be applied that allows player 1 to enforce this safe transition even if player 2 plays as an adversary.

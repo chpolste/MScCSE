@@ -200,8 +200,8 @@
       <ul>
         <li>The target region can be automatically expanded between iterations using the progress guarantee of the refinement kernel.</li>
         <li>Small polytopes where <span class="math">X_i \ominus W = \emptyset</span> can be skipped in the refinement if they are safe (i.e. a robust transition exists for the polytope that fulfills the avoidance condition).</li>
-        <li>Post-processing of the <span class="math">\mathrm{AttrR}</span> region is available to reduce jaggedness: over-approximation with a convex hull or under-approximation by only retaining the largest polytope of the region or by filtering out small polytopes.</li>
-        <li>The control region used for layer generation can be shrunk or expanded to deal with ε-boundary behaviour.</li>
+        <li>Postprocessing of the <span class="math">\mathrm{AttrR}</span> region is available to reduce jaggedness: overapproximation with a convex hull or under-approximation by only retaining the largest polytope of the region or by filtering out small polytopes.</li>
+        <li>The control region used for layer generation can be shrunk or expanded to deal with ε-limit behaviour.</li>
       </ul>
     </div>
     <div class="info-box" id="info-snapshots">
@@ -253,7 +253,7 @@
     <div class="info-box" id="info-automaton">
       <p>
         The one-pair Streett objective automaton.
-        Member states of the accepance pair <span class="math">(E,\,F)</span> are depicted with a dashed outline (<span class="math">E</span>) and double outline (<span class="math">F</span>).
+        Member states of the acceptance pair <span class="math">(E,\,F)</span> are depicted with a dashed outline (<span class="math">E</span>) and double outline (<span class="math">F</span>).
         Click on a state to view the system in that state.
         Hover over a transition label with the mouse to reveal the associated transition region in the state space view.
         The symbol * denotes the default transition if no other transition condition matches.

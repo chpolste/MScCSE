@@ -10,7 +10,7 @@ The resulting product game enforces the synchronized evaluation automaton runs a
     The GR(1) objective formula $\varphi$ from \in{Section}[sec:problem-statement] is formulated over a set of linear predicates $\Predicates$.
     The initial decomposition of the state space (\in[fml:abstraction-graph-decomposition]) is induced by an equivalence relation governed by this set of linear predicates.
     Every element $\State{i}$ of the initial state space partition therefore fulfills and rejects exactly the same predicates from $\Predicates$.
-    The function $\FulfilledPredicates$ can thus be extended to the partition without ambiguity, associating paritition elements with the set of predicates they satisfy.
+    The function $\FulfilledPredicates$ can thus be extended to the partition without ambiguity, associating partition elements with the set of predicates they satisfy.
     Player 1 states of the game are identified uniquely with state space partition elements, so every play of $\GameGraph$ induces a word over the alphabet $2^\Predicates$.
     Using this alphabet, an \omega-automaton
 
@@ -152,11 +152,11 @@ The resulting product game enforces the synchronized evaluation automaton runs a
 
     An exception to the handling of outer states in the previous section must be made:
     For objectives interpreted in a co-safe setting, traces that have already fulfilled their objective are free to go anywhere, even outside of the state space.
-    It is possible to accommodate this interpretation in the product game construction with a post-processing step analogous to the one that resolves dead-end states.
+    It is possible to accommodate this interpretation in the product game construction with a postprocessing step analogous to the one that resolves dead-end states.
 
     A new player 1 state $\State{\SatEnd1}$ and player 2 state $\State{\SatEnd2}$ is introduced together with an action $\SatEnd$.
     Final states in the product game, i.e.\ player 1 states whose actions trigger satisfaction of the co-safe objective, are first stripped of their existing actions and then deterministically redirected into a loop constructed exactly as in Figure \in[fig:abstraction-product-endloop] but using $\State{\SatEnd1}$ instead of $\State{\DeadEnd1}$, $\State{\SatEnd2}$ instead of $\State{\DeadEnd2}$ and $\SatEnd$ instead of $\DeadEnd$.
-    The only states occuring infinitely often in traces trapped in this loop are $\State{\SatEnd1}$ and $\State{\SatEnd2}$ which are not included in either of the acceptance sets of the one-pair Streett condition.
+    The only states occurring infinitely often in traces trapped in this loop are $\State{\SatEnd1}$ and $\State{\SatEnd2}$ which are not included in either of the acceptance sets of the one-pair Streett condition.
     Trapped traces therefore guarantee that player 1 wins the game almost surely, independent of what happens after the objective has been satisfied.
 
     The following requirements are expected of one-pair Streett acceptance conditions $\Tuple{E}{F}$ with co-safe interpretation:

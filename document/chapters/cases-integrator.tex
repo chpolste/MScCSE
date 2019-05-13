@@ -160,13 +160,13 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
 
     The two-step refinement is applied again with two modifications:
     First, any state $Y$ with $Y \ominus \RandomSpace$ is not further refined unless the probability of reaching the no-region is non-zero for all control inputs.
-    Second, the $\RefinePos$ partition is post-processed such that polytopes $Y$ where $Y \ominus \RandomSpace$ is empty are removed from the $\AttrR$-region, as shown in \in{Figure}[fig:refinement-transition-jagged](d).
+    Second, the $\RefinePos$ partition is postprocessed such that polytopes $Y$ where $Y \ominus \RandomSpace$ is empty are removed from the $\AttrR$-region, as shown in \in{Figure}[fig:refinement-transition-jagged](d).
     4 iterations of this modified refinement are presented in \in{Table}[tab:cases-integrator-positive-suppressed].
-    As expected, progress per iteration is slower than without post-processing but the state space explosion is significantly reduced because the refinement is able to handle jaggedness without propagating it to smaller scales.
+    As expected, progress per iteration is slower than without postprocessing but the state space explosion is significantly reduced because the refinement is able to handle jaggedness without propagating it to smaller scales.
     After 4 iterations that take only a tenth of the time of the unmodified procedure, less than half the number of partition elements are generated and only 2.7\% of the system is left undecided.
 
     Similar partitioning is also achieved if a single iteration with an 8-step procedure is carried out (not shown), although the overall elapsed time is longer because the game construction cannot benefit from intermediate analysis results.
-    Applying an overapproximating post-processing using the convex hull as shown in \in{Figure}[fig:refinement-transition-jagged](b) resulted in varying performance (not shown).
+    Applying an overapproximating postprocessing using the convex hull as shown in \in{Figure}[fig:refinement-transition-jagged](b) resulted in varying performance (not shown).
     While the overapproximation would sometimes work out and the system would continuously progress, the procedure could also get stuck due to the missing progress guarantee.
 
 \stopsubsection
@@ -186,15 +186,15 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
     }
 
     The layer decomposition offers an alternative approach to multi-step refinement.
-    It is now applied together with the post-processed, underapproximated robust refinement from the previous section.
+    It is now applied together with the postprocessed, underapproximated robust refinement from the previous section.
     The robust predecessor is chosen as the layer-generating operator.
     Because reachability from the outer layers depends on the solution of the inner layers, up to 4 robust refinement steps are applied to each layer in order to increase the likelihood of successful refinement.
 
     \in{Table}[tab:cases-integrator-layered-original] shows the partitioning and performance metrics for a layered decomposition refinement.
     The $\PreR$ recurrence converged after 7 layers.
-    The size of the resulting state space partition is similar to that of the final iteration of the post-processed two-step refinement but the elapsed time to solution is longer, since no intermediate analysis results are available for game simplification.
+    The size of the resulting state space partition is similar to that of the final iteration of the postprocessed two-step refinement but the elapsed time to solution is longer, since no intermediate analysis results are available for game simplification.
     It also fails to guarantee almost-sure reachability for some polytopes from the 2 outermost layers.
-    This is likely related to the small polytope suppression as these polytopes are relatively long and thin and any further refinement is rejected by the post-processing.
+    This is likely related to the small polytope suppression as these polytopes are relatively long and thin and any further refinement is rejected by the postprocessing.
     Long and thin states appear also along the edges of the layer boundaries.
     This is due to \epsilon-limit behaviour at the edge of the $\PreR$-regions.
 
@@ -220,7 +220,7 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
     The number of states that arise just from the layer decomposition alone is 106 (see \in{Figure}[fig:refinement-transition-layers]), meaning that 23 additional polytopes were generated to enable the desired layer-to-layer transitions.
     The number of player 1 and 2 actions in the game graph has been reduced significantly and this is reflected in a much smaller run time of the game construction.
     After the analysis, 99\% of the state space is decided with 29 seconds elapsed since initialization.
-    This is faster than two-step refinement with post-processing which profited from game simplification due to intermediate analysis results being available.
+    This is faster than two-step refinement with postprocessing which profited from game simplification due to intermediate analysis results being available.
     It is also the smallest state space partition of all positive robust refinement configurations tried.
 
     \placetable[top][tab:cases-integrator-layered-shrunk]{
@@ -384,7 +384,7 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
 
     The most striking observation from this table is the variability in partition size and elapsed time exhibited by the procedures not based on a layer decomposition.
     Randomization in the $\RefinePos$ kernel apparently has a significant effect on the refinement performance.
-    Elapsed times for both refinement methods without post-processing vary by more than 15 minutes and the state space partition size by up to 100 polytopes.
+    Elapsed times for both refinement methods without postprocessing vary by more than 15 minutes and the state space partition size by up to 100 polytopes.
     The variability of the non-layered procedure with small state suppression is much less, but still varies by half a minute.
     In contrast, the layered methods vary only by a few seconds and less than 10 polytopes in the state space partition.
     The results of the layer decomposition with shrunk control space show no variability at all in the volume of decided state space and less than 3 seconds of variability in the total elapsed time.
@@ -433,7 +433,7 @@ Double integrator dynamics were also used as an example by \cite[AydinGol2015] b
 
     The discussion of the double integrator system is concluded by a demonstration of the effectiveness of neutral refinement techniques.
     After the negative refinement (\in{Table}[tab:cases-integrator-negative]), safety refinement is applied twice, followed by 5 iterations of self-loop removal without intermediate analysis.
-    The indended purpose of the safety refinement is to contain the \epsilon-limit behaviour along the edges of the negative attractor regions, while the removal of self-loops should allow strategies to evolve traces inside the safe region until the target is eventually reached probabilistically.
+    The intended purpose of the safety refinement is to contain the \epsilon-limit behaviour along the edges of the negative attractor regions, while the removal of self-loops should allow strategies to evolve traces inside the safe region until the target is eventually reached probabilistically.
     A partition of the state space resulting from such refinement is shown in \in{Table}[tab:cases-integrator-neutral] together with the familiar performance metrics.
     It is evident that the neutral refinement techniques alone are not competitive with layered refinement with respect to both run time and partition size.
     Notable is that the refinement took much longer than for any of the robust methods due to the self-loop refinement which requires the game graph to be (partially) constructed in between applications.

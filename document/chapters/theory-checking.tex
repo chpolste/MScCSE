@@ -4,10 +4,10 @@ Specifications may concern qualitative (e.g.\ \quotation{can something bad happe
 
 The process of model checking starts with the construction of a system model.
 A system under consideration has to be transformed into a finite and unambiguous representation which reproduces its essential behaviour and provides the information required to verify the specification.
-A model-checking procedure will then explore this system representation exhaustively by brute-force, considering every possible state of the system model, looking for counterexamples that violate the specification.
+A model checking procedure will then explore this system representation exhaustively by brute-force, considering every possible state of the system model, looking for counterexamples that violate the specification.
 This approach ensures that no malicious behaviour of the system is missed and the produced counterexamples can be used to guide the search for system or system model errors \cite[alternative=authoryears,left={(e.g.\ }][Clarke2000].
 However, the exhaustive approach also often means that substantial resources are required to carry out the verification.
 Systems with rich behaviour require complex models for accurate representation, leading to a large number of possible states that need to be checked by the procedure.
-Dealing with this so-called state space explosion is a major challenge when designing a model-checking procedure.
+Dealing with this so-called state space explosion is a major challenge when designing a model checking procedure.
 Along with the continuous increase in available computing power which allows for the verification of increasingly complex systems, techniques such as partial order reduction and abstraction refinement have been and are developed to combat the state space explosion problem \cite[authoryears][Baier2008].
 

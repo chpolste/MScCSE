@@ -1,0 +1,283 @@
+<!doctype html>
+
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Linear Stochastic System Analysis and Abstraction Refinement</title>
+    <link rel="stylesheet" type="text/css" href="css/inspector.css">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" integrity="sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js" integrity="sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm" crossorigin="anonymous"></script>
+    <script src="js/inspector.js" defer></script>
+  </head>
+
+  <body>
+    
+    <div class="header">
+      <h1>Linear Stochastic System Analysis and Abstraction Refinement</h1>
+    </div>
+
+    <div id="application">
+      <p>Please wait while the application is loading...</p>
+    </div>
+
+    <div class="text cols">
+      <div class="left">
+        <h2>Problem Formulation</h2>
+        <p>
+          The problem considered here, as posed by <a href="#Svorenova2017">Svoreňová et al. (2017)</a>, is:
+        </p>
+        <p class="quote">
+          Compute the set of initial states of a dynamical system such that there exists a control strategy to ensure that the trajectories satisfy a temporal logic specification with probability 1 (almost-sure).
+        </p>
+        <p>
+          More specifically, given a discrete-time linear stochastic system <span class="math">\mathcal{T}</span>, find the set of initial states <span class="math">X_{init} \subseteq X</span> for which a control strategy exists such that the probability of a trace starting in <span class="math">X_{init}</span> satisfies an objective given by a GR(1) formula <span class="math">\varphi</span> over a set of linear predicates <span class="math">\Pi</span> is 1 (almost-sure analysis).
+          Furthermore, synthesize witness strategies ensuring the objective with probability 1 for all initial states <span class="math">x \in X_{init}</span>.
+        </p>
+  
+        <h2 id="references">References</h2>
+        <p id="Svorenova2017">
+          Svoreňová, M., Křetínský, J., Chmelík, M., Chatterjee, K., Černá, I. and Belta, C. (2017).
+          Temporal logic control for stochastic linear systems using abstraction refinement of probabilistic games.
+          Nonlinear Analysis: Hybrid Systems, 23(15), 230–253.
+          DOI: <a href="https://doi.org/10.1016/j.nahs.2016.04.006">10.1016/j.nahs.2016.04.006</a>
+        </p>
+      </div>
+
+      <div class="right">
+        <h2 id="about">About</h2>
+        <p>
+          This application is an implementation and visualization of an algorithm developed by <a href="#Svorenova2017">Svoreňová et al. (2017)</a>.
+          Their implementation, written in Matlab and Java, influenced this JavaScript version.
+          It is part of the Master's thesis of Christopher Polster, supervised by <a href="https://www7.in.tum.de/~kretinsk/">Jan Křetínský</a> from the <a href="https://www7.in.tum.de/home/index.php">Chair for Foundations of Software Reliability and Theoretical Computer Science</a> at Technische Universität München.
+        </p>
+        <p>
+          The source code is available on <a href="https://github.com/chpolste/MScCSE">GitHub</a>.
+        </p>
+  
+        <h2>Related Software</h2>
+        <p>
+          <a href="http://sites.bu.edu/hyness/conpas2/">conPAS/conPAS2: Temporal logic control of Piecewise Affine Systems</a>
+        </p>
+      </div>
+    </div>
+
+    <!-- Info boxes of problem setup-->
+    <div class="info-box" id="info-input-objective">
+      <p>
+        Choose a predefined temporal logic objective and specify propositions for the placeholder variables.
+        Labelled linear predicates from the initial state space decomposition can be used as atomic propositions.
+        The operators not (<code>!</code>), and (<code>&amp;</code>), or (<code>|</code>) and implies (<code>-&gt;</code>) are available to form propositional formulas.
+        They are listed in order of decreasing precedence, parentheses can be used to group expressions.
+      </p>
+      <p>
+        The predefined objectives are:
+      </p>
+      <ul>
+        <li><u>Reachability</u>: After a finite number of steps, the trace has to reach a specified region of the state space.</li>
+        <li><u>Reachability/Avoidance</u>: After a finite number of steps, the trace has to reach a specified region of the state space. Until then, another region must not be entered.</li>
+        <li><u>Safety</u>: A specified region of the state space must never be entered.</li>
+        <li><u>Eventual Safety</u>: After a finite number of steps, the trace must never enter a specified region of the state space again.</li>
+        <li><u>Recurrence</u>: A specified region of the state space must be visited infinitely often.</li>
+      </ul>
+      <p>
+        Enabling the co-safe interpretation allows traces to leave the state space once the objective has been satisfied.
+        Otherwise an implicit safety property with respect to the state space is required at all times.
+      </p>
+    </div>
+    <div class="info-box" id="info-input-control">
+      <p>
+        Define the control space polytope <span class="math">U</span> as the intersection of halfspaces.
+        One halfspace per line, specified as inequalities.
+        Dimensions are named <code>x</code> and <code>y</code>.
+      </p>
+    </div>
+    <div class="info-box" id="info-input-random">
+      <p>
+        Define the random space polytope <span class="math">W</span> as the intersection of halfspaces.
+        One halfspace per line, specified as inequalities.
+        Dimensions are named <code>x</code> and <code>y</code>.
+      </p>
+    </div>
+    <div class="info-box" id="info-input-state">
+      <p>
+        Define the state space polytope <span class="math">X</span> as the intersection of halfspaces.
+        One halfspace per line, specified as inequalities.
+        Dimensions are named <code>x</code> and <code>y</code>.
+      </p>
+    </div>
+    <div class="info-box" id="info-input-predicates">
+      <p>
+        Define the linear predicates that generate the initial state space partition.
+        One predicate per line, specified as inequalities.
+        Dimensions are named <code>x</code> and <code>y</code>.
+        Predicates can be labeled and then used as atomic propositions in the objective specification.
+      </p>
+      <p>
+        E.g.: labeled predicate (label <code>p0</code>): "<code>p0: x &lt; 2y</code>"<br>
+        E.g.: inequality without a label: "<code>y - 0.5x &gt; 4</code>"
+      </p>
+    </div>
+
+    <!-- Info boxes of inspector -->
+    <div class="info-box" id="info-state">
+      <p>
+        Information about the currently selected state <span class="math">(X_i,\, q_j)</span> of the product game:
+        Label of the selected state space partition element (choose by clicking in the state space view) and automaton state (choose by clicking in the automaton view) as well as the successor automaton state based on the satisfied linear predicates.
+        The analysis status for all product game states associated with the state space element is indicated by color.
+      </p>
+      <p>
+        A dynamics operator is selectable from the dropdown menu which is shown in the state space view.
+      </p>
+      <ul>
+        <li>Posterior: <span class="math">\mathrm{Post}(X_i,\, U)</span></li>
+        <li>Predecessor: <span class="math">\mathrm{Pre}(X,\, U,\, X_i)</span></li>
+        <li>Robust Predecessor: <span class="math">\mathrm{PreR}(X,\, U,\, X_i)</span></li>
+        <li>Attractor: <span class="math">\mathrm{Attr}(X,\, U,\, X_i)</span></li>
+        <li>Robust Attractor: <span class="math">\mathrm{AttrR}(X,\, U,\, X_i)</span></li>
+      </ul>
+      <p>
+        If a player 1 action is selected, the posterior adapts to the concrete action polytope, the backward looking operators do not.
+      </p>
+    </div>
+    <div class="info-box" id="info-actions">
+      <p>
+        Player 1 actions of the game graph denoted as <span class="math">X_i \rightarrow \{ X_j \}_{j \in J}</span>.
+        The colors show the analysis status of the origin and target states, taking into account changes in the automaton state when transitioning.
+        The selection of a player 1 action highlights the associated region <span class="math">\mathrm{ActC}(X_i,\, \{X_j\}_{j \in J}) = U_i^J</span> in the control space view.
+        The transition is also depicted with arrows between the origin and target polytopes in the state space view.
+      </p>
+      <p>
+        Player 2 actions are shown when a player 1 action is selected in the form of the support sets <span class="math">\{X_k\}_{k \in K}</span> of the probability distribution of the outgoing transition.
+        Hovering over a player 2 action with the mouse pointer reveals the corresponding <span class="math">\mathrm{PreP}(X_i,\, U_i^J,\, \{ X_k \}_{k \in K})</span> region in the state space view, where <span class="math">U_i^J</span> is associated with the player 1 action and <span class="math">K \subseteq J</span>.
+      </p>
+    </div>
+    <div class="info-box" id="info-analysis">
+      <p>
+        Analyse the system and update the analysis status of all states.
+        While interface remains responsive, only cached data can be displayed until the analysis is finished.
+        Activity is indicated by the loading symbol in the heading.
+        When the analysis is finished, a brief report is written to the log messages (Info tab).
+      </p>
+      <p>
+        Current analysis results can be removed by clicking reset, this allows analysing the system without any product game simplification.
+      </p>
+      <p>
+        Also displayed are the current number of yes- (green), no- (grey), unreachable- (red) and maybe-states (black).
+        A progress bar shows the state space volume fraction corresponding to each category for the currently selected automaton state.
+        The outer states are excluded from these statistics.
+      </p>
+    </div>
+    <div class="info-box" id="info-holistic-refinement">
+      <p>
+        Refinement based on single-step look-ahead patterns in the entire product game.
+      </p>
+      <ul>
+        <li>
+          Positive refinement enables robust transitions to the yes-region (robust attractor mode) or refines with respect to the <span class="math">\mathrm{PreR}</span> of the yes-region (robust predecessor mode).
+        </li>
+        <li>
+          Negative attractor refinement refines with respect to the <span class="math">\mathrm{Attr}</span> of the no-region.
+        </li>
+        <li>
+          Safety refinement refines robustly with respect to the union of the yes- and maybe-regions.
+        </li>
+        <li>
+          Self-loop removal refines with respect to the <span class="math">\mathrm{PreP}</span> of player 2 actions that lead to a self-loop.
+          Optimistic removal only refines if player 2 can force a loop for all player 1 actions, while pessimistic removal always refines if a self-loop is found.
+          Unsafe actions can be excluded from the pattern search.
+        </li>
+      </ul>
+    </div>
+    <div class="info-box" id="info-transition-refinement">
+      <p>
+        Transition-based refinement in a robust framework.
+        Select origin and target automaton states.
+        A reachability/avoidance problem is extracted based on the corresponding transition.
+        An additional decomposition into layers is possible.
+        Select which layers should be generated as well as the layer-inducing operator.
+        The specified number of refinement iterations is performed on the extracted problem(s) with a positive robust one-step kernel based on the <span class="math">\mathrm{AttrR}</span> operator.
+        The following options can be toggled:
+      </p>
+      <ul>
+        <li>The target region can be automatically expanded between iterations using the progress guarantee of the refinement kernel.</li>
+        <li>Small polytopes where <span class="math">X_i \ominus W = \emptyset</span> can be skipped in the refinement if they are safe (i.e. a robust transition exists for the polytope that fulfills the avoidance condition).</li>
+        <li>Postprocessing of the <span class="math">\mathrm{AttrR}</span> region is available to reduce jaggedness: overapproximation with a convex hull or under-approximation by only retaining the largest polytope of the region or by filtering out small polytopes.</li>
+        <li>The control region used for layer generation can be shrunk or expanded to deal with ε-limit behaviour.</li>
+      </ul>
+    </div>
+    <div class="info-box" id="info-snapshots">
+      <p>
+        Store and restore the state space partition and analysis status of the system in a snapshot.
+        Snapshots are arranged in a tree based on their succession.
+        A snapshot is taken automatically after every analysis and can be taken manually at any time.
+        Progress not saved as a snapshot is lost when loading a previous snapshot.
+      </p>
+    </div>
+    <div class="info-box" id="info-trace-sample">
+      <p>
+        Generate trace samples in the system.
+        Select the controller used to obtain control vectors from the dropdown menu.
+        Traces are initiated randomly from inside the currently selected product game state or anywhere in the state space for the current automaton state if the polytope selection is empty.
+        Traces are terminated when the outer region is reached, a co-safe objective has been satisfied or the maximum number of steps is exceeded.
+      </p>
+    </div>
+    <div class="info-box" id="info-trace">
+      <p>
+        The individual steps of the current trace.
+        Transitions in the objective automaton in the corresponding play of the product game are shown below the arrows depicting the steps.
+        Hovering over an arrow with the mouse pointer highlights the corresponding step in the state space view as well as the control and random vectors in their corresponding views.
+        The number of steps in the trace sample is given above together with the reason for the termination of the trace.
+      </p>
+    </div>
+    <div class="info-box" id="info-connectivity">
+      <p>
+        Export aspects of the system:
+      </p>
+      <ul>
+        <li><u>Calculator</u>: Open the current problem setup in the polytopic calculator application.</li>
+        <li><u>Plotter</u>: Open the current state space partition in the polytopic plotter application.</li>
+        <li><u>Export Session</u>: Download the snapshot tree so that it can be re-imported later from the problem setup screen (make sure to snapshot the current state if desired).</li>
+      </ul>
+    </div>
+    <div class="info-box" id="info-log">
+      <p>
+        Type of reports:
+      </p>
+      <ul>
+        <li><u>Analysis reports</u>: Information about the size of the product game graph, how many states were updated and timings for the game construction and solution.</li>
+        <li><u>Refinement reports</u>: How many states were refined, how many states were created and timing of the refinement.</li>
+      </ul>
+      <p>
+        Also shown are error messages from the background WebWorker and notifications whenever a snapshot is restored.
+      </p>
+    </div>
+    <div class="info-box" id="info-automaton">
+      <p>
+        The one-pair Streett objective automaton.
+        Member states of the acceptance pair <span class="math">(E,\,F)</span> are depicted with a dashed outline (<span class="math">E</span>) and double outline (<span class="math">F</span>).
+        Click on a state to view the system in that state.
+        Hover over a transition label with the mouse to reveal the associated transition region in the state space view.
+        The symbol * denotes the default transition if no other transition condition matches.
+        Transitions are highlighted blue for the currently selected product game state and red for the selected trace step.
+      </p>
+    </div>
+    <div class="info-box" id="info-control">
+      <p>
+        The control- and random space polytopes, <span class="math">U</span> (left) and <span class="math">W</span> (right).
+        <span class="math">\mathrm{ActC}</span> regions are highlighted when a player 1 action is selected.
+        Control and random vectors of trace steps are shown when a trace step is selected.
+      </p>
+    </div>
+    <div class="info-box" id="info-view-settings">
+      <p>
+        Add or remove information from the state space view:
+      </p>
+      <ul>
+        <li><u>Label Polytopes</u>: Display polytope labels <span class="math">X_i</span>.</li>
+        <li><u>Vector Field</u>: Show <span class="math">x_{t+1} = A x_{t}</span> as a vector field.</li>
+      </ul>
+    </div>
+  </body>
+</html>
+

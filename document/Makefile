@@ -2,7 +2,7 @@
 
 CHAPTERS = $(wildcard chapters/*.tex)
 FIGURES = $(wildcard figures/*.svg) figures/TUM-logo.pdf
-INPUTS = $(wildcard inputs/)
+INPUTS = $(wildcard inputs/*)
 
 
 .PHONY: all clean

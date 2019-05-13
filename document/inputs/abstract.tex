@@ -4,13 +4,13 @@ This problem has previously been posed and solved by \cite[Svorenova2017].
 Their approach utilizes a turn-based 2-player probabilistic game abstraction which is analysed with a model checking procedure and iteratively refined based on the analysis results and dynamics of the system.
 
 Starting from this procedure, refinement methods are developed that extend the capabilities and effectiveness of those introduced by \cite[Svorenova2017].
-A holistic refinement procedures are proposed that match problematic patterns in the abstraction and break them by refining the state space partition with respect to one step of the system dynamics.
+Holistic refinement procedures are proposed that match problematic patterns in the abstraction and break them up through refinement of the state space partition guided by the system dynamics.
 Based on robust dynamics and the decomposition of a system into a series of co-safe reachability problems induced by the transitions of the objective automaton, a multi-step refinement framework is set up.
 The framework is configurable and can adapt to the requirements of specific problems.
 
 The developed refinement techniques are applied in two case studies, a reachability problem and a system with a more complex recurrence objective.
-Results show that that the robust framework is able to significantly reduce the size of the state space partition compared to previous methods, thereby improving the performance of the verification procedure.
-Its multi-step nature is able to make progress also for rich specifications.
+The cases show that that the robust framework is able to significantly reduce the size of the state space partition compared to previous methods, thereby improving the performance of the verification procedure.
+Its multi-step nature is able to ensure progress also for rich specifications.
 
 Finally, a browser-based application for interactive visualization and exploration of the considered problem and its solution scheme is presented.
 It serves as an educational tool and experimentation platform and was used in the development of refinement procedures.

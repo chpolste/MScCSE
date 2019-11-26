@@ -1,5 +1,8 @@
 # Software
 
+Licensed unter terms of the MIT license (see [LICENSE](LICENSE)).
+
+
 ## Applications
 
 - [__Inspector__](https://chpolste.github.io/MScCSE/software/dist/inspector.html): visualization of the LSS abstraction-refinement and analysis.
